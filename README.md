@@ -25,20 +25,20 @@ cp .env.example .env.local     # then fill it in (see below)
 npm run dev                    # http://localhost:3000
 ```
 
-`supabase status` prints the local API URL and anon key for `.env.local`.
+`supabase status` prints the local API URL and publishable key for `.env.local`.
+Local development always points at the local Supabase, never the hosted one.
 
 ## Environment variables
 
-| Name                            | What it is                                                                                 |
-| ------------------------------- | ------------------------------------------------------------------------------------------ |
-| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase project URL (local: `http://127.0.0.1:54321`)                                     |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon (public) key. Safe in the browser; RLS protects the data                     |
-| `NEXT_PUBLIC_APP_URL`           | Public site URL for canonical links, sitemap and social cards, e.g. `https://pitchype.com` |
+| Name                                   | What it is                                                                                 |
+| -------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_SUPABASE_URL`             | Supabase project URL (local: `http://127.0.0.1:54321`)                                     |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key (`sb_publishable_…`). Safe in the browser; RLS protects the data  |
+| `NEXT_PUBLIC_APP_URL`                  | Public site URL for canonical links, sitemap and social cards, e.g. `https://pitchype.com` |
 
-All three are safe to expose. Newer Supabase projects label the anon key as
-the "publishable key" (`sb_publishable_…`); either works in
-`NEXT_PUBLIC_SUPABASE_ANON_KEY`. The service-role key is not used at this stage
-and must never get a `NEXT_PUBLIC_` name.
+All three are safe to expose. A legacy anon key also works in
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. The secret / service-role key is not
+used at this stage and must never get a `NEXT_PUBLIC_` name.
 
 ## Scripts
 
