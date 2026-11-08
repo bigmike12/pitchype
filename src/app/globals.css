@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+/*
+ * Pitchype design tokens. Every text/background pair used on the page was
+ * contrast-checked against WCAG AA; see "Design tokens" in README.md for the
+ * rules (e.g. ink text only on the saturated brand colours).
+ */
+@theme {
+  --color-canvas: #fff9ee;
+  --color-surface-soft: #fbf3e2;
+  --color-surface-card: #f4ebd6;
+  --color-ink: #121212;
+  --color-body: #3a3a3a;
+  /* #6b6b6b in the brief; darkened so it passes 4.5:1 on surface-card too. */
+  --color-muted: #666666;
+  /* Decorative 1px lines only; too faint to outline a form field. */
+  --color-hairline: #e8e0cc;
+  /* Borders of inputs and pills: 3:1 against cream and white (WCAG 1.4.11). */
+  --color-field: #8a8273;
+  --color-danger: #b3261e;
+
+  --color-brand-green: #0f3d2e;
+  --color-brand-coral: #ff6b57;
+  --color-brand-lilac: #c9b8ff;
+  --color-brand-sun: #ffc93c;
+  --color-brand-peach: #ffb48a;
+  --color-brand-mint: #a9e0c8;
+
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-float-slow: float 9s ease-in-out -3s infinite;
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0) rotate(var(--tilt, 0deg));
+    }
+    50% {
+      transform: translateY(-8px) rotate(var(--tilt, 0deg));
+    }
+  }
+}
+
+/* next/font sets these variables on <html>. */
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display:
+    var(--font-bricolage), var(--font-inter), ui-sans-serif, system-ui,
+    sans-serif;
+}
+
+/* Display type: fluid between a 360px phone and a 1280px desktop. */
+@utility text-display-xl {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(2.375rem, 1.544rem + 3.696vw, 4.5rem);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+}
+
+@utility text-display-lg {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.875rem, 1.337rem + 2.391vw, 3.25rem);
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+}
+
+@utility text-display-md {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.375rem, 1.239rem + 0.6vw, 1.75rem);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+}
+
+/*
+ * Section rhythm: 64px between sections on phones, 96px on desktop. Margins
+ * (not padding) so neighbouring sections' spacing collapses into one gap.
+ */
+@utility section-y {
+  margin-block: 4rem;
+  @media (width >= 64rem) {
+    margin-block: 6rem;
+  }
+}
+
+/* Light text and focus rings for the dark surfaces (ink, brand green). */
+@utility on-dark {
+  color: #fff;
+  --heading: #fff;
+  --focus-ring: #fff;
+}
+
+@layer base {
+  html {
+    /* Keeps anchored sections clear of the sticky 64px header. */
+    scroll-padding-top: 5rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-body);
+    font-family: var(--font-sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    color: var(--heading, var(--color-ink));
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus-ring, var(--color-ink));
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background-color: var(--color-brand-sun);
+    color: var(--color-ink);
+  }
+}
