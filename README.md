@@ -79,12 +79,21 @@ run as the service role.
 
 ## Deploy to Vercel
 
-1. Create a Supabase project, then `supabase link --project-ref <ref>` and
-   `supabase db push` to create the table.
-2. Import the repo in Vercel (framework preset: Next.js).
+The hosted Supabase project is `pitchype` (ref `byhbrzwhlvfhsrzkzgfx`,
+Frankfurt). The repo is linked to it, so new migrations go up with
+`supabase db push` (try `--dry-run` first).
+
+1. Import the repo in Vercel (framework preset: Next.js).
+2. In Project Settings → Functions, set the region to **Frankfurt (fra1)** so
+   server code runs next to the database.
 3. Set the three environment variables above for Production (and Preview if
-   you want previews to save signups). Use the hosted project's URL and anon key.
+   you want previews to save signups), using the hosted project's URL and
+   publishable key from the Supabase dashboard.
 4. Deploy. Check `/robots.txt`, `/sitemap.xml` and a test signup afterwards.
+
+The app doesn't depend on Vercel: `npm run build && npm start` runs it on any
+Node host. `docs/PROVIDERS.md` lists every provider-specific piece and how to
+replace it.
 
 ## Design tokens
 

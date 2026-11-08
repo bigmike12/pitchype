@@ -54,7 +54,7 @@ Simplicity, readability and maintainability take priority over abstraction and a
 
 ### How this applies here, concretely
 
-- No repository/service/factory/DI layers "for flexibility". A Server Action or route handler that calls Supabase directly is fine.
+- No repository/service/factory/DI layers or interfaces "for flexibility". **Database access goes through plain functions in `lib/db/<domain>.ts`** (one file per domain; the only code that queries the database). Server Actions and route handlers call those functions, not the Supabase SDK. This is the one seam §2a needs, not a layer to grow.
 - **One payment provider (Paystack).** Do not build a multi-processor abstraction. If a second provider is ever needed, introduce the seam then.
 - **No state library by default.** Server Components + URL search params + local `useState` cover most needs. Add Zustand only if a specific piece of cross-component client state can't be handled otherwise, and say which one.
 - **No Socket.io.** Supabase Realtime covers chat and live notifications.
@@ -64,6 +64,19 @@ Simplicity, readability and maintainability take priority over abstraction and a
 ### Where complexity IS justified (don't "simplify" these away)
 
 Money handling, escrow state transitions, webhook idempotency, RLS policies and auto-release are deliberately explicit and defensive. Extra checks, transactions and tests here are not over-engineering. Simplicity means *clear*, not *unguarded*.
+
+### 2a. Infrastructure portability (non-negotiable)
+
+Start with Vercel and Supabase for speed, but keep the app movable to Docker or plain Node, self-hosted Postgres and another auth provider without a rewrite. Ship a maintainable product first; don't engineer for hypothetical scale.
+
+- **Modular monolith.** One Next.js app. Business logic, data access, authentication, authorization and infrastructure live in separate modules. No microservices.
+- **Business logic is provider-free.** Validation, domain rules and authorization decisions live in app code and never import a provider SDK. Provider SDKs are confined to boundary modules: `lib/db/*` (database), `lib/supabase/*` (clients), `lib/auth.ts` (from Stage 2), `lib/paystack.ts`, and the same for storage, email and jobs when they arrive.
+- **Database portability.** Standard Postgres; every schema change is a version-controlled SQL migration. Keep business data out of Supabase-managed schemas (`auth`, `storage`) and avoid proprietary database features unless the benefit is named.
+- **App-owned identities.** Use Supabase Auth, but business tables reference our own `users` table and id; the provider's user id is a separate column. Never build custom auth.
+- **Deployment portability.** The app must run with `next build && next start` on any Node host (and in Docker). Configuration comes from environment variables. Scheduled jobs are plain route handlers or functions; Vercel Cron or `pg_cron` only triggers them.
+- **Data ownership.** Schema, migrations, data and files must be exportable and restorable on independent infrastructure.
+- **Document the seams.** `docs/PROVIDERS.md` lists every provider-specific dependency and how to replace it. Update it in the same change that adds or removes one.
+- **Every abstraction earns its place.** A boundary module exists because replacing that provider is realistic. It is a set of plain functions, not an interface hierarchy; §2's simplicity rules still apply.
 
 ---
 
@@ -78,7 +91,7 @@ Money handling, escrow state transitions, webhook idempotency, RLS policies and 
 | Styling / UI | Tailwind CSS + shadcn/ui |
 | Payments | Paystack (charges, webhooks, transfers for payouts) |
 | Email | Resend (transactional) |
-| Deploy | Vercel (+ Vercel Cron or Supabase `pg_cron` for scheduled jobs) |
+| Deploy | Vercel, Frankfurt region next to the database; must also run on plain Node/Docker (§2a). Vercel Cron or Supabase `pg_cron` triggers scheduled jobs |
 
 If you are about to use something not in this table, apply §2 first and tell the user.
 
@@ -109,7 +122,9 @@ src/
     ui/                    shadcn primitives
     <feature>/             campaign, application, escrow, chat, wallet…
   lib/
+    db/                    data access, one file per domain; the only code that queries the database (§2a)
     supabase/              server, browser, and admin clients
+    auth.ts                auth boundary (from Stage 2; §2a)
     money.ts               formatting + integer math (see §6)
     escrow.ts              state transitions for money (see §6)
     paystack.ts            thin fetch wrapper for the endpoints we use
@@ -117,6 +132,8 @@ src/
 supabase/
   migrations/              timestamped SQL, the source of truth for schema
   seed.sql
+docs/
+  PROVIDERS.md             provider-specific dependencies and how to replace them
 ```
 
 Co-locate code with the feature that uses it. Don't create `utils/` dumping grounds; a helper used in one place lives next to that place.
