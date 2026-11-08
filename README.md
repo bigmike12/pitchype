@@ -40,6 +40,20 @@ All three are safe to expose. A legacy anon key also works in
 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. The secret / service-role key is not
 used at this stage and must never get a `NEXT_PUBLIC_` name.
 
+Two local env files, both git-ignored:
+
+| File                    | Used by                         | Points at                                 |
+| ----------------------- | ------------------------------- | ----------------------------------------- |
+| `.env.local`            | `npm run dev`                   | Local Supabase                            |
+| `.env.production.local` | `npm run build` and `npm start` | The live project (overrides `.env.local`) |
+
+So a local production build writes real signups to the live database. To test
+a production build against local Supabase instead, set the variables on the
+command line, which beats both files:
+`NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<local key> npm run build`.
+`NEXT_PUBLIC_*` values are baked in at build time, so rebuild after changing them.
+Vercel reads neither file; set the live values in its settings.
+
 ## Scripts
 
 | Command                           | Does                                                       |
