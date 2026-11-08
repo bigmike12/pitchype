@@ -4,9 +4,10 @@ Pitchype is a marketplace that connects Nigerian businesses with micro and nano
 creators. Businesses post campaigns or hire creators directly; creators apply,
 do the work, and get paid through escrow once the work is approved.
 
-This repository is at **Stage 1**: a public landing page with a waitlist. There
-is no auth, no payments and no dashboard yet. `CLAUDE.md` holds the product
-rules and engineering guidelines; `docs/BUILD_PROMPT.md` holds the stage plan.
+This repository is at **Stage 2**: the public landing page and waitlist, plus
+accounts: sign-up, login, password reset, onboarding and an account page.
+There are no campaigns or payments yet. `CLAUDE.md` holds the product rules and
+engineering guidelines; `docs/BUILD_PROMPT.md` holds the stage plan.
 
 ## Stack
 
@@ -91,6 +92,29 @@ role can read, change or delete rows. Emails are unique ignoring case.
 To see signups, use the Supabase dashboard (Table editor) or SQL editor, which
 run as the service role.
 
+## Accounts
+
+`/signup`, `/login` and `/forgot-password` work but aren't linked from the
+site until launch. After confirming their email, people fill in a short
+profile at `/onboarding`, then land on `/account`.
+
+- **One role per account**, chosen at sign-up: business or creator
+  (`influencer` in code). It can't be changed afterwards.
+- **App-owned identities:** `public.users` holds our own user id; Supabase
+  Auth's id is only stored in `auth_user_id`. Profiles live in
+  `business_profiles` and `influencer_profiles`.
+- **Access rules** are in `supabase/migrations/*_create_users_and_profiles.sql`
+  and proven by `supabase/tests/users_profiles_rls.test.sql`.
+- **Locally**, emails don't leave your machine: open Mailpit at
+  <http://127.0.0.1:54324> to click confirmation and reset links.
+
+**Making someone an admin** (there's no admin sign-up). They sign up and
+confirm their email as usual, then you run this in the Supabase SQL editor:
+
+```sql
+update public.users set role = 'admin' where email = 'their@email.com';
+```
+
 ## Deploy to Vercel
 
 The hosted Supabase project is `pitchype` (ref `byhbrzwhlvfhsrzkzgfx`,
@@ -108,6 +132,33 @@ Frankfurt). The repo is linked to it, so new migrations go up with
 The app doesn't depend on Vercel: `npm run build && npm start` runs it on any
 Node host. `docs/PROVIDERS.md` lists every provider-specific piece and how to
 replace it.
+
+### Auth email setup (hosted, one-off)
+
+Supabase's built-in email sender only reaches your own Supabase team, so real
+users need Resend before sign-up works for them.
+
+1. **Resend:** create an account, add the domain `pitchype.com`, and add the
+   DNS records Resend shows at your domain registrar. Wait until Resend says
+   the domain is verified.
+2. **Resend → API keys:** create a key with sending access for `pitchype.com`.
+3. **Supabase → Authentication → Emails → SMTP settings:** enable custom SMTP
+   with host `smtp.resend.com`, port `465`, username `resend`, password = the
+   API key, sender email `no-reply@pitchype.com`, sender name `Pitchype`.
+4. **Supabase → Authentication → Emails → Templates:**
+   - "Confirm signup": subject `Confirm your Pitchype account`, body = the
+     contents of `supabase/templates/confirmation.html`.
+   - "Reset password": subject `Reset your Pitchype password`, body =
+     `supabase/templates/recovery.html`.
+5. **Supabase → Authentication → URL configuration:** Site URL
+   `https://www.pitchype.com`. Email links are built from it.
+6. **Supabase → Authentication → Sign in / Providers → Email:** "Confirm email"
+   on; minimum password length 8.
+7. **Supabase → Authentication → Rate limits:** raise "emails sent per hour"
+   (possible once custom SMTP is on).
+
+Email links always point at the Site URL, so a link requested from a Vercel
+preview opens production. Test sign-up locally or on production.
 
 ## Design tokens
 

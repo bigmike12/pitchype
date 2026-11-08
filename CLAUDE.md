@@ -113,7 +113,9 @@ Start small and let structure grow with real need. Suggested starting shape:
 src/
   app/
     (marketing)/           public pages, influencer directory (SEO)
-    (auth)/                login, signup, onboarding
+    (auth)/                login, signup, password reset (signed out)
+    (app)/                 onboarding and account (signed in, any role)
+    auth/                  route handlers for emailed links
     (business)/            campaigns, applications, hires, payments, inbox
     (influencer)/          browse campaigns, applications, jobs, wallet, inbox
     (admin)/               disputes, payouts, moderation
@@ -338,8 +340,14 @@ Entitlements (who has paid for what) live in one `subscriptions`/`entitlements` 
 
 Decided (see §6): fee split and structure, cancellation and refund rules, business wallet, payout fee paid by the influencer, definition of "work started".
 
+Decided in Stage 2 (2026-11-09):
+- **One role per account.** An account is a business or an influencer, fixed at sign-up. Someone who is both signs up twice with different emails. Admins are made by hand in SQL, never through sign-up.
+- **Sign-in is email + password only** at first (no Google, magic links or phone codes yet).
+- **Sign-up and login pages stay unlinked until launch**; the landing page keeps pointing to the waitlist.
+- **Auth emails go through Resend** (custom SMTP in Supabase). The templates live in `supabase/templates/`.
+
 Still open:
-1. Can one account be both a business and an influencer?
+1. ~~Can one account be both a business and an influencer?~~ Decided above: no.
 2. Deadline to fund after approval before the approval expires.
 3. Maximum resubmission rounds after a denial, and the dispute process (who arbitrates, timelines, how an admin decides "influencer at fault").
 4. Minimum payout amount and payout schedule.
