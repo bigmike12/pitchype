@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 
-import { createAnonServerClient } from "@/lib/supabase/server";
+import { addToWaitlist } from "@/lib/db/waitlist";
 
 import {
   WAITLIST_SOURCE,
@@ -18,8 +18,10 @@ const ALREADY_JOINED =
 // Limits: on Vercel every serverless instance has its own memory, instances
 // start and stop freely, and a restart clears the counts. So this only slows
 // down a single noisy client; it is not a real quota, and anyone can skip it by
-// calling the Supabase REST API with the public anon key (the database
+// calling the Supabase REST API with the public publishable key (the database
 // constraints still apply there). Move to a shared store if spam shows up.
+// Self-hosted: the proxy in front must set x-forwarded-for, or every visitor
+// shares one "unknown" bucket.
 const RATE_LIMIT_MAX_ATTEMPTS = 5;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const attemptsByIp = new Map<string, number[]>();
@@ -81,34 +83,27 @@ export async function joinWaitlist(
   }
 
   try {
-    const supabase = createAnonServerClient();
-    const { error } = await supabase.from("waitlist").insert({
+    const outcome = await addToWaitlist({
       email: parsed.email,
       role: parsed.role,
       source: WAITLIST_SOURCE,
     });
-
-    if (!error) return { ok: true, message: JOINED };
-
-    // 23505 = unique_violation on lower(email): they've already joined. Not an error for them.
-    if (error.code === "23505") return { ok: true, message: ALREADY_JOINED };
-
-    // Log the code and message only; never the email address.
-    console.error("waitlist insert failed", {
-      code: error.code,
-      message: error.message,
-    });
+    // Already joined is not an error for them.
+    return {
+      ok: true,
+      message: outcome === "added" ? JOINED : ALREADY_JOINED,
+    };
   } catch (error) {
+    // The error message never includes the email address.
     console.error(
-      "waitlist insert threw",
+      "waitlist signup failed",
       error instanceof Error ? error.message : error,
     );
+    return {
+      ok: false,
+      message:
+        "We couldn’t save your signup just now. Please try again in a minute.",
+      ...retry,
+    };
   }
-
-  return {
-    ok: false,
-    message:
-      "We couldn’t save your signup just now. Please try again in a minute.",
-    ...retry,
-  };
 }
