@@ -1,0 +1,6 @@
+# Written by hand; don't let a format run rewrite them.
+CLAUDE.md
+docs/
+package-lock.json
+supabase/.temp/
+src/types/database.ts
