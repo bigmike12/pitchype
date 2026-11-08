@@ -3,7 +3,7 @@ import { Bricolage_Grotesque, Inter } from "next/font/google";
 
 import { SiteFooter } from "@/components/landing/site-footer";
 import { SiteHeader } from "@/components/landing/site-header";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, X_HANDLE } from "@/lib/site";
 
 import "./globals.css";
 
@@ -42,6 +42,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    site: X_HANDLE,
     title: TITLE,
     description: SITE_DESCRIPTION,
   },

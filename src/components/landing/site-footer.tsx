@@ -1,7 +1,7 @@
 import { cacheLife } from "next/cache";
 import Link from "next/link";
 
-import { CONTACT_EMAIL } from "@/lib/site";
+import { CONTACT_EMAIL, SOCIAL_PROFILES } from "@/lib/site";
 
 import { Wordmark } from "./wordmark";
 
@@ -38,7 +38,7 @@ export function SiteFooter() {
 
           <nav
             aria-label="Footer"
-            className="grid grid-cols-2 gap-8 text-sm sm:grid-cols-3 md:col-span-7"
+            className="grid grid-cols-2 gap-8 text-sm md:col-span-7 lg:grid-cols-3"
           >
             <div>
               <h2 className="font-semibold">Product</h2>
@@ -68,13 +68,20 @@ export function SiteFooter() {
               </ul>
             </div>
             <div>
-              <h2 className="font-semibold">Contact</h2>
+              <h2 className="font-semibold">Connect</h2>
               <ul className="mt-3 space-y-2">
                 <li>
                   <a href={`mailto:${CONTACT_EMAIL}`} className={linkClass}>
                     {CONTACT_EMAIL}
                   </a>
                 </li>
+                {SOCIAL_PROFILES.map((profile) => (
+                  <li key={profile.url}>
+                    <a href={profile.url} className={linkClass}>
+                      {profile.label}
+                    </a>
+                  </li>
+                ))}
               </ul>
             </div>
           </nav>

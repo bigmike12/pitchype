@@ -6,14 +6,16 @@ import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { Pricing } from "@/components/landing/pricing";
 import { Waitlist } from "@/components/landing/waitlist";
-import { SITE_NAME, SITE_URL } from "@/lib/site";
+import { SITE_NAME, SITE_URL, SOCIAL_PROFILES } from "@/lib/site";
 
-// Name and URL only: nothing about the company that isn't true yet.
+// Name, URL and official profiles only: nothing about the company that isn't
+// true yet. `sameAs` tells search engines these profiles belong to Pitchype.
 const organization = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: SITE_NAME,
   url: SITE_URL,
+  sameAs: SOCIAL_PROFILES.map((profile) => profile.url),
 };
 
 export default function HomePage() {
