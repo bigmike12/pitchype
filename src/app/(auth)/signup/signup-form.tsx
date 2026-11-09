@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock, Mail, MailCheck } from "lucide-react";
+import { Camera, Lock, Mail, MailCheck, Store } from "lucide-react";
 import Link from "next/link";
 import { useActionState } from "react";
 
@@ -14,9 +14,23 @@ import { MIN_PASSWORD_LENGTH } from "@/lib/credentials";
 
 import { signUpAction, type SignUpState } from "./actions";
 
+// What each account is for, in a line, because the choice can't be changed
+// later (one role per account).
 const ROLES = [
-  { value: "business", label: "A business" },
-  { value: "influencer", label: "A creator" },
+  {
+    value: "business",
+    label: "A business",
+    description: "Post campaigns, choose creators and pay through escrow.",
+    icon: Store,
+    tone: "mint",
+  },
+  {
+    value: "influencer",
+    label: "A creator",
+    description: "Find paid campaigns and get paid when your work is approved.",
+    icon: Camera,
+    tone: "lilac",
+  },
 ] as const;
 
 export function SignUpForm() {
@@ -50,6 +64,7 @@ export function SignUpForm() {
         legend="I’m joining as"
         name="role"
         options={ROLES}
+        variant="cards"
         defaultValue={state.values?.role}
         required
         error={state.errors?.role}

@@ -86,7 +86,7 @@ panels outlined with `ring-1 ring-hairline`.
 | `Button`, `buttonVariants` | `ui/button.tsx` | `default` (ink), `secondary` (cream, outlined), `light` (on dark surfaces), `ghost`. Sizes `default` (44px), `lg` (48px), `icon`. Use `buttonVariants` to style links as buttons. |
 | `TextField`, `SelectField` | `ui/field.tsx` | Visible label, optional leading `icon`, `hint`, `error`, `labelAside` (e.g. "Forgot your password?"). |
 | `PasswordField` | `ui/password-field.tsx` | Adds a Show button. |
-| `ChoiceGroup` | `ui/choice-group.tsx` | Radio pills for 2–3 options. Controlled (`value` + `onValueChange`) or not (`defaultValue`). |
+| `ChoiceGroup` | `ui/choice-group.tsx` | One choice from 2–3 options, on real radio buttons. `variant="pills"` (compact, label only; the waitlist) or `variant="cards"` (stacked, with icon, tone and a one-line description; the sign-up account type). Controlled (`value` + `onValueChange`) or not (`defaultValue`). |
 | `FormMessage` | `ui/form-message.tsx` | The form's overall result, just above the submit button. Always rendered (announces changes). |
 | `Notice` | `ui/notice.tsx` | Replaces a form when it's done ("Check your email"). Takes focus. |
 | `link` utility | `globals.css` | Inline text links. |
