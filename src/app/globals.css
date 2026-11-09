@@ -82,6 +82,15 @@
   letter-spacing: -0.02em;
 }
 
+/* Page titles inside the signed-in portal: 28px on phones to 36px on desktop. */
+@utility text-display-page {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.75rem, 1.554rem + 0.87vw, 2.25rem);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
 /*
  * Section rhythm: 64px between sections on phones, 96px on desktop. Margins
  * (not padding) so neighbouring sections' spacing collapses into one gap.
