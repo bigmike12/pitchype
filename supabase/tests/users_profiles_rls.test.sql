@@ -133,7 +133,11 @@ select is((select count(*)::int from public.influencer_profiles), 0, 'Ada cannot
 reset role;
 
 select is(
-  (select count(*)::int from public.users where role = 'admin'),
+  -- Only this test's people: the local database may hold real admins.
+  (select count(*)::int from public.users
+   where role = 'admin'
+     and auth_user_id in ('11111111-1111-1111-1111-111111111111',
+                          '22222222-2222-2222-2222-222222222222')),
   0,
   'no admins were created'
 );
