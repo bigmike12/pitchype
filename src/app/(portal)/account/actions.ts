@@ -36,8 +36,9 @@ export async function createProfileAction(
     );
     return { status: "error", message: SAVE_FAILED, values: valuesOf(form) };
   }
-  // Creators carry on to the rest of their public profile.
-  redirect(user.role === "influencer" ? "/profile" : "/home");
+  // Creators carry on to the rest of their public profile; businesses to the
+  // last onboarding step.
+  redirect(user.role === "influencer" ? "/profile" : "/onboarding/done");
 }
 
 export async function updateProfileAction(
