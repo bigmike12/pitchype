@@ -42,3 +42,6 @@ next-env.d.ts
 
 # keep the template of env var names
 !.env.example
+
+# Brainstorm mockups (superpowers visual companion)
+.superpowers/
