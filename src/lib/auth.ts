@@ -5,6 +5,7 @@
 
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 import { isSignupRole, type SignupRole } from "@/lib/credentials";
 import {
@@ -218,8 +219,9 @@ export async function signOut(): Promise<void> {
  * For pages and actions that need someone signed in. Sends people without a
  * session to /login, and a session without an app user to /auth/finish to be
  * repaired (sending them to /login would loop, since they are signed in).
+ * Cached per request, so the portal layout and the page share one lookup.
  */
-export async function requireUser(): Promise<AppUser> {
+export const requireUser = cache(async (): Promise<AppUser> => {
   const supabase = await createSessionClient();
   const { data } = await supabase.auth.getClaims();
   const authUserId = data?.claims?.sub;
@@ -228,23 +230,24 @@ export async function requireUser(): Promise<AppUser> {
   const user = await getUserByAuthId(authUserId);
   if (!user) redirect("/auth/finish");
   return user;
-}
+});
 
-/** Like requireUser, and sends anyone with another role to their account page. */
+/** Like requireUser, and sends anyone with another role to their home page. */
 export async function requireRole(role: UserRole): Promise<AppUser> {
   const user = await requireUser();
-  if (user.role !== role) redirect("/account");
+  if (user.role !== role) redirect("/home");
   return user;
 }
 
 /**
  * The signed-in person, or null, for public pages that look different when
- * signed in (the directory shows businesses a price filter). Not an access
- * check: what each viewer may read is enforced by the database.
+ * signed in (the directory shows businesses a price filter) and for the
+ * portal shell. Not an access check: what each viewer may read is enforced by
+ * the database. Cached per request.
  */
-export async function getSignedInUser(): Promise<AppUser | null> {
+export const getSignedInUser = cache(async (): Promise<AppUser | null> => {
   const supabase = await createSessionClient();
   const { data } = await supabase.auth.getClaims();
   const authUserId = data?.claims?.sub;
   return authUserId ? getUserByAuthId(authUserId) : null;
-}
+});

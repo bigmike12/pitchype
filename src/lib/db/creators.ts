@@ -191,7 +191,8 @@ export type OwnCreatorProfile = {
   platforms: OwnPlatform[];
 };
 
-export async function getOwnCreatorProfile(
+// Cached per request: the portal shell (for the photo) and the page share it.
+export const getOwnCreatorProfile = cache(async function getOwnCreatorProfile(
   userId: string,
 ): Promise<OwnCreatorProfile | null> {
   const supabase = await createSessionClient();
@@ -238,7 +239,7 @@ export async function getOwnCreatorProfile(
       followersUpdatedAt: p.followers_updated_at,
     })),
   };
-}
+});
 
 export async function updateCreatorAbout(
   userId: string,

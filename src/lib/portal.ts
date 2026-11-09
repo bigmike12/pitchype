@@ -8,6 +8,17 @@ export type NavIcon = "home" | "campaigns" | "creators" | "profile" | "admin";
 
 export type NavItem = { href: string; label: string; icon: NavIcon };
 
+/** Who the shell is drawn for. */
+export type PortalViewer = {
+  role: PortalRole;
+  /** Business name, creator display name, "Admin", or the email's first part before onboarding. */
+  name: string;
+  email: string;
+  photoUrl: string | null;
+  /** Signed up but no profile yet: every portal page sends them to onboarding. */
+  needsOnboarding: boolean;
+};
+
 const NAV: Record<PortalRole, NavItem[]> = {
   business: [
     { href: "/home", label: "Home", icon: "home" },

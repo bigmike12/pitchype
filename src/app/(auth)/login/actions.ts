@@ -36,8 +36,8 @@ export async function loginAction(
 
   const result = await signIn(parsed.value);
   if (result.ok) {
-    // /account sends people who haven't finished onboarding on to it.
-    redirect("/account");
+    // /home sends people who haven’t finished onboarding on to it.
+    redirect("/home");
   }
 
   const message = {

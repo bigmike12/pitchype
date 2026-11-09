@@ -168,6 +168,11 @@
     text-wrap: pretty;
   }
 
+  /* The portal's menu dialog is open: the page behind it doesn't scroll. */
+  html:has(dialog[open]) {
+    overflow: hidden;
+  }
+
   :focus-visible {
     outline: 2px solid var(--focus-ring, var(--color-ink));
     outline-offset: 3px;

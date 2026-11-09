@@ -6,6 +6,7 @@ import { refreshSession } from "@/lib/supabase/proxy";
 // sends people to the right place without rendering first.
 // Each entry covers the page and everything under it (/campaigns/123).
 const SIGNED_IN_ONLY = [
+  "/home",
   "/account",
   "/onboarding",
   "/reset-password",
@@ -25,7 +26,7 @@ export async function proxy(request: NextRequest) {
     return redirectKeepingCookies(request, "/login", response);
   }
   if (signedIn && SIGNED_OUT_ONLY.includes(path)) {
-    return redirectKeepingCookies(request, "/account", response);
+    return redirectKeepingCookies(request, "/home", response);
   }
   return response;
 }
@@ -51,6 +52,7 @@ function redirectKeepingCookies(
 // here so a business's session is fresh when it decides what they can see.
 export const config = {
   matcher: [
+    "/home",
     "/account",
     "/onboarding",
     "/reset-password",
