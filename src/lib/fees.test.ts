@@ -56,3 +56,26 @@ test("formatNaira shows kobo only when present", () => {
   assert.equal(formatNaira(123_456), "₦1,234.56");
   assert.throws(() => formatNaira(1.5));
 });
+
+// Paystack's published local card fee: 1.5% + ₦100 (the ₦100 is waived under
+// ₦2,500), capped at ₦2,000, plus 7.5% VAT on the fee. Rounded up to the kobo.
+// Only for this check; the real figure comes from Paystack in Stage 6.
+function paystackChargeKobo(totalKobo: number): number {
+  const flat = totalKobo < 250_000 ? 0 : 10_000;
+  const fee = Math.min(Math.ceil((totalKobo * 150) / 10_000) + flat, 200_000);
+  return Math.ceil((fee * 10_750) / 10_000);
+}
+
+test("CLAUDE.md §6.1 invariant: the business fee always beats Paystack's charge", () => {
+  // From the ₦5,000 campaign minimum up to ₦10m, in ₦250 steps.
+  for (let price = 500_000; price <= 1_000_000_000; price += 25_000) {
+    const { businessFeeKobo, businessPaysKobo } = feeExample(price);
+    const charge = paystackChargeKobo(businessPaysKobo);
+    assert.ok(
+      businessFeeKobo > charge,
+      `at ${formatNaira(price)} the fee ${formatNaira(businessFeeKobo)} must exceed Paystack's ${formatNaira(charge)}`,
+    );
+  }
+  // The tightest case, spelled out: ₦5,000 + ₦500 fee; Paystack takes about ₦196.
+  assert.equal(paystackChargeKobo(550_000), 19_619);
+});
