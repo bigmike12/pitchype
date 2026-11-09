@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 
+import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth";
 import { lagosToday } from "@/lib/campaign";
 import { listNiches } from "@/lib/db/creators";
@@ -26,10 +26,10 @@ async function NewCampaign() {
   const niches = await listNiches();
   return (
     <>
-      <Link href="/business/campaigns" className="link text-sm font-medium">
-        Your campaigns
-      </Link>
-      <h1 className="mt-4 mb-10 text-display-lg">New campaign</h1>
+      <PageHeader
+        title="New campaign"
+        crumbs={[{ href: "/business/campaigns", label: "Campaigns" }]}
+      />
       <CampaignForm niches={niches} today={lagosToday()} />
     </>
   );

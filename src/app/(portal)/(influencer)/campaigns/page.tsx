@@ -1,3 +1,4 @@
+import { Megaphone } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -5,7 +6,9 @@ import { Suspense } from "react";
 
 import { LoadingNotice } from "@/app/(portal)/loading-notice";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SelectField } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth";
 import { PLATFORM_RULES, PLATFORMS, isPlatform } from "@/lib/creator-profile";
 import { CAMPAIGNS_PAGE_SIZE, listOpenCampaigns } from "@/lib/db/campaigns";
@@ -71,17 +74,16 @@ async function Campaigns({ searchParams }: { searchParams: SearchParams }) {
 
   return (
     <>
-      <h1 className="mt-4 text-display-lg">Campaigns</h1>
-      <p className="mt-2 max-w-2xl text-lg">
-        Paid work from businesses. Each campaign shows whether you qualify, and
-        what to change if you don’t. Applying opens soon.
-      </p>
+      <PageHeader
+        title="Campaigns"
+        lead="Paid work from businesses. Each campaign shows whether you qualify, and what to change if you don’t. Applying opens soon."
+      />
 
       <form
         method="get"
         action="/campaigns"
         aria-label="Filter campaigns"
-        className="mt-8 rounded-panel bg-surface-soft p-4 sm:p-6"
+        className="rounded-card bg-white p-4 ring-1 ring-hairline sm:p-5"
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField
@@ -128,7 +130,11 @@ async function Campaigns({ searchParams }: { searchParams: SearchParams }) {
         <h2 id="results-title" className="sr-only">
           Results
         </h2>
-        <p role="status" className="font-semibold text-ink">
+        <p
+          role="status"
+          // With no results the empty state says it; keep this for screen readers.
+          className={total === 0 ? "sr-only" : "font-semibold text-ink"}
+        >
           {total === 0
             ? "No open campaigns match."
             : total === 1
@@ -136,13 +142,24 @@ async function Campaigns({ searchParams }: { searchParams: SearchParams }) {
               : `${total.toLocaleString("en-NG")} open campaigns`}
         </p>
         {total === 0 ? (
-          <p className="mt-2 max-w-xl text-muted">
-            New campaigns appear here as businesses publish them. Meanwhile,{" "}
-            <Link href="/profile" className="link">
-              keep your profile up to date
-            </Link>{" "}
-            so you qualify for more.
-          </p>
+          <div className="mt-5">
+            <EmptyState
+              icon={Megaphone}
+              tone="lilac"
+              title="No open campaigns match"
+              action={
+                <Link
+                  href="/profile"
+                  className={buttonVariants({ variant: "secondary" })}
+                >
+                  Update your profile
+                </Link>
+              }
+            >
+              New campaigns appear here as businesses publish them. Meanwhile,
+              keep your profile up to date so you qualify for more.
+            </EmptyState>
+          </div>
         ) : (
           <ul className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {campaigns.map((campaign) => (

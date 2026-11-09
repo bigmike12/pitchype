@@ -1,8 +1,16 @@
-import { CircleAlert, Clock, Users } from "lucide-react";
+import {
+  CircleAlert,
+  Clock,
+  Globe,
+  Pause,
+  PencilLine,
+  Undo2,
+  Users,
+} from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 
 import { LoadingNotice } from "@/app/(portal)/loading-notice";
 import {
@@ -11,6 +19,8 @@ import {
   StatusPill,
 } from "@/components/campaigns/campaign-facts";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth";
 import { formatDay, maxSpend, type CampaignAction } from "@/lib/campaign";
 import { formatDateTime } from "@/lib/creator-profile";
@@ -61,16 +71,16 @@ async function Campaign({ params }: { params: Params }) {
 
   return (
     <>
-      <Link href="/business/campaigns" className="link text-sm font-medium">
-        Your campaigns
-      </Link>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <h1 className="text-display-lg">{campaign.title}</h1>
-        <StatusPill
-          status={campaign.status}
-          takenDown={Boolean(campaign.removedReason)}
-        />
-      </div>
+      <PageHeader
+        title={campaign.title}
+        crumbs={[{ href: "/business/campaigns", label: "Campaigns" }]}
+        badge={
+          <StatusPill
+            status={campaign.status}
+            takenDown={Boolean(campaign.removedReason)}
+          />
+        }
+      />
 
       <StatusNotice campaign={campaign} trusted={trusted} />
 
@@ -99,48 +109,41 @@ async function Campaign({ params }: { params: Params }) {
         )}
       </div>
 
-      <dl className="mt-10 grid gap-4 rounded-card bg-surface-card p-5 sm:grid-cols-3 sm:p-6">
+      <dl className="mt-10 grid gap-4 sm:grid-cols-3">
         {qualifying !== null && (
-          <div>
-            <dt className="flex items-center gap-1.5 text-sm text-muted">
-              <Users className="size-4" aria-hidden="true" />
-              Creators who qualify now
-            </dt>
-            <dd className="mt-1 text-display-md">
-              {qualifying.toLocaleString("en-NG")}
-            </dd>
-          </div>
+          <Stat
+            label={
+              <>
+                <Users className="size-4" aria-hidden="true" />
+                Creators who qualify now
+              </>
+            }
+            value={qualifying.toLocaleString("en-NG")}
+          />
         )}
-        <div>
-          <dt className="text-sm text-muted">Per creator, with our fee</dt>
-          <dd className="mt-1 text-display-md">
-            {formatNaira(spend.perCreatorKobo)}
-          </dd>
-          <dd className="text-sm text-muted">
-            {formatNaira(campaign.priceKobo)} +{" "}
-            {formatNaira(spend.feePerCreatorKobo)} fee
-          </dd>
-        </div>
-        <div>
-          <dt className="text-sm text-muted">
-            Most you could spend ({campaign.places}{" "}
-            {campaign.places === 1 ? "creator" : "creators"})
-          </dt>
-          <dd className="mt-1 text-display-md">
-            {formatNaira(spend.totalKobo)}
-          </dd>
-        </div>
+        <Stat
+          label="Per creator, with our fee"
+          value={formatNaira(spend.perCreatorKobo)}
+          note={`${formatNaira(campaign.priceKobo)} + ${formatNaira(spend.feePerCreatorKobo)} fee`}
+        />
+        <Stat
+          label={`Most you could spend (${campaign.places} ${campaign.places === 1 ? "creator" : "creators"})`}
+          value={formatNaira(spend.totalKobo)}
+        />
       </dl>
       <p className="mt-2 text-sm text-muted">
         Nothing is charged now. You pay for each creator when you accept them.
       </p>
       {qualifying === 0 && live && (
-        <p className="mt-4 flex gap-2 rounded-card bg-brand-sun p-4 text-sm text-ink">
-          <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          No listed creator meets every requirement yet. Lower the follower
-          minimums, allow more niches or states, or turn off “verified creators
-          only” to reach more.
-        </p>
+        <Callout
+          tone="attention"
+          icon={CircleAlert}
+          title="No listed creator qualifies yet"
+          className="mt-4"
+        >
+          Lower the follower minimums, allow more niches or states, or turn off
+          “verified creators only” to reach more.
+        </Callout>
       )}
 
       <section aria-labelledby="posts-title" className="mt-10">
@@ -206,61 +209,6 @@ async function Campaign({ params }: { params: Params }) {
   );
 }
 
-function StatusNotice({
-  campaign,
-  trusted,
-}: {
-  campaign: OwnCampaign;
-  trusted: boolean;
-}) {
-  if (campaign.removedReason) {
-    return (
-      <p className="mt-6 rounded-card bg-surface-card p-4 text-ink">
-        <strong>Taken down by Pitchype:</strong> “{campaign.removedReason}”.
-        Creators can no longer see it.
-      </p>
-    );
-  }
-  if (campaign.status === "draft" && campaign.reviewNote) {
-    return (
-      <p className="mt-6 rounded-card bg-brand-sun p-4 text-ink">
-        <strong>Sent back by Pitchype:</strong> “{campaign.reviewNote}”. Edit
-        the draft, then submit it again.
-      </p>
-    );
-  }
-  if (campaign.status === "draft") {
-    return (
-      <p className="mt-6 text-muted">
-        {trusted
-          ? "Only you can see this draft. Publishing makes it visible to creators straight away."
-          : "Only you can see this draft. We check a business’s first campaign before it goes live, usually within a working day."}
-      </p>
-    );
-  }
-  if (campaign.status === "pending_review") {
-    return (
-      <p className="mt-6 rounded-card bg-surface-card p-4 text-ink">
-        We’re checking your first campaign, usually within a working day. To
-        change it, withdraw it first.
-      </p>
-    );
-  }
-  if (campaign.status === "paused") {
-    return (
-      <p className="mt-6 text-muted">
-        Paused: creators can’t see it until you resume.
-      </p>
-    );
-  }
-  if (campaign.status === "open") {
-    return (
-      <p className="mt-6 text-muted">Live: creators who qualify can see it.</p>
-    );
-  }
-  return null;
-}
-
 function choicesFor(
   campaign: OwnCampaign,
   trusted: boolean,
@@ -291,4 +239,101 @@ function choicesFor(
     default:
       return [];
   }
+}
+
+/** Where the campaign stands, as one callout. */
+function StatusNotice({
+  campaign,
+  trusted,
+}: {
+  campaign: OwnCampaign;
+  trusted: boolean;
+}) {
+  const className = "mt-2";
+  if (campaign.removedReason) {
+    return (
+      <Callout
+        tone="danger"
+        icon={CircleAlert}
+        title="Taken down by Pitchype"
+        className={className}
+      >
+        <p>Creators can no longer see it.</p>
+        <p className="mt-1">The reason we gave: “{campaign.removedReason}”</p>
+      </Callout>
+    );
+  }
+  if (campaign.status === "draft" && campaign.reviewNote) {
+    return (
+      <Callout
+        tone="attention"
+        icon={Undo2}
+        title="Sent back by Pitchype"
+        className={className}
+      >
+        <p>Edit the draft, then submit it again.</p>
+        <p className="mt-1">Our note: “{campaign.reviewNote}”</p>
+      </Callout>
+    );
+  }
+  if (campaign.status === "draft") {
+    return (
+      <Callout
+        tone="info"
+        icon={PencilLine}
+        title="Draft: only you can see it"
+        className={className}
+      >
+        {trusted
+          ? "Publishing makes it visible to creators straight away."
+          : "We check a business’s first campaign before it goes live, usually within a working day."}
+      </Callout>
+    );
+  }
+  if (campaign.status === "pending_review") {
+    return (
+      <Callout
+        tone="attention"
+        icon={Clock}
+        title="We’re checking your first campaign"
+        className={className}
+      >
+        Usually within a working day. To change it, withdraw it first.
+      </Callout>
+    );
+  }
+  if (campaign.status === "paused") {
+    return (
+      <Callout tone="info" icon={Pause} title="Paused" className={className}>
+        Creators can’t see it until you resume.
+      </Callout>
+    );
+  }
+  if (campaign.status === "open") {
+    return (
+      <Callout tone="success" icon={Globe} title="Live" className={className}>
+        Creators who qualify can see it.
+      </Callout>
+    );
+  }
+  return null;
+}
+
+/** One figure in the campaign's summary row. */
+function Stat({
+  label,
+  value,
+  note,
+}: {
+  label: ReactNode;
+  value: string;
+  note?: string;
+}) {
+  return (
+    <div className="rounded-card bg-white p-5 ring-1 ring-hairline">
+      <dt className="flex items-center gap-1.5 text-sm text-muted">{label}</dt>
+      <dd className="mt-1 text-display-md">{value}</dd>
+      {note && <dd className="text-sm text-muted">{note}</dd>}
+    </div>
+  );
 }

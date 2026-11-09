@@ -7,6 +7,7 @@ import { CreatorPhoto } from "@/components/creators/creator-photo";
 import { PlatformIcon } from "@/components/creators/platform-icon";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth";
 import {
   listCampaignsForReview,
@@ -67,7 +68,10 @@ async function Admin() {
 
   return (
     <>
-      <h1 className="mt-4 text-display-lg">Admin</h1>
+      <PageHeader
+        title="Admin"
+        lead="First campaigns to review, verification requests, reports and hidden profiles."
+      />
 
       <section aria-labelledby="campaign-review-title" className="mt-10">
         <h2 id="campaign-review-title" className="text-display-md">

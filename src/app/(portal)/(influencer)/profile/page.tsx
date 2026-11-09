@@ -1,10 +1,12 @@
-import { EyeOff, Globe } from "lucide-react";
+import { EyeOff, Globe, PencilLine } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth";
 import {
   PLATFORMS,
@@ -50,69 +52,89 @@ async function ProfileEditor() {
 
   return (
     <>
-      <h1 className="mt-4 text-display-lg">Your public profile</h1>
-      <p className="mt-2 text-lg">
-        This is what businesses see in the creator directory.
-      </p>
+      <PageHeader
+        title="Your public profile"
+        lead="This is what businesses see in the creator directory."
+      />
 
       <Visibility profile={profile} />
 
-      <section aria-labelledby="photo-title" className="mt-12">
-        <h2 id="photo-title" className="mb-5 text-display-md">
-          Photo
-        </h2>
-        <PhotoForm name={profile.displayName} photoUrl={profile.photoUrl} />
-      </section>
+      <div className="mt-8 space-y-6">
+        <Section id="photo" title="Photo">
+          <PhotoForm name={profile.displayName} photoUrl={profile.photoUrl} />
+        </Section>
 
-      <section aria-labelledby="about-title" className="mt-12">
-        <h2 id="about-title" className="mb-5 text-display-md">
-          About you
-        </h2>
-        <AboutForm
-          niches={niches}
-          initial={{
-            displayName: profile.displayName,
-            bio: profile.bio ?? "",
-            niches: profile.niches.join(","),
-            state: profile.state,
-            city: profile.city,
-            startingRate: profile.startingRateKobo
-              ? (profile.startingRateKobo / KOBO_PER_NAIRA).toLocaleString(
-                  "en-NG",
-                )
-              : "",
-          }}
-        />
-      </section>
+        <Section id="about" title="About you">
+          <AboutForm
+            niches={niches}
+            initial={{
+              displayName: profile.displayName,
+              bio: profile.bio ?? "",
+              niches: profile.niches.join(","),
+              state: profile.state,
+              city: profile.city,
+              startingRate: profile.startingRateKobo
+                ? (profile.startingRateKobo / KOBO_PER_NAIRA).toLocaleString(
+                    "en-NG",
+                  )
+                : "",
+            }}
+          />
+        </Section>
 
-      <section aria-labelledby="platforms-title" className="mt-12">
-        <h2 id="platforms-title" className="text-display-md">
-          Platforms
-        </h2>
-        <p className="mt-2 mb-5 max-w-xl">
-          Add each account you’d post on. Follower counts start as
-          self-reported; verify an account to show the count we checked.
-        </p>
-        <ul className="space-y-4">
-          {PLATFORMS.map((platform) => {
-            const saved =
-              profile.platforms.find((p) => p.platform === platform) ?? null;
-            return (
-              <PlatformCard
-                key={platform}
-                platform={platform}
-                saved={saved}
-                verification={
-                  saved
-                    ? verificationView(requests, platform, saved.handle, now)
-                    : null
-                }
-              />
-            );
-          })}
-        </ul>
-      </section>
+        <Section
+          id="platforms"
+          title="Platforms"
+          lead="Add each account you’d post on. Follower counts start as self-reported; verify an account to show the count we checked."
+        >
+          <ul className="space-y-4">
+            {PLATFORMS.map((platform) => {
+              const saved =
+                profile.platforms.find((p) => p.platform === platform) ?? null;
+              return (
+                <PlatformCard
+                  key={platform}
+                  platform={platform}
+                  saved={saved}
+                  verification={
+                    saved
+                      ? verificationView(requests, platform, saved.handle, now)
+                      : null
+                  }
+                />
+              );
+            })}
+          </ul>
+        </Section>
+      </div>
     </>
+  );
+}
+
+/** One part of the editor; `id` is the anchor the home checklist links to. */
+function Section({
+  id,
+  title,
+  lead,
+  children,
+}: {
+  id: string;
+  title: string;
+  lead?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      id={id}
+      aria-labelledby={`${id}-title`}
+      className="scroll-mt-24 rounded-card bg-white p-5 ring-1 ring-hairline sm:p-6"
+    >
+      <h2 id={`${id}-title`} className="text-display-md">
+        {title}
+      </h2>
+      {lead && <p className="mt-2 max-w-xl">{lead}</p>}
+      <div className="mt-5">{children}</div>
+    </section>
   );
 }
 
@@ -125,58 +147,32 @@ function Visibility({ profile }: { profile: OwnCreatorProfile }) {
     profile.published && !profile.hiddenReason && problems.length === 0;
 
   return (
-    <section
-      aria-labelledby="visibility-title"
-      className="mt-8 rounded-card bg-surface-card p-5 sm:p-6"
-    >
-      <h2 id="visibility-title" className="sr-only">
-        Visibility
-      </h2>
-
+    <section aria-label="Visibility" className="space-y-3">
       {profile.hiddenReason ? (
-        <div className="flex gap-3">
-          <EyeOff
-            className="mt-0.5 size-5 shrink-0 text-danger"
-            aria-hidden="true"
-          />
-          <div>
-            <p className="font-semibold text-ink">Hidden by Pitchype</p>
-            <p className="mt-1">
-              Your profile isn’t in the directory. The reason we gave: “
-              {profile.hiddenReason}”. If you think this is a mistake, email{" "}
-              <a href={`mailto:${CONTACT_EMAIL}`} className="link">
-                {CONTACT_EMAIL}
-              </a>
-              .
-            </p>
-          </div>
-        </div>
+        <Callout tone="danger" icon={EyeOff} title="Hidden by Pitchype">
+          <p>
+            Your profile isn’t in the directory. If you think this is a mistake,
+            email{" "}
+            <a href={`mailto:${CONTACT_EMAIL}`} className="link">
+              {CONTACT_EMAIL}
+            </a>
+            .
+          </p>
+          <p className="mt-1">The reason we gave: “{profile.hiddenReason}”</p>
+        </Callout>
       ) : (
-        <div className="flex gap-3">
-          <Globe
-            className={
-              listed
-                ? "mt-0.5 size-5 shrink-0 text-brand-green"
-                : "mt-0.5 size-5 shrink-0 text-muted"
-            }
-            aria-hidden="true"
-          />
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold text-ink">
-              {listed
-                ? "Published: you’re in the directory"
-                : profile.published
-                  ? "Published, but not listed yet"
-                  : "Draft: only you can see this"}
-            </p>
-            {problems.length > 0 && (
-              <ul className="mt-2 list-disc space-y-1 pl-5">
-                {problems.map((problem) => (
-                  <li key={problem}>{problem}</li>
-                ))}
-              </ul>
-            )}
-            <div className="mt-4 flex flex-wrap items-center gap-3">
+        <Callout
+          tone={listed ? "success" : "info"}
+          icon={listed ? Globe : PencilLine}
+          title={
+            listed
+              ? "Published: you’re in the directory"
+              : profile.published
+                ? "Published, but not listed yet"
+                : "Draft: only you can see this"
+          }
+          action={
+            <>
               <form action={setPublishedAction}>
                 <input
                   type="hidden"
@@ -201,14 +197,22 @@ function Visibility({ profile }: { profile: OwnCreatorProfile }) {
                   View your page
                 </Link>
               )}
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          {problems.length > 0 && (
+            <ul className="list-disc space-y-1 pl-5">
+              {problems.map((problem) => (
+                <li key={problem}>{problem}</li>
+              ))}
+            </ul>
+          )}
+        </Callout>
       )}
 
       <form
         action={setIndexingAction}
-        className="mt-5 flex flex-col gap-3 border-t border-hairline pt-5 sm:flex-row sm:items-center sm:justify-between"
+        className="flex flex-col gap-3 rounded-card bg-white p-4 ring-1 ring-hairline sm:flex-row sm:items-center sm:justify-between sm:p-5"
       >
         <p className="text-sm">
           {profile.allowIndexing

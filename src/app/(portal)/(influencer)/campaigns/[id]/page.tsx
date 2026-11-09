@@ -1,4 +1,10 @@
-import { CalendarClock, MapPin, Users } from "lucide-react";
+import {
+  BadgeCheck,
+  CalendarClock,
+  CircleAlert,
+  MapPin,
+  Users,
+} from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -10,6 +16,8 @@ import {
   RequirementList,
   StatusPill,
 } from "@/components/campaigns/campaign-facts";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth";
 import { creatorReceivesKobo, formatDay, problemText } from "@/lib/campaign";
 import { formatDate } from "@/lib/creator-profile";
@@ -50,28 +58,31 @@ async function Campaign({ params }: { params: Params }) {
 
   return (
     <>
-      <Link
-        href={isCreator ? "/campaigns" : "/admin"}
-        className="link text-sm font-medium"
-      >
-        {isCreator ? "All campaigns" : "Admin"}
-      </Link>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <h1 className="text-display-lg">{campaign.title}</h1>
-        {!isCreator && (
-          <StatusPill
-            status={campaign.status}
-            takenDown={Boolean(campaign.removedReason)}
-          />
-        )}
-      </div>
-      <p className="mt-2 flex items-center gap-1.5 text-muted">
-        <MapPin className="size-4 shrink-0" aria-hidden="true" />
-        {campaign.businessName}, {campaign.businessCity},{" "}
-        {stateLabel(campaign.businessState)}
-      </p>
+      <PageHeader
+        title={campaign.title}
+        crumbs={[
+          isCreator
+            ? { href: "/campaigns", label: "Campaigns" }
+            : { href: "/admin", label: "Admin" },
+        ]}
+        badge={
+          !isCreator && (
+            <StatusPill
+              status={campaign.status}
+              takenDown={Boolean(campaign.removedReason)}
+            />
+          )
+        }
+        lead={
+          <span className="flex items-center gap-1.5 text-base text-muted">
+            <MapPin className="size-4 shrink-0" aria-hidden="true" />
+            {campaign.businessName}, {campaign.businessCity},{" "}
+            {stateLabel(campaign.businessState)}
+          </span>
+        }
+      />
 
-      <dl className="mt-8 grid gap-4 rounded-card bg-surface-card p-5 sm:grid-cols-3 sm:p-6">
+      <dl className="grid gap-4 rounded-card bg-white p-5 ring-1 ring-hairline sm:grid-cols-3 sm:p-6">
         {campaign.priceKobo !== null && (
           <div>
             <dt className="text-sm text-muted">Pay per creator</dt>
@@ -102,42 +113,37 @@ async function Campaign({ params }: { params: Params }) {
         </div>
       </dl>
 
-      {isCreator && (
-        <div
-          className={
-            qualifies
-              ? "mt-6 rounded-card bg-brand-mint p-5 text-ink"
-              : "mt-6 rounded-card bg-white p-5 text-ink ring-1 ring-hairline"
-          }
-        >
-          <p className="font-semibold">
-            {qualifies
-              ? "You qualify for this campaign."
-              : "You don’t qualify yet."}
-          </p>
-          {qualifies ? (
-            <p className="mt-1">
-              Applying opens soon. We’ll let you know when you can.
-            </p>
-          ) : (
-            <ul className="mt-2 list-disc space-y-1 pl-5">
+      {isCreator &&
+        (qualifies ? (
+          <Callout
+            tone="success"
+            icon={BadgeCheck}
+            title="You qualify for this campaign"
+            className="mt-6"
+          >
+            Applying opens soon. We’ll let you know when you can.
+          </Callout>
+        ) : (
+          <Callout
+            tone="info"
+            icon={CircleAlert}
+            title="You don’t qualify yet"
+            className="mt-6"
+            action={
+              <Link href="/profile" className="link">
+                Update your profile
+              </Link>
+            }
+          >
+            <ul className="list-disc space-y-1 pl-5">
               {campaign.problems.map((p, i) => (
                 <li key={i}>
                   {problemText(p, { nicheNames, states: campaign.states })}
                 </li>
               ))}
             </ul>
-          )}
-          {!qualifies && (
-            <Link
-              href="/profile"
-              className="link mt-3 inline-block text-sm font-medium"
-            >
-              Update your profile
-            </Link>
-          )}
-        </div>
-      )}
+          </Callout>
+        ))}
 
       <section aria-labelledby="posts-title" className="mt-10">
         <h2 id="posts-title" className="text-display-md">

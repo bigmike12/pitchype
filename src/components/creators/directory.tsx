@@ -60,7 +60,13 @@ export async function Directory({
         <h2 id="results-title" className="sr-only">
           Results
         </h2>
-        <p role="status" className="font-semibold text-ink">
+        <p
+          role="status"
+          // In the portal the empty state says it; keep this for screen readers.
+          className={
+            total === 0 && inPortal ? "sr-only" : "font-semibold text-ink"
+          }
+        >
           {total === 0
             ? filtered
               ? "No creators match these filters."

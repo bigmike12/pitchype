@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { LoadingNotice } from "@/app/(portal)/loading-notice";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth";
 import { lagosToday } from "@/lib/campaign";
 import { getOwnCampaign } from "@/lib/db/campaigns";
@@ -37,17 +37,22 @@ async function EditCampaign({ params }: { params: Params }) {
 
   return (
     <>
-      <Link
-        href={`/business/campaigns/${campaign.id}`}
-        className="link text-sm font-medium"
-      >
-        Back to the campaign
-      </Link>
-      <h1 className="mt-4 text-display-lg">
-        {campaign.status === "draft" ? "Edit draft" : "Edit live campaign"}
-      </h1>
+      <PageHeader
+        title={
+          campaign.status === "draft" ? "Edit draft" : "Edit live campaign"
+        }
+        crumbs={[
+          { href: "/business/campaigns", label: "Campaigns" },
+          { href: `/business/campaigns/${campaign.id}`, label: campaign.title },
+        ]}
+        lead={
+          campaign.status === "draft"
+            ? undefined
+            : "Price, requirements and what creators post are locked now that it’s live, so nobody applies to one thing and gets another."
+        }
+      />
       {campaign.status === "draft" ? (
-        <div className="mt-10">
+        <div>
           <CampaignForm
             niches={await listNiches()}
             today={lagosToday()}
@@ -55,13 +60,7 @@ async function EditCampaign({ params }: { params: Params }) {
           />
         </div>
       ) : (
-        <>
-          <p className="mt-2 mb-10 max-w-xl text-muted">
-            Price, requirements and what creators post are locked now that it’s
-            live, so nobody applies to one thing and gets another.
-          </p>
-          <LiveEditForm campaign={campaign} />
-        </>
+        <LiveEditForm campaign={campaign} />
       )}
     </>
   );
