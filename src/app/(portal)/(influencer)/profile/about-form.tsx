@@ -3,6 +3,7 @@
 import { Building2, MapPin, UserRound } from "lucide-react";
 import { startTransition, useActionState, useState } from "react";
 
+import { NichePicker } from "@/components/creators/niche-picker";
 import { Button } from "@/components/ui/button";
 import {
   describedBy,
@@ -41,12 +42,6 @@ export function AboutForm({
     (initial?.niches ?? "").split(",").filter(Boolean),
   );
   const [bioLength, setBioLength] = useState((initial?.bio ?? "").length);
-
-  function toggleNiche(slug: string, checked: boolean) {
-    setChosen((current) =>
-      checked ? [...current, slug] : current.filter((s) => s !== slug),
-    );
-  }
 
   return (
     <form
@@ -109,47 +104,13 @@ export function AboutForm({
         />
       </div>
 
-      <fieldset
-        aria-describedby={errors.niches ? "niches-error" : "niches-hint"}
-      >
-        <legend className="font-semibold text-ink">Niches</legend>
-        <p id="niches-hint" className="mt-1 text-sm text-muted">
-          Choose up to {MAX_NICHES}. These decide which searches you appear in.
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {niches.map((niche) => {
-            const checked = chosen.includes(niche.slug);
-            const full = !checked && chosen.length >= MAX_NICHES;
-            return (
-              <label
-                key={niche.slug}
-                className={cn(
-                  "inline-flex min-h-11 cursor-pointer items-center rounded-full border border-field bg-white px-4 text-sm font-medium text-ink",
-                  "has-checked:border-ink has-checked:bg-ink has-checked:text-white",
-                  "has-focus-visible:outline-2 has-focus-visible:outline-offset-3 has-focus-visible:outline-ink",
-                  full
-                    ? "cursor-not-allowed opacity-50"
-                    : "not-has-checked:hover:bg-surface-card",
-                )}
-              >
-                <input
-                  type="checkbox"
-                  name="niches"
-                  value={niche.slug}
-                  checked={checked}
-                  disabled={full}
-                  onChange={(event) =>
-                    toggleNiche(niche.slug, event.target.checked)
-                  }
-                  className="sr-only"
-                />
-                {niche.name}
-              </label>
-            );
-          })}
-        </div>
-        <FieldMessages id="niches" error={errors.niches} />
-      </fieldset>
+      <NichePicker
+        niches={niches}
+        chosen={chosen}
+        onChange={setChosen}
+        error={errors.niches}
+        hint={`Choose up to ${MAX_NICHES}. These decide which searches you appear in.`}
+      />
 
       <div className="grid gap-5 sm:grid-cols-2">
         <SelectField

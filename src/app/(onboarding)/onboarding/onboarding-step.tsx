@@ -18,6 +18,23 @@ const backClass = buttonVariants({
   className: "-ml-2.5 shrink-0",
 });
 
+/** The row under a step's question: Continue (or Skip) and "Finish later". */
+export function StepActions({ children }: { children: ReactNode }) {
+  return (
+    <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
+      {children}
+      <Link href="/home" className="link text-center sm:ml-2">
+        Finish later
+      </Link>
+    </div>
+  );
+}
+
+export const continueClass = buttonVariants({
+  size: "lg",
+  className: "w-full sm:w-auto",
+});
+
 /**
  * One onboarding question: progress bar along the top of the page, clay
  * tile, "Step N of M", heading with a back link (or button), lead, then the

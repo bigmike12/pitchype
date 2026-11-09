@@ -260,6 +260,19 @@ export async function updateCreatorAbout(
   if (error) throw new Error(`creator profile update failed (${error.code})`);
 }
 
+/** Onboarding's niches step: only the niches, on the creator's own row. */
+export async function setCreatorNiches(
+  userId: string,
+  niches: string[],
+): Promise<void> {
+  const supabase = await createSessionClient();
+  const { error } = await supabase
+    .from("influencer_profiles")
+    .update({ niches })
+    .eq("user_id", userId);
+  if (error) throw new Error(`creator niches update failed (${error.code})`);
+}
+
 export async function setCreatorPublished(
   userId: string,
   published: boolean,

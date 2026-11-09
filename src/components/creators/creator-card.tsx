@@ -11,9 +11,10 @@ import { PlatformSummary } from "./platform-list";
 /**
  * One creator in the directory. The whole card is clickable through the
  * name link (stretched over the card), so screen readers hear just the name.
+ * With `href` null (a preview of an unpublished profile) nothing links.
  */
 export function CreatorCard({
-  slug,
+  href,
   displayName,
   photoUrl,
   city,
@@ -23,7 +24,8 @@ export function CreatorCard({
   rate,
   priority,
 }: {
-  slug: string;
+  /** The profile page, e.g. `/creators/<slug>`; null for a preview. */
+  href: string | null;
   displayName: string;
   photoUrl: string | null;
   city: string;
@@ -44,12 +46,16 @@ export function CreatorCard({
       />
       <div className="flex flex-1 flex-col px-1 pt-4 pb-1">
         <h2 className="text-lg leading-snug font-semibold">
-          <Link
-            href={`/creators/${slug}`}
-            className="rounded-sm after:absolute after:inset-0 after:rounded-card"
-          >
-            {displayName}
-          </Link>
+          {href ? (
+            <Link
+              href={href}
+              className="rounded-sm after:absolute after:inset-0 after:rounded-card"
+            >
+              {displayName}
+            </Link>
+          ) : (
+            displayName
+          )}
         </h2>
         <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
           <MapPin className="size-4 shrink-0" aria-hidden="true" />

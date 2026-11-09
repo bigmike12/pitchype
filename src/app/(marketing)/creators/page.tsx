@@ -106,7 +106,7 @@ async function Directory({ searchParams }: { searchParams: SearchParams }) {
             {creators.map((creator, index) => (
               <li key={creator.slug} className="grid">
                 <CreatorCard
-                  slug={creator.slug}
+                  href={`/creators/${creator.slug}`}
                   displayName={creator.displayName}
                   photoUrl={creator.photoUrl}
                   city={creator.city}

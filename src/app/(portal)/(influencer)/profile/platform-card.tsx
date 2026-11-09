@@ -33,15 +33,20 @@ const RANGE_OPTIONS = FOLLOWER_RANGES.map((range) => ({
   label: FOLLOWER_RANGE_LABELS[range],
 }));
 
-/** One platform on the profile editor: add it, edit it, remove it, verify it. */
+/**
+ * One platform on the profile editor: add it, edit it, remove it, verify it.
+ * Onboarding hides the verification part (`showVerification={false}`).
+ */
 export function PlatformCard({
   platform,
   saved,
   verification,
+  showVerification = true,
 }: {
   platform: Platform;
   saved: OwnPlatform | null;
   verification: VerificationView | null;
+  showVerification?: boolean;
 }) {
   const label = PLATFORM_RULES[platform].label;
 
@@ -61,7 +66,7 @@ export function PlatformCard({
         </div>
       </div>
 
-      {saved && verification && (
+      {showVerification && saved && verification && (
         <Verification
           platform={platform}
           handle={saved.handle}

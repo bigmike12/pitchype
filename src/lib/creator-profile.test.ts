@@ -8,6 +8,7 @@ import {
   normalizeHandle,
   parseAboutForm,
   parseDirectoryFilters,
+  parseNiches,
   parsePlatformForm,
   parseRate,
   publishProblems,
@@ -365,5 +366,31 @@ test("about form: contact details are refused in bios", () => {
   assert.match(
     !parsed.ok ? (parsed.errors.bio ?? "") : "",
     /Remove the WhatsApp link/,
+  );
+});
+
+test("niches: known, deduplicated, one to three", () => {
+  const slugs = ["food", "fashion", "travel", "tech"];
+  const form = (...chosen: string[]) => {
+    const data = new FormData();
+    for (const slug of chosen) data.append("niches", slug);
+    return data;
+  };
+  assert.deepEqual(parseNiches(form("food", "food", "made-up"), slugs), {
+    ok: true,
+    niches: ["food"],
+  });
+  assert.deepEqual(parseNiches(form(), slugs), {
+    ok: false,
+    error: "Choose at least one niche.",
+    chosen: [],
+  });
+  assert.deepEqual(
+    parseNiches(form("food", "fashion", "travel", "tech"), slugs),
+    {
+      ok: false,
+      error: "Choose up to 3 niches.",
+      chosen: ["food", "fashion", "travel", "tech"],
+    },
   );
 });
