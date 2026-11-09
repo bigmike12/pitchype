@@ -5,7 +5,7 @@ import { EXAMPLE_PRICE_KOBO, feeExample } from "@/lib/fees";
 import { formatNaira } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
-import { Avatar, Chip, ProductFragment } from "./fragments";
+import { Avatar, Chip, ProductFragment } from "@/components/brand/fragments";
 
 const job = feeExample(EXAMPLE_PRICE_KOBO);
 
@@ -90,13 +90,13 @@ const FEATURES: Feature[] = [
     fragment: (
       <ProductFragment label="a chat where a business and a creator agree on two reels for ₦60,000">
         <div className="space-y-2 pt-6 text-xs">
-          <p className="mr-8 rounded-2xl rounded-bl-md bg-surface-card px-3 py-2">
+          <p className="mr-8 rounded-card rounded-bl-md bg-surface-card px-3 py-2">
             Could you do two reels instead of one?
           </p>
-          <p className="ml-8 rounded-2xl rounded-br-md bg-ink px-3 py-2 text-white">
+          <p className="ml-8 rounded-card rounded-br-md bg-ink px-3 py-2 text-white">
             Yes, for ₦60,000 total. I can post by Friday.
           </p>
-          <p className="mr-8 rounded-2xl rounded-bl-md bg-surface-card px-3 py-2">
+          <p className="mr-8 rounded-card rounded-bl-md bg-surface-card px-3 py-2">
             Deal. Updating the offer now.
           </p>
         </div>
@@ -177,7 +177,7 @@ export function Features() {
   return (
     <section
       aria-labelledby="features-title"
-      className="mx-auto max-w-7xl px-4 section-y sm:px-6 lg:px-8"
+      className="container-page section-y"
     >
       <h2 id="features-title" className="max-w-[18ch] text-display-lg">
         Fair for businesses. Fair for creators.
@@ -186,7 +186,10 @@ export function Features() {
         {FEATURES.map((feature) => (
           <li
             key={feature.title}
-            className={cn("flex flex-col rounded-3xl p-6 sm:p-8", feature.card)}
+            className={cn(
+              "flex flex-col rounded-panel p-6 sm:p-8",
+              feature.card,
+            )}
           >
             <h3 className="text-display-md">{feature.title}</h3>
             <p className="mt-2 mb-6">{feature.text}</p>

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { EXAMPLE_PRICE_KOBO, feeExample } from "@/lib/fees";
 import { formatNaira } from "@/lib/money";
 
-import { Avatar, Chip, ProductFragment } from "./fragments";
+import { Avatar, Chip, ProductFragment } from "@/components/brand/fragments";
 import { HowItWorksTabs } from "./how-it-works-tabs";
 
 type Step = { title: string; text: string; fragment: ReactNode };
@@ -163,7 +163,7 @@ function StepList({ steps }: { steps: Step[] }) {
       {steps.map((step, index) => (
         <li
           key={step.title}
-          className="flex flex-col rounded-3xl bg-surface-card p-5 sm:p-6"
+          className="flex flex-col rounded-panel bg-surface-card p-5 sm:p-6"
         >
           <span
             aria-hidden="true"
@@ -185,7 +185,7 @@ export function HowItWorks() {
     <section
       id="how-it-works"
       aria-labelledby="how-it-works-title"
-      className="mx-auto max-w-7xl px-4 section-y sm:px-6 lg:px-8"
+      className="container-page section-y"
     >
       <h2 id="how-it-works-title" className="text-display-lg">
         How it works

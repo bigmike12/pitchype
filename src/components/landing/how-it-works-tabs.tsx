@@ -100,7 +100,7 @@ export function HowItWorksTabs({
           aria-labelledby={`how-tab-${tab.id}`}
           tabIndex={0}
           hidden={tab.id !== active}
-          className="mt-8 rounded-3xl"
+          className="mt-8 rounded-panel"
         >
           {panels[tab.id]}
         </div>

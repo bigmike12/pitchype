@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { CONTACT_EMAIL, SOCIAL_PROFILES } from "@/lib/site";
 
-import { Wordmark } from "./wordmark";
+import { Wordmark } from "@/components/brand/wordmark";
 
 const PRODUCT_LINKS = [
   { href: "/#how-it-works", label: "How it works" },
@@ -26,7 +26,7 @@ async function CurrentYear() {
 export function SiteFooter() {
   return (
     <footer className="border-t border-hairline bg-surface-soft">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+      <div className="container-page py-12 lg:py-16">
         <div className="grid gap-10 md:grid-cols-12">
           <div className="md:col-span-5">
             <Wordmark />

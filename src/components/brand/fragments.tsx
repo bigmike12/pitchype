@@ -34,7 +34,7 @@ export function ProductFragment({
       role="img"
       aria-label={`Sample screen: ${label}`}
       className={cn(
-        "relative rounded-2xl bg-canvas p-4 text-sm text-ink",
+        "relative rounded-card bg-canvas p-4 text-sm text-ink",
         className,
       )}
     >

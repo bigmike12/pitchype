@@ -1,11 +1,13 @@
 "use client";
 
+import { Lock, Mail } from "lucide-react";
 import Link from "next/link";
 import { useActionState } from "react";
 
-import { FormCard, FormStatus, TextField } from "@/components/forms/fields";
-import { PasswordField } from "@/components/forms/password-field";
 import { Button } from "@/components/ui/button";
+import { TextField } from "@/components/ui/field";
+import { FormMessage } from "@/components/ui/form-message";
+import { PasswordField } from "@/components/ui/password-field";
 
 import { loginAction, type LoginState } from "./actions";
 
@@ -16,44 +18,39 @@ export function LoginForm() {
   );
 
   return (
-    <FormCard>
-      <form action={formAction} className="space-y-5">
-        <TextField
-          label="Email address"
-          name="email"
-          type="email"
-          inputMode="email"
-          autoComplete="email"
-          required
-          maxLength={254}
-          defaultValue={state.values?.email}
-          error={state.errors?.email}
-        />
+    <form action={formAction} className="space-y-5">
+      <TextField
+        label="Email address"
+        name="email"
+        type="email"
+        icon={Mail}
+        inputMode="email"
+        autoComplete="email"
+        required
+        maxLength={254}
+        defaultValue={state.values?.email}
+        error={state.errors?.email}
+      />
 
-        <div>
-          <PasswordField
-            label="Password"
-            name="password"
-            autoComplete="current-password"
-            required
-            error={state.errors?.password}
-          />
-          <p className="mt-2 text-sm">
-            <Link
-              href="/forgot-password"
-              className="font-medium text-ink underline underline-offset-4"
-            >
-              Forgot your password?
-            </Link>
-          </p>
-        </div>
+      <PasswordField
+        label="Password"
+        name="password"
+        icon={Lock}
+        autoComplete="current-password"
+        required
+        error={state.errors?.password}
+        labelAside={
+          <Link href="/forgot-password" className="link font-medium">
+            Forgot your password?
+          </Link>
+        }
+      />
 
-        <FormStatus status={state.status} message={state.message} />
+      <FormMessage status={state.status} message={state.message} />
 
-        <Button type="submit" size="lg" disabled={pending} className="w-full">
-          {pending ? "Logging in…" : "Log in"}
-        </Button>
-      </form>
-    </FormCard>
+      <Button type="submit" size="lg" disabled={pending} className="w-full">
+        {pending ? "Logging in…" : "Log in"}
+      </Button>
+    </form>
   );
 }

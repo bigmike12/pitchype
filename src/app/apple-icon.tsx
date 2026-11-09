@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-import { PitchypeMark } from "@/components/landing/wordmark";
+import { PitchypeMark } from "@/components/brand/wordmark";
 
 // iOS home-screen icon: the mark on a cream tile.
 export const size = { width: 180, height: 180 };

@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-import { PitchypeMark } from "@/components/landing/wordmark";
+import { PitchypeMark } from "@/components/brand/wordmark";
 
 // Generated at build time and served as the Open Graph image. X/Twitter falls
 // back to og:image, so there's no separate twitter-image.

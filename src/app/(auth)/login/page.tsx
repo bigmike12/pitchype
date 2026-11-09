@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { AuthAlternative, AuthHeading } from "@/components/shells/auth-shell";
+
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Log in" };
@@ -8,17 +10,16 @@ export const metadata: Metadata = { title: "Log in" };
 export default function LoginPage() {
   return (
     <>
-      <h1 className="mb-8 text-display-lg">Log in</h1>
+      <AuthHeading title="Welcome back">
+        Log in to your Pitchype account.
+      </AuthHeading>
       <LoginForm />
-      <p className="mt-6 text-center">
+      <AuthAlternative>
         New to Pitchype?{" "}
-        <Link
-          href="/signup"
-          className="font-semibold text-ink underline underline-offset-4"
-        >
+        <Link href="/signup" className="link">
           Create an account
         </Link>
-      </p>
+      </AuthAlternative>
     </>
   );
 }

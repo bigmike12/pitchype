@@ -65,7 +65,7 @@ export function Pricing() {
     <section
       id="pricing"
       aria-labelledby="pricing-title"
-      className="mx-auto max-w-7xl px-4 section-y sm:px-6 lg:px-8"
+      className="container-page section-y"
     >
       <h2 id="pricing-title" className="text-display-lg">
         Simple, honest fees
@@ -80,7 +80,7 @@ export function Pricing() {
           <article
             key={receipt.title}
             aria-labelledby={`pricing-${receipt.title}`}
-            className="rounded-3xl bg-surface-card p-6 sm:p-8"
+            className="rounded-panel bg-surface-card p-6 sm:p-8"
           >
             <h3
               id={`pricing-${receipt.title}`}
@@ -93,7 +93,7 @@ export function Pricing() {
               <span className="mt-1 block text-lg">{receipt.rateNote}</span>
             </p>
 
-            <dl className="mt-8 rounded-2xl bg-canvas p-5 text-ink">
+            <dl className="mt-8 rounded-card bg-canvas p-5 text-ink">
               {receipt.lines.map((line) => (
                 <div
                   key={line.label}
