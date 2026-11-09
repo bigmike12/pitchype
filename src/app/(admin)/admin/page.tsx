@@ -10,6 +10,12 @@ import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/field";
 import { requireRole } from "@/lib/auth";
 import {
+  listCampaignsForReview,
+  listOpenCampaignReports,
+  type CampaignForReview,
+  type OpenCampaignReport,
+} from "@/lib/db/campaigns";
+import {
   PLATFORM_RULES,
   REPORT_REASONS,
   formatDateTime,
@@ -24,12 +30,16 @@ import {
   type VerificationQueueItem,
 } from "@/lib/db/verification";
 
-import { signOutAction } from "../../(app)/actions";
-import { LoadingNotice } from "../../(app)/loading-notice";
+import { signOutAction } from "@/app/(app)/actions";
+import { LoadingNotice } from "@/app/(app)/loading-notice";
 import {
+  approveCampaignAction,
   hideReportedCreatorAction,
   removeReportedPhotoAction,
+  resolveCampaignReportAction,
   resolveReportAction,
+  sendBackCampaignAction,
+  takeDownCampaignAction,
   unhideCreatorAction,
 } from "./actions";
 import { ReviewForm } from "./review-form";
@@ -48,11 +58,14 @@ export default function AdminPage() {
 
 async function Admin() {
   await requireRole("admin");
-  const [queue, reports, hidden] = await Promise.all([
-    listVerificationQueue(),
-    listOpenReports(),
-    listHiddenCreators(),
-  ]);
+  const [campaignsToReview, campaignReports, queue, reports, hidden] =
+    await Promise.all([
+      listCampaignsForReview(),
+      listOpenCampaignReports(),
+      listVerificationQueue(),
+      listOpenReports(),
+      listHiddenCreators(),
+    ]);
 
   return (
     <>
@@ -61,7 +74,27 @@ async function Admin() {
       </Link>
       <h1 className="mt-4 text-display-lg">Admin</h1>
 
-      <section aria-labelledby="queue-title" className="mt-10">
+      <section aria-labelledby="campaign-review-title" className="mt-10">
+        <h2 id="campaign-review-title" className="text-display-md">
+          First campaigns to review ({campaignsToReview.length})
+        </h2>
+        <p className="mt-2 max-w-xl">
+          A business’s first campaign waits here. Read it, then approve it or
+          send it back with a note the business sees. Later campaigns from an
+          approved business go live without review.
+        </p>
+        {campaignsToReview.length === 0 ? (
+          <p className="mt-4 text-muted">Nothing waiting.</p>
+        ) : (
+          <ul className="mt-5 space-y-4">
+            {campaignsToReview.map((c) => (
+              <CampaignReviewItem key={c.id} campaign={c} />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-labelledby="queue-title" className="mt-14">
         <h2 id="queue-title" className="text-display-md">
           Handles to verify ({queue.length})
         </h2>
@@ -90,6 +123,21 @@ async function Admin() {
           <ul className="mt-5 space-y-4">
             {reports.map((report) => (
               <ReportItem key={report.id} report={report} />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-labelledby="campaign-reports-title" className="mt-14">
+        <h2 id="campaign-reports-title" className="text-display-md">
+          Campaign reports ({campaignReports.length})
+        </h2>
+        {campaignReports.length === 0 ? (
+          <p className="mt-4 text-muted">No open reports.</p>
+        ) : (
+          <ul className="mt-5 space-y-4">
+            {campaignReports.map((report) => (
+              <CampaignReportItem key={report.id} report={report} />
             ))}
           </ul>
         )}
@@ -265,6 +313,106 @@ function ReportItem({ report }: { report: OpenReport }) {
             className="flex-1"
           />
           <Button type="submit">Hide profile and close</Button>
+        </form>
+      )}
+    </li>
+  );
+}
+
+function CampaignReviewItem({ campaign }: { campaign: CampaignForReview }) {
+  return (
+    <li className="rounded-card bg-white p-4 ring-1 ring-hairline sm:p-5">
+      <p className="font-semibold text-ink">
+        <Link href={`/campaigns/${campaign.id}`} className="link">
+          {campaign.title}
+        </Link>
+      </p>
+      <p className="text-sm text-muted">
+        {campaign.businessName}, submitted{" "}
+        {formatDateTime(campaign.submittedAt)}
+      </p>
+      <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end">
+        <form action={approveCampaignAction}>
+          <input type="hidden" name="campaignId" value={campaign.id} />
+          <Button type="submit">Approve</Button>
+        </form>
+        <form
+          action={sendBackCampaignAction}
+          className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-end"
+        >
+          <input type="hidden" name="campaignId" value={campaign.id} />
+          <TextField
+            id={`send-back-${campaign.id}`}
+            label="Or send back with a note"
+            name="note"
+            required
+            minLength={2}
+            maxLength={500}
+            className="flex-1"
+          />
+          <Button type="submit" variant="secondary">
+            Send back
+          </Button>
+        </form>
+      </div>
+    </li>
+  );
+}
+
+const CAMPAIGN_REPORT_REASONS: Record<OpenCampaignReport["reason"], string> = {
+  scam_or_fraud: "Looks like a scam",
+  off_platform_contact: "Asks to deal outside Pitchype",
+  banned_content: "Banned content",
+  misleading: "Misleading",
+  other: "Something else",
+};
+
+function CampaignReportItem({ report }: { report: OpenCampaignReport }) {
+  const live = ["pending_review", "open", "paused"].includes(
+    report.campaign.status,
+  );
+  return (
+    <li className="rounded-card bg-white p-4 ring-1 ring-hairline sm:p-5">
+      <p className="font-semibold text-ink">
+        <Link href={`/campaigns/${report.campaign.id}`} className="link">
+          {report.campaign.title}
+        </Link>
+        {!live && (
+          <span className="ml-2 text-sm font-normal text-muted">
+            (no longer live)
+          </span>
+        )}
+      </p>
+      <p className="text-sm text-muted">
+        {report.campaign.businessName}: {CAMPAIGN_REPORT_REASONS[report.reason]}
+        , {formatDateTime(report.createdAt)}
+      </p>
+      {report.details && (
+        <p className="mt-2 whitespace-pre-line text-ink">“{report.details}”</p>
+      )}
+      <form action={resolveCampaignReportAction} className="mt-4">
+        <input type="hidden" name="reportId" value={report.id} />
+        <Button type="submit" variant="secondary">
+          Nothing wrong: close
+        </Button>
+      </form>
+      {live && (
+        <form
+          action={takeDownCampaignAction}
+          className="mt-4 flex flex-col gap-3 border-t border-hairline pt-4 sm:flex-row sm:items-end"
+        >
+          <input type="hidden" name="reportId" value={report.id} />
+          <input type="hidden" name="campaignId" value={report.campaign.id} />
+          <TextField
+            id={`take-down-${report.id}`}
+            label="Reason (the business sees this)"
+            name="reason"
+            required
+            minLength={2}
+            maxLength={200}
+            className="flex-1"
+          />
+          <Button type="submit">Take down and close</Button>
         </form>
       )}
     </li>

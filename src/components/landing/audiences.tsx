@@ -1,6 +1,7 @@
 import { Check } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
+import { openCampaignCount } from "@/lib/db/campaigns";
 import { BUSINESS_FEE_BPS, formatRate } from "@/lib/fees";
 import { cn } from "@/lib/utils";
 
@@ -90,6 +91,7 @@ export function Audiences() {
                 </li>
               ))}
             </ul>
+            {audience.role === "creator" && <OpenCampaigns />}
             <a
               href="#waitlist"
               data-waitlist-role={audience.role}
@@ -105,5 +107,20 @@ export function Audiences() {
         ))}
       </div>
     </section>
+  );
+}
+
+// Proof that there's work waiting, for creators deciding whether to sign up.
+// Campaigns themselves are for signed-in creators only. Hidden when there are
+// none (and if the count can't be fetched); refreshed hourly.
+async function OpenCampaigns() {
+  const count = await openCampaignCount();
+  if (count === 0) return null;
+  return (
+    <p className="-mt-4 mb-8 font-semibold">
+      {count === 1
+        ? "1 campaign is open for creators right now."
+        : `${count.toLocaleString("en-NG")} campaigns are open for creators right now.`}
+    </p>
   );
 }

@@ -4,12 +4,15 @@ import { refreshSession } from "@/lib/supabase/proxy";
 
 // Pages that need a signed-in person. They check again themselves; this just
 // sends people to the right place without rendering first.
+// Each entry covers the page and everything under it (/campaigns/123).
 const SIGNED_IN_ONLY = [
   "/account",
   "/onboarding",
   "/reset-password",
   "/profile",
   "/admin",
+  "/business",
+  "/campaigns",
 ];
 // Pages that make no sense once signed in.
 const SIGNED_OUT_ONLY = ["/login", "/signup", "/forgot-password"];
@@ -18,7 +21,7 @@ export async function proxy(request: NextRequest) {
   const { response, signedIn } = await refreshSession(request);
   const path = request.nextUrl.pathname;
 
-  if (!signedIn && SIGNED_IN_ONLY.includes(path)) {
+  if (!signedIn && SIGNED_IN_ONLY.some((page) => isUnder(path, page))) {
     return redirectKeepingCookies(request, "/login", response);
   }
   if (signedIn && SIGNED_OUT_ONLY.includes(path)) {
@@ -26,6 +29,9 @@ export async function proxy(request: NextRequest) {
   }
   return response;
 }
+
+const isUnder = (path: string, page: string) =>
+  path === page || path.startsWith(`${page}/`);
 
 function redirectKeepingCookies(
   request: NextRequest,
@@ -50,6 +56,9 @@ export const config = {
     "/reset-password",
     "/profile",
     "/admin",
+    "/business/:path*",
+    "/campaigns",
+    "/campaigns/:path*",
     "/creators",
     "/creators/:path*",
     "/login",
