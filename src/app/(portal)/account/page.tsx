@@ -1,17 +1,20 @@
+import { LogOut } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth";
 import { getProfile } from "@/lib/db/profiles";
 
+import { signOutAction } from "../actions";
 import { LoadingNotice } from "../loading-notice";
 import { updateProfileAction } from "./actions";
 import { ProfileForm } from "./profile-form";
 
-export const metadata: Metadata = { title: "Your account" };
+export const metadata: Metadata = { title: "Account" };
 
 const ROLE_LABELS = {
   business: "Business",
@@ -29,6 +32,8 @@ export default function AccountPage() {
   );
 }
 
+// Settings: sign-in details, the business profile (creators edit theirs on
+// /profile), and signing out.
 async function Account() {
   const user = await requireUser();
   const profile = await getProfile(user);
@@ -36,115 +41,93 @@ async function Account() {
 
   return (
     <>
-      <h1 className="text-display-lg">Your account</h1>
+      <PageHeader title="Account" />
 
-      <dl className="mt-6 grid gap-4 rounded-card bg-surface-card p-5 sm:grid-cols-2 sm:p-6">
-        <div>
-          <dt className="text-sm text-muted">Email</dt>
-          <dd className="mt-1 font-semibold break-all text-ink">
-            {user.email}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-sm text-muted">Account type</dt>
-          <dd className="mt-1 font-semibold text-ink">
-            {ROLE_LABELS[user.role]}
-          </dd>
-        </div>
-      </dl>
+      <div className="space-y-6">
+        <Section id="sign-in" title="Sign-in">
+          <dl className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <dt className="text-sm text-muted">Email</dt>
+              <dd className="mt-1 font-semibold break-all text-ink">
+                {user.email}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted">Account type</dt>
+              <dd className="mt-1 font-semibold text-ink">
+                {ROLE_LABELS[user.role]}
+              </dd>
+            </div>
+          </dl>
+        </Section>
 
-      {profile?.role === "business" && (
-        <LinkCard
-          href="/business/campaigns"
-          title="Your campaigns"
-          text="Describe what you want creators to post and who can apply. You see how many creators qualify before you publish."
-          action="Go to your campaigns"
-        />
-      )}
+        {profile?.role === "business" && (
+          <Section id="business-profile" title="Business profile">
+            <p className="mb-6 max-w-xl">
+              Creators see your business name and town on your campaigns.
+            </p>
+            <div className="max-w-md">
+              <ProfileForm
+                role={profile.role}
+                action={updateProfileAction}
+                initial={profile}
+                submitLabel="Save changes"
+                pendingLabel="Saving…"
+              />
+            </div>
+          </Section>
+        )}
 
-      {profile?.role === "influencer" && (
-        <LinkCard
-          href="/campaigns"
-          title="Campaigns"
-          text="Paid work from businesses, with whether you qualify for each one."
-          action="Find campaigns"
-        />
-      )}
+        {profile?.role === "influencer" && (
+          <Section id="public-profile" title="Your public profile">
+            <p className="max-w-xl">
+              Your photo, niches, platforms and rate: what businesses see in the
+              creator directory.
+            </p>
+            <Link
+              href="/profile"
+              className={buttonVariants({
+                variant: "secondary",
+                className: "mt-5",
+              })}
+            >
+              Edit your profile
+            </Link>
+          </Section>
+        )}
 
-      {profile?.role === "business" && (
-        <section aria-labelledby="profile-title" className="mt-12 max-w-md">
-          <h2 id="profile-title" className="mb-6 text-display-md">
-            Business profile
-          </h2>
-          <ProfileForm
-            role={profile.role}
-            action={updateProfileAction}
-            initial={profile}
-            submitLabel="Save changes"
-            pendingLabel="Saving…"
-          />
-        </section>
-      )}
-
-      {profile?.role === "influencer" && (
-        <LinkCard
-          href="/profile"
-          title="Your public profile"
-          text="Your photo, niches, platforms and rate: what businesses see in the creator directory."
-          action="Edit your profile"
-        />
-      )}
-
-      {user.role === "admin" && (
-        <LinkCard
-          href="/admin"
-          title="Admin"
-          text="Review first campaigns, verify creators’ handles, and deal with reports."
-          action="Open admin"
-        />
-      )}
-
-      <section aria-labelledby="next-title" className="mt-12">
-        <h2 id="next-title" className="text-display-md">
-          What happens next
-        </h2>
-        <p className="mt-2 max-w-xl">
-          {user.role === "business" ? (
-            <>
-              You can{" "}
-              <Link href="/creators" className="link">
-                browse creators
-              </Link>{" "}
-              and publish campaigns now. Receiving applications and hiring open
-              soon; we’ll email you as soon as you can.
-            </>
-          ) : (
-            "You can browse campaigns now. Applying and getting hired open soon; we’ll email you as soon as you can."
-          )}
-        </p>
-      </section>
+        <Section id="sign-out" title="Sign out">
+          <p className="max-w-xl">Sign out of Pitchype on this device.</p>
+          <form action={signOutAction} className="mt-5">
+            <Button type="submit" variant="secondary">
+              <LogOut aria-hidden="true" />
+              Sign out
+            </Button>
+          </form>
+        </Section>
+      </div>
     </>
   );
 }
 
-function LinkCard({
-  href,
+function Section({
+  id,
   title,
-  text,
-  action,
+  children,
 }: {
-  href: string;
+  id: string;
   title: string;
-  text: string;
-  action: string;
+  children: ReactNode;
 }) {
   return (
-    <section className="mt-12 rounded-card bg-white p-5 ring-1 ring-hairline sm:p-6">
-      <h2 className="text-display-md">{title}</h2>
-      <p className="mt-2 max-w-xl">{text}</p>
-      <Link href={href} className={buttonVariants({ className: "mt-5" })}>
-        {action}
-      </Link>
+    <section
+      aria-labelledby={`${id}-title`}
+      className="rounded-card bg-white p-5 ring-1 ring-hairline sm:p-6"
+    >
+      <h2 id={`${id}-title`} className="mb-4 text-display-md">
+        {title}
+      </h2>
+      {children}
     </section>
   );
 }
