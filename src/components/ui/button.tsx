@@ -13,11 +13,11 @@ const buttonVariants = cva(
       variant: {
         // Near-black primary.
         default: "bg-ink text-white hover:bg-[#2b2b2b]",
-        // Cream button with a visible outline, for the second choice.
+        // White button with a visible outline, for the second choice.
         secondary:
           "border border-field bg-canvas text-ink hover:bg-surface-card",
         // For use on the dark green and ink surfaces.
-        light: "bg-canvas text-ink hover:bg-white",
+        light: "bg-canvas text-ink hover:bg-surface-soft",
         ghost: "text-ink hover:bg-surface-card",
       },
       size: {

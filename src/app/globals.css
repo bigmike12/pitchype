@@ -8,7 +8,9 @@
  * against WCAG AA.
  */
 @theme {
-  --color-canvas: #fff9ee;
+  /* Page background for every page. White since 2026-11-09 (was cream
+     #fff9ee); cream lives on in the surface tokens below. */
+  --color-canvas: #ffffff;
   --color-surface-soft: #fbf3e2;
   --color-surface-card: #f4ebd6;
   --color-ink: #121212;

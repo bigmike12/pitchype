@@ -17,10 +17,10 @@ more places; otherwise style it locally.
 
 | Token (Tailwind class) | Value | Use |
 |---|---|---|
-| `canvas` | #FFF9EE | Page background everywhere |
+| `canvas` | #FFFFFF | Page background everywhere (white since 2026-11-09; it was cream #FFF9EE) |
 | `surface-soft` | #FBF3E2 | Bands (waitlist), footer, hero art background |
 | `surface-card` | #F4EBD6 | Cream cards (steps, pricing, account summary) |
-| `white` | #FFFFFF | Form fields, white panels, product fragments |
+| `white` | #FFFFFF | Form fields, white panels (always outlined, since the page is white too) |
 | `ink` | #121212 | Headings, primary buttons, text on saturated colours |
 | `body` | #3A3A3A | Running text |
 | `muted` | #666666 | Secondary text, hints, footer links (cream surfaces only) |
@@ -68,8 +68,8 @@ Contrast rules (checked against WCAG AA):
 
 `rounded-lg` (8px) is for small details inside fragments and nav links.
 
-No drop shadows. Depth comes from colour: saturated cards on cream, white
-panels outlined with `ring-1 ring-hairline`.
+No drop shadows. Depth comes from colour: saturated and cream cards on the
+white page, white panels outlined with `ring-1 ring-hairline`.
 
 ## Interaction
 
@@ -83,7 +83,7 @@ panels outlined with `ring-1 ring-hairline`.
 
 | Component | File | Notes |
 |---|---|---|
-| `Button`, `buttonVariants` | `ui/button.tsx` | `default` (ink), `secondary` (cream, outlined), `light` (on dark surfaces), `ghost`. Sizes `default` (44px), `lg` (48px), `icon`. Use `buttonVariants` to style links as buttons. |
+| `Button`, `buttonVariants` | `ui/button.tsx` | `default` (ink), `secondary` (white, outlined), `light` (on dark surfaces), `ghost`. Sizes `default` (44px), `lg` (48px), `icon`. Use `buttonVariants` to style links as buttons. |
 | `TextField`, `SelectField`, `TextAreaField` | `ui/field.tsx` | Visible label, optional leading `icon` (not on text areas), `hint`, `error`, `labelAside` (e.g. "Forgot your password?"); `TextAreaField` also takes `optional`. |
 | `PasswordField` | `ui/password-field.tsx` | Adds a Show button. |
 | `ChoiceGroup` | `ui/choice-group.tsx` | One choice from 2–3 options, on real radio buttons. `variant="pills"` (compact, label only; the waitlist) or `variant="cards"` (stacked, with icon, tone and a one-line description; the sign-up account type). Controlled (`value` + `onValueChange`) or not (`defaultValue`). |
