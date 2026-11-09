@@ -18,21 +18,31 @@ import { NIGERIAN_STATES, stateLabel } from "@/lib/profile";
  * A plain GET form: works without JavaScript, and every filtered view has a
  * URL people can share. The price filter only exists for businesses.
  */
+export type DirectoryBase = "/creators" | "/business/creators";
+
 export function DirectoryFilters({
   niches,
   filters,
   showRateFilter,
+  basePath,
 }: {
   niches: Niche[];
   filters: Filters;
   showRateFilter: boolean;
+  /** The public directory, or the one inside the business portal. */
+  basePath: DirectoryBase;
 }) {
   return (
     <form
       method="get"
-      action="/creators"
+      action={basePath}
       aria-label="Filter creators"
-      className="rounded-panel bg-surface-soft p-4 sm:p-6"
+      // Inside the portal, panels are white and outlined.
+      className={
+        basePath === "/creators"
+          ? "rounded-panel bg-surface-soft p-4 sm:p-6"
+          : "rounded-card bg-white p-4 ring-1 ring-hairline sm:p-5"
+      }
     >
       <div
         className={
@@ -97,7 +107,7 @@ export function DirectoryFilters({
       <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
         <Button type="submit">Show creators</Button>
         {hasActiveFilters(filters) && (
-          <Link href="/creators" className="link text-sm font-medium">
+          <Link href={basePath} className="link text-sm font-medium">
             Clear filters
           </Link>
         )}
