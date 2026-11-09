@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth";
 import { getProfile } from "@/lib/db/profiles";
-import { greeting } from "@/lib/portal";
 
 import { LoadingNotice } from "../loading-notice";
+import { BusinessHome } from "./business-home";
+import { CreatorHome } from "./creator-home";
 
 export const metadata: Metadata = { title: "Home" };
 
@@ -27,7 +27,9 @@ async function Home() {
   const profile = await getProfile(user);
   if (!profile) redirect("/onboarding");
 
-  const name =
-    profile.role === "business" ? profile.contactName : profile.displayName;
-  return <PageHeader title={greeting(name)} />;
+  return profile.role === "business" ? (
+    <BusinessHome userId={user.id} contactName={profile.contactName} />
+  ) : (
+    <CreatorHome userId={user.id} />
+  );
 }
