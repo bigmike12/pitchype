@@ -210,6 +210,11 @@ the Redirect URLs list. The app's Supabase migrations must be pushed
 (`supabase db push`) before sign-up works on the hosted project; confirming
 an email creates the app's user row.
 
+## Deferred work
+
+Setup steps and polish parked for later (email, Vercel, launch switches,
+follow-ups) are listed in [`docs/TODO.md`](docs/TODO.md).
+
 ## Design system
 
 Every page (landing, sign-in, onboarding, account) shares one design system:

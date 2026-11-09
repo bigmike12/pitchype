@@ -374,3 +374,4 @@ Still open:
 - If you notice a bug or risk outside the task, report it; don't fix it unasked unless it's a one-line obvious fix, and say so.
 - Say what you verified and what you didn't. Never claim a flow works if you didn't run it.
 - When unsure whether something is over-engineering, it probably is: choose the simpler version and mention the trade-off.
+- When you defer something (a dashboard step, polish, a known gap), add it to `docs/TODO.md`; tick items off there when they're done.
