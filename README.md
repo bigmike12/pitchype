@@ -160,20 +160,15 @@ users need Resend before sign-up works for them.
 Email links always point at the Site URL, so a link requested from a Vercel
 preview opens production. Test sign-up locally or on production.
 
-## Design tokens
+## Design system
 
-Colours live as CSS variables in `src/app/globals.css` and are available as
-Tailwind classes (`bg-canvas`, `text-ink`, `bg-brand-coral`, …). Every
-text/background pair used was checked against WCAG AA. The rules that came out
-of that check:
-
-- Use **ink** text on coral, lilac, sun, peach and mint. White text only on ink
-  and brand green.
-- `muted` (#666666) is for secondary text on the cream surfaces only, not on
-  the saturated colours.
-- Coral is a fill colour, never a text colour on cream (2.7:1).
-- `hairline` is for decorative lines. Form fields use `field` (#8a8273), which
-  meets 3:1 against cream and white.
+Every page (landing, sign-in, onboarding, account) shares one design system:
+tokens and utilities in `src/app/globals.css`, components in
+`src/components/ui`, and the brand kit and page shells in
+`src/components/brand` and `src/components/shells`. Read
+[`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) before building a page: it
+covers colours and their contrast rules, type, spacing, radii, components and
+the page patterns.
 
 Fees shown on the page come from `src/lib/fees.ts` (display only; the real fee
 rules will live in the database when payments are built).

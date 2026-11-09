@@ -121,7 +121,9 @@ src/
     (admin)/               disputes, payouts, moderation
     api/webhooks/paystack/ webhook endpoint
   components/
-    ui/                    shadcn primitives
+    ui/                    design-system components (Button, fields, …); see docs/DESIGN_SYSTEM.md
+    brand/                 wordmark, product fragments, stickers, illustrations
+    shells/                page layouts (auth, signed-in app)
     <feature>/             campaign, application, escrow, chat, wallet…
   lib/
     db/                    data access, one file per domain; the only code that queries the database (§2a)
@@ -137,6 +139,8 @@ supabase/
 docs/
   PROVIDERS.md             provider-specific dependencies and how to replace them
 ```
+
+All pages use the one design system in `docs/DESIGN_SYSTEM.md`: build from its tokens and components, and extend it (code and doc together) rather than styling around it.
 
 Co-locate code with the feature that uses it. Don't create `utils/` dumping grounds; a helper used in one place lives next to that place.
 
