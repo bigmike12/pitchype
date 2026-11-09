@@ -23,7 +23,7 @@ You need Node 22.18 or newer, Docker, and the
 npm install
 supabase start                 # local Postgres + API in Docker; applies migrations
 cp .env.example .env.local     # then fill it in (see below)
-npm run dev                    # http://localhost:3000
+npm run dev                    # http://localhost:3030
 ```
 
 `supabase status` prints the local API URL and publishable key for `.env.local`.

@@ -145,7 +145,7 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://localhost:3000"
+site_url = "http://localhost:3030"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 # Any local port: auth emails link to the app's own NEXT_PUBLIC_APP_URL.
 additional_redirect_urls = ["http://localhost:*", "http://localhost:*/**"]
