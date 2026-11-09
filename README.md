@@ -105,8 +105,14 @@ profile at `/onboarding`, then land on `/account`.
   `business_profiles` and `influencer_profiles`.
 - **Access rules** are in `supabase/migrations/*_create_users_and_profiles.sql`
   and proven by `supabase/tests/users_profiles_rls.test.sql`.
-- **Locally**, emails don't leave your machine: open Mailpit at
-  <http://127.0.0.1:54324> to click confirmation and reset links.
+- **Locally, emails never reach a real inbox.** Local Supabase delivers every
+  confirmation and reset email to Mailpit at <http://127.0.0.1:54324>; open
+  them there. Set `NEXT_PUBLIC_APP_URL` in `.env.local` to the address your
+  dev server actually runs on (e.g. `http://localhost:3001`), because email
+  links point at it.
+- **The app doesn't send auth emails itself.** Supabase Auth sends them using
+  its own email settings (`supabase/config.toml` locally, the dashboard when
+  hosted), so a `RESEND_API_KEY` in the app's env files does nothing.
 
 **Making someone an admin** (there's no admin sign-up). They sign up and
 confirm their email as usual, then you run this in the Supabase SQL editor:
@@ -151,14 +157,19 @@ users need Resend before sign-up works for them.
    - "Reset password": subject `Reset your Pitchype password`, body =
      `supabase/templates/recovery.html`.
 5. **Supabase → Authentication → URL configuration:** Site URL
-   `https://www.pitchype.com`. Email links are built from it.
+   `https://www.pitchype.com`. Under Redirect URLs, add any other address the
+   app runs on (for example a Vercel preview domain); email links only point
+   at addresses listed here.
 6. **Supabase → Authentication → Sign in / Providers → Email:** "Confirm email"
    on; minimum password length 8.
 7. **Supabase → Authentication → Rate limits:** raise "emails sent per hour"
    (possible once custom SMTP is on).
 
-Email links always point at the Site URL, so a link requested from a Vercel
-preview opens production. Test sign-up locally or on production.
+Email links point at the app's own `NEXT_PUBLIC_APP_URL` (the templates use
+`{{ .RedirectTo }}`), falling back to the Site URL if that address isn't on
+the Redirect URLs list. The app's Supabase migrations must be pushed
+(`supabase db push`) before sign-up works on the hosted project; confirming
+an email creates the app's user row.
 
 ## Design system
 

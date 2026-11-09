@@ -12,7 +12,14 @@ import {
   getUserByAuthId,
   type AppUser,
 } from "@/lib/db/users";
+import { SITE_URL } from "@/lib/site";
 import { createSessionClient } from "@/lib/supabase/server";
+
+// Where links in auth emails point (the templates use {{ .RedirectTo }}).
+// It comes from configuration, never from the request's Host header: a forged
+// host would otherwise put someone's reset token in a link to another site.
+// Supabase also only accepts addresses on its allow-list.
+const EMAIL_LINK_BASE = SITE_URL;
 
 type Failure<Reason extends string> = { ok: false; reason: Reason };
 const fail = <Reason extends string>(reason: Reason): Failure<Reason> => ({
@@ -70,9 +77,12 @@ export async function signUp(input: {
   const { error } = await supabase.auth.signUp({
     email: input.email,
     password: input.password,
-    // Kept on the auth record until the email is confirmed; the app user is
-    // created from it at first sign-in.
-    options: { data: { signup_role: input.role } },
+    options: {
+      // Kept on the auth record until the email is confirmed; the app user
+      // is created from it at first sign-in.
+      data: { signup_role: input.role },
+      emailRedirectTo: EMAIL_LINK_BASE,
+    },
   });
 
   // An email that already has an account also comes back as success (and
@@ -114,6 +124,7 @@ export async function signIn(input: {
       const { error: resendError } = await supabase.auth.resend({
         type: "signup",
         email: input.email,
+        options: { emailRedirectTo: EMAIL_LINK_BASE },
       });
       if (resendError && !RATE_LIMIT_CODES.has(resendError.code ?? "")) {
         logAuthError("resend confirmation", resendError);
@@ -171,7 +182,9 @@ export async function repairSession(): Promise<boolean> {
  */
 export async function sendPasswordReset(email: string): Promise<void> {
   const supabase = await createSessionClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: EMAIL_LINK_BASE,
+  });
   if (error && !RATE_LIMIT_CODES.has(error.code ?? "")) {
     logAuthError("password reset email", error);
   }
