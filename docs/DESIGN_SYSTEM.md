@@ -94,6 +94,10 @@ panels outlined with `ring-1 ring-hairline`.
 | Product fragments | `brand/fragments.tsx` | `ProductFragment` (labelled as an image, "Sample" tag), `Avatar` (initials, never photos), `Chip`. Fictional data only. |
 | Stickers | `brand/stickers.tsx` | `EscrowSticker` (`tone="light"` on dark backgrounds), `ApprovedBadge`, `clay()` shading for shapes. |
 | Illustrations | `landing/hero-illustration.tsx`, `brand/auth-scene.tsx` | Built from the fragments and stickers. Stickers sit only over empty areas. |
+| `CreatorPhoto` | `creators/creator-photo.tsx` | A real creator's square photo (`rounded-card`), or their initials on a brand colour picked from their name. Decorative: the name is always beside it. Not `Avatar`, which is for fictional people. |
+| `CreatorCard` | `creators/creator-card.tsx` | A directory card: photo, name (the link, stretched over the card), location, niche chips, platform summary, and the rate line for viewers who may see it. |
+| `PlatformIcon` | `creators/platform-icon.tsx` | Line glyphs for Instagram, TikTok, YouTube and X in Lucide's style. Always next to the platform's name (visible or `sr-only`). |
+| `PlatformSummary`, `PlatformDetails`, `VerifiedMark` | `creators/platform-list.tsx` | Followers as "10K–50K" or a verified count, labelled "Self-reported, updated …" or "Verified, as of …". `VerifiedMark` is the mint "Verified" pill. |
 | Shells | `shells/auth-shell.tsx`, `shells/app-shell.tsx`, `app/(marketing)/layout.tsx` | See below. |
 
 ## Page patterns
@@ -106,7 +110,13 @@ panels outlined with `ring-1 ring-hairline`.
   the bottom. On screens 1024px and wider, the green illustration panel fills
   the right half. Onboarding uses the same shell with a Sign out button.
 - **Signed-in pages** (`AppShell`): header bar with wordmark and Sign out, a
-  `max-w-2xl` content column, `text-display-lg` page title.
+  `max-w-2xl` content column, `text-display-lg` page title. The creator's
+  profile editor and the admin page use it too, one `text-display-md` section
+  per job (photo, about you, platforms).
+- **Directory pages:** marketing layout. Filters are a plain GET form on a
+  `surface-soft` panel, so every filtered view is a shareable URL and works
+  without JavaScript. Cards in a 1/2/3/4-column grid. Signed-out visitors get
+  one `brand-sun` prompt explaining what businesses see.
 - **Forms:** one column, labels always visible (no placeholder-only fields),
   a full-width primary button, errors under the field they belong to, the
   overall result in `FormMessage`, and a `Notice` when the form is finished.

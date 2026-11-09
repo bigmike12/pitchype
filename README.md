@@ -4,8 +4,9 @@ Pitchype is a marketplace that connects Nigerian businesses with micro and nano
 creators. Businesses post campaigns or hire creators directly; creators apply,
 do the work, and get paid through escrow once the work is approved.
 
-This repository is at **Stage 2**: the public landing page and waitlist, plus
-accounts: sign-up, login, password reset, onboarding and an account page.
+This repository is at **Stage 3**: the public landing page and waitlist;
+accounts (sign-up, login, password reset, onboarding, an account page); and
+creator profiles with a public directory, handle verification and moderation.
 There are no campaigns or payments yet. `CLAUDE.md` holds the product rules and
 engineering guidelines; `docs/BUILD_PROMPT.md` holds the stage plan.
 
@@ -36,10 +37,13 @@ Local development always points at the local Supabase, never the hosted one.
 | `NEXT_PUBLIC_SUPABASE_URL`             | Supabase project URL (local: `http://127.0.0.1:54321`)                                     |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key (`sb_publishable_…`). Safe in the browser; RLS protects the data  |
 | `NEXT_PUBLIC_APP_URL`                  | Public site URL for canonical links, sitemap and social cards, e.g. `https://pitchype.com` |
+| `SUPABASE_SECRET_KEY`                  | **Server-only.** Supabase secret key (`sb_secret_…`), used only to store profile photos    |
 
-All three are safe to expose. A legacy anon key also works in
-`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. The secret / service-role key is not
-used at this stage and must never get a `NEXT_PUBLIC_` name.
+The first three are safe to expose. A legacy anon key also works in
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. The secret key bypasses row level
+security: it is read only by `src/lib/supabase/admin.ts`, must never get a
+`NEXT_PUBLIC_` name, and goes in Vercel's settings as a sensitive variable.
+Without it everything works except photo uploads.
 
 Two local env files, both git-ignored:
 
@@ -114,6 +118,40 @@ profile at `/onboarding`, then land on `/account`.
   its own email settings (`supabase/config.toml` locally, the dashboard when
   hosted), so a `RESEND_API_KEY` in the app's env files does nothing.
 
+## Creator profiles and the directory
+
+Decisions are in `docs/BUILD_PROMPT.md` (Stage 3) and CLAUDE.md §12.
+
+- **Creators** edit their public profile at `/profile`: photo, bio, one to
+  three niches, state and city, an optional starting rate, and their
+  platforms (Instagram, TikTok, YouTube, X) with a follower range. Profiles
+  are drafts until published. Creators can keep their page out of search
+  engines.
+- **The directory** is `/creators` (filters: niche, platform, followers,
+  state) and `/creators/<slug>`. Signed-out visitors and creators see names,
+  photos, niches, location and follower ranges. Signed-in businesses (and
+  admins) also see handles, bios and starting rates, and can filter by rate.
+  The database enforces this: the directory is read only through
+  `search_creators()`, `get_listed_creator()` and `indexable_creators()`, and
+  the tables are closed to visitors. It isn't linked from the site until
+  launch, like sign-up.
+- **Verification:** a creator asks for a code (`pitchype-7K3F9Q`), puts it in
+  their bio within 48 hours and presses "I've added it". An admin checks the
+  bio at `/admin`, records the follower count seen, and verifies or rejects.
+  One verified account per handle; verifying a handle that's verified
+  elsewhere moves the badge (the admin page warns first). Changing or removing
+  a handle drops its badge.
+- **Moderation:** anyone can report a profile. Admins see reports at `/admin`
+  and can close them, remove the photo, or hide the profile with a reason the
+  creator sees (and show it again later).
+- **Niches** are rows in `public.niches`. To add one, run in the SQL editor:
+  `insert into public.niches (slug, name, sort_order) values ('pets', 'Pets', 180);`
+  It appears within an hour (the list is cached).
+- **Photos** go through `src/lib/profile-photo.ts` (sharp: checks the real
+  file type, strips EXIF/GPS, crops to 512px square WebP) and are stored by
+  `src/lib/storage.ts` in the `profile-photos` bucket. Access rules are proven
+  by `supabase/tests/creator_directory_rls.test.sql`.
+
 **Making someone an admin** (there's no admin sign-up). They sign up and
 confirm their email as usual, then you run this in the Supabase SQL editor:
 
@@ -130,9 +168,10 @@ Frankfurt). The repo is linked to it, so new migrations go up with
 1. Import the repo in Vercel (framework preset: Next.js).
 2. In Project Settings → Functions, set the region to **Frankfurt (fra1)** so
    server code runs next to the database.
-3. Set the three environment variables above for Production (and Preview if
-   you want previews to save signups), using the hosted project's URL and
-   publishable key from the Supabase dashboard.
+3. Set the environment variables above for Production (and Preview if you
+   want previews to save signups), using the hosted project's URL, publishable
+   key and secret key from the Supabase dashboard (API keys). Mark
+   `SUPABASE_SECRET_KEY` as sensitive.
 4. Deploy. Check `/robots.txt`, `/sitemap.xml` and a test signup afterwards.
 
 The app doesn't depend on Vercel: `npm run build && npm start` runs it on any
