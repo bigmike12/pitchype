@@ -12,9 +12,12 @@ import { Button } from "@/components/ui/button";
 export function AppShell({
   children,
   signOutAction,
+  wide = false,
 }: {
   children: ReactNode;
   signOutAction: () => Promise<void>;
+  /** Full page width, for grids of cards; otherwise a readable column. */
+  wide?: boolean;
 }) {
   return (
     <div className="flex min-h-dvh flex-col">
@@ -35,7 +38,7 @@ export function AppShell({
         </div>
       </header>
       <main id="main" className="container-page flex-1 py-10 sm:py-14">
-        <div className="max-w-2xl">{children}</div>
+        <div className={wide ? undefined : "max-w-2xl"}>{children}</div>
       </main>
     </div>
   );

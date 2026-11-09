@@ -1,7 +1,7 @@
 "use client";
 
 import { Building2, MapPin, UserRound } from "lucide-react";
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -49,7 +49,18 @@ export function AboutForm({
   }
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form
+      action={formAction}
+      // Submit by hand: React resets a form after its action, and the niche
+      // checkboxes (controlled) would show their first values again while
+      // React still holds the new ones, so the next save would drop them.
+      onSubmit={(event) => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        startTransition(() => formAction(data));
+      }}
+      className="space-y-6"
+    >
       <TextField
         label="Display name"
         name="displayName"

@@ -138,6 +138,8 @@ supabase/
   seed.sql
 docs/
   PROVIDERS.md             provider-specific dependencies and how to replace them
+  creator-directory-decisions.md   why the creator directory works the way it does (built in Stage 3)
+  campaign-spec-decisions.md       campaign rules for Stage 4 onward, incl. pay-per-click (not built yet)
 ```
 
 All pages use the one design system in `docs/DESIGN_SYSTEM.md`: build from its tokens and components, and extend it (code and doc together) rather than styling around it.
@@ -154,9 +156,10 @@ Every status below is a Postgres enum or check-constrained text column. **Transi
 `business`, `influencer`, `admin`. A user has exactly one role (decide before building if a person can be both; if yes, model it as two profiles, not one tangled profile).
 
 ### Campaign
-`draft → open → in_progress → completed`; also `closed` (stopped accepting applications) and `cancelled`.
-- Fields to capture at creation: title, brief, deliverables, platforms, niche/category, location, follower/engagement criteria, default price per influencer, slots needed, application deadline, deliver-by date.
+`draft → open → in_progress → completed`; also `closed` (stopped accepting applications, or taken down by an admin) and `cancelled`. Since Stage 4 also `pending_review` (a business's first campaign, between `draft` and `open`) and `paused` (hidden from influencers, back to `open` on resume). All changes go through `transition_campaign()` in the database.
+- Fields to capture at creation: title, brief, deliverables, platforms, niche/category, location, follower criteria (minimum range per platform; optional "verified creators only"), payment model (fixed price at first), default price per influencer, slots needed, application deadline, deliver-by date.
 - A campaign is listed to influencers only while `open` and not past deadline and slots not all filled.
+- Campaigns are visible only to signed-in influencers, admins and the owning business. Deliverables are a structured list (platform, type, quantity) plus notes. Once a campaign is live, price, requirements, deliverables and any destination link are locked; wording, deadline and extra slots can change. A business's first campaign is held for admin approval. Details: `docs/campaign-spec-decisions.md`.
 - Slots filled = number of `approved`/`active` engagements. Enforce in the database (constraint or transaction), not only in the UI. Two business clicks must never over-fill slots.
 
 ### Application
@@ -350,9 +353,19 @@ Decided in Stage 2 (2026-11-09):
 - **Sign-up and login pages stay unlinked until launch**; the landing page keeps pointing to the waitlist.
 - **Auth emails go through Resend** (custom SMTP in Supabase). The templates live in `supabase/templates/`.
 
-Decided in Stage 3 (2026-11-09; details in `docs/BUILD_PROMPT.md`, Stage 3):
+Decided in Stage 3 (2026-11-09; details in `docs/BUILD_PROMPT.md`, Stage 3, and `docs/creator-directory-decisions.md`):
 - **Follower counts are self-reported ranges at launch**, labelled as such. Creators upgrade to **Verified** by putting a single-use Pitchype code in their bio; an admin confirms it and records the follower count seen. One verified account per handle; conflicts go to admin review. Automate later only through official platform APIs, never scraping.
 - **The creator directory is public**, with less detail signed out: handles, bio, starting rate and the price filter are for signed-in businesses (and admins) only, enforced in the database. Profiles are drafts until published; creators can opt out of search indexing.
+
+Decided while planning Stage 4 (2026-11-09; details in `docs/campaign-spec-decisions.md`):
+- **Campaigns are visible only to signed-in influencers, admins and the owning business.**
+- **Business requirements:** platforms, niches, states or anywhere in Nigeria, a minimum follower range per platform, and an optional "verified creators only" switch (default off). No engagement-rate requirement.
+- **Deliverables are structured** (platform, type, quantity, optional posting window) plus free-text notes.
+- **Fixed price per creator, whole naira, minimum ₦5,000.** Fees follow §6.1. Nothing is escrowed at publish; escrow happens per engagement (§5, §6).
+- **Campaigns publish without review, except a business's first campaign**, which an admin approves. Report button and admin takedown apply. Briefs are checked for phone numbers and WhatsApp links.
+- **Editing after publish:** wording, deadline, extra places and closing early are allowed. Price, requirements, deliverables and the destination link are locked. Accepted creators keep a snapshot of the terms they agreed to.
+- **Pay per click is decided but built after Stage 6.** One short tracked link per creator per campaign (never the destination in the URL), a click budget escrowed at go-live, only billable clicks paid, payouts in batches after a hold. Stage 4 only stores `payment_model`.
+- **No campaign images for now** (see `docs/TODO.md`).
 
 Still open:
 1. ~~Can one account be both a business and an influencer?~~ Decided above: no.
@@ -364,6 +377,8 @@ Still open:
 7. Launch markets/currencies (NGN first? others later?).
 8. Legal/regulatory structure for holding funds in escrow and in business wallets (see §6 flag).
 9. Whether businesses can withdraw wallet balance to their bank (recommended: yes, on request).
+10. Whether gambling/betting campaigns are allowed, and the full banned-categories list for the terms.
+11. Pay-per-click numbers: minimum cost per click, minimum click budget, fraud hold length, minimum click payout, and whether the fee on unspent click budget is refunded.
 
 ---
 

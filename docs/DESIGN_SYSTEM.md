@@ -84,7 +84,7 @@ panels outlined with `ring-1 ring-hairline`.
 | Component | File | Notes |
 |---|---|---|
 | `Button`, `buttonVariants` | `ui/button.tsx` | `default` (ink), `secondary` (cream, outlined), `light` (on dark surfaces), `ghost`. Sizes `default` (44px), `lg` (48px), `icon`. Use `buttonVariants` to style links as buttons. |
-| `TextField`, `SelectField` | `ui/field.tsx` | Visible label, optional leading `icon`, `hint`, `error`, `labelAside` (e.g. "Forgot your password?"). |
+| `TextField`, `SelectField`, `TextAreaField` | `ui/field.tsx` | Visible label, optional leading `icon` (not on text areas), `hint`, `error`, `labelAside` (e.g. "Forgot your password?"); `TextAreaField` also takes `optional`. |
 | `PasswordField` | `ui/password-field.tsx` | Adds a Show button. |
 | `ChoiceGroup` | `ui/choice-group.tsx` | One choice from 2–3 options, on real radio buttons. `variant="pills"` (compact, label only; the waitlist) or `variant="cards"` (stacked, with icon, tone and a one-line description; the sign-up account type). Controlled (`value` + `onValueChange`) or not (`defaultValue`). |
 | `FormMessage` | `ui/form-message.tsx` | The form's overall result, just above the submit button. Always rendered (announces changes). |
@@ -94,6 +94,7 @@ panels outlined with `ring-1 ring-hairline`.
 | Product fragments | `brand/fragments.tsx` | `ProductFragment` (labelled as an image, "Sample" tag), `Avatar` (initials, never photos), `Chip`. Fictional data only. |
 | Stickers | `brand/stickers.tsx` | `EscrowSticker` (`tone="light"` on dark backgrounds), `ApprovedBadge`, `clay()` shading for shapes. |
 | Illustrations | `landing/hero-illustration.tsx`, `brand/auth-scene.tsx` | Built from the fragments and stickers. Stickers sit only over empty areas. |
+| `StatusPill`, `DeliverableList`, `RequirementList` | `campaigns/campaign-facts.tsx` | A campaign's status; what each creator posts and when; who can apply. Given a creator's `problems`, each requirement shows a tick or a cross (with words for screen readers). |
 | `CreatorPhoto` | `creators/creator-photo.tsx` | A real creator's square photo (`rounded-card`), or their initials on a brand colour picked from their name. Decorative: the name is always beside it. Not `Avatar`, which is for fictional people. |
 | `CreatorCard` | `creators/creator-card.tsx` | A directory card: photo, name (the link, stretched over the card), location, niche chips, platform summary, and the rate line for viewers who may see it. |
 | `PlatformIcon` | `creators/platform-icon.tsx` | Line glyphs for Instagram, TikTok, YouTube and X in Lucide's style. Always next to the platform's name (visible or `sr-only`). |
@@ -109,7 +110,7 @@ panels outlined with `ring-1 ring-hairline`.
   `AuthAlternative` ("New to Pitchype? Create an account"), Privacy and Terms at
   the bottom. On screens 1024px and wider, the green illustration panel fills
   the right half. Onboarding uses the same shell with a Sign out button.
-- **Signed-in pages** (`AppShell`): header bar with wordmark and Sign out, a
+- **Signed-in pages** (`AppShell`, `wide` for card grids): header bar with wordmark and Sign out, a
   `max-w-2xl` content column, `text-display-lg` page title. The creator's
   profile editor and the admin page use it too, one `text-display-md` section
   per job (photo, about you, platforms).
@@ -120,6 +121,13 @@ panels outlined with `ring-1 ring-hairline`.
 - **Forms:** one column, labels always visible (no placeholder-only fields),
   a full-width primary button, errors under the field they belong to, the
   overall result in `FormMessage`, and a `Notice` when the form is finished.
+- **Forms that hold their own state** (inputs with `value`/`checked` from
+  `useState`, such as the campaign form's deliverable lines or the niche
+  pills) submit from `onSubmit` with `startTransition(() => formAction(data))`
+  instead of only `action={formAction}`. React resets a form after its action
+  runs, and controlled inputs would then show their first values while state
+  holds the new ones, so the next save sends stale data. Plain uncontrolled
+  forms can keep `action={formAction}`.
 
 ## Inspiration, not copying
 

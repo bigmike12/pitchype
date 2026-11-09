@@ -55,6 +55,24 @@ async function Account() {
       </dl>
 
       {profile?.role === "business" && (
+        <LinkCard
+          href="/business/campaigns"
+          title="Your campaigns"
+          text="Describe what you want creators to post and who can apply. You see how many creators qualify before you publish."
+          action="Go to your campaigns"
+        />
+      )}
+
+      {profile?.role === "influencer" && (
+        <LinkCard
+          href="/campaigns"
+          title="Campaigns"
+          text="Paid work from businesses, with whether you qualify for each one."
+          action="Find campaigns"
+        />
+      )}
+
+      {profile?.role === "business" && (
         <section aria-labelledby="profile-title" className="mt-12 max-w-md">
           <h2 id="profile-title" className="mb-6 text-display-md">
             Business profile
@@ -82,7 +100,7 @@ async function Account() {
         <LinkCard
           href="/admin"
           title="Admin"
-          text="Verify creators’ handles and deal with reported profiles."
+          text="Review first campaigns, verify creators’ handles, and deal with reports."
           action="Open admin"
         />
       )}
@@ -94,15 +112,15 @@ async function Account() {
         <p className="mt-2 max-w-xl">
           {user.role === "business" ? (
             <>
-              You can already{" "}
+              You can{" "}
               <Link href="/creators" className="link">
                 browse creators
-              </Link>
-              , with their handles and rates. Posting campaigns and hiring open
+              </Link>{" "}
+              and publish campaigns now. Receiving applications and hiring open
               soon; we’ll email you as soon as you can.
             </>
           ) : (
-            "Finding campaigns and getting hired opens soon. We’ll email you as soon as you can."
+            "You can browse campaigns now. Applying and getting hired open soon; we’ll email you as soon as you can."
           )}
         </p>
       </section>

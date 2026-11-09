@@ -3,6 +3,7 @@
 import { refresh } from "next/cache";
 
 import { requireRole } from "@/lib/auth";
+import { resolveCampaignReport, transitionCampaign } from "@/lib/db/campaigns";
 import { setPhotoVersion } from "@/lib/db/creators";
 import {
   getCreatorPhotoVersion,
@@ -114,5 +115,54 @@ export async function unhideCreatorAction(form: FormData): Promise<void> {
   const creatorId = text(form, "creatorId");
   if (!UUID.test(creatorId)) return;
   await setCreatorHidden(creatorId, null);
+  refresh();
+}
+
+// Campaigns ----------------------------------------------------------------------------
+
+export async function approveCampaignAction(form: FormData): Promise<void> {
+  await requireRole("admin");
+  const campaignId = text(form, "campaignId");
+  if (!UUID.test(campaignId)) return;
+  // "stale" (someone else got there first) needs nothing more than a refresh.
+  await transitionCampaign(campaignId, "approve");
+  refresh();
+}
+
+export async function sendBackCampaignAction(form: FormData): Promise<void> {
+  await requireRole("admin");
+  const campaignId = text(form, "campaignId");
+  const note = text(form, "note").trim().replace(/\s+/g, " ");
+  if (!UUID.test(campaignId) || note.length < 2 || note.length > 500) return;
+  await transitionCampaign(campaignId, "reject", note);
+  refresh();
+}
+
+export async function resolveCampaignReportAction(
+  form: FormData,
+): Promise<void> {
+  await requireRole("admin");
+  const reportId = text(form, "reportId");
+  if (!UUID.test(reportId)) return;
+  await resolveCampaignReport(reportId);
+  refresh();
+}
+
+/** Takes the campaign down (the business sees the reason) and closes the report. */
+export async function takeDownCampaignAction(form: FormData): Promise<void> {
+  await requireRole("admin");
+  const reportId = text(form, "reportId");
+  const campaignId = text(form, "campaignId");
+  const reason = text(form, "reason").trim().replace(/\s+/g, " ");
+  if (
+    !UUID.test(reportId) ||
+    !UUID.test(campaignId) ||
+    reason.length < 2 ||
+    reason.length > 200
+  ) {
+    return;
+  }
+  await transitionCampaign(campaignId, "take_down", reason);
+  await resolveCampaignReport(reportId);
   refresh();
 }

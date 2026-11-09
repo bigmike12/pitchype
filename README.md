@@ -4,10 +4,11 @@ Pitchype is a marketplace that connects Nigerian businesses with micro and nano
 creators. Businesses post campaigns or hire creators directly; creators apply,
 do the work, and get paid through escrow once the work is approved.
 
-This repository is at **Stage 3**: the public landing page and waitlist;
-accounts (sign-up, login, password reset, onboarding, an account page); and
-creator profiles with a public directory, handle verification and moderation.
-There are no campaigns or payments yet. `CLAUDE.md` holds the product rules and
+This repository is at **Stage 4**: the public landing page and waitlist;
+accounts (sign-up, login, password reset, onboarding, an account page);
+creator profiles with a public directory, handle verification and moderation;
+and campaigns that businesses publish and creators browse. Applying, hiring
+and payments come next. `CLAUDE.md` holds the product rules and
 engineering guidelines; `docs/BUILD_PROMPT.md` holds the stage plan.
 
 ## Stack
@@ -209,6 +210,32 @@ Email links point at the app's own `NEXT_PUBLIC_APP_URL` (the templates use
 the Redirect URLs list. The app's Supabase migrations must be pushed
 (`supabase db push`) before sign-up works on the hosted project; confirming
 an email creates the app's user row.
+
+## Campaigns
+
+Decisions: `docs/campaign-spec-decisions.md`; scope and build choices:
+`docs/BUILD_PROMPT.md` (Stage 4).
+
+- **Businesses** manage campaigns at `/business/campaigns`: title, brief,
+  notes, what each creator posts (platform, type, quantity), who can apply
+  (follower minimum per platform, niches, states, verified only), dates and a
+  fixed price per creator. Drafts show how many listed creators qualify and
+  the most the business could spend. A business's **first** campaign waits
+  for an admin at `/admin`; after one approval, later campaigns publish at
+  once. Live campaigns can be paused, resumed or closed, and only their
+  wording, places and (later) deadlines can change; every version of the
+  wording is kept.
+- **Creators** browse open campaigns at `/campaigns`, filter them, and see
+  for each one whether they qualify and what to change if not. They can
+  report a campaign; admins take campaigns down with a reason the business
+  sees. Applying arrives in Stage 5.
+- **Visitors** only see the number of open campaigns, on the landing page
+  (cached for an hour).
+- **Rules live in the database:** `transition_campaign()` is the one place
+  statuses change; locks, visibility and eligibility are enforced there and
+  proven by `supabase/tests/campaigns_rls.test.sql`. Phone numbers, emails
+  and WhatsApp/Telegram links are refused in briefs and in creator bios
+  (`src/lib/contact-details.ts`).
 
 ## Deferred work
 

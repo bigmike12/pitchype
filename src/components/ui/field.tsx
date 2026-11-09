@@ -189,3 +189,41 @@ export function SelectField({
     </div>
   );
 }
+
+export function TextAreaField({
+  label,
+  name,
+  id = name,
+  hint,
+  error,
+  labelAside,
+  optional,
+  className,
+  ...textarea
+}: Omit<FieldProps, "icon"> & {
+  /** Adds "(optional)" after the label. */
+  optional?: boolean;
+} & Omit<ComponentProps<"textarea">, "name" | "id">) {
+  return (
+    <div className={className}>
+      <FieldLabel htmlFor={id} aside={labelAside}>
+        {label}
+        {optional && (
+          <span className="font-normal text-muted"> (optional)</span>
+        )}
+      </FieldLabel>
+      <textarea
+        id={id}
+        name={name}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy(id, hint, error)}
+        className={cn(
+          "mt-2 block w-full rounded-control border bg-white px-4 py-3 text-base text-ink focus-visible:border-ink",
+          error ? "border-danger" : "border-field",
+        )}
+        {...textarea}
+      />
+      <FieldMessages id={id} hint={hint} error={error} />
+    </div>
+  );
+}
