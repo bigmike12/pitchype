@@ -108,6 +108,23 @@ Details: README, "Deploy to Vercel".
       API. They're intended, but `current_user_id`/`current_user_role` could
       move out of the API schema to quiet two of them.
 
+## 6. From Stage 4 planning (campaigns)
+
+Decisions: `docs/campaign-spec-decisions.md`.
+
+- [ ] Campaign images: none for now. Later, one product photo reusing the
+      profile photo pipeline; a business logo is the cheaper first image.
+- [ ] Pay-per-click campaigns, after Stage 6: tracked links, click logging
+      and filtering (link previews, bots, repeats), click budget escrow,
+      batched payouts, click dashboards, destination domain verification.
+- [ ] **You:** decide the banned campaign types for the terms (gambling and
+      betting are the open question) and the pay-per-click numbers
+      (CLAUDE.md §12, open items 10 and 11).
+- [ ] Check Paystack's current transfer fees on small payouts before setting
+      the minimum payout and minimum cost per click.
+- [ ] Spot phone numbers and WhatsApp links in campaign briefs (same check
+      as for bios above).
+
 ## Done
 
 - [x] Database migrations for Stages 1–3 pushed to the live project
