@@ -125,6 +125,27 @@ Decisions: `docs/campaign-spec-decisions.md`.
 - [ ] Spot phone numbers and WhatsApp links in campaign briefs (same check
       as for bios above).
 
+## 7. From building Stage 4
+
+- [ ] Field ids come from field names. Next keeps recently visited pages in
+      the DOM (hidden), so the new-campaign and edit forms can briefly sit on
+      one page with the same ids. Labels pointed at the right field in
+      testing, but switching the form components to React's `useId` would
+      rule it out.
+- [ ] Signed-in pages have no navigation bar; people move between account,
+      profile, campaigns and admin through links on the account page.
+- [ ] Tell existing applicants when a live brief changes (Stage 5 creates
+      applicants; Stage 8 sends the notification). The history is already
+      kept in `campaign_revisions`.
+- [ ] From Stage 5, stop places dropping below the number of accepted
+      creators (in `campaigns_before_write`).
+- [ ] Admins aren't alerted to first campaigns waiting for review or to new
+      campaign reports (Stage 8); they check `/admin`.
+- [ ] Eligibility is worked out per campaign per creator on every list; add
+      caching or a precomputed table if campaigns or creators grow into the
+      thousands.
+- [ ] The landing page's open-campaign count refreshes hourly.
+
 ## Done
 
 - [x] Database migrations for Stages 1–3 pushed to the live project

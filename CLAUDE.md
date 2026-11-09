@@ -156,7 +156,7 @@ Every status below is a Postgres enum or check-constrained text column. **Transi
 `business`, `influencer`, `admin`. A user has exactly one role (decide before building if a person can be both; if yes, model it as two profiles, not one tangled profile).
 
 ### Campaign
-`draft → open → in_progress → completed`; also `closed` (stopped accepting applications) and `cancelled`.
+`draft → open → in_progress → completed`; also `closed` (stopped accepting applications, or taken down by an admin) and `cancelled`. Since Stage 4 also `pending_review` (a business's first campaign, between `draft` and `open`) and `paused` (hidden from influencers, back to `open` on resume). All changes go through `transition_campaign()` in the database.
 - Fields to capture at creation: title, brief, deliverables, platforms, niche/category, location, follower criteria (minimum range per platform; optional "verified creators only"), payment model (fixed price at first), default price per influencer, slots needed, application deadline, deliver-by date.
 - A campaign is listed to influencers only while `open` and not past deadline and slots not all filled.
 - Campaigns are visible only to signed-in influencers, admins and the owning business. Deliverables are a structured list (platform, type, quantity) plus notes. Once a campaign is live, price, requirements, deliverables and any destination link are locked; wording, deadline and extra slots can change. A business's first campaign is held for admin approval. Details: `docs/campaign-spec-decisions.md`.

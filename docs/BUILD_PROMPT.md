@@ -279,3 +279,54 @@ Home and décor, Automotive, Sports. No free-text "Other".
 Portfolio galleries, automated verification, re-verification reminders
 (Stage 8), contacting or hiring a creator (Stage 5), linking the directory
 from the site (it stays unlinked until launch, like sign-up).
+
+---
+
+## Stage 4: Campaigns (2026-11-09)
+
+Decisions: `docs/campaign-spec-decisions.md` (build order item 1). This
+section records scope and the choices made while building.
+
+### In scope
+
+- Businesses create campaigns (fixed price), save drafts, publish, pause,
+  resume, close early, and edit wording, places and dates once live. Their
+  first campaign waits for an admin; later ones go live immediately.
+- Before publishing, the business sees how many listed creators qualify now
+  and the maximum possible spend (price plus fee, times places).
+- Signed-in creators browse open campaigns, filter them, and see exactly why
+  they don't qualify for one. Applying arrives in Stage 5.
+- Admins approve or reject first campaigns (with a note), handle campaign
+  reports, and take campaigns down.
+- Signed-out visitors see the number of open campaigns on the landing page.
+
+### Choices made while building (easy to change)
+
+- **Platforms come from the deliverables.** A creator must have every
+  platform the deliverables use, each meeting its minimum follower range
+  (and verified, when "verified creators only" is on).
+- **Niches and states match on any overlap;** empty means any niche or
+  anywhere in Nigeria. A campaign picks up to five niches.
+- **Posting window:** an optional "post from" date plus the required
+  "deliver by" date, for the whole campaign.
+- **Deliverable types:** Instagram post, reel, story; TikTok video; YouTube
+  video, short; X post. Quantity 1 to 20 per line.
+- **Drafts are saved complete:** one set of rules for saving and publishing.
+- **Live edits:** title, brief and notes (each change kept in an edit
+  history); the application deadline and deliver-by date can only move
+  later; places can change but not below 1 (and, from Stage 5, not below the
+  number accepted). Everything else is locked from submission onward;
+  withdrawing a campaign from review returns it to draft.
+- **A takedown closes the campaign** with a reason the business sees. Closed
+  is final. Paused campaigns are hidden from creators.
+- **Contact details** (phone numbers, emails, WhatsApp/Telegram links) are
+  refused in titles, briefs and notes, and now in creator bios too.
+- **Only fixed price is offered.** `payment_model` is stored (the enum
+  already has `per_click`, which the database refuses to publish), so pay
+  per click can be added after Stage 6 without touching existing campaigns.
+
+### Not in this stage
+
+Applying, chat and accepting creators (Stage 5); escrow and payments
+(Stage 6); notifications about brief changes (Stages 5 and 8); campaign
+images; pay per click.
