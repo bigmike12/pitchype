@@ -101,7 +101,8 @@ run as the service role.
 
 `/signup`, `/login` and `/forgot-password` work but aren't linked from the
 site until launch. After confirming their email, people fill in a short
-profile at `/onboarding`, then land on `/account`.
+profile at `/onboarding` (creators go on to niches, platforms, a photo and
+publishing), then land on `/home`. `/account` holds their settings.
 
 - **One role per account**, chosen at sign-up: business or creator
   (`influencer` in code). It can't be changed afterwards.

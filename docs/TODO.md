@@ -132,8 +132,8 @@ Decisions: `docs/campaign-spec-decisions.md`.
       one page with the same ids. Labels pointed at the right field in
       testing, but switching the form components to React's `useId` would
       rule it out.
-- [ ] Signed-in pages have no navigation bar; people move between account,
-      profile, campaigns and admin through links on the account page.
+- [x] Signed-in pages have no navigation bar (done in the portal UI pass:
+      sidebar, top bar and phone drawer).
 - [ ] Tell existing applicants when a live brief changes (Stage 5 creates
       applicants; Stage 8 sends the notification). The history is already
       kept in `campaign_revisions`.
@@ -145,6 +145,19 @@ Decisions: `docs/campaign-spec-decisions.md`.
       caching or a precomputed table if campaigns or creators grow into the
       thousands.
 - [ ] The landing page's open-campaign count refreshes hourly.
+
+## 8. From the portal UI pass
+
+Design: `docs/superpowers/specs/2026-11-09-portal-ui-design.md`.
+
+- [ ] Collapse the sidebar to icons once Inbox and Wallet make it longer
+      (Stage 5 and 6).
+- [ ] Notification bell in the top bar (Stage 8).
+- [ ] Signed-in pages need JavaScript: their content streams in behind
+      Suspense, so without it they stay on the loading message. True since
+      Stage 2; revisit only if no-JS visitors matter.
+- [ ] The campaign form's spend summary is still a cream box; restyle with
+      the form if it changes.
 
 ## Done
 

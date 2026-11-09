@@ -1,6 +1,6 @@
 # Portal UI pass: design
 
-Date: 2026-11-09. Status: draft for review.
+Date: 2026-11-09. Status: approved and implemented on branch `portal-ui`.
 
 A UI audit and redesign of the signed-in business and creator portals before
 Stage 5, taking the structure of Clay's onboarding and in-app screens (layout
@@ -162,7 +162,8 @@ Steps 1 to 3 are one form shown a screen at a time on the client. The
 browser checks the visible fields before moving on; the server action
 (today's `createProfileAction`) validates everything on submit and, if a
 field fails, the form opens on that field's screen with the error.
-Without JavaScript all three screens show as one form.
+Signed-in pages need JavaScript (their content streams in behind Suspense),
+so the form always shows one screen; there is no no-JS fallback.
 
 ### Creator (6 steps)
 

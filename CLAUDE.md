@@ -114,16 +114,18 @@ src/
   app/
     (marketing)/           public pages, influencer directory (SEO)
     (auth)/                login, signup, password reset (signed out)
-    (app)/                 onboarding and account (signed in, any role)
+    (onboarding)/          step-by-step profile setup (signed in, own shell)
+    (portal)/              every signed-in page; its layout draws the sidebar shell once
+      home/, account/      role home page, settings (any role)
+      (business)/          campaigns, find creators, applications, hires, payments, inbox
+      (influencer)/        browse campaigns, profile, applications, jobs, wallet, inbox
+      (admin)/             reviews, disputes, payouts, moderation
     auth/                  route handlers for emailed links
-    (business)/            campaigns, applications, hires, payments, inbox
-    (influencer)/          browse campaigns, applications, jobs, wallet, inbox
-    (admin)/               disputes, payouts, moderation
     api/webhooks/paystack/ webhook endpoint
   components/
     ui/                    design-system components (Button, fields, …); see docs/DESIGN_SYSTEM.md
     brand/                 wordmark, product fragments, stickers, illustrations
-    shells/                page layouts (auth, signed-in app)
+    shells/                page layouts (auth, onboarding, portal)
     <feature>/             campaign, application, escrow, chat, wallet…
   lib/
     db/                    data access, one file per domain; the only code that queries the database (§2a)
