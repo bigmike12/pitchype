@@ -220,3 +220,62 @@ Sections, in order:
 | 7 | Submissions, approvals, disputes | Completion flow, denial with reasons, admin dispute tools |
 | 8 | Notifications + paid features | Email via Resend, in-app alerts; later featured placement and alert subscriptions |
 | 9 | Hardening and launch | Security review, load and reconciliation checks, legal review, monitoring, Vercel Pro + Supabase Pro switch |
+
+---
+
+## Stage 3: Creator profiles and discovery (decided 2026-11-09)
+
+Goal: creators build a public profile and businesses find them in a filterable
+directory. No campaigns, chat, hiring or payments (Stages 4 to 6).
+
+### Decisions
+
+**Follower counts: two tiers.**
+- *Self-reported* (default): a follower range per platform: 1K–5K, 5K–10K,
+  10K–50K, 50K–100K, 100K+. Shown with a "Self-reported" label and the date it
+  was last changed.
+- *Verified* (upgrade): Pitchype issues a single-use code (`pitchype-7K3F9Q`)
+  tied to the user, platform and handle. The creator puts it in their bio
+  within 48 hours and presses "I've added it". An admin opens the profile,
+  confirms the code and records the follower count seen. The badge reads
+  "Verified" with "followers as of [date]".
+- One verified Pitchype account per handle. A second account claiming a
+  verified handle goes to admin review; if the admin verifies it, the first
+  account's badge is revoked. Changing or removing a verified handle revokes
+  its badge.
+- Launch is manual. Later, automate only through official APIs (YouTube Data
+  API, TikTok Login Kit, Instagram Graph API). Never scrape.
+
+**Who sees what.**
+- Signed out (and signed-in creators): display name, photo, niches, city and
+  state, platforms and follower ranges.
+- Signed-in businesses (and admins): also handles, bio and starting rate, and
+  the price filter (filtering by price would otherwise reveal rates).
+- Enforced in the database: the directory is read through functions that
+  return only what the viewer may see.
+- Profiles are drafts until the creator publishes. Creators can opt out of
+  search-engine indexing. Admins can hide a profile.
+
+**A profile holds:** display name, short bio (300 characters), one photo,
+platforms (Instagram, TikTok, YouTube, X) with handle and follower range, one
+to three niches from a fixed list, state and city, an optional starting rate
+in naira ("From ₦X"; blank means negotiable), and a draft/published flag.
+
+**Photos.** JPEG, PNG or WebP up to 5MB, checked by content, not extension.
+Downscaled in the browser first (Vercel caps request bodies at about 4.5MB),
+then processed on the server with sharp: metadata stripped (phone photos carry
+GPS), square crop, 512×512, WebP at quality 80. Only the processed file is
+kept, in a public-read bucket only the server can write to, named by user id
+and version. Moderation: a report button and admin takedown.
+
+**Niches** live in a table (add one with SQL, no deploy): Food and drinks,
+Fashion, Beauty and skincare, Tech and gadgets, Lifestyle, Travel, Fitness and
+wellness, Comedy and skits, Music and entertainment, Education and career,
+Finance and business, Parenting and family, Faith and inspiration, Gaming,
+Home and décor, Automotive, Sports. No free-text "Other".
+
+### Not in this stage
+
+Portfolio galleries, automated verification, re-verification reminders
+(Stage 8), contacting or hiring a creator (Stage 5), linking the directory
+from the site (it stays unlinked until launch, like sign-up).
