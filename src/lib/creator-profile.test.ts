@@ -350,3 +350,20 @@ test("verification: which step a creator sees", () => {
   const otherHandle = verificationView([badge], "instagram", "newname", now);
   assert.equal(otherHandle.verified, null, "a badge belongs to its handle");
 });
+
+test("about form: contact details are refused in bios", () => {
+  const parsed = parseAboutForm(
+    form([
+      ["displayName", "Bayo"],
+      ["state", "Oyo"],
+      ["city", "Ibadan"],
+      ["niches", "fashion"],
+      ["bio", "Bookings: wa.me/2348031234567"],
+    ]),
+    NICHES,
+  );
+  assert.match(
+    !parsed.ok ? (parsed.errors.bio ?? "") : "",
+    /Remove the WhatsApp link/,
+  );
+});

@@ -3,6 +3,7 @@
 // unit-tested. The lists mirror the enums in
 // supabase/migrations/20261109133549_create_creator_directory.sql.
 
+import { findContactDetails } from "./contact-details.ts";
 import { text, type FieldErrors, type Parsed } from "./form-data.ts";
 import { formatNaira, KOBO_PER_NAIRA } from "./money.ts";
 import {
@@ -337,8 +338,11 @@ export function parseAboutForm(
   const errors: FieldErrors<AboutField> = base.ok ? {} : { ...base.errors };
 
   const bio = text(form, "bio").trim();
+  const contact = findContactDetails(bio);
   if (bio.length > MAX_BIO_LENGTH) {
     errors.bio = `Use ${MAX_BIO_LENGTH} characters or fewer (you have ${bio.length}).`;
+  } else if (contact) {
+    errors.bio = `Remove the ${contact}. Businesses contact you through Pitchype, which keeps your payment protected.`;
   }
 
   const chosen = form.getAll("niches").filter((v) => typeof v === "string");
