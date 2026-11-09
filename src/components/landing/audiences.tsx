@@ -58,7 +58,7 @@ export function Audiences() {
   return (
     <section
       aria-label="Who Pitchype is for"
-      className="mx-auto max-w-7xl px-4 section-y sm:px-6 lg:px-8"
+      className="container-page section-y"
     >
       <div className="grid gap-4 lg:grid-cols-2">
         {AUDIENCES.map((audience) => (
@@ -67,7 +67,7 @@ export function Audiences() {
             id={audience.id}
             aria-labelledby={`${audience.id}-title`}
             className={cn(
-              "flex flex-col rounded-3xl p-6 sm:p-10",
+              "flex flex-col rounded-panel p-6 sm:p-10",
               audience.card,
             )}
           >

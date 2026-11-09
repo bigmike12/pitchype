@@ -24,7 +24,7 @@ export function CreatorsBand() {
       aria-labelledby="creators-band-title"
       className="border-y border-hairline"
     >
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-12 lg:px-8 lg:py-24">
+      <div className="container-page grid gap-10 py-16 lg:grid-cols-12 lg:py-24">
         <h2 id="creators-band-title" className="text-display-lg lg:col-span-5">
           Built for micro and nano creators
         </h2>

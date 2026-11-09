@@ -3,7 +3,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 
 import { MobileMenu, type NavLink } from "./mobile-menu";
-import { Wordmark } from "./wordmark";
+import { Wordmark } from "@/components/brand/wordmark";
 
 // Root-relative anchors so the same header works on /privacy and /terms.
 const NAV_LINKS: NavLink[] = [
@@ -23,7 +23,7 @@ export function SiteHeader() {
       >
         Skip to content
       </a>
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+      <div className="container-page flex h-16 items-center justify-between gap-4">
         <Link
           href="/"
           aria-label="Pitchype home"

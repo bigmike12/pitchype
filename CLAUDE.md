@@ -113,13 +113,17 @@ Start small and let structure grow with real need. Suggested starting shape:
 src/
   app/
     (marketing)/           public pages, influencer directory (SEO)
-    (auth)/                login, signup, onboarding
+    (auth)/                login, signup, password reset (signed out)
+    (app)/                 onboarding and account (signed in, any role)
+    auth/                  route handlers for emailed links
     (business)/            campaigns, applications, hires, payments, inbox
     (influencer)/          browse campaigns, applications, jobs, wallet, inbox
     (admin)/               disputes, payouts, moderation
     api/webhooks/paystack/ webhook endpoint
   components/
-    ui/                    shadcn primitives
+    ui/                    design-system components (Button, fields, …); see docs/DESIGN_SYSTEM.md
+    brand/                 wordmark, product fragments, stickers, illustrations
+    shells/                page layouts (auth, signed-in app)
     <feature>/             campaign, application, escrow, chat, wallet…
   lib/
     db/                    data access, one file per domain; the only code that queries the database (§2a)
@@ -135,6 +139,8 @@ supabase/
 docs/
   PROVIDERS.md             provider-specific dependencies and how to replace them
 ```
+
+All pages use the one design system in `docs/DESIGN_SYSTEM.md`: build from its tokens and components, and extend it (code and doc together) rather than styling around it.
 
 Co-locate code with the feature that uses it. Don't create `utils/` dumping grounds; a helper used in one place lives next to that place.
 
@@ -338,8 +344,14 @@ Entitlements (who has paid for what) live in one `subscriptions`/`entitlements` 
 
 Decided (see §6): fee split and structure, cancellation and refund rules, business wallet, payout fee paid by the influencer, definition of "work started".
 
+Decided in Stage 2 (2026-11-09):
+- **One role per account.** An account is a business or an influencer, fixed at sign-up. Someone who is both signs up twice with different emails. Admins are made by hand in SQL, never through sign-up.
+- **Sign-in is email + password only** at first (no Google, magic links or phone codes yet).
+- **Sign-up and login pages stay unlinked until launch**; the landing page keeps pointing to the waitlist.
+- **Auth emails go through Resend** (custom SMTP in Supabase). The templates live in `supabase/templates/`.
+
 Still open:
-1. Can one account be both a business and an influencer?
+1. ~~Can one account be both a business and an influencer?~~ Decided above: no.
 2. Deadline to fund after approval before the approval expires.
 3. Maximum resubmission rounds after a denial, and the dispute process (who arbitrates, timelines, how an admin decides "influencer at fault").
 4. Minimum payout amount and payout schedule.

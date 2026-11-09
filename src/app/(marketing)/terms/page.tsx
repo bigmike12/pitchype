@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <main id="main" className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:py-20">
-      <p className="rounded-2xl bg-brand-sun px-5 py-4 font-semibold text-ink">
+      <p className="rounded-card bg-brand-sun px-5 py-4 font-semibold text-ink">
         Draft, to be reviewed by a lawyer before launch. It covers the waitlist
         only.
       </p>
@@ -35,17 +35,11 @@ export default function TermsPage() {
           <p>
             We’ll use your email address to tell you when Pitchype opens, as
             described in the{" "}
-            <Link
-              href="/privacy"
-              className="font-semibold text-ink underline underline-offset-4"
-            >
+            <Link href="/privacy" className="link">
               privacy notice
             </Link>
             . You can leave the waitlist at any time by emailing{" "}
-            <a
-              href={`mailto:${CONTACT_EMAIL}`}
-              className="font-semibold text-ink underline underline-offset-4"
-            >
+            <a href={`mailto:${CONTACT_EMAIL}`} className="link">
               {CONTACT_EMAIL}
             </a>
             .

@@ -24,14 +24,25 @@ dependency is added or removed.**
 
 ## Supabase Auth
 
-Not used yet. When auth arrives (Stage 2):
+Identities are app-owned: `public.users` has our own `id`, and business tables
+reference it. The provider's user id sits in `users.auth_user_id`, with no
+foreign key into Supabase's `auth` schema.
 
-- Keep app-owned identities: our own `users` table with our own id, linked to
-  the provider's user id in a separate column. Business tables reference our id.
-- All auth calls go through one module (`src/lib/auth.ts`), e.g. "current
-  user", "require role". Nothing else imports Supabase Auth.
-- RLS policies that use `auth.uid()` are Supabase-specific. Decide in Stage 2
-  how much access control lives in RLS versus `lib/db` checks, and note it here.
+| What | Where | Provider-specific? | To replace |
+|---|---|---|---|
+| Sign-up, login, sign-out, password reset, emailed links, "who is signed in" | `src/lib/auth.ts`, the only file that calls `supabase.auth` | Yes | Rewrite this file against the new provider. Callers use `signUp`, `signIn`, `requireUser`, etc. and don't change |
+| Session cookies and refresh | `src/proxy.ts` → `src/lib/supabase/proxy.ts` | Yes | The new provider's session handling |
+| Identity inside SQL | `public.current_user_id()` and `public.create_app_user()` read `auth.uid()` / `auth.jwt()`. Every RLS policy goes through `current_user_id()` | Yes, but only those two functions | Reimplement them, e.g. from a `current_setting('app.user_id')` the app sets per connection |
+| Email templates | `supabase/templates/*.html` (Go template variables like `{{ .TokenHash }}`) | Partly | Port the wording and links to the new provider's templates |
+| Sending auth email | Resend, configured as custom SMTP in the Supabase dashboard | Config only | Point the new provider's SMTP at Resend |
+| Rate limits on sign-in and token refresh | Supabase counts per IP; calls from our server share the server's IP | Yes | If limits bite at scale: enable IP forwarding (`Sb-Forwarded-For`, needs a secret key) |
+
+Access control lives in both places on purpose: RLS (through
+`current_user_id()`) protects every table, and `lib/db` functions take
+explicit user ids, so they keep working with a plain Postgres client.
+
+**Moving users out:** `auth.users` (passwords are bcrypt hashes, which most
+providers can import) and `public.users` both export with `pg_dump`.
 
 ## Vercel (hosting)
 

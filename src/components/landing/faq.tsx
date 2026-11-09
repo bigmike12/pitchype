@@ -53,7 +53,7 @@ export function Faq() {
     <section
       id="faq"
       aria-labelledby="faq-title"
-      className="mx-auto grid max-w-7xl gap-10 px-4 section-y sm:px-6 lg:grid-cols-12 lg:px-8"
+      className="container-page grid gap-10 section-y lg:grid-cols-12"
     >
       <div className="lg:col-span-4">
         <h2 id="faq-title" className="text-display-lg">
@@ -61,10 +61,7 @@ export function Faq() {
         </h2>
         <p className="mt-4 text-lg">
           Something else on your mind? Email{" "}
-          <a
-            href={`mailto:${CONTACT_EMAIL}`}
-            className="font-semibold text-ink underline underline-offset-4"
-          >
+          <a href={`mailto:${CONTACT_EMAIL}`} className="link">
             {CONTACT_EMAIL}
           </a>
           .

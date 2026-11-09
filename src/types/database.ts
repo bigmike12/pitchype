@@ -34,6 +34,103 @@ export type Database = {
   }
   public: {
     Tables: {
+      business_profiles: {
+        Row: {
+          business_name: string
+          city: string
+          contact_name: string
+          created_at: string
+          state: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_name: string
+          city: string
+          contact_name: string
+          created_at?: string
+          state: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_name?: string
+          city?: string
+          contact_name?: string
+          created_at?: string
+          state?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      influencer_profiles: {
+        Row: {
+          city: string
+          created_at: string
+          display_name: string
+          state: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          display_name: string
+          state: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          display_name?: string
+          state?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "influencer_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          auth_user_id: string
+          created_at: string
+          email: string
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+        }
+        Insert: {
+          auth_user_id: string
+          created_at?: string
+          email: string
+          id?: string
+          role: Database["public"]["Enums"]["user_role"]
+        }
+        Update: {
+          auth_user_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Relationships: []
+      }
       waitlist: {
         Row: {
           created_at: string
@@ -63,10 +160,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_app_user: {
+        Args: { requested_role: Database["public"]["Enums"]["user_role"] }
+        Returns: string
+      }
+      current_user_id: { Args: never; Returns: string }
+      current_user_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
     }
     Enums: {
-      [_ in never]: never
+      user_role: "business" | "influencer" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -196,7 +301,9 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      user_role: ["business", "influencer", "admin"],
+    },
   },
 } as const
 

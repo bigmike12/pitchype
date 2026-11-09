@@ -1,16 +1,14 @@
-import { Check, Lock } from "lucide-react";
-
+import { Avatar, Chip, SampleTag } from "@/components/brand/fragments";
+import {
+  ApprovedBadge,
+  EscrowSticker,
+  clay,
+} from "@/components/brand/stickers";
 import { formatNaira } from "@/lib/money";
-
-import { Avatar, Chip, SampleTag } from "./fragments";
 
 // Self-contained so it can be swapped for commissioned or generated art later
 // without touching the hero layout. Sample data only; the brand is fictional.
 const PRICE_PER_CREATOR_KOBO = 4_000_000;
-
-// Soft "clay" highlight: a light spot top-left over a flat fill.
-const clay = (colour: string) =>
-  `radial-gradient(circle at 32% 28%, rgb(255 255 255 / 0.55), transparent 42%), ${colour}`;
 
 // The stickers are pinned to the phone, not to the card, so they stay put
 // whatever the screen width. Each one sits over a part of the phone that holds
@@ -21,7 +19,7 @@ export function HeroIllustration() {
     <div
       role="img"
       aria-label={`Illustration: a phone showing a sample campaign from a fictional juice brand paying ${formatNaira(PRICE_PER_CREATOR_KOBO)} per creator, with the money held in escrow until the work is approved.`}
-      className="relative mx-auto w-full max-w-[30rem] overflow-hidden rounded-3xl bg-surface-soft px-6 pt-12 pb-14 sm:pt-14 sm:pb-16"
+      className="relative mx-auto w-full max-w-[30rem] overflow-hidden rounded-panel bg-surface-soft px-6 pt-12 pb-14 sm:pt-14 sm:pb-16"
     >
       {/* Background shapes */}
       <div
@@ -47,7 +45,7 @@ export function HeroIllustration() {
               <SampleTag />
             </div>
 
-            <div className="mt-3 rounded-2xl border border-hairline bg-white p-3 text-ink">
+            <div className="mt-3 rounded-card border border-hairline bg-white p-3 text-ink">
               <div className="flex items-center gap-2">
                 <Avatar
                   initials="BJ"
@@ -78,7 +76,7 @@ export function HeroIllustration() {
             </div>
 
             {/* A second campaign on wider screens, where there's room for it. */}
-            <div className="mt-2 hidden rounded-2xl border border-hairline bg-white p-3 text-ink sm:block">
+            <div className="mt-2 hidden rounded-card border border-hairline bg-white p-3 text-ink sm:block">
               <div className="flex items-center gap-2">
                 <Avatar
                   initials="KS"
@@ -100,31 +98,13 @@ export function HeroIllustration() {
         </div>
 
         {/* Approved badge, over the top bezel */}
-        <div
-          className="absolute -top-5 -right-4 flex items-center gap-1.5 rounded-full bg-brand-sun px-3 py-2 text-sm font-semibold whitespace-nowrap text-ink sm:-right-10"
-          style={{ transform: "rotate(5deg)" }}
-        >
-          <Check className="size-4" aria-hidden="true" />
-          Work approved
-        </div>
+        <ApprovedBadge className="absolute -top-5 -right-4 sm:-right-10" />
 
         {/* Escrow sticker, over the empty strip at the bottom */}
-        <div
-          className="absolute -bottom-6 -left-4 flex items-center gap-2.5 rounded-2xl bg-brand-green px-3.5 py-3 whitespace-nowrap on-dark [--tilt:-4deg] motion-safe:animate-float sm:-left-10"
-          style={{ transform: "rotate(-4deg)" }}
-        >
-          <span className="grid size-9 place-items-center rounded-full bg-brand-mint text-ink">
-            <Lock className="size-4" aria-hidden="true" />
-          </span>
-          <span>
-            <span className="block text-lg leading-none font-bold">
-              {formatNaira(PRICE_PER_CREATOR_KOBO)}
-            </span>
-            <span className="mt-1 block text-xs text-brand-mint">
-              held in escrow
-            </span>
-          </span>
-        </div>
+        <EscrowSticker
+          amountKobo={PRICE_PER_CREATOR_KOBO}
+          className="absolute -bottom-6 -left-4 sm:-left-10"
+        />
       </div>
     </div>
   );

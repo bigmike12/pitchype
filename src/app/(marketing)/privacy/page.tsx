@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <main id="main" className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:py-20">
-      <p className="rounded-2xl bg-brand-sun px-5 py-4 font-semibold text-ink">
+      <p className="rounded-card bg-brand-sun px-5 py-4 font-semibold text-ink">
         Draft, to be reviewed by a lawyer before launch. It covers the waitlist
         only.
       </p>
@@ -66,10 +66,7 @@ export default function PrivacyPage() {
           <h2>Your choices</h2>
           <p>
             To see, correct or delete what we hold about you, email{" "}
-            <a
-              href={`mailto:${CONTACT_EMAIL}`}
-              className="font-semibold text-ink underline underline-offset-4"
-            >
+            <a href={`mailto:${CONTACT_EMAIL}`} className="link">
               {CONTACT_EMAIL}
             </a>
             .

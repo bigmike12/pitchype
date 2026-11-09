@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 // Trimmed to the variants the landing page uses, restyled to Pitchype tokens.
 // Every size is at least 44px tall so it's an easy tap target.
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-xl font-sans font-semibold whitespace-nowrap select-none disabled:pointer-events-none disabled:opacity-60 motion-safe:transition-[background-color,transform] motion-safe:hover:-translate-y-px [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-control font-sans font-semibold whitespace-nowrap select-none disabled:pointer-events-none disabled:opacity-60 motion-safe:transition-[background-color,transform] motion-safe:hover:-translate-y-px [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

@@ -100,7 +100,10 @@ select throws_ok(
 reset role;
 
 select is(
-  (select count(*)::int from public.waitlist),
+  -- Only this test's addresses: the local database may hold other rows.
+  (select count(*)::int from public.waitlist
+   where email in ('ada@example.com', 'bola@example.com', 'chidi@example.com',
+                   'dayo@example.com', 'efe@example.com', 'funmi@example.com')),
   1,
   'only the one valid signup was stored'
 );

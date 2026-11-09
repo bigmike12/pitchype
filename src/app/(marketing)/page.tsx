@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { Audiences } from "@/components/landing/audiences";
 import { CreatorsBand } from "@/components/landing/creators-band";
 import { Faq } from "@/components/landing/faq";
@@ -7,6 +9,12 @@ import { HowItWorks } from "@/components/landing/how-it-works";
 import { Pricing } from "@/components/landing/pricing";
 import { Waitlist } from "@/components/landing/waitlist";
 import { SITE_NAME, SITE_URL, SOCIAL_PROFILES } from "@/lib/site";
+
+// Set per page rather than in the root layout, so pages that don't set their
+// own (sign-up, account) don't claim to be the home page.
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 // Name, URL and official profiles only: nothing about the company that isn't
 // true yet. `sameAs` tells search engines these profiles belong to Pitchype.

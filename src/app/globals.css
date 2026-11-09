@@ -1,9 +1,11 @@
 @import "tailwindcss";
 
 /*
- * Pitchype design tokens. Every text/background pair used on the page was
- * contrast-checked against WCAG AA; see "Design tokens" in README.md for the
- * rules (e.g. ink text only on the saturated brand colours).
+ * The Pitchype design system, part 1: tokens and utilities. Shared by every
+ * page (landing, auth, account). Components built on them live in
+ * src/components/ui and src/components/brand. Rules and rationale:
+ * docs/DESIGN_SYSTEM.md. Every text/background pair here was contrast-checked
+ * against WCAG AA.
  */
 @theme {
   --color-canvas: #fff9ee;
@@ -25,6 +27,11 @@
   --color-brand-sun: #ffc93c;
   --color-brand-peach: #ffb48a;
   --color-brand-mint: #a9e0c8;
+
+  /* Corner radii by role, not by size. */
+  --radius-control: 0.75rem; /* buttons and form fields */
+  --radius-card: 1rem; /* product fragments, stickers, white form panels */
+  --radius-panel: 1.5rem; /* feature cards, bands, illustration panels */
 
   --animate-float: float 7s ease-in-out infinite;
   --animate-float-slow: float 9s ease-in-out -3s infinite;
@@ -84,10 +91,37 @@
   }
 }
 
-/* Light text and focus rings for the dark surfaces (ink, brand green). */
+/* Page width and side gutters (16 / 24 / 32px), used by every page section. */
+@utility container-page {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+  @media (width >= 40rem) {
+    padding-inline: 1.5rem;
+  }
+  @media (width >= 64rem) {
+    padding-inline: 2rem;
+  }
+}
+
+/* Inline text links: ink, underlined, thicker underline on hover. */
+@utility link {
+  font-weight: 600;
+  color: var(--link, var(--color-ink));
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  &:hover {
+    text-decoration-thickness: 2px;
+  }
+}
+
+/* Light text, links and focus rings for the dark surfaces (ink, brand green). */
 @utility on-dark {
   color: #fff;
   --heading: #fff;
+  --link: #fff;
   --focus-ring: #fff;
 }
 

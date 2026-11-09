@@ -6,7 +6,7 @@ export function Hero() {
   return (
     <section
       aria-labelledby="hero-title"
-      className="mx-auto max-w-7xl px-4 pt-10 pb-16 sm:px-6 sm:pt-14 lg:px-8 lg:pt-20 lg:pb-24"
+      className="container-page pt-10 pb-16 sm:pt-14 lg:pt-20 lg:pb-24"
     >
       <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-10">
         <div className="lg:col-span-7">
