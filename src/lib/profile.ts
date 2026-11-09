@@ -52,7 +52,7 @@ export function stateLabel(state: NigerianState): string {
   return state === "FCT" ? "FCT (Abuja)" : state;
 }
 
-function isNigerianState(value: string): value is NigerianState {
+export function isNigerianState(value: string): value is NigerianState {
   return (NIGERIAN_STATES as readonly string[]).includes(value);
 }
 

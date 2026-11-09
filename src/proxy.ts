@@ -4,7 +4,13 @@ import { refreshSession } from "@/lib/supabase/proxy";
 
 // Pages that need a signed-in person. They check again themselves; this just
 // sends people to the right place without rendering first.
-const SIGNED_IN_ONLY = ["/account", "/onboarding", "/reset-password"];
+const SIGNED_IN_ONLY = [
+  "/account",
+  "/onboarding",
+  "/reset-password",
+  "/profile",
+  "/admin",
+];
 // Pages that make no sense once signed in.
 const SIGNED_OUT_ONLY = ["/login", "/signup", "/forgot-password"];
 
@@ -35,12 +41,17 @@ function redirectKeepingCookies(
 }
 
 // Only the routes that use the session. The landing page and legal pages
-// never pass through here, so they stay static and fast.
+// never pass through here, so they stay static and fast. The directory is
+// here so a business's session is fresh when it decides what they can see.
 export const config = {
   matcher: [
     "/account",
     "/onboarding",
     "/reset-password",
+    "/profile",
+    "/admin",
+    "/creators",
+    "/creators/:path*",
     "/login",
     "/signup",
     "/forgot-password",

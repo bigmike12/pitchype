@@ -350,13 +350,17 @@ Decided in Stage 2 (2026-11-09):
 - **Sign-up and login pages stay unlinked until launch**; the landing page keeps pointing to the waitlist.
 - **Auth emails go through Resend** (custom SMTP in Supabase). The templates live in `supabase/templates/`.
 
+Decided in Stage 3 (2026-11-09; details in `docs/BUILD_PROMPT.md`, Stage 3):
+- **Follower counts are self-reported ranges at launch**, labelled as such. Creators upgrade to **Verified** by putting a single-use Pitchype code in their bio; an admin confirms it and records the follower count seen. One verified account per handle; conflicts go to admin review. Automate later only through official platform APIs, never scraping.
+- **The creator directory is public**, with less detail signed out: handles, bio, starting rate and the price filter are for signed-in businesses (and admins) only, enforced in the database. Profiles are drafts until published; creators can opt out of search indexing.
+
 Still open:
 1. ~~Can one account be both a business and an influencer?~~ Decided above: no.
 2. Deadline to fund after approval before the approval expires.
 3. Maximum resubmission rounds after a denial, and the dispute process (who arbitrates, timelines, how an admin decides "influencer at fault").
 4. Minimum payout amount and payout schedule.
 5. Whether negotiated prices can be changed after funding (default: no; cancel per §6.2, then re-engage).
-6. Influencer verification: what proves follower counts and account ownership (OAuth with platforms vs manual proof vs screenshots), and whether metrics are self-reported at launch.
+6. ~~Influencer verification~~ Decided above (Stage 3): self-reported ranges plus bio-code verification by an admin.
 7. Launch markets/currencies (NGN first? others later?).
 8. Legal/regulatory structure for holding funds in escrow and in business wallets (see §6 flag).
 9. Whether businesses can withdraw wallet balance to their bank (recommended: yes, on request).
@@ -370,3 +374,4 @@ Still open:
 - If you notice a bug or risk outside the task, report it; don't fix it unasked unless it's a one-line obvious fix, and say so.
 - Say what you verified and what you didn't. Never claim a flow works if you didn't run it.
 - When unsure whether something is over-engineering, it probably is: choose the simpler version and mention the trade-off.
+- When you defer something (a dashboard step, polish, a known gap), add it to `docs/TODO.md`; tick items off there when they're done.

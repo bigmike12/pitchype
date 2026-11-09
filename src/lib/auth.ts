@@ -11,6 +11,7 @@ import {
   ensureUserForSession,
   getUserByAuthId,
   type AppUser,
+  type UserRole,
 } from "@/lib/db/users";
 import { SITE_URL } from "@/lib/site";
 import { createSessionClient } from "@/lib/supabase/server";
@@ -227,4 +228,23 @@ export async function requireUser(): Promise<AppUser> {
   const user = await getUserByAuthId(authUserId);
   if (!user) redirect("/auth/finish");
   return user;
+}
+
+/** Like requireUser, and sends anyone with another role to their account page. */
+export async function requireRole(role: UserRole): Promise<AppUser> {
+  const user = await requireUser();
+  if (user.role !== role) redirect("/account");
+  return user;
+}
+
+/**
+ * The signed-in person, or null, for public pages that look different when
+ * signed in (the directory shows businesses a price filter). Not an access
+ * check: what each viewer may read is enforced by the database.
+ */
+export async function getSignedInUser(): Promise<AppUser | null> {
+  const supabase = await createSessionClient();
+  const { data } = await supabase.auth.getClaims();
+  const authUserId = data?.claims?.sub;
+  return authUserId ? getUserByAuthId(authUserId) : null;
 }

@@ -156,6 +156,12 @@ export function SelectField({
       <div className="relative mt-2">
         {icon && <FieldIcon icon={icon} />}
         <select
+          // React resets a form after its action succeeds, and a select
+          // resets to the option that was selected when it first mounted,
+          // not to the latest defaultValue. Remounting when the default
+          // changes keeps it on what was just saved instead of quietly
+          // showing (and later resubmitting) the old value.
+          key={String(select.defaultValue ?? "")}
           id={id}
           name={name}
           aria-invalid={error ? true : undefined}

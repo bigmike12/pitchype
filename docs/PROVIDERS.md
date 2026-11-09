@@ -44,6 +44,24 @@ explicit user ids, so they keep working with a plain Postgres client.
 **Moving users out:** `auth.users` (passwords are bcrypt hashes, which most
 providers can import) and `public.users` both export with `pg_dump`.
 
+## Supabase Storage (profile photos)
+
+Creators' photos are processed on our server (`src/lib/profile-photo.ts`,
+using `sharp`, which runs anywhere Node does) and only the result is stored:
+a 512px WebP named `<user id>/<version>.webp`. The database stores only the
+version number, so the storage provider never appears in business data.
+
+| What | Where | Provider-specific? | To replace |
+|---|---|---|---|
+| Upload, delete, public URL | `src/lib/storage.ts`, the only file that touches storage | Yes: `supabase.storage` | Rewrite this file for S3, R2 or local disk (keep the same path scheme). Callers don't change |
+| The bucket | `supabase/migrations/*_create_profile_photos_bucket.sql` inserts into `storage.buckets` | Yes | Create the bucket (public read, server-only write) in the new provider; skip this migration on plain Postgres |
+| Server-only writes | `src/lib/supabase/admin.ts` (the secret key, `SUPABASE_SECRET_KEY`). No storage policies, so nobody else can write | Yes | The new provider's server credentials |
+| Recording the current photo | `setPhotoVersion` in `src/lib/db/creators.ts` uses the same secret-key client, because creators can't write that column | Partly | With a direct Postgres connection, the app's own role writes it |
+
+**Export:** download the bucket with the Supabase CLI
+(`supabase storage cp -r ss:///profile-photos ./profile-photos --experimental`)
+or the Storage API, then upload the same paths to the new provider.
+
 ## Vercel (hosting)
 
 | What | Where | Provider-specific? | To replace |
@@ -53,6 +71,7 @@ providers can import) and `public.users` both export with `pg_dump`.
 | Client IP for rate limiting | `src/components/landing/waitlist-action.ts` reads `x-forwarded-for` | Behaviour, not code | Make sure the proxy in front sets/overwrites `x-forwarded-for` |
 | Cached pages (`use cache`) | Footer year | No | Next's default in-memory cache works on one instance; multiple instances need a shared cache handler |
 | Function region | Vercel project setting (Frankfurt, next to the database) | Setting only | Host the app near the database |
+| Request size | Vercel stops request bodies at 4.5MB, so the browser shrinks photos before upload; `next.config.ts` allows Server Actions up to 6MB for the 5MB photo limit | Behaviour, not code | On other hosts, make sure the proxy in front allows ~6MB bodies |
 
 ## Build-time only
 
@@ -61,6 +80,6 @@ providers can import) and `public.users` both export with `pg_dump`.
 
 ## Not used yet
 
-Paystack, Resend, Supabase Storage, Supabase Realtime and scheduled jobs (Vercel
-Cron or `pg_cron`) will each get a section here, with their boundary module,
-when they're introduced.
+Paystack, Resend (beyond the auth SMTP above), Supabase Realtime and scheduled
+jobs (Vercel Cron or `pg_cron`) will each get a section here, with their
+boundary module, when they're introduced.
