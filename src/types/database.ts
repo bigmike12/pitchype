@@ -370,6 +370,88 @@ export type Database = {
           },
         ]
       }
+      conversation_reads: {
+        Row: {
+          conversation_id: string
+          last_read_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          last_read_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          last_read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_reads_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_reads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          application_id: string | null
+          business_id: string
+          created_at: string
+          creator_id: string
+          id: string
+          last_message_at: string | null
+        }
+        Insert: {
+          application_id?: string | null
+          business_id: string
+          created_at?: string
+          creator_id: string
+          id?: string
+          last_message_at?: string | null
+        }
+        Update: {
+          application_id?: string | null
+          business_id?: string
+          created_at?: string
+          creator_id?: string
+          id?: string
+          last_message_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       engagements: {
         Row: {
           agreed_price_kobo: number
@@ -546,6 +628,48 @@ export type Database = {
             foreignKeyName: "influencer_profiles_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          dedupe_key: string
+          id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          dedupe_key: string
+          id?: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          dedupe_key?: string
+          id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -1102,6 +1226,10 @@ export type Database = {
         }[]
       }
       is_blocked_between: { Args: { a: string; b: string }; Returns: boolean }
+      is_participant: {
+        Args: { conversation: string; person: string }
+        Returns: boolean
+      }
       is_suspended: { Args: { person: string }; Returns: boolean }
       lagos_today: { Args: never; Returns: string }
       lift_suspension: {
@@ -1121,7 +1249,12 @@ export type Database = {
           total_count: number
         }[]
       }
+      mark_conversation_read: {
+        Args: { conversation: string }
+        Returns: undefined
+      }
       my_applications: { Args: never; Returns: Json }
+      my_conversations: { Args: never; Returns: Json }
       new_verification_code: { Args: never; Returns: string }
       open_campaign_count: { Args: never; Returns: number }
       record_strike: {
@@ -1210,12 +1343,20 @@ export type Database = {
           user_id: string
         }[]
       }
+      send_message: {
+        Args: { body: string; conversation: string; dedupe: string }
+        Returns: Json
+      }
       set_creator_hidden: {
         Args: { creator: string; reason: string }
         Returns: undefined
       }
       standing_problem: { Args: { person: string }; Returns: string }
       standing_review: { Args: never; Returns: Json }
+      start_conversation: {
+        Args: { application?: string; creator: string }
+        Returns: string
+      }
       submit_appeal: { Args: { message: string }; Returns: string }
       submit_handle_verification: {
         Args: { request_id: string }
@@ -1226,6 +1367,11 @@ export type Database = {
         Returns: Database["public"]["Enums"]["campaign_status"]
       }
       unblock_user: { Args: { other: string }; Returns: undefined }
+      unread_in: {
+        Args: { conversation: string; person: string }
+        Returns: number
+      }
+      unread_message_count: { Args: never; Returns: number }
       valid_proposed_price: { Args: { price: number }; Returns: boolean }
       viewer_sees_creator_details: { Args: never; Returns: boolean }
       void_strike: {
