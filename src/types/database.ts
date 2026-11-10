@@ -34,6 +34,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      applications: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          creator_id: string
+          decision_note: string | null
+          id: string
+          note: string | null
+          proposed_price_kobo: number | null
+          status: Database["public"]["Enums"]["application_status"]
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          creator_id: string
+          decision_note?: string | null
+          id?: string
+          note?: string | null
+          proposed_price_kobo?: number | null
+          status?: Database["public"]["Enums"]["application_status"]
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          creator_id?: string
+          decision_note?: string | null
+          id?: string
+          note?: string | null
+          proposed_price_kobo?: number | null
+          status?: Database["public"]["Enums"]["application_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applications_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "applications_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_profiles: {
         Row: {
           business_name: string
@@ -316,6 +367,80 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "business_profiles"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      engagements: {
+        Row: {
+          agreed_price_kobo: number
+          application_id: string
+          approved_at: string
+          business_id: string
+          campaign_id: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          creator_id: string
+          id: string
+          pay_by: string
+          status: Database["public"]["Enums"]["engagement_status"]
+          updated_at: string
+        }
+        Insert: {
+          agreed_price_kobo: number
+          application_id: string
+          approved_at?: string
+          business_id: string
+          campaign_id: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          creator_id: string
+          id?: string
+          pay_by: string
+          status?: Database["public"]["Enums"]["engagement_status"]
+          updated_at?: string
+        }
+        Update: {
+          agreed_price_kobo?: number
+          application_id?: string
+          approved_at?: string
+          business_id?: string
+          campaign_id?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          creator_id?: string
+          id?: string
+          pay_by?: string
+          status?: Database["public"]["Enums"]["engagement_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engagements_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: true
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagements_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagements_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagements_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -874,7 +999,24 @@ export type Database = {
         Args: { answer: string; appeal: string; decline: boolean }
         Returns: undefined
       }
+      apply_to_campaign: {
+        Args: { campaign: string; note: string; proposed_price_kobo: number }
+        Returns: string
+      }
+      approve_application: {
+        Args: { application: string; expected_price_kobo: number }
+        Returns: string
+      }
       block_user: { Args: { other: string }; Returns: undefined }
+      campaign_application_counts: {
+        Args: never
+        Returns: {
+          campaign_id: string
+          total: number
+          waiting: number
+        }[]
+      }
+      campaign_applications: { Args: { campaign: string }; Returns: Json }
       campaign_card: {
         Args: {
           k: Database["public"]["Tables"]["campaigns"]["Row"]
@@ -886,7 +1028,9 @@ export type Database = {
         Args: { campaign: string; creator: string }
         Returns: Json
       }
+      cancel_engagement: { Args: { engagement: string }; Returns: undefined }
       check_standing: { Args: { person: string }; Returns: undefined }
+      clean_note: { Args: { note: string }; Returns: string }
       clean_reason: { Args: { reason: string }; Returns: string }
       contact_detail_kind: { Args: { body: string }; Returns: string }
       count_qualifying_creators: { Args: { campaign: string }; Returns: number }
@@ -903,12 +1047,28 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      decide_application: {
+        Args: { application: string; decision: string; note: string }
+        Returns: undefined
+      }
       deliverable_kind_allowed: {
         Args: {
           kind: Database["public"]["Enums"]["deliverable_kind"]
           on_platform: Database["public"]["Enums"]["social_platform"]
         }
         Returns: boolean
+      }
+      edit_application: {
+        Args: { application: string; note: string; proposed_price_kobo: number }
+        Returns: undefined
+      }
+      engagement_json: {
+        Args: { e: Database["public"]["Tables"]["engagements"]["Row"] }
+        Returns: Json
+      }
+      expire_unpaid_engagements: {
+        Args: { campaign?: string }
+        Returns: number
       }
       follower_range_for: {
         Args: { follower_count: number }
@@ -933,6 +1093,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      held_places: { Args: { campaign: string }; Returns: number }
       indexable_creators: {
         Args: never
         Returns: {
@@ -960,6 +1121,7 @@ export type Database = {
           total_count: number
         }[]
       }
+      my_applications: { Args: never; Returns: Json }
       new_verification_code: { Args: never; Returns: string }
       open_campaign_count: { Args: never; Returns: number }
       record_strike: {
@@ -1064,13 +1226,24 @@ export type Database = {
         Returns: Database["public"]["Enums"]["campaign_status"]
       }
       unblock_user: { Args: { other: string }; Returns: undefined }
+      valid_proposed_price: { Args: { price: number }; Returns: boolean }
       viewer_sees_creator_details: { Args: never; Returns: boolean }
       void_strike: {
         Args: { reason: string; strike: string }
         Returns: undefined
       }
+      withdraw_application: {
+        Args: { application: string }
+        Returns: undefined
+      }
     }
     Enums: {
+      application_status:
+        | "submitted"
+        | "shortlisted"
+        | "approved"
+        | "rejected"
+        | "withdrawn"
       campaign_report_reason:
         | "scam_or_fraud"
         | "banned_content"
@@ -1087,6 +1260,18 @@ export type Database = {
         | "completed"
         | "cancelled"
       deliverable_kind: "post" | "reel" | "story" | "video" | "short"
+      engagement_status:
+        | "awaiting_payment"
+        | "funded"
+        | "in_progress"
+        | "submitted"
+        | "accepted"
+        | "denied"
+        | "paid_out"
+        | "disputed"
+        | "auto_released"
+        | "cancelled"
+        | "refunded"
       follower_range: "1k_5k" | "5k_10k" | "10k_50k" | "50k_100k" | "100k_plus"
       moderation_event_kind:
         | "strike"
@@ -1237,6 +1422,13 @@ export const Constants = {
   },
   public: {
     Enums: {
+      application_status: [
+        "submitted",
+        "shortlisted",
+        "approved",
+        "rejected",
+        "withdrawn",
+      ],
       campaign_report_reason: [
         "scam_or_fraud",
         "banned_content",
@@ -1255,6 +1447,19 @@ export const Constants = {
         "cancelled",
       ],
       deliverable_kind: ["post", "reel", "story", "video", "short"],
+      engagement_status: [
+        "awaiting_payment",
+        "funded",
+        "in_progress",
+        "submitted",
+        "accepted",
+        "denied",
+        "paid_out",
+        "disputed",
+        "auto_released",
+        "cancelled",
+        "refunded",
+      ],
       follower_range: ["1k_5k", "5k_10k", "10k_50k", "50k_100k", "100k_plus"],
       moderation_event_kind: [
         "strike",
