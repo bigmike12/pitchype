@@ -17,15 +17,23 @@ From the user (2026-11-10):
 | Time to pay | **48 hours**, then the approval lapses and the place is freed (CLAUDE.md §12 item 2). |
 | Proposed prices | Optional. Whole naira, minimum ₦5,000, no ceiling (a technical cap of the existing `MAX_PRICE_NAIRA` keeps the number storable). |
 | Who messages first | The business. A creator can reply once a thread exists. |
-| Contact details in chat | The message is **not delivered**; the sender is warned and gets a strike. Three strikes block them from chat. |
+| Contact details in chat | The message is **not delivered**; the sender is warned and gets a strike. Three strikes block them **from the platform**, and they can always appeal. |
 
-My calls on the details (flag any you disagree with):
+Confirmed by the user, with my calls on the details:
 
-- **The chat block is chat-only** (they can still apply, browse and be paid).
-  An admin can lift it from `/admin`. Lifting resets the strike count.
+- **A block is platform-wide.** A blocked person can sign in but sees only a
+  "Your account is blocked" page (the reason, the strikes, an appeal form and
+  Sign out); every other page redirects there. They can appeal at any time,
+  one open appeal at a time and no more than one a day. An admin reviews
+  appeals in `/admin` and either lifts the block (strikes reset to zero) or
+  declines with a note the person sees; they may appeal again.
 - **Flagged text is kept for admins only** (so a block can be reviewed and
   appealed) and never shown to the other person. The terms must say so
   before launch.
+- **Money in flight is out of scope** until Stage 6: nothing is paid yet, so
+  a block today strands nothing. Stage 6 must decide what happens to
+  escrow, payouts and live campaigns of a blocked account (logged in
+  `docs/TODO.md`).
 - **A creator can edit their price and note while the application is
   `submitted` or `shortlisted`**; this is how a negotiated price is agreed:
   the business says what works in chat, the creator updates their proposal.
@@ -63,8 +71,12 @@ My calls on the details (flag any you disagree with):
   profile page (replacing "Messaging and hiring open soon").
 
 **Admin**
-- See blocked chat users and their strikes (with the flagged text) in
-  `/admin`, and lift a block.
+- See blocked accounts, their strikes (with the flagged text) and open
+  appeals in `/admin`; lift a block, or decline an appeal with a note.
+
+**Blocked person**
+- Sees the blocked page only; can submit an appeal (up to 1,000
+  characters), read the admin's answer, and sign out.
 
 ## 3. Rules and invariants
 
@@ -104,8 +116,12 @@ Written down per CLAUDE.md §9.
   contact-detail check runs in app code (`findContactDetails`, already used
   for briefs and bios) before anything is stored; a flagged message goes to
   `record_chat_strike()` instead of `messages`, which stores the strike and,
-  at three, sets the block. Sending checks the block. Messages are 1 to 2,000
-  characters.
+  at three, sets `users.blocked_at`. Messages are 1 to 2,000 characters.
+- **A block holds on the server, not just in the UI.** `requireUser()`
+  (already the first call of every page and action) sends a blocked person
+  to `/blocked`, and the database functions that write (`apply_to_campaign`,
+  `send_message`, `approve_application` and the rest) refuse a blocked
+  caller, so a stale tab or a hand-made request gets nowhere.
 - **Rate limits** (in-memory, existing `createRateLimiter`): applying, and
   sending messages (20 a minute per person).
 
@@ -131,14 +147,17 @@ Written down per CLAUDE.md §9.
   `conversation_reads` (`conversation_id`, `user_id`, `last_read_at`) for
   unread counts.
 - `chat_strikes` (`id`, `user_id`, `conversation_id`, `kind`, `body`,
-  `created_at`) readable by admins only; `users.chat_blocked_at` (null:
-  not blocked).
+  `created_at`) readable by admins only; `users.blocked_at` and
+  `users.blocked_reason` (null: not blocked). `block_appeals` (`id`,
+  `user_id`, `message`, `status` open or resolved, `answer`, `created_at`,
+  `resolved_by`, `resolved_at`); a person sees their own, admins see all.
 - **RLS on every new table, default deny.** Creators see their own
   applications and engagements; businesses see those on their campaigns;
   admins see all. Writes go through functions (`apply_to_campaign`,
   `edit_application`, `withdraw_application`, `decide_application`,
   `approve_application`, `cancel_engagement`, `start_conversation`,
-  `send_message`, `record_chat_strike`, `lift_chat_block`).
+  `send_message`, `record_chat_strike`, `submit_block_appeal`,
+  `resolve_block_appeal`).
 - `messages` joins the Realtime publication. The browser subscribes under
   the person's own session, so RLS decides what arrives.
 
@@ -154,7 +173,8 @@ states, `PageHeader`, `Callout`, `EmptyState`, 390px first).
 | `/business/campaigns/[id]/applications` | Business | Applicants with profile summary, price, note, and Shortlist / Reject / Approve |
 | `/business/engagements/[id]/pay` | Business | The placeholder pay screen, with the time left |
 | `/inbox`, `/inbox/[id]` | Both | Threads with unread counts; a thread with live messages |
-| `/admin` | Admin | A "Chat blocks" section |
+| `/blocked` | Blocked person | Why, the strikes, the appeal form and the admin's answer |
+| `/admin` | Admin | A "Blocks and appeals" section |
 
 Sidebar: businesses gain **Inbox**; creators gain **Applications** and
 **Inbox**; the Inbox link shows an unread badge. The business campaigns
@@ -170,11 +190,14 @@ and hiring open soon" copy (home, account, creator profile) is updated.
   refused for ineligible, closed, past-deadline and full campaigns;
   `approve_application` over-fill (places = 1, second approval fails) and
   stale-price refusal; lapse idempotence (run twice); places can't drop
-  below held; a blocked user can't send; strikes unreadable by non-admins.
+  below held; a blocked user can't apply, send or approve (every writing function refuses);
+  three strikes set the block and a lift resets it; strikes and other
+  people's appeals unreadable by non-admins; one open appeal at a time.
 - **Browser (Playwright, production build, local Supabase, throwaway
   accounts):** apply, edit, withdraw, approve to the pay screen, lapse
   (backdated `pay_by`), message both ways with live delivery, a flagged
-  message not delivered, a third strike blocking, an admin lifting it; at
+  message not delivered, a third strike blocking the whole account (every page redirects to
+  `/blocked`), an appeal, an admin lifting it and declining it; at
   375px and 1280px.
 
 ## 7. Not in this stage
@@ -188,5 +211,6 @@ feature; message attachments; a creator starting a thread; group threads.
 
 `CLAUDE.md` §12 (Stage 5 decisions), `docs/PROVIDERS.md` (Realtime),
 `docs/DESIGN_SYSTEM.md` (new pages and components), `docs/TODO.md` (tick the
-two Stage 4 follow-ups; add: applications on the business home, strike
-appeals, chat block scope), `.env.example` (`CRON_SECRET`), `README.md`.
+two Stage 4 follow-ups; add: applications on the business home, what a
+block does to escrow, payouts and live campaigns (Stage 6), blocking by
+an admin without strikes), `.env.example` (`CRON_SECRET`), `README.md`.
