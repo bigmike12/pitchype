@@ -4,21 +4,23 @@ import { Slot } from "radix-ui";
 
 import { cn } from "@/lib/utils";
 
-// Trimmed to the variants the landing page uses, restyled to Pitchype tokens.
+// shadcn/ui's Button, trimmed to the variants we use and restyled to the
+// Pitchype tokens.
 // Every size is at least 44px tall so it's an easy tap target.
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-control font-sans font-semibold whitespace-nowrap select-none disabled:pointer-events-none disabled:opacity-60 motion-safe:transition-[background-color,transform] motion-safe:hover:-translate-y-px [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-control font-sans font-semibold whitespace-nowrap select-none disabled:pointer-events-none disabled:opacity-60 motion-safe:transition-[background-color,box-shadow,transform] motion-safe:duration-200 motion-safe:hover:-translate-y-px motion-safe:active:translate-y-0 motion-safe:active:scale-[0.98] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        // Near-black primary.
-        default: "bg-ink text-white hover:bg-[#2b2b2b]",
-        // Cream button with a visible outline, for the second choice.
+        // Near-black primary with a lit top edge.
+        default: "bg-ink text-white shadow-button hover:bg-[#26262b]",
+        // White button with a firm outline, for the second choice. Buttons
+        // are identified by their label, so the outline is decorative.
         secondary:
-          "border border-field bg-canvas text-ink hover:bg-surface-card",
+          "border border-hairline-strong bg-surface text-ink shadow-card hover:border-field/60 hover:bg-surface-soft",
         // For use on the dark green and ink surfaces.
-        light: "bg-canvas text-ink hover:bg-white",
-        ghost: "text-ink hover:bg-surface-card",
+        light: "bg-surface text-ink shadow-card hover:bg-surface-soft",
+        ghost: "text-ink hover:bg-ink/5",
       },
       size: {
         default: "h-11 px-5 text-[0.9375rem]",

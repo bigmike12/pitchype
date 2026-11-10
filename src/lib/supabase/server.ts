@@ -9,7 +9,8 @@ import { supabaseEnv } from "./env";
 
 /**
  * Client that acts as an anonymous visitor and carries no session (the
- * waitlist insert). The service-role key never belongs here (CLAUDE.md §7).
+ * public directory and campaign counts). The service-role key never belongs
+ * here (CLAUDE.md §7).
  */
 export function createAnonServerClient() {
   const { url, publishableKey } = supabaseEnv();

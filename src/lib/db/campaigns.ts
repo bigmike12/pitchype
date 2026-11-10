@@ -39,6 +39,8 @@ export type OwnCampaignSummary = {
   priceKobo: number | null;
   places: number;
   applicationsCloseOn: string;
+  /** An admin's note when a first campaign was sent back to draft. */
+  reviewNote: string | null;
   removedReason: string | null;
   updatedAt: string;
 };
@@ -50,7 +52,7 @@ export async function listOwnCampaigns(
   const { data, error } = await supabase
     .from("campaigns")
     .select(
-      "id, title, status, price_kobo, places, applications_close_on, removed_reason, updated_at",
+      "id, title, status, price_kobo, places, applications_close_on, review_note, removed_reason, updated_at",
     )
     .eq("business_id", businessId)
     .order("updated_at", { ascending: false })
@@ -63,6 +65,7 @@ export async function listOwnCampaigns(
     priceKobo: c.price_kobo,
     places: c.places,
     applicationsCloseOn: c.applications_close_on,
+    reviewNote: c.review_note,
     removedReason: c.removed_reason,
     updatedAt: c.updated_at,
   }));

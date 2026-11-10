@@ -12,7 +12,8 @@ const job = feeExample(EXAMPLE_PRICE_KOBO);
 type Feature = {
   title: string;
   text: string;
-  // Order matters: the colours cycle so no two neighbours match at 1, 2 or 3 columns.
+  // Layout and the corner glow's colour. The spans make a bento: 2+1, 1+2,
+  // 2+1 at three columns; 2, 1+1, 1+1, 2 at two.
   card: string;
   fragment: ReactNode;
 };
@@ -21,7 +22,7 @@ const FEATURES: Feature[] = [
   {
     title: "Safe by default",
     text: "The business pays up front, and the money is held until the work is approved.",
-    card: "bg-brand-coral text-ink",
+    card: "sm:col-span-2 lg:col-span-2 [--glow:var(--color-brand-peach)]",
     fragment: (
       <ProductFragment
         label={`payment timeline: ${formatNaira(job.businessPaysKobo)} paid, ${formatNaira(job.agreedPriceKobo)} held in escrow, released after approval`}
@@ -54,7 +55,7 @@ const FEATURES: Feature[] = [
   {
     title: "Find the right creators",
     text: "Filter by niche, platform, location, followers and price.",
-    card: "bg-brand-green on-dark",
+    card: "[--glow:var(--color-brand-mint)]",
     fragment: (
       <ProductFragment label="creator search filtered to fashion creators in Lagos, showing two results">
         <div className="flex flex-wrap gap-1 pr-14">
@@ -86,7 +87,7 @@ const FEATURES: Feature[] = [
   {
     title: "Chat and negotiate",
     text: "Agree the price and the details before anyone starts.",
-    card: "bg-brand-lilac text-ink",
+    card: "[--glow:var(--color-brand-lilac)]",
     fragment: (
       <ProductFragment label="a chat where a business and a creator agree on two reels for ₦60,000">
         <div className="space-y-2 pt-6 text-xs">
@@ -106,7 +107,7 @@ const FEATURES: Feature[] = [
   {
     title: "7-day auto-release",
     text: "If a business doesn’t respond to submitted work within 7 days, the creator is paid automatically.",
-    card: "bg-brand-sun text-ink",
+    card: "lg:col-span-2 [--glow:var(--color-brand-sun)]",
     fragment: (
       <ProductFragment label="submitted work with 5 of 7 review days used, auto-release in 2 days">
         <p className="flex items-center gap-1.5 pr-14 font-semibold">
@@ -130,26 +131,9 @@ const FEATURES: Feature[] = [
     ),
   },
   {
-    title: "Clear approvals",
-    text: "Businesses accept the work or decline it with reasons. No silent rejections.",
-    card: "bg-brand-peach text-ink",
-    fragment: (
-      <ProductFragment label="declined work with two reasons: the logo is hidden and the discount code is missing">
-        <p className="pr-14 font-semibold">Changes requested</p>
-        <ul className="mt-2 list-disc space-y-1 pl-4 text-xs">
-          <li>Logo isn’t visible in the first 3 seconds</li>
-          <li>Caption is missing the discount code</li>
-        </ul>
-        <p className="mt-3 inline-flex rounded-lg bg-ink px-2.5 py-1.5 text-xs font-semibold text-white">
-          Resubmit
-        </p>
-      </ProductFragment>
-    ),
-  },
-  {
     title: "Simple wallet and payouts",
     text: "Earnings land in your wallet. Cash out to your bank, with any transfer fee shown up front.",
-    card: "bg-brand-mint text-ink",
+    card: "lg:col-span-2 [--glow:var(--color-brand-sky)]",
     fragment: (
       <ProductFragment
         label={`a wallet with a balance of ₦97,500 after a payment of ${formatNaira(job.influencerReceivesKobo)}`}
@@ -171,6 +155,23 @@ const FEATURES: Feature[] = [
       </ProductFragment>
     ),
   },
+  {
+    title: "Clear approvals",
+    text: "Businesses accept the work or decline it with reasons. No silent rejections.",
+    card: "sm:col-span-2 lg:col-span-1 [--glow:var(--color-brand-rose)]",
+    fragment: (
+      <ProductFragment label="declined work with two reasons: the logo is hidden and the discount code is missing">
+        <p className="pr-14 font-semibold">Changes requested</p>
+        <ul className="mt-2 list-disc space-y-1 pl-4 text-xs">
+          <li>Logo isn’t visible in the first 3 seconds</li>
+          <li>Caption is missing the discount code</li>
+        </ul>
+        <p className="mt-3 inline-flex rounded-lg bg-ink px-2.5 py-1.5 text-xs font-semibold text-white">
+          Resubmit
+        </p>
+      </ProductFragment>
+    ),
+  },
 ];
 
 export function Features() {
@@ -179,7 +180,7 @@ export function Features() {
       aria-labelledby="features-title"
       className="container-page section-y"
     >
-      <h2 id="features-title" className="max-w-[18ch] text-display-lg">
+      <h2 id="features-title" className="max-w-[18ch] text-display-lg reveal">
         Fair for businesses. Fair for creators.
       </h2>
       <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -187,13 +188,17 @@ export function Features() {
           <li
             key={feature.title}
             className={cn(
-              "flex flex-col rounded-panel p-6 sm:p-8",
+              "relative isolate flex flex-col overflow-hidden rounded-panel p-6 panel reveal sm:p-8",
               feature.card,
             )}
           >
+            <div
+              aria-hidden="true"
+              className="absolute -top-24 -right-24 -z-10 size-72 rounded-full bg-[var(--glow)] opacity-70 blur-3xl"
+            />
             <h3 className="text-display-md">{feature.title}</h3>
-            <p className="mt-2 mb-6">{feature.text}</p>
-            <div className="mt-auto">{feature.fragment}</div>
+            <p className="mt-2 mb-6 max-w-[34rem]">{feature.text}</p>
+            <div className="mt-auto max-w-[26rem]">{feature.fragment}</div>
           </li>
         ))}
       </ul>

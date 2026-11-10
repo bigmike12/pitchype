@@ -18,7 +18,7 @@ export async function resetPasswordAction(
   if (!parsed.ok) return { status: "error", errors: parsed.errors };
 
   const result = await updatePassword(parsed.value.password);
-  if (result.ok) redirect("/account");
+  if (result.ok) redirect("/home");
 
   const message = {
     weak_password:

@@ -1,51 +1,82 @@
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
+import type { CSSProperties } from "react";
+
 import { buttonVariants } from "@/components/ui/button";
 
 import { HeroIllustration } from "./hero-illustration";
 
+const delay = (ms: number) => ({ "--delay": `${ms}ms` }) as CSSProperties;
+
 export function Hero() {
+  // Pulled up under the floating header so the aurora shows through its glass.
   return (
     <section
       aria-labelledby="hero-title"
-      className="container-page pt-10 pb-16 sm:pt-14 lg:pt-20 lg:pb-24"
+      className="relative isolate -mt-16 overflow-hidden pt-16 sm:-mt-[4.75rem] sm:pt-[4.75rem]"
     >
-      <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-10">
-        <div className="lg:col-span-7">
-          {/* One block per sentence so lines never break across the full stop. */}
-          <h1 id="hero-title" className="text-display-xl">
-            <span className="block">Brands meet creators.</span>{" "}
-            <span className="block">Everybody gets paid.</span>
-          </h1>
-          <p className="mt-6 max-w-[36rem] text-lg sm:text-xl">
-            Post a campaign, choose the creators you like, and pay safely
-            through escrow. Creators apply, do the work, and get paid when it’s
-            approved.
-          </p>
-          {/* Plain links to the form, so they work before (or without) JavaScript.
-              The form reads data-waitlist-role to preselect the right option. */}
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <a
-              href="#waitlist"
-              data-waitlist-role="business"
-              className={buttonVariants({ size: "lg" })}
-            >
-              I’m a business
-            </a>
-            <a
-              href="#waitlist"
-              data-waitlist-role="creator"
-              className={buttonVariants({ size: "lg", variant: "secondary" })}
-            >
-              I’m a creator
-            </a>
-          </div>
-          <p className="mt-4 text-sm text-muted">
-            Free to join. Fees only apply to jobs that get funded.
-          </p>
-        </div>
+      {/* Backdrop: a drifting aurora that fades into the page, and a dot grid. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 aurora [mask-image:linear-gradient(#000_45%,transparent_92%)] motion-safe:animate-aurora"
+      />
+      <div aria-hidden="true" className="absolute inset-0 -z-10 dot-grid" />
 
-        <div className="lg:col-span-5">
-          <HeroIllustration />
+      <div className="container-page pt-12 text-center sm:pt-20 lg:pt-24">
+        {/* One block per sentence so lines never break across the full stop. */}
+        <h1
+          id="hero-title"
+          className="mx-auto mt-6 max-w-[15ch] text-display-xl enter"
+          style={delay(60)}
+        >
+          <span className="block">Brands meet creators.</span>{" "}
+          <span className="block">
+            Everybody <span className="text-gradient">gets paid.</span>
+          </span>
+        </h1>
+        <p
+          className="mx-auto mt-6 max-w-[38rem] text-lg sm:text-xl enter"
+          style={delay(120)}
+        >
+          Social platforms help you grow an audience. Pitchype helps you get
+          paid for it. Businesses find creators who fit, agree the price up
+          front and pay through escrow; creators get paid when the work is
+          approved.
+        </p>
+
+        {/* Sign-up opens with the matching account type already chosen. */}
+        <div
+          className="mt-9 flex flex-col justify-center gap-3 sm:flex-row enter"
+          style={delay(170)}
+        >
+          <Link
+            href="/signup?role=business"
+            className={buttonVariants({ size: "lg", className: "group" })}
+          >
+            I’m a business
+            <ArrowRight
+              aria-hidden="true"
+              className="motion-safe:transition-transform motion-safe:group-hover:translate-x-0.5"
+            />
+          </Link>
+          <Link
+            href="/signup?role=influencer"
+            className={buttonVariants({ size: "lg", variant: "secondary" })}
+          >
+            I’m a creator
+          </Link>
         </div>
+        <p className="mt-4 text-sm text-muted enter" style={delay(210)}>
+          Free to join, with no follower minimum. Fees only apply to jobs that
+          get funded.
+        </p>
+      </div>
+
+      <div
+        className="container-page mt-14 pb-16 sm:mt-20 enter"
+        style={delay(280)}
+      >
+        <HeroIllustration />
       </div>
     </section>
   );

@@ -1,5 +1,5 @@
 // Form fields, part of the design system: one look for every text-like
-// control on the site (waitlist, auth, profiles). Labels are always visible;
+// control on the site (auth, onboarding, profiles, campaigns). Labels are always visible;
 // hints and errors are wired to the control for screen readers.
 
 import { ChevronDown, type LucideIcon } from "lucide-react";
@@ -8,7 +8,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const controlClass =
-  "block h-12 w-full rounded-control border bg-white text-base text-ink placeholder:text-muted focus-visible:border-ink";
+  "block h-12 w-full rounded-control border bg-surface text-base text-ink shadow-[0_1px_2px_rgb(14_14_16/0.04)] placeholder:text-muted focus-visible:border-ink focus-visible:shadow-[0_0_0_4px_rgb(91_61_245/0.12)] motion-safe:transition-[border-color,box-shadow]";
 
 export function controlClasses({
   error,
@@ -218,7 +218,7 @@ export function TextAreaField({
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy(id, hint, error)}
         className={cn(
-          "mt-2 block w-full rounded-control border bg-white px-4 py-3 text-base text-ink focus-visible:border-ink",
+          "mt-2 block w-full rounded-control border bg-surface px-4 py-3 text-base text-ink shadow-[0_1px_2px_rgb(14_14_16/0.04)] focus-visible:border-ink focus-visible:shadow-[0_0_0_4px_rgb(91_61_245/0.12)] motion-safe:transition-[border-color,box-shadow]",
           error ? "border-danger" : "border-field",
         )}
         {...textarea}

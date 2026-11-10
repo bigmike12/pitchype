@@ -66,7 +66,7 @@ export function PlatformDetails({
   platforms: PlatformListing[];
 }) {
   return (
-    <ul className="divide-y divide-hairline rounded-card bg-white ring-1 ring-hairline">
+    <ul className="divide-y divide-hairline rounded-card panel">
       {platforms.map((p) => {
         const rules = PLATFORM_RULES[p.platform];
         return (

@@ -10,7 +10,7 @@ import { TextField } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 import { Notice } from "@/components/ui/notice";
 import { PasswordField } from "@/components/ui/password-field";
-import { MIN_PASSWORD_LENGTH } from "@/lib/credentials";
+import { MIN_PASSWORD_LENGTH, type SignupRole } from "@/lib/credentials";
 
 import { signUpAction, type SignUpState } from "./actions";
 
@@ -33,7 +33,12 @@ const ROLES = [
   },
 ] as const;
 
-export function SignUpForm() {
+export function SignUpForm({
+  initialRole,
+}: {
+  /** From the landing page's "I'm a business / creator" links. */
+  initialRole?: SignupRole;
+}) {
   const [state, formAction, pending] = useActionState<SignUpState, FormData>(
     signUpAction,
     { status: "idle" },
@@ -65,7 +70,7 @@ export function SignUpForm() {
         name="role"
         options={ROLES}
         variant="cards"
-        defaultValue={state.values?.role}
+        defaultValue={state.values?.role ?? initialRole}
         required
         error={state.errors?.role}
       />

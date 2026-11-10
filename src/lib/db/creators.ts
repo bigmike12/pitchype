@@ -191,7 +191,8 @@ export type OwnCreatorProfile = {
   platforms: OwnPlatform[];
 };
 
-export async function getOwnCreatorProfile(
+// Cached per request: the portal shell (for the photo) and the page share it.
+export const getOwnCreatorProfile = cache(async function getOwnCreatorProfile(
   userId: string,
 ): Promise<OwnCreatorProfile | null> {
   const supabase = await createSessionClient();
@@ -238,7 +239,7 @@ export async function getOwnCreatorProfile(
       followersUpdatedAt: p.followers_updated_at,
     })),
   };
-}
+});
 
 export async function updateCreatorAbout(
   userId: string,
@@ -257,6 +258,19 @@ export async function updateCreatorAbout(
     })
     .eq("user_id", userId);
   if (error) throw new Error(`creator profile update failed (${error.code})`);
+}
+
+/** Onboarding's niches step: only the niches, on the creator's own row. */
+export async function setCreatorNiches(
+  userId: string,
+  niches: string[],
+): Promise<void> {
+  const supabase = await createSessionClient();
+  const { error } = await supabase
+    .from("influencer_profiles")
+    .update({ niches })
+    .eq("user_id", userId);
+  if (error) throw new Error(`creator niches update failed (${error.code})`);
 }
 
 export async function setCreatorPublished(

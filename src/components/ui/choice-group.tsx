@@ -1,6 +1,6 @@
 // A small set of mutually exclusive choices, built on real radio buttons (so
 // arrow keys and forms work without JavaScript). Two looks:
-// - "pills": compact, label only (the waitlist's Business / Creator).
+// - "pills": compact, label only.
 // - "cards": stacked options with an icon and a one-line description, for
 //   choices that need explaining (the account type at sign-up).
 
@@ -91,8 +91,8 @@ export function ChoiceGroup({
             <label
               key={option.value}
               className={cn(
-                "inline-flex h-12 cursor-pointer items-center justify-center rounded-full border bg-white px-4 text-center font-semibold text-ink not-has-checked:hover:bg-surface-card",
-                "has-checked:border-ink has-checked:bg-ink has-checked:text-white",
+                "inline-flex h-12 cursor-pointer items-center justify-center rounded-full border bg-surface px-4 text-center font-semibold text-ink shadow-card not-has-checked:hover:bg-surface-soft motion-safe:transition-colors",
+                "has-checked:border-ink has-checked:bg-ink has-checked:text-white has-checked:shadow-button",
                 focusRing,
                 border,
               )}
@@ -112,9 +112,9 @@ export function ChoiceGroup({
               <label
                 key={option.value}
                 className={cn(
-                  "group flex cursor-pointer items-start gap-4 rounded-card border bg-white p-4 text-ink not-has-checked:hover:bg-surface-soft",
-                  // A 2px ink edge when chosen, without shifting the layout.
-                  "has-checked:border-ink has-checked:ring-1 has-checked:ring-ink",
+                  "group flex cursor-pointer items-start gap-4 rounded-card border bg-surface p-4 text-ink shadow-card not-has-checked:hover:shadow-lift motion-safe:transition-shadow",
+                  // A 2px ink edge and a violet wash when chosen, without shifting the layout.
+                  "has-checked:border-ink has-checked:bg-[linear-gradient(135deg,rgb(221_210_255/0.35),rgb(255_255_255)_60%)] has-checked:ring-1 has-checked:ring-ink",
                   focusRing,
                   border,
                 )}

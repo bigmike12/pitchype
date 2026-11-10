@@ -34,7 +34,7 @@ export function ProductFragment({
       role="img"
       aria-label={`Sample screen: ${label}`}
       className={cn(
-        "relative rounded-card bg-canvas p-4 text-sm text-ink",
+        "relative rounded-card panel p-4 text-sm text-ink",
         className,
       )}
     >
@@ -50,6 +50,8 @@ const AVATAR_COLOURS = {
   sun: "bg-brand-sun",
   peach: "bg-brand-peach",
   mint: "bg-brand-mint",
+  sky: "bg-brand-sky",
+  rose: "bg-brand-rose",
 } as const;
 
 /** Initials on a coloured circle. Never a photo (no real people on the site). */
@@ -85,7 +87,7 @@ export function Chip({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border border-hairline bg-white px-2.5 py-1 text-xs font-medium text-ink",
+        "inline-flex items-center rounded-full border border-hairline bg-surface px-2.5 py-1 text-xs font-medium text-ink",
         className,
       )}
     >

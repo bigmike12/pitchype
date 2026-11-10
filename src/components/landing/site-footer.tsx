@@ -6,6 +6,7 @@ import { CONTACT_EMAIL, SOCIAL_PROFILES } from "@/lib/site";
 import { Wordmark } from "@/components/brand/wordmark";
 
 const PRODUCT_LINKS = [
+  { href: "/#why", label: "Why Pitchype" },
   { href: "/#how-it-works", label: "How it works" },
   { href: "/#for-businesses", label: "For businesses" },
   { href: "/#for-creators", label: "For creators" },
@@ -25,7 +26,7 @@ async function CurrentYear() {
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-hairline bg-surface-soft">
+    <footer className="relative overflow-hidden border-t border-hairline bg-surface">
       <div className="container-page py-12 lg:py-16">
         <div className="grid gap-10 md:grid-cols-12">
           <div className="md:col-span-5">
@@ -91,6 +92,14 @@ export function SiteFooter() {
           © <CurrentYear /> Pitchype
         </p>
       </div>
+
+      {/* The name, very large and fading out, as a sign-off. Decorative. */}
+      <p
+        aria-hidden="true"
+        className="pointer-events-none -mb-[0.22em] text-center font-display text-[clamp(5rem,22vw,20rem)] leading-none font-semibold tracking-[-0.06em] select-none [mask-image:linear-gradient(#000,transparent_85%)] text-surface-card"
+      >
+        pitchype
+      </p>
     </footer>
   );
 }

@@ -326,6 +326,27 @@ export type CreatorAbout = {
 export type AboutField =
   "displayName" | "bio" | "niches" | "state" | "city" | "startingRate";
 
+/**
+ * The `niches` checkboxes: known slugs only (`nicheSlugs` is the current list
+ * from the database), each once, one to MAX_NICHES of them.
+ */
+export function parseNiches(
+  form: FormData,
+  nicheSlugs: readonly string[],
+):
+  | { ok: true; niches: string[] }
+  | { ok: false; error: string; chosen: string[] } {
+  const raw = form.getAll("niches").filter((v) => typeof v === "string");
+  const chosen = [...new Set(raw)].filter((slug) => nicheSlugs.includes(slug));
+  if (chosen.length === 0) {
+    return { ok: false, error: "Choose at least one niche.", chosen };
+  }
+  if (chosen.length > MAX_NICHES) {
+    return { ok: false, error: `Choose up to ${MAX_NICHES} niches.`, chosen };
+  }
+  return { ok: true, niches: chosen };
+}
+
 /** `nicheSlugs` is the current list from the database. */
 export function parseAboutForm(
   form: FormData,
@@ -345,14 +366,9 @@ export function parseAboutForm(
     errors.bio = `Remove the ${contact}. Businesses contact you through Pitchype, which keeps your payment protected.`;
   }
 
-  const chosen = form.getAll("niches").filter((v) => typeof v === "string");
-  const niches = [...new Set(chosen)].filter((slug) =>
-    nicheSlugs.includes(slug),
-  );
-  if (niches.length === 0) errors.niches = "Choose at least one niche.";
-  else if (niches.length > MAX_NICHES) {
-    errors.niches = `Choose up to ${MAX_NICHES} niches.`;
-  }
+  const parsedNiches = parseNiches(form, nicheSlugs);
+  const niches = parsedNiches.ok ? parsedNiches.niches : parsedNiches.chosen;
+  if (!parsedNiches.ok) errors.niches = parsedNiches.error;
 
   const rateInput = text(form, "startingRate").trim();
   const rate = parseRate(rateInput);

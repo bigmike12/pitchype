@@ -1,14 +1,11 @@
-import { MapPin } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { Chip } from "@/components/brand/fragments";
-import { CreatorPhoto } from "@/components/creators/creator-photo";
-import { PlatformDetails } from "@/components/creators/platform-list";
+import { CreatorProfileView } from "@/components/creators/creator-profile-view";
 import { buttonVariants } from "@/components/ui/button";
-import { PLATFORM_RULES, startingRateText } from "@/lib/creator-profile";
+import { PLATFORM_RULES } from "@/lib/creator-profile";
 import {
   getListedCreator,
   listNiches,
@@ -76,88 +73,35 @@ async function Profile({ params }: { params: Params }) {
   const niches = await nicheNames(creator);
 
   return (
-    <article className="mt-6 grid gap-10 lg:grid-cols-12 lg:gap-12">
-      <div className="lg:col-span-4">
-        <CreatorPhoto
-          name={creator.displayName}
-          url={creator.photoUrl}
-          sizes="(min-width: 1024px) 24rem, (min-width: 640px) 20rem, 90vw"
-          priority
-          className="max-w-80 lg:max-w-none"
-        />
-      </div>
-
-      <div className="lg:col-span-8">
-        <h1 className="text-display-lg">{creator.displayName}</h1>
-        <p className="mt-2 flex items-center gap-1.5 text-muted">
-          <MapPin className="size-4 shrink-0" aria-hidden="true" />
-          {creator.city}, {stateLabel(creator.state)}
+    <CreatorProfileView creator={creator} nicheNames={niches}>
+      {creator.detailsVisible ? (
+        <p className="mt-8 rounded-card bg-surface-card p-5 text-ink">
+          Messaging and hiring creators open soon. We’ll email you as soon as
+          you can.
         </p>
-        <ul className="mt-4 flex flex-wrap gap-2" aria-label="Niches">
-          {niches.map((name) => (
-            <li key={name}>
-              <Chip className="px-3 py-1.5 text-sm">{name}</Chip>
-            </li>
-          ))}
-        </ul>
-
-        {creator.detailsVisible && (
-          <dl className="mt-8 grid gap-6 sm:grid-cols-2">
-            <div>
-              <dt className="text-sm text-muted">Starting rate</dt>
-              <dd className="mt-1 text-display-md">
-                {startingRateText(creator.startingRateKobo)}
-              </dd>
-            </div>
-            {creator.bio && (
-              <div className="sm:col-span-2">
-                <dt className="text-sm text-muted">About</dt>
-                <dd className="mt-1 max-w-[65ch] text-lg whitespace-pre-line">
-                  {creator.bio}
-                </dd>
-              </div>
-            )}
-          </dl>
-        )}
-
-        <section aria-labelledby="platforms-title" className="mt-10">
-          <h2 id="platforms-title" className="text-display-md">
-            Platforms
+      ) : (
+        <aside className="mt-8 rounded-card p-5 ring-1 ring-hairline aurora-warm sm:p-6">
+          <h2 className="font-semibold text-ink">
+            Want to work with {creator.displayName}?
           </h2>
-          <div className="mt-4">
-            <PlatformDetails platforms={creator.platforms} />
-          </div>
-        </section>
-
-        {creator.detailsVisible ? (
-          <p className="mt-8 rounded-card bg-surface-card p-5 text-ink">
-            Messaging and hiring creators open soon. We’ll email you as soon as
-            you can.
+          <p className="mt-1 text-ink">
+            Businesses on Pitchype see their handles, bio and starting rate.
           </p>
-        ) : (
-          <aside className="mt-8 rounded-card bg-brand-sun p-5 sm:p-6">
-            <h2 className="font-semibold text-ink">
-              Want to work with {creator.displayName}?
-            </h2>
-            <p className="mt-1 text-ink">
-              Businesses on Pitchype see their handles, bio and starting rate.
-            </p>
-            <Link
-              href="/#waitlist"
-              className={buttonVariants({ className: "mt-4" })}
-            >
-              Join the waitlist
-            </Link>
-          </aside>
-        )}
+          <Link
+            href="/signup?role=business"
+            className={buttonVariants({ className: "mt-4" })}
+          >
+            Create a business account
+          </Link>
+        </aside>
+      )}
 
-        <div className="mt-10 max-w-xl">
-          <ReportForm slug={creator.slug} />
-        </div>
+      <div className="mt-10 max-w-xl">
+        <ReportForm slug={creator.slug} />
       </div>
 
       {creator.allowIndexing && <ProfileJsonLd creator={creator} />}
-    </article>
+    </CreatorProfileView>
   );
 }
 

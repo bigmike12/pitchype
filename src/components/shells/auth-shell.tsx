@@ -8,18 +8,11 @@ const footerLink =
   "text-muted underline-offset-4 hover:text-ink hover:underline";
 
 /**
- * Layout for sign-up, login, password reset and onboarding: a narrow form
- * column (wordmark on top, legal links at the bottom) beside an illustration
- * panel on wide screens. Phones get the form column only.
+ * Layout for sign-up, login and password reset: a narrow form column
+ * (wordmark on top, legal links at the bottom) beside an illustration panel
+ * on wide screens. Phones get the form column only.
  */
-export function AuthShell({
-  children,
-  headerAction,
-}: {
-  children: ReactNode;
-  /** Shown at the right of the header, e.g. a sign-out button. */
-  headerAction?: ReactNode;
-}) {
+export function AuthShell({ children }: { children: ReactNode }) {
   return (
     <div className="lg:grid lg:grid-cols-2">
       <div className="flex min-h-dvh flex-col px-4 sm:px-6">
@@ -32,10 +25,12 @@ export function AuthShell({
             >
               <Wordmark />
             </Link>
-            {headerAction}
           </header>
 
-          <main id="main" className="flex flex-1 flex-col justify-center py-8">
+          <main
+            id="main"
+            className="flex flex-1 flex-col justify-center py-8 enter"
+          >
             {children}
           </main>
 

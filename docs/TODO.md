@@ -50,20 +50,23 @@ Details: README, "Deploy to Vercel".
 
 ## 3. Before launch (opening sign-up to the public)
 
-- [ ] **You:** privacy notice and terms reviewed by a lawyer. Both still say
-      "draft, covers the waitlist only"; they must cover accounts, public
-      creator profiles and photos, verification and reports. Then drop the
-      draft banner and `noindex`, and add them to the sitemap.
+- [ ] **You, now urgent:** sign-up is linked from the site (2026-11-10), but
+      the privacy notice and terms still say "draft, covers the waitlist
+      only". They must cover accounts, public creator profiles and photos,
+      verification and reports, reviewed by a lawyer. Then drop the draft
+      banner and `noindex`, and add them to the sitemap.
 - [ ] **You:** confirm the `hello@pitchype.com` inbox exists. It's in the
       footer and in the message hidden creators see (`src/lib/site.ts`).
-- [ ] Link sign-up and login from the site; swap the "Join the waitlist"
-      buttons (header, directory, creator pages) for sign-up.
+- [x] Link sign-up and login from the site; swap the "Join the waitlist"
+      buttons (header, directory, creator pages) for sign-up. Done
+      2026-11-10; the waitlist form is gone.
 - [ ] Link `/creators` from the site nav, and list it in the sitemap even
       when empty.
 - [ ] **You:** create the first admin accounts (sign up, then the SQL in the
       README).
-- [ ] **You:** email the waitlist when sign-up opens (export from the
-      `waitlist` table).
+- [ ] **You, now:** email everyone on the waitlist that sign-up is open
+      (export from the `waitlist` table). Then decide whether to keep or
+      delete the table.
 - [ ] **You:** legal structure for holding escrow funds in Nigeria (CLAUDE.md
       §6 compliance flag). Needed before money goes live (Stage 6).
 - [ ] **You:** Supabase Pro and Vercel Pro (backups, point-in-time recovery,
@@ -132,8 +135,8 @@ Decisions: `docs/campaign-spec-decisions.md`.
       one page with the same ids. Labels pointed at the right field in
       testing, but switching the form components to React's `useId` would
       rule it out.
-- [ ] Signed-in pages have no navigation bar; people move between account,
-      profile, campaigns and admin through links on the account page.
+- [x] Signed-in pages have no navigation bar (done in the portal UI pass:
+      sidebar, top bar and phone drawer).
 - [ ] Tell existing applicants when a live brief changes (Stage 5 creates
       applicants; Stage 8 sends the notification). The history is already
       kept in `campaign_revisions`.
@@ -145,6 +148,46 @@ Decisions: `docs/campaign-spec-decisions.md`.
       caching or a precomputed table if campaigns or creators grow into the
       thousands.
 - [ ] The landing page's open-campaign count refreshes hourly.
+
+## 8. From the portal UI pass
+
+Design: `docs/superpowers/specs/2026-11-09-portal-ui-design.md`.
+
+- [ ] Collapse the sidebar to icons once Inbox and Wallet make it longer
+      (Stage 5 and 6).
+- [ ] Notification bell in the top bar (Stage 8).
+- [ ] Signed-in pages need JavaScript: their content streams in behind
+      Suspense, so without it they stay on the loading message. True since
+      Stage 2; revisit only if no-JS visitors matter.
+- [ ] The campaign form's spend summary is still a cream box; restyle with
+      the form if it changes.
+
+## 9. From the "porcelain and aurora" redesign (2026-11-10)
+
+Design: `docs/DESIGN_SYSTEM.md` and CLAUDE.md §4a.
+
+- [ ] **You:** click through every signed-in page as a business, a creator
+      and an admin, on a phone and a desktop. The landing page, sign-up,
+      log-in, one onboarding step and the business home were checked in a
+      browser with sample data; the other portal pages only picked up the new
+      tokens, `panel` cards and shell, unseen.
+- [ ] Firefox doesn't run scroll-driven animations yet, so `reveal` content
+      simply appears there. Fine as is; nothing to do unless that changes.
+- [ ] Swap the drawn hero window for a real product screenshot or short
+      recording once the Stage 5–6 screens exist (optional).
+- [ ] Dark mode isn't designed. The tokens would carry it; only build it if
+      people ask.
+- [ ] The landing page's outside figures (`src/components/landing/stats.tsx`)
+      were checked on 2026-11-10. Recheck them every few months (TikTok's
+      Creator Rewards countries change), and replace them with Pitchype's
+      own numbers once there are enough.
+- [ ] Next for the landing page argument, from the positioning notes:
+      creator performance analytics (reach, clicks, earnings per campaign) so
+      "measurable" can be claimed with our own data.
+- [ ] `ChoiceGroup`'s `pills` variant lost its only user with the waitlist
+      form. Remove it if nothing needs it by the next design pass.
+- [ ] `docs/design-inspiration-clay.md` still describes the old cream look;
+      rewrite or archive it when convenient.
 
 ## Done
 

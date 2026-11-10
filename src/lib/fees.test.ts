@@ -8,6 +8,7 @@ import {
   MIN_FEE_KOBO,
   feeExample,
   formatRate,
+  pricePerCreatorWithin,
 } from "./fees.ts";
 import { formatNaira } from "./money.ts";
 
@@ -78,4 +79,35 @@ test("CLAUDE.md §6.1 invariant: the business fee always beats Paystack's charge
   }
   // The tightest case, spelled out: ₦5,000 + ₦500 fee; Paystack takes about ₦196.
   assert.equal(paystackChargeKobo(550_000), 19_619);
+});
+
+test("budget split: ₦1M across 20 creators is ₦47,600 each, within budget", () => {
+  const price = pricePerCreatorWithin(100_000_000, 20);
+  assert.equal(price, 4_760_000);
+  assert.ok(20 * feeExample(price).businessPaysKobo <= 100_000_000);
+  // ₦100 more would go over.
+  assert.ok(20 * feeExample(price + 10_000).businessPaysKobo > 100_000_000);
+});
+
+test("budget split: one creator gets nearly all of it", () => {
+  const price = pricePerCreatorWithin(100_000_000, 1);
+  assert.equal(price, 95_230_000);
+  assert.ok(feeExample(price).businessPaysKobo <= 100_000_000);
+});
+
+test("budget split: small shares fall back to the ₦500 minimum fee", () => {
+  // ₦100,000 / 20 = ₦5,000 each; 5% would be ₦238, so the fee is ₦500.
+  const price = pricePerCreatorWithin(10_000_000, 20);
+  assert.equal(price, 450_000);
+  assert.equal(feeExample(price).businessPaysKobo, 500_000);
+});
+
+test("budget split: nothing fits when the share can't cover the minimum fee", () => {
+  assert.equal(pricePerCreatorWithin(1_000_000, 30), 0);
+});
+
+test("budget split: rejects non-integer or non-positive inputs", () => {
+  assert.throws(() => pricePerCreatorWithin(0, 5));
+  assert.throws(() => pricePerCreatorWithin(100_000, 0));
+  assert.throws(() => pricePerCreatorWithin(100.5, 1));
 });

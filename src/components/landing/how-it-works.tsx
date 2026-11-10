@@ -163,17 +163,22 @@ function StepList({ steps }: { steps: Step[] }) {
       {steps.map((step, index) => (
         <li
           key={step.title}
-          className="flex flex-col rounded-panel bg-surface-card p-5 sm:p-6"
+          className="relative flex flex-col overflow-hidden rounded-panel p-5 panel sm:p-6"
         >
+          {/* A soft wash behind the sample screen. */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(180deg,transparent,rgb(221_210_255/0.35))]"
+          />
           <span
             aria-hidden="true"
-            className="grid size-9 place-items-center rounded-full bg-ink font-display text-white"
+            className="relative font-display text-sm text-muted tabular-nums"
           >
-            {index + 1}
+            0{index + 1}
           </span>
-          <h3 className="mt-4 text-display-md">{step.title}</h3>
-          <p className="mt-2 mb-6 text-[0.9375rem]">{step.text}</p>
-          <div className="mt-auto">{step.fragment}</div>
+          <h3 className="relative mt-3 text-display-md">{step.title}</h3>
+          <p className="relative mt-2 mb-6 text-[0.9375rem]">{step.text}</p>
+          <div className="relative mt-auto">{step.fragment}</div>
         </li>
       ))}
     </ol>
@@ -187,10 +192,10 @@ export function HowItWorks() {
       aria-labelledby="how-it-works-title"
       className="container-page section-y"
     >
-      <h2 id="how-it-works-title" className="text-display-lg">
+      <h2 id="how-it-works-title" className="text-display-lg reveal">
         How it works
       </h2>
-      <p className="mt-4 mb-8 max-w-[36rem] text-lg">
+      <p className="mt-4 mb-8 max-w-[36rem] text-lg reveal">
         Four steps from first post to payday, whichever side you’re on.
       </p>
       <HowItWorksTabs
