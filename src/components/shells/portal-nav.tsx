@@ -2,7 +2,9 @@
 
 import {
   CircleHelp,
+  ClipboardList,
   House,
+  Inbox,
   LogOut,
   Megaphone,
   Menu,
@@ -34,7 +36,9 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   home: House,
   campaigns: Megaphone,
   creators: Search,
+  applications: ClipboardList,
   profile: UserRound,
+  inbox: Inbox,
   admin: ShieldCheck,
 };
 

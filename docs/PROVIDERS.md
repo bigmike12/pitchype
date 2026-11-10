@@ -73,6 +73,29 @@ or the Storage API, then upload the same paths to the new provider.
 | Function region | Vercel project setting (Frankfurt, next to the database) | Setting only | Host the app near the database |
 | Request size | Vercel stops request bodies at 4.5MB, so the browser shrinks photos before upload; `next.config.ts` allows Server Actions up to 6MB for the 5MB photo limit | Behaviour, not code | On other hosts, make sure the proxy in front allows ~6MB bodies |
 
+## Supabase Realtime (live chat)
+
+New messages reach the other person over Realtime. It only pushes a "something
+changed" signal: the page then re-reads the thread through the server, so
+nothing about what a person may see depends on Realtime.
+
+| What | Where | Provider-specific? | To replace |
+|---|---|---|---|
+| Subscribing to new messages | `src/app/(portal)/inbox/[id]/thread.tsx` with `src/lib/supabase/browser.ts` (publishable key, the person's session) | Yes | Any push channel (Server-Sent Events from a route handler, Pusher, Ably). The thread only needs an "insert happened" event to refresh |
+| What gets published | `supabase/migrations/*_create_chat.sql` adds `public.messages` to the `supabase_realtime` publication (guarded, so plain Postgres skips it) | Yes | Postgres `LISTEN/NOTIFY` or logical replication feeding the new channel |
+| Who receives what | RLS on `messages` (participants only) | No | Keep the policy; the new channel must check the same rule |
+| Local stack | The `realtime` container must be running (`supabase start` without `-x realtime`) | Yes | — |
+
+Without Realtime the chat still works: sending refreshes the sender's page, and
+the other person sees new messages when they reload.
+
+## Scheduled jobs
+
+| What | Where | Provider-specific? | To replace |
+|---|---|---|---|
+| Lapsing unpaid approvals (48 hours) | `src/app/api/cron/expire-engagements/route.ts`, a plain route handler protected by `CRON_SECRET`; it calls `expire_unpaid_engagements()` with the secret-key client | No | Call the URL hourly from any scheduler (cron, `pg_cron` with `pg_net`, a GitHub Action) with `Authorization: Bearer $CRON_SECRET` |
+| The schedule | `vercel.json` (`crons`) | Yes: Vercel Cron | Any of the schedulers above |
+
 ## Build-time only
 
 - **Google Fonts** via `next/font`: downloaded at build time and served from
@@ -80,6 +103,5 @@ or the Storage API, then upload the same paths to the new provider.
 
 ## Not used yet
 
-Paystack, Resend (beyond the auth SMTP above), Supabase Realtime and scheduled
-jobs (Vercel Cron or `pg_cron`) will each get a section here, with their
-boundary module, when they're introduced.
+Paystack and Resend (beyond the auth SMTP above) will each get a section here,
+with their boundary module, when they're introduced.

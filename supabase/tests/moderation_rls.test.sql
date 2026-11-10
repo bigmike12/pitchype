@@ -6,7 +6,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(58);
+select plan(59);
 
 -- Ada is a business; Chidi and Dayo are creators; Efe is an admin.
 insert into public.users (id, auth_user_id, email, role) values
@@ -23,6 +23,7 @@ select lives_ok($$ select public.block_user('00000000-0000-0000-0000-0000000d000
   'Chidi blocks Ada');
 select lives_ok($$ select public.block_user('00000000-0000-0000-0000-0000000d0001') $$,
   'blocking twice is fine');
+select is(public.my_blocks() -> 0 ->> 'name', 'Someone', 'his block list includes who he blocked (Ada has no profile yet)');
 select is((select count(*)::integer from public.user_blocks), 1, 'Chidi sees his block');
 select throws_ok($$ select public.block_user('00000000-0000-0000-0000-0000000d0002') $$,
   'P0001', 'not_allowed', 'nobody blocks themselves');

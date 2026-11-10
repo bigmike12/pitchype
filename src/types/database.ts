@@ -1186,6 +1186,7 @@ export type Database = {
         Args: { application: string; note: string; proposed_price_kobo: number }
         Returns: undefined
       }
+      engagement_details: { Args: { engagement: string }; Returns: Json }
       engagement_json: {
         Args: { e: Database["public"]["Tables"]["engagements"]["Row"] }
         Returns: Json
@@ -1254,6 +1255,7 @@ export type Database = {
         Returns: undefined
       }
       my_applications: { Args: never; Returns: Json }
+      my_blocks: { Args: never; Returns: Json }
       my_conversations: { Args: never; Returns: Json }
       new_verification_code: { Args: never; Returns: string }
       open_campaign_count: { Args: never; Returns: number }

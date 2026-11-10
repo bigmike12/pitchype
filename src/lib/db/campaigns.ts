@@ -30,6 +30,8 @@ import {
 } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
 
+import { isObject, list, num, str } from "./json";
+
 // A business's own campaigns ------------------------------------------------------
 
 export type OwnCampaignSummary = {
@@ -461,16 +463,6 @@ function isUuid(value: string) {
     value,
   );
 }
-
-function isObject(value: Json): value is { [key: string]: Json | undefined } {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-const str = (value: Json | undefined) =>
-  typeof value === "string" ? value : null;
-const num = (value: Json | undefined) =>
-  typeof value === "number" ? value : null;
-const list = (value: Json | undefined) => (Array.isArray(value) ? value : []);
 
 function toListing(value: Json): CampaignListing | null {
   if (!isObject(value)) return null;

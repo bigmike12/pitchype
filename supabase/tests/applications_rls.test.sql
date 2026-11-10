@@ -6,7 +6,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(52);
+select plan(54);
 
 -- Ada and Bola are businesses; Chidi, Dayo and Gbenga are listed creators;
 -- Femi is a creator with an unpublished profile; Efe is an admin.
@@ -151,9 +151,13 @@ select throws_ok($$
     (select id from public.applications where campaign_id = 'c5000000-0000-0000-0000-000000000001'))
 $$, 'P0001', 'application_locked', 'an approved application cannot be withdrawn');
 select is((select count(*)::integer from public.engagements), 1, 'Chidi sees his engagement');
+select is(public.engagement_details((select id from public.engagements)) ->> 'status', 'awaiting_payment',
+  'and its details');
 
 set local request.jwt.claims = '{"sub": "eeeeeeee-0000-0000-0000-000000000002"}'; -- Bola
 select is((select count(*)::integer from public.engagements), 0, 'Bola sees none');
+select throws_ok($$ select public.engagement_details('c5000000-0000-0000-0000-000000000001') $$,
+  'P0001', 'no_such_engagement', 'nor anyone else''s details');
 
 -- Lapsing ---------------------------------------------------------------------------------------------
 reset role;

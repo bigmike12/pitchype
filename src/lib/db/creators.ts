@@ -137,7 +137,8 @@ export async function listIndexableCreators(): Promise<
 }
 
 // The JSON the directory functions return for platforms; checked, not trusted.
-function toPlatformListings(value: Json): PlatformListing[] {
+// Also used for applicants (src/lib/db/applications.ts).
+export function toPlatformListings(value: Json): PlatformListing[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item): PlatformListing[] => {
     if (!item || typeof item !== "object" || Array.isArray(item)) return [];
