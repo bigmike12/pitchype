@@ -426,6 +426,115 @@ export type Database = {
           },
         ]
       }
+      moderation_appeals: {
+        Row: {
+          answer: string | null
+          created_at: string
+          id: string
+          message: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          answer?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          answer?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moderation_appeals_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moderation_appeals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      moderation_events: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          dedupe_key: string | null
+          detail: string | null
+          flag: string | null
+          id: string
+          kind: Database["public"]["Enums"]["moderation_event_kind"]
+          reason: string | null
+          strike_id: string | null
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          detail?: string | null
+          flag?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["moderation_event_kind"]
+          reason?: string | null
+          strike_id?: string | null
+          user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          detail?: string | null
+          flag?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["moderation_event_kind"]
+          reason?: string | null
+          strike_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moderation_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moderation_events_strike_id_fkey"
+            columns: ["strike_id"]
+            isOneToOne: false
+            referencedRelation: "moderation_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moderation_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       niches: {
         Row: {
           created_at: string
@@ -509,27 +618,66 @@ export type Database = {
           },
         ]
       }
+      user_blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_blocks_blocked_id_fkey"
+            columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_blocks_blocker_id_fkey"
+            columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           auth_user_id: string
           created_at: string
           email: string
           id: string
+          messaging_restricted_until: string | null
           role: Database["public"]["Enums"]["user_role"]
+          suspended_at: string | null
         }
         Insert: {
           auth_user_id: string
           created_at?: string
           email: string
           id?: string
+          messaging_restricted_until?: string | null
           role: Database["public"]["Enums"]["user_role"]
+          suspended_at?: string | null
         }
         Update: {
           auth_user_id?: string
           created_at?: string
           email?: string
           id?: string
+          messaging_restricted_until?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          suspended_at?: string | null
         }
         Relationships: []
       }
@@ -721,6 +869,12 @@ export type Database = {
       }
     }
     Functions: {
+      active_strike_count: { Args: { person: string }; Returns: number }
+      answer_appeal: {
+        Args: { answer: string; appeal: string; decline: boolean }
+        Returns: undefined
+      }
+      block_user: { Args: { other: string }; Returns: undefined }
       campaign_card: {
         Args: {
           k: Database["public"]["Tables"]["campaigns"]["Row"]
@@ -732,6 +886,9 @@ export type Database = {
         Args: { campaign: string; creator: string }
         Returns: Json
       }
+      check_standing: { Args: { person: string }; Returns: undefined }
+      clean_reason: { Args: { reason: string }; Returns: string }
+      contact_detail_kind: { Args: { body: string }; Returns: string }
       count_qualifying_creators: { Args: { campaign: string }; Returns: number }
       create_app_user: {
         Args: { requested_role: Database["public"]["Enums"]["user_role"] }
@@ -783,7 +940,13 @@ export type Database = {
           updated_at: string
         }[]
       }
+      is_blocked_between: { Args: { a: string; b: string }; Returns: boolean }
+      is_suspended: { Args: { person: string }; Returns: boolean }
       lagos_today: { Args: never; Returns: string }
+      lift_suspension: {
+        Args: { person: string; reason: string }
+        Returns: undefined
+      }
       list_open_campaigns: {
         Args: {
           niche_slug?: string
@@ -799,6 +962,11 @@ export type Database = {
       }
       new_verification_code: { Args: never; Returns: string }
       open_campaign_count: { Args: never; Returns: number }
+      record_strike: {
+        Args: { dedupe: string; detail: string; flag: string; person: string }
+        Returns: Json
+      }
+      relax_standing: { Args: { person: string }; Returns: undefined }
       report_campaign: {
         Args: {
           campaign: string
@@ -825,6 +993,7 @@ export type Database = {
           id: string
         }[]
       }
+      require_admin: { Args: never; Returns: string }
       resolve_campaign_report: {
         Args: { report_id: string }
         Returns: undefined
@@ -883,6 +1052,9 @@ export type Database = {
         Args: { creator: string; reason: string }
         Returns: undefined
       }
+      standing_problem: { Args: { person: string }; Returns: string }
+      standing_review: { Args: never; Returns: Json }
+      submit_appeal: { Args: { message: string }; Returns: string }
       submit_handle_verification: {
         Args: { request_id: string }
         Returns: undefined
@@ -891,7 +1063,12 @@ export type Database = {
         Args: { action: string; campaign_id: string; note?: string }
         Returns: Database["public"]["Enums"]["campaign_status"]
       }
+      unblock_user: { Args: { other: string }; Returns: undefined }
       viewer_sees_creator_details: { Args: never; Returns: boolean }
+      void_strike: {
+        Args: { reason: string; strike: string }
+        Returns: undefined
+      }
     }
     Enums: {
       campaign_report_reason:
@@ -911,6 +1088,11 @@ export type Database = {
         | "cancelled"
       deliverable_kind: "post" | "reel" | "story" | "video" | "short"
       follower_range: "1k_5k" | "5k_10k" | "10k_50k" | "50k_100k" | "100k_plus"
+      moderation_event_kind:
+        | "strike"
+        | "strike_voided"
+        | "suspension_lifted"
+        | "appeal_declined"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -1074,6 +1256,12 @@ export const Constants = {
       ],
       deliverable_kind: ["post", "reel", "story", "video", "short"],
       follower_range: ["1k_5k", "5k_10k", "10k_50k", "50k_100k", "100k_plus"],
+      moderation_event_kind: [
+        "strike",
+        "strike_voided",
+        "suspension_lifted",
+        "appeal_declined",
+      ],
       payment_model: ["fixed", "per_click"],
       report_reason: [
         "inappropriate_photo",
