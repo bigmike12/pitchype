@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { LoadingNotice } from "@/app/(portal)/loading-notice";
 import { Directory } from "@/components/creators/directory";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth";
+import {
+  CardGridSkeleton,
+  FiltersSkeleton,
+  PageLoading,
+  Skeleton,
+} from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Find creators" };
 
@@ -23,7 +28,15 @@ export default function BusinessCreatorsPage({
         title="Find creators"
         lead="Micro and nano creators across Nigeria. Follower counts are marked self-reported, or verified when we’ve checked the account."
       />
-      <Suspense fallback={<LoadingNotice>Loading creators…</LoadingNotice>}>
+      <Suspense
+        fallback={
+          <PageLoading label="Loading creators…">
+            <FiltersSkeleton />
+            <Skeleton className="mt-6 h-4 w-32" />
+            <CardGridSkeleton variant="creator" count={8} className="mt-5" />
+          </PageLoading>
+        }
+      >
         <Creators searchParams={searchParams} />
       </Suspense>
     </>

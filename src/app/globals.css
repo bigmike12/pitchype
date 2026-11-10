@@ -2,50 +2,151 @@
 
 /*
  * The Pitchype design system, part 1: tokens and utilities. Shared by every
- * page (landing, auth, account). Components built on them live in
+ * page (landing, auth, onboarding, portal). Components built on them live in
  * src/components/ui and src/components/brand. Rules and rationale:
  * docs/DESIGN_SYSTEM.md. Every text/background pair here was contrast-checked
  * against WCAG AA.
+ *
+ * The look since 2026-11-10 ("porcelain and aurora"): a soft off-white page,
+ * white cards lifted by a hairline and a faint shadow, ink for type and
+ * primary actions, and soft aurora gradients (rose, peach, lilac, sky, mint)
+ * for the illustrated panels. Motion is CSS only and always opt-in through
+ * prefers-reduced-motion.
  */
 @theme {
-  /* Page background for every page. White since 2026-11-09 (was cream
-     #fff9ee); cream lives on in the surface tokens below. */
-  --color-canvas: #ffffff;
-  --color-surface-soft: #fbf3e2;
-  --color-surface-card: #f4ebd6;
-  --color-ink: #121212;
-  --color-body: #3a3a3a;
-  /* #6b6b6b in the brief; darkened so it passes 4.5:1 on surface-card too. */
-  --color-muted: #666666;
+  /* Surfaces, back to front. */
+  --color-canvas: #f8f8f6; /* porcelain: page background everywhere */
+  --color-surface: #ffffff; /* cards, panels, fields */
+  --color-surface-soft: #f2f2ee; /* hover, active nav, quiet fills */
+  --color-surface-card: #ebebe6; /* stronger quiet fill: chips, tracks */
+
+  --color-ink: #0e0e10;
+  --color-body: #3b3b42;
+  /* 4.98:1 even on surface-card. Never on the pastel brand fills. */
+  --color-muted: #63636b;
   /* Decorative 1px lines only; too faint to outline a form field. */
-  --color-hairline: #e8e0cc;
-  /* Borders of inputs and pills: 3:1 against cream and white (WCAG 1.4.11). */
-  --color-field: #8a8273;
+  --color-hairline: #e6e6e1;
+  /* Outlines of secondary buttons and hovered cards: a touch firmer. */
+  --color-hairline-strong: #d6d6d0;
+  /* Borders of inputs and pills: 3:1 against white, canvas and soft. */
+  --color-field: #85858d;
   --color-danger: #b3261e;
 
+  /* Brand. Coral is the mark; the pastels are fills (ink text only);
+     violet is the one saturated accent (gradient text, progress, glows). */
   --color-brand-green: #0f3d2e;
   --color-brand-coral: #ff6b57;
-  --color-brand-lilac: #c9b8ff;
-  --color-brand-sun: #ffc93c;
-  --color-brand-peach: #ffb48a;
-  --color-brand-mint: #a9e0c8;
+  --color-brand-violet: #5b3df5;
+  --color-brand-lilac: #ddd2ff;
+  --color-brand-sun: #ffe27f;
+  --color-brand-peach: #ffd6bf;
+  --color-brand-mint: #c2ecd9;
+  --color-brand-sky: #c9e7f7;
+  --color-brand-rose: #fad3e6;
 
   /* Corner radii by role, not by size. */
   --radius-control: 0.75rem; /* buttons and form fields */
-  --radius-card: 1rem; /* product fragments, stickers, white form panels */
+  --radius-card: 1rem; /* cards, fragments, stickers, panels inside a page */
   --radius-panel: 1.5rem; /* feature cards, bands, illustration panels */
+  --radius-frame: 1.75rem; /* the big framed shells (onboarding, auth art) */
 
-  --animate-float: float 7s ease-in-out infinite;
-  --animate-float-slow: float 9s ease-in-out -3s infinite;
+  /* Depth: a hairline plus a shadow you feel more than see. */
+  --shadow-card:
+    0 1px 2px rgb(14 14 16 / 0.04), 0 2px 10px -4px rgb(14 14 16 / 0.06);
+  --shadow-lift:
+    0 1px 2px rgb(14 14 16 / 0.04), 0 16px 40px -16px rgb(14 14 16 / 0.18);
+  --shadow-pop:
+    0 2px 6px rgb(14 14 16 / 0.06), 0 28px 64px -24px rgb(14 14 16 / 0.3);
+  /* The ink button: a lit top edge and a soft drop. */
+  --shadow-button:
+    inset 0 1px 0 rgb(255 255 255 / 0.16), 0 1px 2px rgb(14 14 16 / 0.24),
+    0 6px 16px -6px rgb(14 14 16 / 0.4);
 
-  @keyframes float {
-    0%,
-    100% {
-      transform: translateY(0) rotate(var(--tilt, 0deg));
-    }
-    50% {
-      transform: translateY(-8px) rotate(var(--tilt, 0deg));
-    }
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-float: float 9s ease-in-out infinite;
+  --animate-float-slow: float 12s ease-in-out -3s infinite;
+  --animate-marquee: marquee var(--marquee-duration, 90s) linear infinite;
+  --animate-aurora: aurora 40s ease-in-out infinite alternate;
+  --animate-pulse-dot: pulse-dot 3.2s ease-out infinite;
+  --animate-shimmer: shimmer 2.8s ease-in-out infinite;
+}
+
+/* Keyframes live outside @theme so they are always emitted. */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--tilt, 0deg));
+  }
+  50% {
+    transform: translateY(-4px) rotate(var(--tilt, 0deg));
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes aurora {
+  0% {
+    background-position:
+      0 0,
+      0% 0%,
+      50% 0%,
+      0% 50%,
+      100% 100%,
+      0% 100%,
+      0 0;
+  }
+  100% {
+    background-position:
+      0 0,
+      15% 8%,
+      40% 10%,
+      10% 60%,
+      85% 85%,
+      12% 90%,
+      0 0;
+  }
+}
+
+@keyframes pulse-dot {
+  0% {
+    box-shadow: 0 0 0 0 rgb(91 61 245 / 0.3);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 5px rgb(91 61 245 / 0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes beam {
+  to {
+    --beam-angle: 360deg;
   }
 }
 
@@ -61,17 +162,17 @@
 @utility text-display-xl {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: clamp(2.375rem, 1.544rem + 3.696vw, 4.5rem);
-  line-height: 1.02;
-  letter-spacing: -0.035em;
+  font-size: clamp(2.5rem, 1.5rem + 4.4vw, 5.25rem);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
 }
 
 @utility text-display-lg {
   font-family: var(--font-display);
   font-weight: 600;
   font-size: clamp(1.875rem, 1.337rem + 2.391vw, 3.25rem);
-  line-height: 1.06;
-  letter-spacing: -0.03em;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
 }
 
 @utility text-display-md {
@@ -79,7 +180,7 @@
   font-weight: 600;
   font-size: clamp(1.375rem, 1.239rem + 0.6vw, 1.75rem);
   line-height: 1.12;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 }
 
 /* Page titles inside the signed-in portal: 28px on phones to 36px on desktop. */
@@ -88,17 +189,35 @@
   font-weight: 600;
   font-size: clamp(1.75rem, 1.554rem + 0.87vw, 2.25rem);
   line-height: 1.1;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.03em;
 }
 
 /*
- * Section rhythm: 64px between sections on phones, 96px on desktop. Margins
+ * Large headings only: ink with a coral-to-violet sweep. Both ends pass 3:1
+ * on the canvas (large text), so use it on display type, never body text.
+ */
+@utility text-gradient {
+  background-image: linear-gradient(
+    100deg,
+    #d9442b 0%,
+    #c23a8a 45%,
+    var(--color-brand-violet) 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  /* Descenders stay inside the painted box. */
+  padding-bottom: 0.08em;
+}
+
+/*
+ * Section rhythm: 64px between sections on phones, 112px on desktop. Margins
  * (not padding) so neighbouring sections' spacing collapses into one gap.
  */
 @utility section-y {
   margin-block: 4rem;
   @media (width >= 64rem) {
-    margin-block: 6rem;
+    margin-block: 7rem;
   }
 }
 
@@ -113,6 +232,183 @@
   }
   @media (width >= 64rem) {
     padding-inline: 2rem;
+  }
+}
+
+/* A white card on the canvas: hairline, faint shadow. The default container. */
+@utility panel {
+  background-color: var(--color-surface);
+  box-shadow:
+    0 0 0 1px var(--color-hairline),
+    var(--shadow-card);
+}
+
+/* Frosted glass for things that float over content (header, sticky bars). */
+@utility glass {
+  background-color: rgb(255 255 255 / 0.72);
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+}
+
+/*
+ * The aurora: soft blurred colour fields with a fine grain, for illustration
+ * panels, the hero and the closing call-to-action band. `aurora` leans rose and sky,
+ * `aurora-warm` leans peach. Add `motion-safe:animate-aurora` to let the
+ * fields drift. Text on an aurora stays ink (all stops are pastel).
+ */
+@utility aurora {
+  background-color: var(--color-canvas);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(
+      45% 55% at 92% 8%,
+      var(--color-brand-rose) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      35% 40% at 55% 0%,
+      var(--color-brand-lilac) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      40% 50% at 8% 35%,
+      rgb(255 214 191 / 0.8) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      50% 55% at 100% 100%,
+      var(--color-brand-sky) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      45% 50% at 0% 100%,
+      var(--color-brand-rose) 0%,
+      transparent 70%
+    ),
+    linear-gradient(160deg, #fbf7f5 0%, #f6f3f9 100%);
+  background-size:
+    160px 160px,
+    150% 150%,
+    150% 150%,
+    150% 150%,
+    150% 150%,
+    150% 150%,
+    100% 100%;
+}
+
+@utility aurora-warm {
+  background-color: var(--color-canvas);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(
+      55% 50% at 40% 0%,
+      var(--color-brand-peach) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      40% 45% at 0% 55%,
+      rgb(255 214 191 / 0.7) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      45% 50% at 100% 65%,
+      var(--color-brand-rose) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      50% 45% at 50% 100%,
+      var(--color-brand-lilac) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      35% 35% at 100% 0%,
+      rgb(255 255 255 / 0.9) 0%,
+      transparent 70%
+    ),
+    linear-gradient(180deg, #fbf6f2 0%, #faf6f6 100%);
+  background-size:
+    160px 160px,
+    150% 150%,
+    150% 150%,
+    150% 150%,
+    150% 150%,
+    150% 150%,
+    100% 100%;
+}
+
+/* A faint dot grid that fades out towards the edges (hero backdrop). */
+@utility dot-grid {
+  background-image: radial-gradient(
+    rgb(14 14 16 / 0.13) 1px,
+    transparent 1.2px
+  );
+  background-size: 22px 22px;
+  mask-image: radial-gradient(70% 60% at 50% 30%, #000 30%, transparent 75%);
+}
+
+/*
+ * Entrance on load: a short rise (8px) with a fade and a touch of focus.
+ * Stagger siblings by 50-60ms with style={{ "--delay": "60ms" }}. Nothing
+ * moves with reduced motion.
+ */
+@utility enter {
+  @media (prefers-reduced-motion: no-preference) {
+    animation: fade-up 0.7s var(--ease-out-expo) both;
+    animation-delay: var(--delay, 0ms);
+  }
+}
+
+/*
+ * Entrance on scroll, driven by the scroll position itself (no JavaScript).
+ * Browsers without scroll-driven animations simply show the content.
+ */
+@utility reveal {
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      animation: fade-up linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 45%;
+    }
+  }
+}
+
+/*
+ * A thin light that travels around a card's edge (the hero product, the
+ * featured pricing card). Decorative; static with reduced motion.
+ */
+@property --beam-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 120deg;
+}
+
+@utility beam {
+  position: relative;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    z-index: 1;
+    border-radius: inherit;
+    padding: 1px;
+    background: conic-gradient(
+      from var(--beam-angle),
+      transparent 0%,
+      transparent 62%,
+      rgb(91 61 245 / 0.45) 80%,
+      rgb(255 107 87 / 0.4) 88%,
+      transparent 98%
+    );
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    pointer-events: none;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    &::before {
+      animation: beam 14s linear infinite;
+    }
   }
 }
 
@@ -138,9 +434,10 @@
 
 @layer base {
   html {
-    /* Keeps anchored sections clear of the sticky 64px header. */
-    scroll-padding-top: 5rem;
+    /* Keeps anchored sections clear of the sticky header. */
+    scroll-padding-top: 6rem;
     -webkit-text-size-adjust: 100%;
+    color-scheme: light;
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -155,6 +452,7 @@
     font-family: var(--font-sans);
     line-height: 1.55;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1,
@@ -179,7 +477,142 @@
   }
 
   ::selection {
-    background-color: var(--color-brand-sun);
+    background-color: var(--color-brand-lilac);
     color: var(--color-ink);
   }
+}
+
+/* The portal's phone menu sliding in from the left. */
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+/*
+ * Loading placeholders: a quiet grey block with a soft light sweeping across
+ * it. Still with reduced motion. Used by src/components/ui/skeleton.tsx.
+ */
+@utility skeleton {
+  background-color: var(--color-surface-card);
+  @media (prefers-reduced-motion: no-preference) {
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgb(255 255 255 / 0.65) 50%,
+      transparent 100%
+    );
+    background-size: 50% 100%;
+    background-repeat: no-repeat;
+    animation: skeleton-sweep 1.8s ease-in-out infinite;
+  }
+}
+
+@keyframes skeleton-sweep {
+  from {
+    background-position: -100% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/*
+ * The triangle pointer: on marketing pages (the layout adds `triangle-cursor`),
+ * links, buttons and other things you can click swap the hand for a small
+ * coral-to-violet triangle, and turn ink while pressed. The tip is the hot
+ * spot (5 5). Plain CSS on purpose, so it wins over `cursor-pointer`
+ * utilities. Mouse only; touch screens never see it.
+ */
+.triangle-cursor
+  :is(
+    a[href],
+    button:not(:disabled),
+    summary,
+    [role="tab"],
+    label:has(> input:is([type="radio"], [type="checkbox"])),
+    select,
+    input[type="range"],
+    .cursor-pointer
+  ) {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff6b57'/%3E%3Cstop offset='1' stop-color='%235b3df5'/%3E%3C/linearGradient%3E%3Cfilter id='s' x='-40%25' y='-40%25' width='180%25' height='180%25'%3E%3CfeDropShadow dx='0' dy='1.5' stdDeviation='1.2' flood-color='%230e0e10' flood-opacity='.28'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M5 4.5 L23.5 12 L12 23.5 Z' fill='url(%23g)' stroke='%23fff' stroke-width='2.25' stroke-linejoin='round' paint-order='stroke' filter='url(%23s)'/%3E%3C/svg%3E")
+      5 5,
+    pointer;
+}
+
+.triangle-cursor
+  :is(
+    a[href],
+    button:not(:disabled),
+    summary,
+    [role="tab"],
+    label:has(> input:is([type="radio"], [type="checkbox"])),
+    select,
+    input[type="range"],
+    .cursor-pointer
+  ):active {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cdefs%3E%3Cfilter id='s' x='-40%25' y='-40%25' width='180%25' height='180%25'%3E%3CfeDropShadow dx='0' dy='1.5' stdDeviation='1.2' flood-color='%230e0e10' flood-opacity='.28'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M5 4.5 L23.5 12 L12 23.5 Z' fill='%230e0e10' stroke='%23fff' stroke-width='2.25' stroke-linejoin='round' paint-order='stroke' filter='url(%23s)'/%3E%3C/svg%3E")
+      5 5,
+    pointer;
+}
+
+/*
+ * Range sliders (the landing page calculators): a thin track filled in ink up
+ * to the value (`--fill`, set inline) and a white thumb with an ink ring.
+ * 44px tall so the whole row is easy to grab.
+ */
+.range {
+  height: 2.75rem;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+}
+
+.range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--color-ink) var(--fill, 0%),
+    var(--color-surface-card) var(--fill, 0%)
+  );
+}
+
+.range::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--color-ink) var(--fill, 0%),
+    var(--color-surface-card) var(--fill, 0%)
+  );
+}
+
+.range::-webkit-slider-thumb {
+  width: 24px;
+  height: 24px;
+  margin-top: -9px;
+  border: 2px solid var(--color-ink);
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: var(--shadow-card);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-ink);
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: var(--shadow-card);
 }

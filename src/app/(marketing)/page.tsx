@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 
-import { Audiences } from "@/components/landing/audiences";
+import { ForBusinesses, ForCreators } from "@/components/landing/audiences";
 import { CreatorsBand } from "@/components/landing/creators-band";
 import { Faq } from "@/components/landing/faq";
 import { Features } from "@/components/landing/features";
+import { GetStarted } from "@/components/landing/get-started";
 import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { Pricing } from "@/components/landing/pricing";
-import { Waitlist } from "@/components/landing/waitlist";
+import { WhyPitchype } from "@/components/landing/why-pitchype";
 import { SITE_NAME, SITE_URL, SOCIAL_PROFILES } from "@/lib/site";
 
 // Set per page rather than in the root layout, so pages that don't set their
@@ -31,12 +32,14 @@ export default function HomePage() {
     <main id="main">
       <Hero />
       <CreatorsBand />
+      <WhyPitchype />
+      <ForCreators />
+      <ForBusinesses />
       <HowItWorks />
       <Features />
-      <Audiences />
       <Pricing />
       <Faq />
-      <Waitlist />
+      <GetStarted />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

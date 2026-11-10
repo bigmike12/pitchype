@@ -37,7 +37,7 @@ export function CreatorCard({
   priority?: boolean;
 }) {
   return (
-    <article className="relative flex flex-col rounded-card bg-white p-3 ring-1 ring-hairline has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-3 has-[a:focus-visible]:outline-ink has-[a:hover]:ring-field [&_a]:outline-none">
+    <article className="relative flex flex-col rounded-card panel p-3 hover:shadow-[0_0_0_1px_var(--color-hairline-strong),var(--shadow-lift)] motion-safe:transition-[box-shadow,transform] motion-safe:duration-300 motion-safe:hover:-translate-y-px has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-3 has-[a:focus-visible]:outline-ink has-[a:hover]:ring-field [&_a]:outline-none">
       <CreatorPhoto
         name={displayName}
         url={photoUrl}

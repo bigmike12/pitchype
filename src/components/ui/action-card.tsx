@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import { ArrowUpRight, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -21,8 +21,12 @@ export function ActionCard({
   return (
     <Link
       href={href}
-      className="group flex h-full flex-col rounded-card bg-white p-4 ring-1 ring-hairline hover:ring-field sm:p-5"
+      className="group relative flex h-full flex-col rounded-card panel p-4 hover:shadow-[0_0_0_1px_var(--color-hairline-strong),var(--shadow-lift)] sm:p-5 motion-safe:transition-[box-shadow,transform] motion-safe:duration-300 motion-safe:hover:-translate-y-px"
     >
+      <ArrowUpRight
+        aria-hidden="true"
+        className="absolute top-4 right-4 size-4 text-muted opacity-0 group-hover:opacity-100 motion-safe:transition-opacity sm:top-5 sm:right-5"
+      />
       <ClayTile icon={icon} tone={tone} />
       <span className="mt-3 font-semibold text-ink group-hover:underline group-hover:underline-offset-4">
         {title}

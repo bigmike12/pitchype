@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 
 import { AuthShell } from "@/components/shells/auth-shell";
 
-// Sign-up and login aren't linked from the site until launch; keep them out
-// of search results too.
+// Sign-up and login are linked from the site, but there's nothing on them
+// worth finding in search results.
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };

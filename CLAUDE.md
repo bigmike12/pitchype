@@ -88,7 +88,7 @@ Start with Vercel and Supabase for speed, but keep the app movable to Docker or 
 | Backend | Server Actions and Route Handlers in the Next app |
 | Database / Auth / Storage / Realtime | Supabase (Postgres, Auth, Storage, Realtime) |
 | Authorization | Postgres Row Level Security (RLS) + role checks server-side |
-| Styling / UI | Tailwind CSS + shadcn/ui |
+| Styling / UI | Tailwind CSS v4 + shadcn/ui (Radix primitives through `radix-ui`, set up in `components.json`), restyled to our tokens; Lucide icons; CSS-only motion (see §4a) |
 | Payments | Paystack (charges, webhooks, transfers for payouts) |
 | Email | Resend (transactional) |
 | Deploy | Vercel, Frankfurt region next to the database; must also run on plain Node/Docker (§2a). Vercel Cron or Supabase `pg_cron` triggers scheduled jobs |
@@ -123,7 +123,7 @@ src/
     auth/                  route handlers for emailed links
     api/webhooks/paystack/ webhook endpoint
   components/
-    ui/                    design-system components (Button, fields, …); see docs/DESIGN_SYSTEM.md
+    ui/                    design-system components (Button, fields, …; shadcn/ui-based where a primitive is needed); see docs/DESIGN_SYSTEM.md
     brand/                 wordmark, product fragments, stickers, illustrations
     shells/                page layouts (auth, onboarding, portal)
     <feature>/             campaign, application, escrow, chat, wallet…
@@ -145,6 +145,21 @@ docs/
 ```
 
 All pages use the one design system in `docs/DESIGN_SYSTEM.md`: build from its tokens and components, and extend it (code and doc together) rather than styling around it.
+
+### 4a. Design direction and UI rules
+
+The look is **"porcelain and aurora"** (since 2026-11-10): futuristic but calm, clean and sophisticated. References: Passionfroot (split onboarding with a gradient panel and a "why we ask" card) and Clay (sidebar app shell, quick-action cards with 3D-style icons). Borrow structure and feel only: never their names, logos, copy, illustrations or typefaces.
+
+- **Type stays:** Bricolage Grotesque 600 for display, Inter for text. Don't add or swap fonts without the user's say-so.
+- **Tokens only.** Colours, radii, shadows and motion come from `src/app/globals.css`. No new hex values in components unless documented as a one-off.
+- **Surfaces:** porcelain `canvas` page; white cards as `panel` (hairline + faint shadow); `glass` for anything that floats over content (headers, top bars); `aurora`/`aurora-warm` for illustrated panels only; violet (`brand-violet`) is the one saturated accent, used sparingly. Ink text on pastels; never `muted` on a pastel or an aurora.
+- **Layouts:** marketing pages under the floating glass header; auth as a split with the aurora panel; onboarding as one framed split card per question; the portal as a sidebar on the canvas beside an inset white work panel. Details in `docs/DESIGN_SYSTEM.md`, "Page patterns".
+- **shadcn/ui:** use it for interactive primitives we would otherwise hand-build badly (dialog, dropdown menu, popover, tooltip, tabs, sheet, select, toast). Add one component at a time with `npx shadcn@latest add <name>` when a feature needs it, keep it in `src/components/ui/`, restyle it to our tokens, and document it in the design system. Don't install components "for later". Native elements (`<dialog>`, `<details>`, radio inputs) are fine where they already work.
+- **Motion is CSS only and subtle** (`enter`, `reveal`, `animate-aurora`, `animate-marquee`, `beam`, `skeleton`, …; see the design system's "Motion": entrances move 8px at most, hovers 1px, ambient loops are slow and faint). Every animation runs only under `motion-safe`/`prefers-reduced-motion: no-preference`, and the page must be complete and readable with motion off. Animate `transform`, `opacity` and `filter`, never layout. Entrances 0.3–0.9s; ambient loops slow. No animation library until a specific need can't be met with CSS; name it first (§2). The candidate then is `motion`.
+- **Loading states are skeletons.** A page's Suspense fallback is a skeleton shaped like that page, built from `src/components/ui/skeleton.tsx` and wrapped in `PageLoading`; never a bare spinner or "Loading…" text. New pages get one in the same change.
+- **Cursor:** marketing pages use the triangle pointer on clickable things (`triangle-cursor`, set by the marketing layout). Keep the system cursors in the portal and in text fields.
+- **Mobile and slow networks first** still wins over effects: no video or heavy image backgrounds, no JavaScript just for decoration, and check every page at 390px.
+- **Illustrations use fictional sample data** marked "Sample" and labelled as one image for screen readers. Never fake brand logos, testimonials, counts or statistics (§3).
 
 Co-locate code with the feature that uses it. Don't create `utils/` dumping grounds; a helper used in one place lives next to that place.
 
@@ -289,7 +304,7 @@ Rules: one `notifications` table is the source of truth; email is a delivery cha
 - Name things after the domain (`campaign`, `application`, `engagement`, `submission`, `payout`), not after patterns.
 - Comments explain *why*, not *what*. Delete commented-out code.
 - Keep components small, but don't split a component just to hit a line count (§2).
-- Accessibility basics: labels, focus states, keyboard navigation, sufficient contrast. This audience is mobile-first: **design for small screens and slow networks first**.
+- Accessibility basics: labels, focus states, keyboard navigation, sufficient contrast, and nothing that only works with motion on (`prefers-reduced-motion`). This audience is mobile-first: **design for small screens and slow networks first**.
 
 ### Testing
 - Unit-test pure logic: fee math, eligibility checks, status transitions, deadline calculations.
@@ -352,7 +367,7 @@ Decided (see §6): fee split and structure, cancellation and refund rules, busin
 Decided in Stage 2 (2026-11-09):
 - **One role per account.** An account is a business or an influencer, fixed at sign-up. Someone who is both signs up twice with different emails. Admins are made by hand in SQL, never through sign-up.
 - **Sign-in is email + password only** at first (no Google, magic links or phone codes yet).
-- **Sign-up and login pages stay unlinked until launch**; the landing page keeps pointing to the waitlist.
+- ~~Sign-up and login stay unlinked until launch~~ Changed 2026-11-10: **there is no waitlist any more.** The site links straight to `/signup` and `/login` (header, hero, the creator and business sections, the directory). The landing page's "I'm a business / creator" links preselect the account type with `?role=`. The `waitlist` table and its emails are kept; nothing writes to it.
 - **Auth emails go through Resend** (custom SMTP in Supabase). The templates live in `supabase/templates/`.
 
 Decided in Stage 3 (2026-11-09; details in `docs/BUILD_PROMPT.md`, Stage 3, and `docs/creator-directory-decisions.md`):

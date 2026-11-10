@@ -1,7 +1,19 @@
 # Pitchype design system
 
-One system for every page: the landing page, sign-in, onboarding, the account
-page, and everything built after them. It has three layers:
+One system for every page: the landing page, sign-in, onboarding, the portal,
+and everything built after them.
+
+**The look ("porcelain and aurora", since 2026-11-10):** futuristic but calm.
+A soft off-white page; white cards lifted by a hairline and a shadow you feel
+more than see; ink for type and primary actions; soft aurora gradients (rose,
+peach, lilac, sky, mint) with a fine grain for illustrated panels; one
+saturated accent (violet) used sparingly; and motion that is smooth, short and
+always optional. References: Passionfroot (split onboarding with an aurora
+panel, the "why we ask" card) and Clay (sidebar app shell, quick-action cards
+with 3D-style tiles). Borrow structure and feel only, never their names,
+logos, copy, illustrations or typefaces.
+
+It has three layers:
 
 | Layer | Where | What |
 |---|---|---|
@@ -17,44 +29,50 @@ more places; otherwise style it locally.
 
 | Token (Tailwind class) | Value | Use |
 |---|---|---|
-| `canvas` | #FFFFFF | Page background everywhere (white since 2026-11-09; it was cream #FFF9EE) |
-| `surface-soft` | #FBF3E2 | Bands (waitlist), footer, hero art background |
-| `surface-card` | #F4EBD6 | Cream cards (steps, pricing, account summary) |
-| `white` | #FFFFFF | Form fields, white panels (always outlined, since the page is white too) |
-| `ink` | #121212 | Headings, primary buttons, text on saturated colours |
-| `body` | #3A3A3A | Running text |
-| `muted` | #666666 | Secondary text, hints, footer links (cream surfaces only) |
-| `hairline` | #E8E0CC | Decorative 1px lines and white-panel outlines |
-| `field` | #8A8273 | Borders of fields and pills (3:1 for WCAG 1.4.11) |
+| `canvas` | #F8F8F6 | Porcelain page background everywhere; the portal sidebar sits on it |
+| `surface` | #FFFFFF | Cards, panels, fields, the portal work area (`bg-white` is the same colour) |
+| `surface-soft` | #F2F2EE | Hover fills, table heads, quiet boxes inside cards |
+| `surface-card` | #EBEBE6 | Stronger quiet fill: draft/closed pills, progress tracks, sample tags |
+| `ink` | #0E0E10 | Headings, primary buttons, text on pastel fills |
+| `body` | #3B3B42 | Running text |
+| `muted` | #63636B | Secondary text, hints (white, canvas and the two greys only) |
+| `hairline` | #E6E6E1 | 1px lines and card outlines |
+| `hairline-strong` | #D6D6D0 | Secondary-button outline, hovered card outline |
+| `field` | #85858D | Borders of fields and pills (3:1 on white, canvas and surface-soft; WCAG 1.4.11) |
 | `danger` | #B3261E | Error text and error borders |
-| `brand-green` | #0F3D2E | Featured surfaces: auth panel, escrow sticker, success text |
-| `brand-coral`, `brand-lilac`, `brand-sun`, `brand-peach`, `brand-mint` | see `globals.css` | Feature cards, shapes, pills, avatars |
+| `brand-coral` | #FF6B57 | The mark. A fill, never a text colour |
+| `brand-violet` | #5B3DF5 | The one saturated accent: active nav icon, progress, live dot, glows, the end of `text-gradient`. Text-safe on white (6.1:1) |
+| `brand-green` | #0F3D2E | The escrow sticker and success text |
+| `brand-lilac`, `brand-sun`, `brand-peach`, `brand-mint`, `brand-sky`, `brand-rose` | see `globals.css` | Pastel fills: pills, tiles, avatars, aurora stops |
 
 Contrast rules (checked against WCAG AA):
 
-- Ink text on coral, lilac, sun, peach and mint. White text only on ink and
-  brand green (add the `on-dark` utility, which also turns links and focus
-  rings white).
-- `muted` only on cream and white, never on saturated colours.
-- Coral is a fill, never a text colour.
-- Text never sits on a shape of another colour (e.g. white on lilac fails).
+- Ink or body text on every pastel. White text only on ink and brand green
+  (add the `on-dark` utility, which also turns links and focus rings white).
+- `muted` only on white, canvas, `surface-soft` and `surface-card`, never on
+  a pastel or an aurora.
+- `text-gradient` (coral to violet) only on display-size type; both ends pass
+  3:1 on the canvas and the auroras.
+- Text never sits on a shape of another colour.
 
 ## Type
 
-- **Display:** Bricolage Grotesque 600, tight tracking. Utilities:
-  `text-display-xl` (hero h1), `text-display-lg` (page and section headings
-  on marketing pages, auth and onboarding headings), `text-display-page`
-  (portal page titles and the home greeting, 28px on phones to 36px on
-  desktop), `text-display-md` (card and sub-section titles, portal section
-  headings).
+- **Display:** Bricolage Grotesque 600, tight tracking (kept from the first
+  design; it is the brand's voice). Utilities: `text-display-xl` (hero h1,
+  40px to 84px), `text-display-lg` (section, auth and onboarding headings),
+  `text-display-page` (portal page titles, 28px to 36px), `text-display-md`
+  (card and sub-section titles).
+- **Accent:** `text-gradient` on one or two words of a big heading ("gets
+  paid."), at most once per screen.
 - **Text:** Inter. `text-lg` for lead paragraphs, `text-base` for body,
   `text-sm` for hints, notes and footers, `text-xs` inside product fragments.
+  `tabular-nums` for money in tables and receipts.
 - Sentence case everywhere. No all-caps labels.
 
 ## Space and layout
 
 - **Page width:** `container-page` (max 1280px; 16 / 24 / 32px gutters).
-- **Section rhythm:** `section-y` (64px between sections on phones, 96px on
+- **Section rhythm:** `section-y` (64px between sections on phones, 112px on
   desktop; margins collapse so gaps never double).
 - **Form columns:** `max-w-sm` in the auth shell, `max-w-md` on the account
   page. Fields stack with `space-y-5`.
@@ -65,42 +83,104 @@ Contrast rules (checked against WCAG AA):
 | Radius | Class | For |
 |---|---|---|
 | 12px | `rounded-control` | Buttons, form fields |
-| 16px | `rounded-card` | Product fragments, stickers, white panels, notices, cream cards |
-| 24px | `rounded-panel` | Feature cards, bands, illustration panels |
-| full | `rounded-full` | Choice pills, chips, badges, avatars |
+| 16px | `rounded-card` | Cards, product fragments, stickers, callouts, notices |
+| 24px | `rounded-panel` | Feature and pricing cards |
+| 28px | `rounded-frame` | Big framed shells: the onboarding frame, the portal work panel, the auth art, the creator and business sections, the calculators, the closing band |
+| full | `rounded-full` | Choice pills, chips, badges, avatars, the header's nav links |
 
-`rounded-lg` (8px) is for small details inside fragments and nav links.
+`rounded-lg`/`rounded-xl` (8–12px) are for small details inside fragments and
+nav links.
 
-No drop shadows. Depth comes from colour: saturated and cream cards on the
-white page, white panels outlined with `ring-1 ring-hairline`.
+Depth is a hairline plus a soft shadow, never a heavy drop:
+
+| Utility | What it is | For |
+|---|---|---|
+| `panel` | White, 1px hairline ring, `shadow-card` | The default card. Replaces `bg-white ring-1 ring-hairline` |
+| `shadow-card` | Barely-there shadow | Buttons, pills, chips |
+| `shadow-lift` | Softer, deeper | Hover state of linked cards, open FAQ items |
+| `shadow-pop` | Floating | Stickers, toasts, the drawer, the hero window, cards on an aurora |
+| `shadow-button` | Lit top edge and drop | The ink button only |
+| `glass` | 72% white, 16px blur | Things that float over content: the landing header, portal top bar, cards on an aurora |
+
+Surfaces with colour:
+
+- `aurora` (rose and sky) and `aurora-warm` (peach and lilac): soft colour
+  fields with a fine grain. The hero, the auth panel, onboarding's "why we
+  ask" panel (alternating per step), the creator and business sections, the
+  closing band. Add `motion-safe:animate-aurora` for a slow drift.
+- `dot-grid`: a faint dot pattern that fades towards the edges; behind the
+  hero and the closing band.
+- `beam`: a thin violet-to-coral light that travels round a card's edge. The
+  hero window only; one per page at most.
 
 ## Interaction
 
 - **Focus:** a 2px ink outline, 3px offset, on every focusable element (white
-  on dark surfaces). Never remove it.
+  on dark surfaces). Never remove it. Fields add a faint violet glow on focus.
 - **Tap targets:** at least 44px (buttons are 44 or 48px; fields 48px).
-- **Motion:** only under `motion-safe:` (button lift on hover, floating
-  stickers). Nothing moves for people who ask for reduced motion.
+- **Hover:** buttons rise 1px and press to 98% on click; linked cards rise
+  1px and move to `shadow-lift`; nav links get a 4% ink wash.
+- **Triangle pointer (marketing pages only):** the marketing layout adds
+  `triangle-cursor`, which swaps the hand cursor on links, buttons, tabs,
+  FAQ questions and choice pills for a small coral-to-violet triangle (ink
+  while pressed). Plain CSS at the end of `globals.css`, so it beats
+  `cursor-pointer`. Text fields keep the text cursor; the portal keeps the
+  normal hand.
+- **Loading:** every portal and onboarding page's Suspense fallback is a
+  skeleton of that page in `PageLoading` (one "Loading…" message for screen
+  readers, fading in after 120ms so quick loads don't flash). The sidebar
+  and top bar have their own skeletons, and a nav link shows a violet dot
+  while its page is on the way. `loading.tsx` in `(portal)` and
+  `(onboarding)` is a generic safety net.
+
+## Motion
+
+CSS only (no animation library): keyframes and utilities live in
+`globals.css`. Everything moves only under `prefers-reduced-motion:
+no-preference`; with reduced motion the page is complete and still.
+
+| Utility | What it does | Where |
+|---|---|---|
+| `enter` | Rise 8px, fade in, a touch of focus (0.7s, ease-out-expo). Stagger 50–60ms with `style={{ "--delay": "60ms" }}` | Hero lines, auth and onboarding content, the portal's `<main>` |
+| `reveal` | The same, driven by scroll position (`animation-timeline: view()`). Browsers without scroll-driven animations just show the content | Landing headings, cards, list items |
+| `motion-safe:animate-aurora` | Very slow drift (40s) of the aurora's colour fields | Hero, auth panel, closing band |
+| `motion-safe:animate-marquee` | Endless, slow (90s) horizontal scroll; pause on hover; with reduced motion the row wraps instead | The niches and kinds-of-work rows |
+| `motion-safe:animate-float` | A 4px bob with a tilt (9s) | Stickers |
+| `motion-safe:animate-pulse-dot` | A violet ring pulsing out | The "Early access" dot |
+| `beam` | A faint light round a card's edge (14s a lap) | Hero window |
+| `animate-[fade-up_…]`, `animate-[drawer-in_…]` | One-off entrances | Tab panels, FAQ answers, the toast, the portal drawer |
+
+| `skeleton` | A soft light sweeping across a grey block (1.8s) | Loading placeholders (`ui/skeleton.tsx`) |
+
+Keep it subtle (the 2026-11-10 tune-down): entrances move 8px at most and
+blur 2px at most; hovers lift 1px; ambient loops take 9s or longer and stay
+faint. Rules: durations 0.3–0.7s for entrances, 9s+ for ambient loops; ease
+`var(--ease-out-expo)`; animate `transform`, `opacity` and `filter` only;
+never animate layout; never hide information behind an animation; nothing
+loops faster than every few seconds. If a later need (gestures, shared
+layout transitions) can't be met with CSS, the candidate is `motion`; name
+the need before adding it (CLAUDE.md §2).
 
 ## Components
 
 | Component | File | Notes |
 |---|---|---|
-| `Button`, `buttonVariants` | `ui/button.tsx` | `default` (ink), `secondary` (white, outlined), `light` (on dark surfaces), `ghost`. Sizes `default` (44px), `lg` (48px), `icon`. Use `buttonVariants` to style links as buttons. |
+| `Button`, `buttonVariants` | `ui/button.tsx` | shadcn/ui's Button, restyled. `default` (ink, `shadow-button`), `secondary` (white, `hairline-strong` outline, `shadow-card`), `light` (on dark surfaces), `ghost` (4% ink wash). Sizes `default` (44px), `lg` (48px), `icon`. Use `buttonVariants` to style links as buttons. |
 | `TextField`, `SelectField`, `TextAreaField` | `ui/field.tsx` | Visible label, optional leading `icon` (not on text areas), `hint`, `error`, `labelAside` (e.g. "Forgot your password?"); `TextAreaField` also takes `optional`. |
 | `PasswordField` | `ui/password-field.tsx` | Adds a Show button. |
-| `ChoiceGroup` | `ui/choice-group.tsx` | One choice from 2–3 options, on real radio buttons. `variant="pills"` (compact, label only; the waitlist) or `variant="cards"` (stacked, with icon, tone and a one-line description; the sign-up account type). Controlled (`value` + `onValueChange`) or not (`defaultValue`). |
+| `ChoiceGroup` | `ui/choice-group.tsx` | One choice from 2–3 options, on real radio buttons. `variant="pills"` (compact, label only; not used at the moment) or `variant="cards"` (stacked, with icon, tone and a one-line description; the sign-up account type). Controlled (`value` + `onValueChange`) or not (`defaultValue`). |
 | `FormMessage` | `ui/form-message.tsx` | The form's overall result, just above the submit button. Always rendered (announces changes). |
 | `Notice` | `ui/notice.tsx` | Replaces a form when it's done ("Check your email"). Takes focus. |
 | `link` utility | `globals.css` | Inline text links. |
 | `Wordmark`, `PitchypeMark` | `brand/wordmark.tsx` | Also used by the social image and app icon. |
 | Product fragments | `brand/fragments.tsx` | `ProductFragment` (labelled as an image, "Sample" tag), `Avatar` (initials, never photos), `Chip`. Fictional data only. |
 | Stickers | `brand/stickers.tsx` | `EscrowSticker` (`tone="light"` on dark backgrounds), `ApprovedBadge`, `clay()` shading for shapes. |
-| `ClayTile` | `brand/stickers.tsx` | A rounded square in a brand colour (`Tone`: sun, lilac, mint, peach, coral) with `clay()` shading and an ink Lucide icon; `md` 36px, `lg` 44px. Our stand-in for 3D icons: onboarding steps, action cards, empty states. Decorative. |
+| `ClayTile` | `brand/stickers.tsx` | A glossy rounded square in a pastel (`Tone`: sun, lilac, mint, peach, coral, sky, rose): `clay()` gradient, lit top edge, soft drop, an ink Lucide icon; `md` 36px, `lg` 48px. Our stand-in for 3D icons: onboarding's why-card, action cards, empty states, the creators band. Decorative. |
 | `PageHeader` | `ui/page-header.tsx` | The top of every portal page: optional breadcrumbs (ancestors only, each truncated), the `text-display-page` title with an optional `badge`, a lead, and `actions` (right from 640px, below on phones). |
-| `Callout` | `ui/callout.tsx` | One style for every status message in the portal. Tones `info` (surface-soft), `attention` (sun), `success` (mint), `danger` (white, danger outline and icon). Icon, bold title, text, optional `action`. Quote an admin's note on its own line, so a note ending in a full stop doesn't get a second one. |
+| `Callout` | `ui/callout.tsx` | One style for every status message in the portal. Tones `info` (a `panel`), `attention` (pale butter with a sun outline), `success` (mint), `danger` (white, danger outline and icon). Icon, bold title, text, optional `action`. Quote an admin's note on its own line, so a note ending in a full stop doesn't get a second one. |
+| `Skeleton` and friends | `ui/skeleton.tsx` | shadcn/ui's Skeleton, restyled (`skeleton` utility). `PageLoading` (the fallback wrapper with its screen-reader label), `HeaderSkeleton` (crumbs, action), `SectionTitleSkeleton`, `PanelSkeleton`, `FormSkeleton`, `FiltersSkeleton`, `CardGridSkeleton` (`action`, `creator`, `campaign`), `TableSkeleton` (like `CampaignTable`). Compose them to match the page's real layout so nothing jumps when it arrives. `OnboardingStepSkeleton` (in `onboarding-step.tsx`), `SidebarSkeleton` and `TopBarSkeleton` (in `portal-shell.tsx`). |
 | `EmptyState` | `ui/empty-state.tsx` | What a list shows when it has nothing yet: large clay tile, title, one line, optional action. With no results, keep the results count for screen readers only (`sr-only`) so the message isn't repeated. |
-| `ActionCard` | `ui/action-card.tsx` | A quick action: white outlined card, clay tile, title, one line; the whole card is one link. |
+| `ActionCard` | `ui/action-card.tsx` | A quick action (Clay-style): a `panel` with a clay tile, title and one line; the whole card is one link. Lifts on hover and shows an arrow in the corner. |
 | `CampaignTable` | `campaigns/campaign-table.tsx` | A business's campaigns: a table from 640px (titles wrap), a stacked list on phones (titles truncate). |
 | `NichePicker` | `creators/niche-picker.tsx` | Niche pills (checkboxes named `niches`), up to three; controlled. Profile editor and onboarding. |
 | `Directory`, `DirectoryFilters`, `CreatorProfileView` | `creators/directory.tsx`, `creators/directory-filters.tsx`, `creators/creator-profile-view.tsx` | The creator directory and a profile, shared by the public pages (`basePath="/creators"`) and the business portal (`/business/creators`). |
@@ -114,34 +194,65 @@ white page, white panels outlined with `ring-1 ring-hairline`.
 
 ## Page patterns
 
-- **Marketing pages:** site header and footer, sections using
-  `container-page` + `section-y`, headings in `text-display-lg`.
+- **Marketing pages:** a floating glass header (a rounded bar 8–12px from
+  the top), sections using `container-page` + `section-y`, headings in
+  `text-display-lg` with `reveal`, cards as `panel`s. The landing page runs:
+  hero (centred copy on a drifting aurora with a dot grid, sign-up buttons
+  that preselect the account type, then the product window), the niches
+  marquee and "Built for micro and nano creators", "Why Pitchype" (a
+  usual-way-against-Pitchype table: rows on phones, three columns from
+  768px), For creators (`aurora-warm` frame: pitch, ticks, the earnings
+  calculator, then four sourced figures) and For businesses (`aurora`,
+  mirrored, with the budget splitter), How it works (segmented tabs), a
+  bento of features, pricing receipts, FAQ (one `panel` per question), the
+  closing aurora band (join as a business or a creator, or log in), and the
+  footer signing off with the name in giant faded type. The header holds
+  Log in and Get started; its links collapse into the menu below 1024px.
+- **Figures from outside sources** (`landing/stats.tsx`, `StatGrid`): big
+  number, one sentence, and a "Source:" link under each, plus a line saying
+  they're global or US figures. Every number needs a public source and the
+  date it was checked; never add one without (CLAUDE.md §3).
+- **Calculators** (`landing/earnings-calculator.tsx`,
+  `landing/budget-splitter.tsx`): a white card on the aurora, labelled
+  `Slider`s (`landing/slider.tsx`, styled by `.range` in `globals.css`), the
+  result in a `surface-soft` list announced with `aria-live`, and a line
+  saying it's an example, not a promise. Fee maths comes from `lib/fees.ts`
+  (`feeExample`, `pricePerCreatorWithin`), never re-implemented.
 - **Auth pages** (`AuthShell`): wordmark top left, a narrow form column
-  centred vertically, `AuthHeading` (title plus one-line lead), the form,
-  `AuthAlternative` ("New to Pitchype? Create an account"), Privacy and Terms at
-  the bottom. On screens 1024px and wider, the green illustration panel fills
-  the right half.
-- **Onboarding** (`OnboardingShell`, `app/(onboarding)/`): white page, wordmark
-  and Sign out at the top, one `max-w-lg` column, one question per screen.
-  Each step (`OnboardingStep`) has a 3px progress bar along the top
-  (`aria-hidden`), a clay tile, "Step N of M", a back link beside a
-  `text-display-lg` question, a one-line lead, then an ink Continue (full
-  width on phones) and "Finish later" where it applies.
+  centred vertically (it enters with `enter`), `AuthHeading` (title plus
+  one-line lead), the form, `AuthAlternative` ("New to Pitchype? Create an
+  account"), Privacy and Terms at the bottom. On screens 1024px and wider, the
+  aurora illustration panel (`rounded-frame`) fills the right half.
+- **Onboarding** (`OnboardingShell`, `app/(onboarding)/`): the canvas, the
+  wordmark centred (from 640px) and Sign out at the top, one question per
+  screen in a framed card (`rounded-frame panel`, up to `max-w-6xl`). Each
+  step (`OnboardingStep`) is a split: the question column (segmented progress
+  and "Step N of M", a back link beside a `text-display-lg` question, a
+  one-line lead, the field, an ink Continue and "Finish later") and an aurora
+  panel holding the "why we ask" card (clay tile, title, two lines; copy in
+  `steps.ts`, `why`). The panel is on the left from 1024px and after the
+  question on phones, and alternates cool and warm aurora per step. The done
+  step can pass `showcase` (the creator's directory card) to fill the panel
+  instead. A 3px coral-to-violet progress bar runs along the top of the page
+  (`aria-hidden`).
 - **Portal pages** (`PortalShell`, every page under `app/(portal)/`): the
-  layout draws the shell once. From 1024px, a white 240px sidebar (wordmark,
-  the role's links with the active one on `surface-soft`, the account and
-  Sign out at the bottom) and a 64px top bar (section name, the role's main
-  action, Help). Below 1024px, a top bar with a menu button that opens the
-  same contents in a native `<dialog>`. The work area is white: pages start
-  with `PageHeader`, keep reading and form pages to `max-w-3xl` and let
-  tables and grids use the full width. Panels are white with
-  `ring-1 ring-hairline`; tinted fills are only for callouts, pills, tiles
-  and the active nav item. Status is a `Callout`, empty lists an
+  layout draws the shell once (Clay-style). From 1024px, a 240px sidebar on
+  the canvas (wordmark; the role's links, the active one a white `panel` with
+  a violet icon; the account card with Sign out at the bottom) and the work
+  area as one white panel inset 8px (`rounded-frame`, hairline, `overflow-clip`
+  so the sticky glass top bar keeps working). The 64px top bar holds the
+  section name, the role's main action and Help. Below 1024px, the work area
+  is the whole white page under a glass top bar whose menu button opens the
+  same sidebar contents in a native `<dialog>` that slides in from the left.
+  Pages start with `PageHeader`, keep reading and form pages to `max-w-3xl`
+  and let tables and grids use the full width. Cards are `panel`s; tinted
+  fills are only for callouts, pills, tiles and quiet boxes. Status is a `Callout`, empty lists an
   `EmptyState`, quick actions `ActionCard`s, figures white outlined stat
   cards. Filter forms are a white outlined toolbar.
 - **Directory pages:** the public pages use the marketing layout; the business
   portal has the same directory at `/business/creators`. Filters are a plain
-  GET form (a `surface-soft` panel in public, a white toolbar in the portal),
+  GET form (a `surface-soft` panel in public, a white `panel` toolbar in the
+  portal),
   so every filtered view is a shareable URL. Cards in a 1/2/3/4-column grid.
   Signed-out visitors get one `brand-sun` prompt explaining what businesses
   see.
@@ -158,9 +269,10 @@ white page, white panels outlined with `ring-1 ring-hairline`.
 
 ## Inspiration, not copying
 
-The auth layout borrows the structure of Clay's sign-in pages: a split screen,
-a narrow form column with the logo above it, and a product-led illustration
-panel. Nothing else is taken: no Clay name, logo, copy, colours,
-illustrations or typeface. The landing page's cream-and-saturated-cards
-approach came from the design notes in `docs/design-inspiration-clay.md`,
-under the same rule.
+The 2026-11-10 redesign borrows structure and feel from Passionfroot (the
+framed, split onboarding with a gradient panel and a "why we ask" card; soft
+aurora gradients) and Clay (the sidebar app shell, quick-action cards with
+3D-style icons, the auth split screen). Nothing else is taken: no names,
+logos, copy, illustrations, icons or typefaces. Earlier notes on Clay's
+marketing site are in `docs/design-inspiration-clay.md`; its cream palette no
+longer applies.

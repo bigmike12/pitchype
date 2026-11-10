@@ -42,9 +42,9 @@ const QUESTIONS = [
       "Yes. Creators can apply at the listed price or propose their own, and both sides can chat to agree the details before any money moves.",
   },
   {
-    question: "Is Pitchype live yet?",
+    question: "Do I need a lot of followers to join?",
     answer:
-      "Not yet. We’re building it now. Join the waitlist and we’ll email you when we open.",
+      "No. There’s no follower minimum to join Pitchype. Businesses can set their own requirements on each campaign, and you’ll see why if one isn’t a fit for you yet.",
   },
 ];
 
@@ -56,7 +56,7 @@ export function Faq() {
       className="container-page grid gap-10 section-y lg:grid-cols-12"
     >
       <div className="lg:col-span-4">
-        <h2 id="faq-title" className="text-display-lg">
+        <h2 id="faq-title" className="text-display-lg reveal">
           Questions, answered
         </h2>
         <p className="mt-4 text-lg">
@@ -68,17 +68,24 @@ export function Faq() {
         </p>
       </div>
 
-      <div className="border-t border-hairline lg:col-span-8">
+      <div className="space-y-2 lg:col-span-8">
         {QUESTIONS.map(({ question, answer }) => (
-          <details key={question} className="group border-b border-hairline">
+          <details
+            key={question}
+            className="group rounded-card px-5 panel reveal open:shadow-lift sm:px-6"
+          >
             <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 rounded-lg py-4 [&::-webkit-details-marker]:hidden">
               <h3 className="text-lg font-semibold">{question}</h3>
-              <Plus
-                aria-hidden="true"
-                className="size-5 shrink-0 text-ink group-open:rotate-45 motion-safe:transition-transform"
-              />
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface-soft group-open:bg-ink group-open:text-white motion-safe:transition-colors">
+                <Plus
+                  aria-hidden="true"
+                  className="size-4 group-open:rotate-45 motion-safe:transition-transform"
+                />
+              </span>
             </summary>
-            <p className="max-w-[42rem] pb-6">{answer}</p>
+            <p className="max-w-[42rem] pb-6 motion-safe:animate-[fade-up_0.5s_var(--ease-out-expo)]">
+              {answer}
+            </p>
           </details>
         ))}
       </div>

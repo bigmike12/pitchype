@@ -27,7 +27,10 @@ export function AuthShell({ children }: { children: ReactNode }) {
             </Link>
           </header>
 
-          <main id="main" className="flex flex-1 flex-col justify-center py-8">
+          <main
+            id="main"
+            className="flex flex-1 flex-col justify-center py-8 enter"
+          >
             {children}
           </main>
 

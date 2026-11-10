@@ -51,7 +51,7 @@ export function PlatformCard({
   const label = PLATFORM_RULES[platform].label;
 
   return (
-    <li className="rounded-card bg-white p-4 ring-1 ring-hairline sm:p-5">
+    <li className="rounded-card panel p-4 sm:p-5">
       <div className="flex items-start gap-4">
         <span className="grid size-10 shrink-0 place-items-center rounded-full bg-surface-card text-ink">
           <PlatformIcon platform={platform} className="size-5" />

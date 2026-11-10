@@ -3,19 +3,30 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { LoadingNotice } from "@/app/(portal)/loading-notice";
 import { CampaignTable } from "@/components/campaigns/campaign-table";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth";
 import { listOwnCampaigns } from "@/lib/db/campaigns";
+import {
+  HeaderSkeleton,
+  PageLoading,
+  TableSkeleton,
+} from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Your campaigns" };
 
 export default function CampaignsPage() {
   return (
-    <Suspense fallback={<LoadingNotice>Loading your campaigns…</LoadingNotice>}>
+    <Suspense
+      fallback={
+        <PageLoading label="Loading your campaigns…">
+          <HeaderSkeleton action />
+          <TableSkeleton rows={5} />
+        </PageLoading>
+      }
+    >
       <Campaigns />
     </Suspense>
   );

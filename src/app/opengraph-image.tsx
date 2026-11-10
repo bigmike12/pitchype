@@ -18,8 +18,8 @@ export default function OpengraphImage() {
         flexDirection: "column",
         justifyContent: "space-between",
         padding: 72,
-        background: "#fff9ee",
-        color: "#121212",
+        background: "#f8f8f6",
+        color: "#0e0e10",
         position: "relative",
       }}
     >
@@ -31,7 +31,7 @@ export default function OpengraphImage() {
           width: 460,
           height: 460,
           borderRadius: 9999,
-          background: "#ff6b57",
+          background: "#fad3e6",
         }}
       />
       <div
@@ -42,7 +42,7 @@ export default function OpengraphImage() {
           width: 320,
           height: 320,
           borderRadius: 9999,
-          background: "#c9b8ff",
+          background: "#ddd2ff",
         }}
       />
 

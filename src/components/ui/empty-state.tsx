@@ -18,7 +18,7 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="rounded-card bg-white p-6 ring-1 ring-hairline sm:p-8">
+    <div className="rounded-card panel p-6 sm:p-8">
       <ClayTile icon={icon} tone={tone} size="lg" />
       <h2 className="mt-4 text-display-md">{title}</h2>
       <div className="mt-2 max-w-xl">{children}</div>

@@ -53,11 +53,10 @@ async function PublicDirectory({
   );
 }
 
-// Signed-out visitors: the reason to sign up. Sign-up stays unlinked until
-// launch, so this points to the waitlist for now.
+// Signed-out visitors: the reason to sign up as a business.
 function BusinessPrompt() {
   return (
-    <aside className="mt-16 flex flex-col gap-5 rounded-panel bg-brand-sun p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+    <aside className="mt-16 flex flex-col gap-5 rounded-panel p-6 ring-1 ring-hairline aurora-warm sm:flex-row sm:items-center sm:justify-between sm:p-8">
       <div>
         <h2 className="text-display-md">Hiring creators for your business?</h2>
         <p className="mt-2 max-w-xl text-ink">
@@ -65,8 +64,11 @@ function BusinessPrompt() {
           rate, and can filter by budget.
         </p>
       </div>
-      <Link href="/#waitlist" className={buttonVariants({ size: "lg" })}>
-        Join the waitlist
+      <Link
+        href="/signup?role=business"
+        className={buttonVariants({ size: "lg" })}
+      >
+        Create a business account
       </Link>
     </aside>
   );

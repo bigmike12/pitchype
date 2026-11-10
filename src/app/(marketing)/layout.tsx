@@ -5,10 +5,11 @@ import { SiteHeader } from "@/components/landing/site-header";
 
 export default function MarketingLayout({ children }: { children: ReactNode }) {
   return (
-    <>
+    // `contents`: no box of its own, it only scopes the triangle cursor.
+    <div className="contents triangle-cursor">
       <SiteHeader />
       {children}
       <SiteFooter />
-    </>
+    </div>
   );
 }

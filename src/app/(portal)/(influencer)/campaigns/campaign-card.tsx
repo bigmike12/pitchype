@@ -23,7 +23,7 @@ export function CampaignCard({
   const firstProblem = campaign.problems[0];
 
   return (
-    <article className="relative flex flex-col rounded-card bg-white p-5 ring-1 ring-hairline has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-3 has-[a:focus-visible]:outline-ink has-[a:hover]:ring-field [&_a]:outline-none">
+    <article className="relative flex flex-col rounded-card panel p-5 hover:shadow-[0_0_0_1px_var(--color-hairline-strong),var(--shadow-lift)] motion-safe:transition-[box-shadow,transform] motion-safe:duration-300 motion-safe:hover:-translate-y-px has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-3 has-[a:focus-visible]:outline-ink has-[a:hover]:ring-field [&_a]:outline-none">
       <div className="flex items-start justify-between gap-3">
         <ul className="flex gap-1.5" aria-label="Platforms">
           {campaign.platforms.map((p) => (

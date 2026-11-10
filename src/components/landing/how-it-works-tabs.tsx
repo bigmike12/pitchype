@@ -62,7 +62,7 @@ export function HowItWorksTabs({
         role="tablist"
         aria-label="Show the steps for"
         onKeyDown={onKeyDown}
-        className="inline-flex rounded-full border border-field bg-white p-1"
+        className="inline-flex rounded-full bg-surface-card p-1 shadow-[inset_0_1px_2px_rgb(14_14_16/0.06)]"
       >
         {TABS.map((tab) => {
           const selected = tab.id === active;
@@ -80,10 +80,10 @@ export function HowItWorksTabs({
               tabIndex={selected ? 0 : -1}
               onClick={() => setActive(tab.id)}
               className={cn(
-                "h-11 min-w-28 rounded-full px-6 text-[0.9375rem] font-semibold",
+                "h-11 min-w-28 rounded-full px-6 text-[0.9375rem] font-semibold motion-safe:transition-[background-color,box-shadow,color]",
                 selected
-                  ? "bg-ink text-white"
-                  : "text-ink hover:bg-surface-card",
+                  ? "bg-surface text-ink shadow-card ring-1 ring-hairline"
+                  : "text-body hover:text-ink",
               )}
             >
               {tab.label}
@@ -100,7 +100,7 @@ export function HowItWorksTabs({
           aria-labelledby={`how-tab-${tab.id}`}
           tabIndex={0}
           hidden={tab.id !== active}
-          className="mt-8 rounded-panel"
+          className="mt-8 rounded-panel motion-safe:animate-[fade-up_0.6s_var(--ease-out-expo)]"
         >
           {panels[tab.id]}
         </div>

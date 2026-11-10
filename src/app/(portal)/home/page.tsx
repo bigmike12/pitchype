@@ -5,15 +5,32 @@ import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
 import { getProfile } from "@/lib/db/profiles";
 
-import { LoadingNotice } from "../loading-notice";
 import { BusinessHome } from "./business-home";
 import { CreatorHome } from "./creator-home";
+import {
+  CardGridSkeleton,
+  HeaderSkeleton,
+  PageLoading,
+  SectionTitleSkeleton,
+  TableSkeleton,
+} from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Home" };
 
 export default function HomePage() {
   return (
-    <Suspense fallback={<LoadingNotice>Loading your home…</LoadingNotice>}>
+    <Suspense
+      fallback={
+        <PageLoading label="Loading your home…">
+          <HeaderSkeleton />
+          <CardGridSkeleton variant="action" count={3} />
+          <div className="mt-12">
+            <SectionTitleSkeleton />
+            <TableSkeleton rows={3} />
+          </div>
+        </PageLoading>
+      }
+    >
       <Home />
     </Suspense>
   );

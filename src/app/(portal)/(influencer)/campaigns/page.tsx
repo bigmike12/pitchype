@@ -4,7 +4,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { LoadingNotice } from "@/app/(portal)/loading-notice";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SelectField } from "@/components/ui/field";
@@ -15,6 +14,12 @@ import { CAMPAIGNS_PAGE_SIZE, listOpenCampaigns } from "@/lib/db/campaigns";
 import { listNiches } from "@/lib/db/creators";
 
 import { CampaignCard } from "./campaign-card";
+import {
+  CardGridSkeleton,
+  FiltersSkeleton,
+  HeaderSkeleton,
+  PageLoading,
+} from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Campaigns" };
 
@@ -27,7 +32,15 @@ export default function CampaignsPage({
 }) {
   return (
     <>
-      <Suspense fallback={<LoadingNotice>Loading campaigns…</LoadingNotice>}>
+      <Suspense
+        fallback={
+          <PageLoading label="Loading campaigns…">
+            <HeaderSkeleton />
+            <FiltersSkeleton />
+            <CardGridSkeleton variant="campaign" count={6} className="mt-8" />
+          </PageLoading>
+        }
+      >
         <Campaigns searchParams={searchParams} />
       </Suspense>
     </>
@@ -83,7 +96,7 @@ async function Campaigns({ searchParams }: { searchParams: SearchParams }) {
         method="get"
         action="/campaigns"
         aria-label="Filter campaigns"
-        className="rounded-card bg-white p-4 ring-1 ring-hairline sm:p-5"
+        className="rounded-card panel p-4 sm:p-5"
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField

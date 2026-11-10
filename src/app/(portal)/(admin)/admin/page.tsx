@@ -30,7 +30,6 @@ import {
   type VerificationQueueItem,
 } from "@/lib/db/verification";
 
-import { LoadingNotice } from "@/app/(portal)/loading-notice";
 import {
   approveCampaignAction,
   hideReportedCreatorAction,
@@ -42,13 +41,31 @@ import {
   unhideCreatorAction,
 } from "./actions";
 import { ReviewForm } from "./review-form";
+import {
+  HeaderSkeleton,
+  PageLoading,
+  PanelSkeleton,
+  SectionTitleSkeleton,
+} from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Admin" };
 
 export default function AdminPage() {
   return (
     <div className="max-w-3xl">
-      <Suspense fallback={<LoadingNotice>Loading…</LoadingNotice>}>
+      <Suspense
+        fallback={
+          <PageLoading label="Loading…">
+            <HeaderSkeleton />
+            <SectionTitleSkeleton />
+            <div className="space-y-3">
+              <PanelSkeleton lines={2} />
+              <PanelSkeleton lines={2} />
+              <PanelSkeleton lines={2} />
+            </div>
+          </PageLoading>
+        }
+      >
         <Admin />
       </Suspense>
     </div>
@@ -149,7 +166,7 @@ async function Admin() {
         {hidden.length === 0 ? (
           <p className="mt-4 text-muted">None.</p>
         ) : (
-          <ul className="mt-5 divide-y divide-hairline rounded-card bg-white ring-1 ring-hairline">
+          <ul className="mt-5 divide-y divide-hairline rounded-card panel">
             {hidden.map((creator) => (
               <li
                 key={creator.userId}
@@ -185,7 +202,7 @@ async function Admin() {
 function VerificationItem({ item }: { item: VerificationQueueItem }) {
   const rules = PLATFORM_RULES[item.platform];
   return (
-    <li className="rounded-card bg-white p-4 ring-1 ring-hairline sm:p-5">
+    <li className="rounded-card panel p-4 sm:p-5">
       <div className="flex items-start gap-3">
         <PlatformIcon platform={item.platform} className="mt-1 size-5" />
         <div className="min-w-0 flex-1">
@@ -243,7 +260,7 @@ function ReportItem({ report }: { report: OpenReport }) {
     report.reason;
   const { creator } = report;
   return (
-    <li className="rounded-card bg-white p-4 ring-1 ring-hairline sm:p-5">
+    <li className="rounded-card panel p-4 sm:p-5">
       <div className="flex items-start gap-4">
         <CreatorPhoto
           name={creator.displayName}
@@ -320,7 +337,7 @@ function ReportItem({ report }: { report: OpenReport }) {
 
 function CampaignReviewItem({ campaign }: { campaign: CampaignForReview }) {
   return (
-    <li className="rounded-card bg-white p-4 ring-1 ring-hairline sm:p-5">
+    <li className="rounded-card panel p-4 sm:p-5">
       <p className="font-semibold text-ink">
         <Link href={`/campaigns/${campaign.id}`} className="link">
           {campaign.title}
@@ -371,7 +388,7 @@ function CampaignReportItem({ report }: { report: OpenCampaignReport }) {
     report.campaign.status,
   );
   return (
-    <li className="rounded-card bg-white p-4 ring-1 ring-hairline sm:p-5">
+    <li className="rounded-card panel p-4 sm:p-5">
       <p className="font-semibold text-ink">
         <Link href={`/campaigns/${report.campaign.id}`} className="link">
           {report.campaign.title}

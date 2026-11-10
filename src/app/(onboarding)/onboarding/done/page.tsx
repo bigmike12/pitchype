@@ -4,7 +4,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { LoadingNotice } from "@/app/(portal)/loading-notice";
 import { CreatorCard } from "@/components/creators/creator-card";
 import { ActionCard } from "@/components/ui/action-card";
 import { buttonVariants } from "@/components/ui/button";
@@ -24,7 +23,11 @@ import { getProfile } from "@/lib/db/profiles";
 import { listOwnVerificationRequests } from "@/lib/db/verification";
 
 import { publishFromOnboardingAction } from "../actions";
-import { OnboardingStep, continueClass } from "../onboarding-step";
+import {
+  OnboardingStep,
+  continueClass,
+  OnboardingStepSkeleton,
+} from "../onboarding-step";
 
 export const metadata: Metadata = { title: "You’re all set" };
 
@@ -32,7 +35,7 @@ const firstWord = (name: string) => name.trim().split(/\s+/)[0] ?? "";
 
 export default function DonePage() {
   return (
-    <Suspense fallback={<LoadingNotice>Loading…</LoadingNotice>}>
+    <Suspense fallback={<OnboardingStepSkeleton label="Loading…" />}>
       <Done />
     </Suspense>
   );
@@ -97,26 +100,22 @@ async function CreatorDone({ userId }: { userId: string }) {
       role="influencer"
       step="done"
       firstName={firstWord(profile.displayName)}
+      showcase={
+        <div className="w-full max-w-xs shadow-pop enter rounded-card">
+          <CreatorCard
+            href={null}
+            displayName={profile.displayName}
+            photoUrl={profile.photoUrl}
+            city={profile.city}
+            state={profile.state}
+            nicheNames={profile.niches.flatMap((s) => nicheName.get(s) ?? [])}
+            platforms={listings(profile, requests)}
+          />
+        </div>
+      }
     >
-      <div className="max-w-xs">
-        <CreatorCard
-          href={null}
-          displayName={profile.displayName}
-          photoUrl={profile.photoUrl}
-          city={profile.city}
-          state={profile.state}
-          nicheNames={profile.niches.flatMap((s) => nicheName.get(s) ?? [])}
-          platforms={listings(profile, requests)}
-        />
-      </div>
-
       {profile.published ? (
-        <Callout
-          tone="success"
-          icon={Globe}
-          title="You’re in the directory"
-          className="mt-8"
-        >
+        <Callout tone="success" icon={Globe} title="You’re in the directory">
           Businesses can find you now.
         </Callout>
       ) : (
@@ -125,7 +124,6 @@ async function CreatorDone({ userId }: { userId: string }) {
             tone="attention"
             icon={CircleAlert}
             title="Before you can publish"
-            className="mt-8"
           >
             <ul className="list-disc space-y-1 pl-5">
               {problems.map((problem) => (

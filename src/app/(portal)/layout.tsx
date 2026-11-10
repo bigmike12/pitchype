@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
 
-import { PortalShell } from "@/components/shells/portal-shell";
+import {
+  PortalShell,
+  SidebarSkeleton,
+  TopBarSkeleton,
+} from "@/components/shells/portal-shell";
 
 import { PortalSidebar, PortalTopBar } from "./chrome";
 
@@ -14,12 +18,12 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
   return (
     <PortalShell
       sidebar={
-        <Suspense fallback={null}>
+        <Suspense fallback={<SidebarSkeleton />}>
           <PortalSidebar />
         </Suspense>
       }
       topBar={
-        <Suspense fallback={null}>
+        <Suspense fallback={<TopBarSkeleton />}>
           <PortalTopBar />
         </Suspense>
       }

@@ -67,10 +67,10 @@ export function Pricing() {
       aria-labelledby="pricing-title"
       className="container-page section-y"
     >
-      <h2 id="pricing-title" className="text-display-lg">
+      <h2 id="pricing-title" className="text-display-lg reveal">
         Simple, honest fees
       </h2>
-      <p className="mt-4 max-w-[36rem] text-lg">
+      <p className="mt-4 max-w-[36rem] text-lg reveal">
         You only pay when real work happens. Here’s a{" "}
         {formatNaira(job.agreedPriceKobo)} job, from both sides.
       </p>
@@ -80,8 +80,12 @@ export function Pricing() {
           <article
             key={receipt.title}
             aria-labelledby={`pricing-${receipt.title}`}
-            className="rounded-panel bg-surface-card p-6 sm:p-8"
+            className="relative isolate overflow-hidden rounded-panel p-6 panel reveal sm:p-8"
           >
+            <div
+              aria-hidden="true"
+              className="absolute -top-32 -left-20 -z-10 size-80 rounded-full bg-brand-lilac/60 blur-3xl"
+            />
             <h3
               id={`pricing-${receipt.title}`}
               className="text-lg font-semibold"
@@ -89,11 +93,13 @@ export function Pricing() {
               {receipt.title}
             </h3>
             <p className="mt-3 text-ink">
-              <span className="block text-display-xl">{receipt.rate}</span>
+              <span className="inline-block text-display-xl text-gradient">
+                {receipt.rate}
+              </span>
               <span className="mt-1 block text-lg">{receipt.rateNote}</span>
             </p>
 
-            <dl className="mt-8 rounded-card bg-canvas p-5 text-ink">
+            <dl className="mt-8 rounded-card bg-surface-soft p-5 text-ink ring-1 ring-hairline">
               {receipt.lines.map((line) => (
                 <div
                   key={line.label}
@@ -116,7 +122,7 @@ export function Pricing() {
 
       <ul className="mt-8 grid gap-4 lg:grid-cols-3">
         {NOTES.map((note) => (
-          <li key={note} className="flex gap-3 text-[0.9375rem]">
+          <li key={note} className="flex gap-3 text-[0.9375rem] reveal">
             <Check
               className="mt-0.5 size-5 shrink-0 text-brand-green"
               aria-hidden="true"

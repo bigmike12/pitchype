@@ -46,12 +46,18 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#ffffff",
+  themeColor: "#f8f8f6",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${inter.variable} ${bricolage.variable}`}>
+    // data-scroll-behavior: globals.css scrolls smoothly (for anchor links);
+    // this tells Next to turn it off while switching pages.
+    <html
+      lang="en"
+      className={`${inter.variable} ${bricolage.variable}`}
+      data-scroll-behavior="smooth"
+    >
       {/* Each route group ((marketing), (auth), (app)) brings its own chrome. */}
       <body>{children}</body>
     </html>

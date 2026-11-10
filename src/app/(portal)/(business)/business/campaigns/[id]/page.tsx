@@ -12,7 +12,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 
-import { LoadingNotice } from "@/app/(portal)/loading-notice";
 import {
   DeliverableList,
   RequirementList,
@@ -35,6 +34,11 @@ import { formatNaira } from "@/lib/money";
 
 import { deleteDraftAction } from "../actions";
 import { CampaignActions } from "./campaign-actions";
+import {
+  HeaderSkeleton,
+  PageLoading,
+  PanelSkeleton,
+} from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Campaign" };
 
@@ -43,7 +47,17 @@ type Params = Promise<{ id: string }>;
 export default function CampaignPage({ params }: { params: Params }) {
   return (
     <div className="max-w-3xl">
-      <Suspense fallback={<LoadingNotice>Loading the campaign…</LoadingNotice>}>
+      <Suspense
+        fallback={
+          <PageLoading label="Loading the campaign…">
+            <HeaderSkeleton crumbs action />
+            <div className="space-y-4">
+              <PanelSkeleton lines={4} />
+              <PanelSkeleton lines={3} />
+            </div>
+          </PageLoading>
+        }
+      >
         <Campaign params={params} />
       </Suspense>
     </div>
@@ -330,7 +344,7 @@ function Stat({
   note?: string;
 }) {
   return (
-    <div className="rounded-card bg-white p-5 ring-1 ring-hairline">
+    <div className="rounded-card panel p-5">
       <dt className="flex items-center gap-1.5 text-sm text-muted">{label}</dt>
       <dd className="mt-1 text-display-md">{value}</dd>
       {note && <dd className="text-sm text-muted">{note}</dd>}

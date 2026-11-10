@@ -59,7 +59,7 @@ export function PasswordField({
           aria-label="Show password"
           aria-pressed={visible}
           aria-controls={id}
-          className="absolute top-0.5 right-0.5 grid size-11 place-items-center rounded-control text-ink hover:bg-surface-card"
+          className="absolute top-0.5 right-0.5 grid size-11 place-items-center rounded-control text-ink hover:bg-surface-soft"
         >
           {visible ? (
             <EyeOff className="size-5" aria-hidden="true" />

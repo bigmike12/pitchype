@@ -1,126 +1,165 @@
-import { Check } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
+import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
-import { openCampaignCount } from "@/lib/db/campaigns";
-import { BUSINESS_FEE_BPS, formatRate } from "@/lib/fees";
+import { BUSINESS_FEE_BPS, INFLUENCER_FEE_BPS, formatRate } from "@/lib/fees";
 import { cn } from "@/lib/utils";
 
-import type { WaitlistRole } from "./waitlist-input";
+import { BudgetSplitter } from "./budget-splitter";
+import { EarningsCalculator } from "./earnings-calculator";
+import { BUSINESS_STATS, CREATOR_STATS, StatGrid, type Stat } from "./stats";
 
-type Audience = {
-  id: string;
-  role: WaitlistRole;
-  title: string;
-  intro: string;
-  points: string[];
-  cta: string;
-  card: string;
-  bullet: string;
-  button: "light" | "default";
-};
+// The two sides of the sale, one section each: why it's better, what you
+// get, a calculator to play with, and the outside figures behind the
+// argument (each with its source; see ./stats.tsx).
 
-const AUDIENCES: Audience[] = [
-  {
-    id: "for-businesses",
-    role: "business",
-    title: "For businesses",
-    intro:
-      "Reach the people who already follow creators in your niche and your city.",
-    points: [
-      "Find creators by niche, platform, location, audience size and price.",
-      "Set a price per creator, or agree one in chat.",
-      "Your money is held until you approve the work.",
-      `No subscription. A ${formatRate(BUSINESS_FEE_BPS)} service fee, only on jobs you fund.`,
-    ],
-    cta: "Join as a business",
-    card: "bg-brand-green on-dark",
-    bullet: "bg-brand-mint text-ink",
-    button: "light",
-  },
-  {
-    id: "for-creators",
-    role: "creator",
-    title: "For creators",
-    intro: "Paid work from brands that fit you, without chasing invoices.",
-    points: [
-      "Browse open campaigns that match your niche and city.",
-      "Apply at the listed price or propose your own.",
-      "Start once the business has paid, so the money is already there.",
-      "Get paid when your work is approved, or automatically after 7 days of silence.",
-    ],
-    cta: "Join as a creator",
-    card: "bg-brand-sun text-ink",
-    bullet: "bg-ink text-white",
-    button: "default",
-  },
-];
-
-export function Audiences() {
+export function ForCreators() {
   return (
-    <section
-      aria-label="Who Pitchype is for"
-      className="container-page section-y"
-    >
-      <div className="grid gap-4 lg:grid-cols-2">
-        {AUDIENCES.map((audience) => (
-          <article
-            key={audience.id}
-            id={audience.id}
-            aria-labelledby={`${audience.id}-title`}
-            className={cn(
-              "flex flex-col rounded-panel p-6 sm:p-10",
-              audience.card,
-            )}
-          >
-            <h2 id={`${audience.id}-title`} className="text-display-lg">
-              {audience.title}
-            </h2>
-            <p className="mt-3 text-lg">{audience.intro}</p>
-            <ul className="mt-8 mb-10 space-y-4">
-              {audience.points.map((point) => (
-                <li key={point} className="flex gap-3">
-                  <span
-                    className={cn(
-                      "mt-0.5 grid size-6 shrink-0 place-items-center rounded-full",
-                      audience.bullet,
-                    )}
-                  >
-                    <Check className="size-3.5" aria-hidden="true" />
-                  </span>
-                  <span>{point}</span>
-                </li>
-              ))}
-            </ul>
-            {audience.role === "creator" && <OpenCampaigns />}
-            <a
-              href="#waitlist"
-              data-waitlist-role={audience.role}
-              className={buttonVariants({
-                size: "lg",
-                variant: audience.button,
-                className: "mt-auto self-start",
-              })}
-            >
-              {audience.cta}
-            </a>
-          </article>
-        ))}
-      </div>
-    </section>
+    <AudienceSection
+      id="for-creators"
+      eyebrow="For creators"
+      title={
+        <>
+          Your influence should pay{" "}
+          <span className="text-gradient">before you’re famous.</span>
+        </>
+      }
+      lead="You don’t need 10,000 followers to be worth paying. Businesses on Pitchype pay for posts, reviews and videos from creators their customers already trust, with the money held safely before you start."
+      points={[
+        "No follower minimum to join.",
+        "Browse open campaigns that match your niche and city, or get found in the directory.",
+        "Apply at the listed price or propose your own.",
+        "Start once the business has paid, so the money is already there.",
+        "Get paid when your work is approved, or automatically after 7 days of silence.",
+        `A ${formatRate(INFLUENCER_FEE_BPS)} fee only when you’re paid. No subscription.`,
+      ]}
+      cta={{
+        href: "/signup?role=influencer",
+        label: "Create a creator account",
+      }}
+      tool={<EarningsCalculator />}
+      surface="aurora-warm"
+      stats={CREATOR_STATS}
+      statsLabel="Why platform payouts aren’t enough"
+    />
   );
 }
 
-// Proof that there's work waiting, for creators deciding whether to sign up.
-// Campaigns themselves are for signed-in creators only. Hidden when there are
-// none (and if the count can't be fetched); refreshed hourly.
-async function OpenCampaigns() {
-  const count = await openCampaignCount();
-  if (count === 0) return null;
+export function ForBusinesses() {
   return (
-    <p className="-mt-4 mb-8 font-semibold">
-      {count === 1
-        ? "1 campaign is open for creators right now."
-        : `${count.toLocaleString("en-NG")} campaigns are open for creators right now.`}
-    </p>
+    <AudienceSection
+      id="for-businesses"
+      eyebrow="For businesses"
+      title={
+        <>
+          Make your marketing budget{" "}
+          <span className="text-gradient">work harder.</span>
+        </>
+      }
+      lead="One big influencer is one audience and one bet. The same budget can pay several creators whose followers are your customers, so you reach more of the right people and learn who actually moves them."
+      points={[
+        "Find creators by niche, platform, location, audience size and price.",
+        "Spread one budget across several creators, niches and cities.",
+        "Set a price per creator, or agree one in chat.",
+        "Your money is held until you approve the work.",
+        `No subscription. A ${formatRate(BUSINESS_FEE_BPS)} service fee, only on jobs you fund.`,
+      ]}
+      cta={{
+        href: "/signup?role=business",
+        label: "Create a business account",
+      }}
+      tool={<BudgetSplitter />}
+      surface="aurora"
+      stats={BUSINESS_STATS}
+      statsLabel="What brands are finding"
+      flip
+    />
+  );
+}
+
+function AudienceSection({
+  id,
+  eyebrow,
+  title,
+  lead,
+  points,
+  cta,
+  tool,
+  surface,
+  stats,
+  statsLabel,
+  flip = false,
+}: {
+  id: string;
+  eyebrow: string;
+  title: ReactNode;
+  lead: string;
+  points: string[];
+  cta: { href: string; label: string };
+  tool: ReactNode;
+  surface: "aurora" | "aurora-warm";
+  stats: Stat[];
+  statsLabel: string;
+  /** Put the calculator on the left from 1024px, for rhythm down the page. */
+  flip?: boolean;
+}) {
+  const titleId = `${id}-title`;
+  return (
+    <section
+      id={id}
+      aria-labelledby={titleId}
+      className="container-page section-y"
+    >
+      <div
+        className={cn(
+          "relative isolate overflow-hidden rounded-frame p-5 ring-1 ring-hairline sm:p-10 lg:p-14",
+          surface,
+        )}
+      >
+        <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
+          <div className={cn(flip && "lg:order-last")}>
+            <p className="inline-flex rounded-full bg-white/70 px-3 py-1 text-sm font-semibold text-ink ring-1 ring-ink/[0.06] reveal">
+              {eyebrow}
+            </p>
+            <h2 id={titleId} className="mt-4 text-display-lg reveal">
+              {title}
+            </h2>
+            <p className="mt-4 text-lg text-ink reveal">{lead}</p>
+            <ul className="mt-6 space-y-3">
+              {points.map((point) => (
+                <li key={point} className="flex gap-3 text-ink reveal">
+                  <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-ink text-white">
+                    <Check className="size-3.5" aria-hidden="true" />
+                  </span>
+                  {point}
+                </li>
+              ))}
+            </ul>
+            <Link
+              href={cta.href}
+              className={buttonVariants({
+                size: "lg",
+                className: "group mt-8 w-full sm:w-auto",
+              })}
+            >
+              {cta.label}
+              <ArrowRight
+                aria-hidden="true"
+                className="motion-safe:transition-transform motion-safe:group-hover:translate-x-0.5"
+              />
+            </Link>
+          </div>
+          <div className="reveal">{tool}</div>
+        </div>
+      </div>
+
+      <h3 className="mt-10 text-base font-semibold text-ink">{statsLabel}</h3>
+      <StatGrid stats={stats} label={statsLabel} className="mt-4" />
+      <p className="mt-3 text-xs text-muted">
+        Global and US figures, checked November 2026. There are no Nigerian
+        benchmarks yet; we’ll publish our own as Pitchype grows.
+      </p>
+    </section>
   );
 }

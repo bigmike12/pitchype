@@ -174,7 +174,7 @@ function Checklist({
   return (
     <section
       aria-labelledby="checklist-title"
-      className="rounded-card bg-white p-5 ring-1 ring-hairline sm:p-6"
+      className="rounded-card panel p-5 sm:p-6"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="checklist-title" className="font-semibold text-ink">

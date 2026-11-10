@@ -17,7 +17,7 @@ export function CampaignTable({
 }) {
   return (
     <>
-      <ul className="divide-y divide-hairline rounded-card bg-white ring-1 ring-hairline sm:hidden">
+      <ul className="divide-y divide-hairline rounded-card panel sm:hidden">
         {campaigns.map((c) => (
           <li key={c.id} className="relative p-4">
             <div className="flex items-start justify-between gap-3">
@@ -44,7 +44,7 @@ export function CampaignTable({
         ))}
       </ul>
 
-      <div className="hidden overflow-hidden rounded-card ring-1 ring-hairline sm:block">
+      <div className="hidden overflow-hidden rounded-card panel sm:block">
         <table className="w-full text-left text-sm">
           <thead className="bg-surface-soft text-muted">
             <tr>

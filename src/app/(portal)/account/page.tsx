@@ -10,9 +10,14 @@ import { requireUser } from "@/lib/auth";
 import { getProfile } from "@/lib/db/profiles";
 
 import { signOutAction } from "../actions";
-import { LoadingNotice } from "../loading-notice";
 import { updateProfileAction } from "./actions";
 import { ProfileForm } from "./profile-form";
+import {
+  FormSkeleton,
+  HeaderSkeleton,
+  PageLoading,
+  PanelSkeleton,
+} from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Account" };
 
@@ -25,7 +30,15 @@ const ROLE_LABELS = {
 export default function AccountPage() {
   return (
     <div className="max-w-3xl">
-      <Suspense fallback={<LoadingNotice>Loading your account…</LoadingNotice>}>
+      <Suspense
+        fallback={
+          <PageLoading label="Loading your account…">
+            <HeaderSkeleton />
+            <PanelSkeleton lines={2} />
+            <FormSkeleton fields={3} className="mt-4" />
+          </PageLoading>
+        }
+      >
         <Account />
       </Suspense>
     </div>
@@ -122,7 +135,7 @@ function Section({
   return (
     <section
       aria-labelledby={`${id}-title`}
-      className="rounded-card bg-white p-5 ring-1 ring-hairline sm:p-6"
+      className="rounded-card panel p-5 sm:p-6"
     >
       <h2 id={`${id}-title`} className="mb-4 text-display-md">
         {title}

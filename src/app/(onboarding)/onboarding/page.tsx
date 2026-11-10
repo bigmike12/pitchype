@@ -2,17 +2,19 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { LoadingNotice } from "@/app/(portal)/loading-notice";
 import { requireUser } from "@/lib/auth";
 import { getProfile } from "@/lib/db/profiles";
 
 import { ProfileSteps } from "./profile-steps";
+import { OnboardingStepSkeleton } from "./onboarding-step";
 
 export const metadata: Metadata = { title: "Set up your profile" };
 
 export default function OnboardingPage() {
   return (
-    <Suspense fallback={<LoadingNotice>Loading your account…</LoadingNotice>}>
+    <Suspense
+      fallback={<OnboardingStepSkeleton label="Loading your account…" />}
+    >
       <Onboarding />
     </Suspense>
   );

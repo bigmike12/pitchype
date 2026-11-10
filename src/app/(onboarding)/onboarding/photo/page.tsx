@@ -4,18 +4,22 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { PhotoForm } from "@/app/(portal)/(influencer)/profile/photo-form";
-import { LoadingNotice } from "@/app/(portal)/loading-notice";
 import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth";
 import { getOwnCreatorProfile } from "@/lib/db/creators";
 
-import { OnboardingStep, StepActions, continueClass } from "../onboarding-step";
+import {
+  OnboardingStep,
+  StepActions,
+  continueClass,
+  OnboardingStepSkeleton,
+} from "../onboarding-step";
 
 export const metadata: Metadata = { title: "Add a photo" };
 
 export default function PhotoPage() {
   return (
-    <Suspense fallback={<LoadingNotice>Loading…</LoadingNotice>}>
+    <Suspense fallback={<OnboardingStepSkeleton label="Loading…" />}>
       <Photo />
     </Suspense>
   );

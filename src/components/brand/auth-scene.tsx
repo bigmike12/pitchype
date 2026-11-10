@@ -1,6 +1,6 @@
 // The illustration beside the sign-in forms (wide screens only). Built from
 // the same brand kit as the landing hero: fictional sample data, the escrow
-// sticker and approved badge, and clay shapes. Purely decorative; the shell
+// sticker and approved badge, on the aurora. Purely decorative; the shell
 // hides it from assistive tech.
 
 import { EXAMPLE_PRICE_KOBO, feeExample } from "@/lib/fees";
@@ -8,7 +8,7 @@ import { formatNaira } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 import { Avatar, SampleTag } from "./fragments";
-import { ApprovedBadge, EscrowSticker, clay } from "./stickers";
+import { ApprovedBadge, EscrowSticker } from "./stickers";
 
 const job = feeExample(EXAMPLE_PRICE_KOBO);
 
@@ -41,27 +41,14 @@ const APPLICANTS = [
 
 export function AuthScene() {
   return (
-    <div className="relative grid h-full grid-rows-[1fr_auto] overflow-hidden rounded-panel bg-brand-green p-8 on-dark xl:p-12">
-      <div
-        className="absolute -top-24 -right-20 size-80 rounded-full"
-        style={{ background: clay("var(--color-brand-coral)") }}
-      />
-      {/* Kept to the top half: the promise at the bottom sits on plain green,
-          because white text on lilac fails contrast. */}
-      <div
-        className="absolute -top-20 -left-24 size-80 rounded-[45%_55%_60%_40%]"
-        style={{ background: clay("var(--color-brand-lilac)") }}
-      />
-      <div
-        className="absolute top-[38%] right-[8%] size-14 rounded-full motion-safe:animate-float-slow"
-        style={{ background: clay("var(--color-brand-sun)") }}
-      />
+    <div className="relative grid h-full grid-rows-[1fr_auto] overflow-hidden rounded-frame p-8 ring-1 ring-hairline aurora motion-safe:animate-aurora xl:p-12">
+      <div className="absolute inset-0 dot-grid" />
 
       <div className="relative flex items-center justify-center">
-        <div className="relative w-full max-w-md">
+        <div className="relative w-full max-w-md enter">
           {/* Applications for a sample campaign. Bottom padding leaves room
               for the escrow sticker, so it never covers a row. */}
-          <div className="rounded-card bg-white p-5 pb-14 text-ink">
+          <div className="rounded-panel bg-white/90 p-5 pb-14 text-ink shadow-pop ring-1 ring-ink/[0.06] glass">
             <div className="flex items-center gap-2">
               <Avatar initials="BJ" colour="peach" />
               <span className="text-sm font-semibold">Brightside Juice</span>
@@ -109,14 +96,14 @@ export function AuthScene() {
           <ApprovedBadge className="absolute -top-4 right-6" />
           <EscrowSticker
             amountKobo={job.agreedPriceKobo}
-            tone="light"
             className="absolute -bottom-7 -left-6"
           />
         </div>
       </div>
 
       <p className="relative mt-10 max-w-sm text-display-md">
-        Money is held until the work is approved.
+        Money is held until the{" "}
+        <span className="text-gradient">work is approved.</span>
       </p>
     </div>
   );

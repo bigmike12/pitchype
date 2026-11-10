@@ -15,7 +15,7 @@ export default function AppleIcon() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#fff9ee",
+        background: "#f8f8f6",
       }}
     >
       <PitchypeMark size={132} />

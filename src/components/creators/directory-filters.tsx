@@ -41,7 +41,7 @@ export function DirectoryFilters({
       className={
         basePath === "/creators"
           ? "rounded-panel bg-surface-soft p-4 sm:p-6"
-          : "rounded-card bg-white p-4 ring-1 ring-hairline sm:p-5"
+          : "rounded-card panel p-4 sm:p-5"
       }
     >
       <div

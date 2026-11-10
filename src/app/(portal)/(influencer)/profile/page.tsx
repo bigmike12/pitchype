@@ -22,18 +22,33 @@ import { listOwnVerificationRequests } from "@/lib/db/verification";
 import { KOBO_PER_NAIRA } from "@/lib/money";
 import { CONTACT_EMAIL } from "@/lib/site";
 
-import { LoadingNotice } from "@/app/(portal)/loading-notice";
 import { AboutForm } from "./about-form";
 import { setIndexingAction, setPublishedAction } from "./actions";
 import { PhotoForm } from "./photo-form";
 import { PlatformCard } from "./platform-card";
+import {
+  HeaderSkeleton,
+  PageLoading,
+  PanelSkeleton,
+} from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Your public profile" };
 
 export default function ProfilePage() {
   return (
     <div className="max-w-3xl">
-      <Suspense fallback={<LoadingNotice>Loading your profile…</LoadingNotice>}>
+      <Suspense
+        fallback={
+          <PageLoading label="Loading your profile…">
+            <HeaderSkeleton />
+            <div className="space-y-4">
+              <PanelSkeleton lines={2} />
+              <PanelSkeleton lines={4} />
+              <PanelSkeleton lines={3} />
+            </div>
+          </PageLoading>
+        }
+      >
         <ProfileEditor />
       </Suspense>
     </div>
@@ -127,7 +142,7 @@ function Section({
     <section
       id={id}
       aria-labelledby={`${id}-title`}
-      className="scroll-mt-24 rounded-card bg-white p-5 ring-1 ring-hairline sm:p-6"
+      className="scroll-mt-24 rounded-card panel p-5 sm:p-6"
     >
       <h2 id={`${id}-title`} className="text-display-md">
         {title}
@@ -212,7 +227,7 @@ function Visibility({ profile }: { profile: OwnCreatorProfile }) {
 
       <form
         action={setIndexingAction}
-        className="flex flex-col gap-3 rounded-card bg-white p-4 ring-1 ring-hairline sm:flex-row sm:items-center sm:justify-between sm:p-5"
+        className="flex flex-col gap-3 rounded-card panel p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
       >
         <p className="text-sm">
           {profile.allowIndexing

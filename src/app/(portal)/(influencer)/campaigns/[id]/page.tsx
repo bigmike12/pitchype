@@ -10,7 +10,6 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { LoadingNotice } from "@/app/(portal)/loading-notice";
 import {
   DeliverableList,
   RequirementList,
@@ -27,6 +26,11 @@ import { formatNaira } from "@/lib/money";
 import { stateLabel } from "@/lib/profile";
 
 import { CampaignReportForm } from "./report-form";
+import {
+  HeaderSkeleton,
+  PageLoading,
+  PanelSkeleton,
+} from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Campaign" };
 
@@ -35,7 +39,17 @@ type Params = Promise<{ id: string }>;
 export default function CampaignPage({ params }: { params: Params }) {
   return (
     <div className="max-w-3xl">
-      <Suspense fallback={<LoadingNotice>Loading the campaign…</LoadingNotice>}>
+      <Suspense
+        fallback={
+          <PageLoading label="Loading the campaign…">
+            <HeaderSkeleton crumbs />
+            <div className="space-y-4">
+              <PanelSkeleton lines={2} />
+              <PanelSkeleton lines={4} />
+            </div>
+          </PageLoading>
+        }
+      >
         <Campaign params={params} />
       </Suspense>
     </div>
@@ -82,7 +96,7 @@ async function Campaign({ params }: { params: Params }) {
         }
       />
 
-      <dl className="grid gap-4 rounded-card bg-white p-5 ring-1 ring-hairline sm:grid-cols-3 sm:p-6">
+      <dl className="grid gap-4 rounded-card panel p-5 sm:grid-cols-3 sm:p-6">
         {campaign.priceKobo !== null && (
           <div>
             <dt className="text-sm text-muted">Pay per creator</dt>

@@ -9,7 +9,7 @@ export const MIN_PASSWORD_LENGTH = 8;
 // bcrypt, which Supabase Auth uses, ignores everything past 72 bytes.
 const MAX_PASSWORD_LENGTH = 72;
 
-// Deliberately loose (same shape as the waitlist): the confirmation email is
+// Deliberately loose: the confirmation email is
 // the real proof an address works.
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 

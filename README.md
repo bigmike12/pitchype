@@ -4,7 +4,7 @@ Pitchype is a marketplace that connects Nigerian businesses with micro and nano
 creators. Businesses post campaigns or hire creators directly; creators apply,
 do the work, and get paid through escrow once the work is approved.
 
-This repository is at **Stage 4**: the public landing page and waitlist;
+This repository is at **Stage 4**: the public landing page;
 accounts (sign-up, login, password reset, onboarding, an account page);
 creator profiles with a public directory, handle verification and moderation;
 and campaigns that businesses publish and creators browse. Applying, hiring
@@ -89,6 +89,10 @@ then `supabase db push`.
 
 ### The waitlist table
 
+The site no longer has a waitlist (2026-11-10): it links straight to sign-up.
+The table stays because it holds the people who signed up before, who should
+hear that Pitchype is open. Nothing in the app writes to it now.
+
 `public.waitlist` (email, role `business` | `creator`, created_at, source).
 The anon key can only **insert** (email, role, source); nobody but the service
 role can read, change or delete rows. Emails are unique ignoring case.
@@ -99,8 +103,9 @@ run as the service role.
 
 ## Accounts
 
-`/signup`, `/login` and `/forgot-password` work but aren't linked from the
-site until launch. After confirming their email, people fill in a short
+`/signup`, `/login` and `/forgot-password` are linked from the site.
+`/signup?role=business` or `?role=influencer` opens with that account type
+chosen. After confirming their email, people fill in a short
 profile at `/onboarding` (creators go on to niches, platforms, a photo and
 publishing), then land on `/home`. `/account` holds their settings.
 

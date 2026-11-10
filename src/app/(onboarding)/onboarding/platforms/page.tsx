@@ -4,19 +4,23 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { PlatformCard } from "@/app/(portal)/(influencer)/profile/platform-card";
-import { LoadingNotice } from "@/app/(portal)/loading-notice";
 import { requireRole } from "@/lib/auth";
 import { PLATFORMS, verificationView } from "@/lib/creator-profile";
 import { getOwnCreatorProfile } from "@/lib/db/creators";
 import { listOwnVerificationRequests } from "@/lib/db/verification";
 
-import { OnboardingStep, StepActions, continueClass } from "../onboarding-step";
+import {
+  OnboardingStep,
+  StepActions,
+  continueClass,
+  OnboardingStepSkeleton,
+} from "../onboarding-step";
 
 export const metadata: Metadata = { title: "Where do you post?" };
 
 export default function PlatformsPage() {
   return (
-    <Suspense fallback={<LoadingNotice>Loading…</LoadingNotice>}>
+    <Suspense fallback={<OnboardingStepSkeleton label="Loading…" />}>
       <Platforms />
     </Suspense>
   );

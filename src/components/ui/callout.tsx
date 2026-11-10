@@ -4,10 +4,10 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const TONES = {
-  info: "bg-surface-soft",
-  attention: "bg-brand-sun",
-  success: "bg-brand-mint",
-  danger: "bg-white ring-1 ring-danger",
+  info: "bg-surface ring-1 ring-hairline shadow-card",
+  attention: "bg-[#fff1bf] ring-1 ring-[#f3dc8c]",
+  success: "bg-brand-mint ring-1 ring-ink/5",
+  danger: "bg-surface ring-1 ring-danger",
 } as const;
 
 /**

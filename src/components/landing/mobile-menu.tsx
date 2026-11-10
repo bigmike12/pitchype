@@ -29,7 +29,7 @@ export function MobileMenu({ links }: { links: NavLink[] }) {
   }, [open]);
 
   return (
-    <div className="md:hidden">
+    <div className="lg:hidden">
       <button
         ref={toggleRef}
         type="button"
@@ -49,7 +49,7 @@ export function MobileMenu({ links }: { links: NavLink[] }) {
       <div
         id={panelId}
         hidden={!open}
-        className="absolute inset-x-0 top-full border-b border-hairline bg-canvas px-4 pt-2 pb-6 sm:px-6"
+        className="absolute inset-x-0 top-full mt-2 rounded-2xl px-4 pt-2 pb-4 shadow-pop ring-1 ring-ink/[0.07] glass motion-safe:animate-[fade-up_0.4s_var(--ease-out-expo)]"
       >
         <nav aria-label="Main">
           <ul>
@@ -67,6 +67,16 @@ export function MobileMenu({ links }: { links: NavLink[] }) {
                 </Link>
               </li>
             ))}
+            {/* The header hides Log in on phones; it lives here instead. */}
+            <li className="sm:hidden">
+              <Link
+                href="/login"
+                onClick={() => setOpen(false)}
+                className="flex min-h-12 items-center rounded-lg text-lg font-medium text-ink"
+              >
+                Log in
+              </Link>
+            </li>
           </ul>
         </nav>
       </div>

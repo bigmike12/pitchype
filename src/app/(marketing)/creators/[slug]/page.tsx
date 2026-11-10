@@ -80,7 +80,7 @@ async function Profile({ params }: { params: Params }) {
           you can.
         </p>
       ) : (
-        <aside className="mt-8 rounded-card bg-brand-sun p-5 sm:p-6">
+        <aside className="mt-8 rounded-card p-5 ring-1 ring-hairline aurora-warm sm:p-6">
           <h2 className="font-semibold text-ink">
             Want to work with {creator.displayName}?
           </h2>
@@ -88,10 +88,10 @@ async function Profile({ params }: { params: Params }) {
             Businesses on Pitchype see their handles, bio and starting rate.
           </p>
           <Link
-            href="/#waitlist"
+            href="/signup?role=business"
             className={buttonVariants({ className: "mt-4" })}
           >
-            Join the waitlist
+            Create a business account
           </Link>
         </aside>
       )}

@@ -6,15 +6,26 @@ import { requireRole } from "@/lib/auth";
 import { lagosToday } from "@/lib/campaign";
 import { listNiches } from "@/lib/db/creators";
 
-import { LoadingNotice } from "@/app/(portal)/loading-notice";
 import { CampaignForm } from "../campaign-form";
+import {
+  FormSkeleton,
+  HeaderSkeleton,
+  PageLoading,
+} from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "New campaign" };
 
 export default function NewCampaignPage() {
   return (
     <div className="max-w-3xl">
-      <Suspense fallback={<LoadingNotice>Loading…</LoadingNotice>}>
+      <Suspense
+        fallback={
+          <PageLoading label="Loading…">
+            <HeaderSkeleton crumbs />
+            <FormSkeleton fields={5} />
+          </PageLoading>
+        }
+      >
         <NewCampaign />
       </Suspense>
     </div>

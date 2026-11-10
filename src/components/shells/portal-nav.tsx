@@ -13,7 +13,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
@@ -61,19 +61,45 @@ function NavLinks({
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex min-h-11 items-center gap-3 rounded-lg px-3 text-[0.9375rem] text-ink",
+                "group flex min-h-11 items-center gap-3 rounded-xl px-3 text-[0.9375rem] text-ink motion-safe:transition-[background-color,box-shadow]",
                 active
-                  ? "bg-surface-soft font-semibold ring-1 ring-hairline"
-                  : "font-medium hover:bg-surface-soft",
+                  ? "bg-surface font-semibold shadow-card ring-1 ring-hairline"
+                  : "font-medium text-body hover:bg-ink/[0.04] hover:text-ink",
               )}
             >
-              <Icon className="size-[1.125rem] shrink-0" aria-hidden="true" />
+              <Icon
+                className={cn(
+                  "size-[1.125rem] shrink-0",
+                  active
+                    ? "text-brand-violet"
+                    : "text-muted group-hover:text-ink",
+                )}
+                aria-hidden="true"
+              />
               {item.label}
+              <PendingDot />
             </Link>
           </li>
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * A small violet dot on a nav link while its page is on the way (only when
+ * the page wasn't prefetched; otherwise the page's skeleton shows at once).
+ */
+function PendingDot() {
+  const { pending } = useLinkStatus();
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "ml-auto size-1.5 rounded-full bg-brand-violet motion-safe:transition-opacity",
+        pending ? "opacity-100 motion-safe:animate-pulse" : "opacity-0",
+      )}
+    />
   );
 }
 
@@ -87,11 +113,11 @@ function AccountBlock({
   onNavigate?: () => void;
 }) {
   return (
-    <div className="border-t border-hairline pt-3">
+    <div className="rounded-card p-1.5 panel">
       <Link
         href="/account"
         onClick={onNavigate}
-        className="flex min-h-11 items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-surface-soft"
+        className="flex min-h-11 items-center gap-3 rounded-[0.625rem] px-2 py-1.5 hover:bg-surface-soft"
       >
         <CreatorPhoto
           name={viewer.name}
@@ -106,10 +132,13 @@ function AccountBlock({
           <span className="block text-xs text-muted">Account</span>
         </span>
       </Link>
-      <form action={signOutAction}>
+      <form
+        action={signOutAction}
+        className="mt-1 border-t border-hairline pt-1"
+      >
         <button
           type="submit"
-          className="mt-1 flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-ink hover:bg-surface-soft"
+          className="flex min-h-11 w-full items-center gap-3 rounded-[0.625rem] px-3 text-sm font-medium text-body hover:bg-surface-soft hover:text-ink"
         >
           <LogOut className="size-4 shrink-0" aria-hidden="true" />
           Sign out
@@ -262,7 +291,7 @@ function MobileNav({
         onClick={(event) => {
           if (event.target === event.currentTarget) close();
         }}
-        className="m-0 h-dvh max-h-none w-[min(20rem,85vw)] max-w-none bg-canvas p-0 text-body backdrop:bg-ink/40"
+        className="m-0 h-dvh max-h-none w-[min(20rem,85vw)] max-w-none rounded-r-frame bg-canvas p-0 text-body shadow-pop backdrop:bg-ink/30 backdrop:backdrop-blur-sm open:motion-safe:animate-[drawer-in_0.35s_var(--ease-out-expo)]"
       >
         <div className="flex h-full flex-col px-3 pb-4">
           <div className="flex h-14 shrink-0 items-center justify-between pl-2">

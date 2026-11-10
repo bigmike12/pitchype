@@ -186,7 +186,7 @@ export function CampaignForm({
             return (
               <li
                 key={row.key}
-                className="grid grid-cols-[1fr_1fr] gap-3 rounded-card bg-white p-3 ring-1 ring-hairline sm:grid-cols-[1fr_1fr_6rem_auto] sm:items-center"
+                className="grid grid-cols-[1fr_1fr] gap-3 rounded-card panel p-3 sm:grid-cols-[1fr_1fr_6rem_auto] sm:items-center"
               >
                 <select
                   name="deliverablePlatform"
@@ -298,7 +298,7 @@ export function CampaignForm({
           many followers.
         </p>
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-card bg-white p-4 ring-1 ring-hairline">
+        <label className="flex cursor-pointer items-start gap-3 rounded-card panel p-4">
           <input
             type="checkbox"
             name="verifiedOnly"
@@ -392,7 +392,7 @@ export function CampaignForm({
             ))}
           </div>
           {where === "states" && (
-            <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 rounded-card bg-white p-4 ring-1 ring-hairline sm:grid-cols-3">
+            <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 rounded-card panel p-4 sm:grid-cols-3">
               {NIGERIAN_STATES.map((s) => (
                 <label
                   key={s}

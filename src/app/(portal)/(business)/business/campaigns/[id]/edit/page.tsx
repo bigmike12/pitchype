@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { LoadingNotice } from "@/app/(portal)/loading-notice";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth";
 import { lagosToday } from "@/lib/campaign";
@@ -11,6 +10,11 @@ import { listNiches } from "@/lib/db/creators";
 
 import { CampaignForm } from "../../campaign-form";
 import { LiveEditForm } from "./live-edit-form";
+import {
+  FormSkeleton,
+  HeaderSkeleton,
+  PageLoading,
+} from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Edit campaign" };
 
@@ -19,7 +23,14 @@ type Params = Promise<{ id: string }>;
 export default function EditCampaignPage({ params }: { params: Params }) {
   return (
     <div className="max-w-3xl">
-      <Suspense fallback={<LoadingNotice>Loading the campaign…</LoadingNotice>}>
+      <Suspense
+        fallback={
+          <PageLoading label="Loading the campaign…">
+            <HeaderSkeleton crumbs />
+            <FormSkeleton fields={4} />
+          </PageLoading>
+        }
+      >
         <EditCampaign params={params} />
       </Suspense>
     </div>
