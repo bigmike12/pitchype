@@ -6,9 +6,12 @@ import { Suspense } from "react";
 
 import { ReportForm } from "@/app/(marketing)/creators/[slug]/report-form";
 import { CreatorProfileView } from "@/components/creators/creator-profile-view";
-import { Callout } from "@/components/ui/callout";
+import { BlockControl } from "@/app/(portal)/account/block-control";
+import { startConversationAction } from "@/app/(portal)/inbox/actions";
+import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth";
 import { getListedCreator, listNiches } from "@/lib/db/creators";
+import { listMyBlocks } from "@/lib/db/moderation";
 import { PageLoading, PanelSkeleton, Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Creator" };
@@ -50,11 +53,13 @@ export default function BusinessCreatorPage({ params }: { params: Params }) {
 async function Creator({ params }: { params: Params }) {
   await requireRole("business");
   const { slug } = await params;
-  const [creator, niches] = await Promise.all([
+  const [creator, niches, blocks] = await Promise.all([
     getListedCreator(slug),
     listNiches(),
+    listMyBlocks(),
   ]);
   if (!creator) notFound();
+  const blockedByMe = blocks.some((b) => b.id === creator.userId);
   const nicheName = new Map(niches.map((n) => [n.slug, n.name]));
 
   return (
@@ -62,14 +67,25 @@ async function Creator({ params }: { params: Params }) {
       creator={creator}
       nicheNames={creator.niches.flatMap((s) => nicheName.get(s) ?? [])}
     >
-      <Callout
-        tone="info"
-        icon={MessageCircle}
-        title="Messaging and hiring open soon"
-        className="mt-8"
-      >
-        We’ll email you as soon as you can contact and hire creators.
-      </Callout>
+      <div className="mt-8 flex flex-wrap items-center gap-3">
+        {!blockedByMe && (
+          <form action={startConversationAction}>
+            <input type="hidden" name="creatorId" value={creator.userId} />
+            <Button type="submit">
+              <MessageCircle aria-hidden="true" />
+              Message {creator.displayName}
+            </Button>
+          </form>
+        )}
+        <BlockControl
+          otherId={creator.userId}
+          otherName={creator.displayName}
+          blockedByMe={blockedByMe}
+        />
+      </div>
+      <p className="mt-3 text-sm text-muted">
+        To hire them, post a campaign they can apply to.
+      </p>
       <div className="mt-10 max-w-xl">
         <ReportForm slug={creator.slug} />
       </div>

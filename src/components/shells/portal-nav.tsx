@@ -81,6 +81,12 @@ function NavLinks({
                 aria-hidden="true"
               />
               {item.label}
+              {item.badge ? (
+                <span className="ml-auto rounded-full bg-ink px-2 py-0.5 text-xs font-semibold text-white">
+                  {item.badge}
+                  <span className="sr-only"> unread</span>
+                </span>
+              ) : null}
               <PendingDot />
             </Link>
           </li>

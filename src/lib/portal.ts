@@ -13,7 +13,13 @@ export type NavIcon =
   | "inbox"
   | "admin";
 
-export type NavItem = { href: string; label: string; icon: NavIcon };
+export type NavItem = {
+  href: string;
+  label: string;
+  icon: NavIcon;
+  /** A count shown on the link, e.g. unread messages. */
+  badge?: number;
+};
 
 /** Who the shell is drawn for. */
 export type PortalViewer = {
@@ -24,6 +30,8 @@ export type PortalViewer = {
   photoUrl: string | null;
   /** Signed up but no profile yet: every portal page sends them to onboarding. */
   needsOnboarding: boolean;
+  /** Unread chat messages, for the Inbox link. */
+  unread: number;
 };
 
 const NAV: Record<PortalRole, NavItem[]> = {

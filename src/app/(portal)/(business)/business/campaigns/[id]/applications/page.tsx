@@ -4,6 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { BlockControl } from "@/app/(portal)/account/block-control";
+import { startConversationAction } from "@/app/(portal)/inbox/actions";
 import { Chip } from "@/components/brand/fragments";
 import { CreatorPhoto } from "@/components/creators/creator-photo";
 import { PlatformSummary } from "@/components/creators/platform-list";
@@ -276,6 +278,22 @@ function ApplicationCard({
           </form>
         )}
         <Outcome application={a} />
+        {!a.creator.blocked && (
+          <form action={startConversationAction}>
+            <input type="hidden" name="creatorId" value={a.creator.id} />
+            <input type="hidden" name="applicationId" value={a.id} />
+            <Button type="submit" variant="ghost">
+              Message
+            </Button>
+          </form>
+        )}
+        {!a.creator.blocked && (
+          <BlockControl
+            otherId={a.creator.id}
+            otherName={a.creator.displayName}
+            blockedByMe={false}
+          />
+        )}
         {open && <RejectForm applicationId={a.id} />}
       </div>
     </li>
