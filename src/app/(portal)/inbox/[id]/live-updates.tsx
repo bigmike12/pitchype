@@ -15,21 +15,32 @@ export function LiveUpdates({ conversationId }: { conversationId: string }) {
 
   useEffect(() => {
     const supabase = createBrowserClient();
-    const channel = supabase
-      .channel(`conversation:${conversationId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        () => router.refresh(),
-      )
-      .subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let stopped = false;
+
+    // Hand Realtime the signed-in session before joining. Without it the
+    // channel joins as `anon` (the session loads from cookies later), and
+    // Realtime refuses the subscription because anon can't read messages.
+    void supabase.realtime.setAuth().then(() => {
+      if (stopped) return;
+      channel = supabase
+        .channel(`conversation:${conversationId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "messages",
+            filter: `conversation_id=eq.${conversationId}`,
+          },
+          () => router.refresh(),
+        )
+        .subscribe();
+    });
+
     return () => {
-      void supabase.removeChannel(channel);
+      stopped = true;
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [conversationId, router]);
 

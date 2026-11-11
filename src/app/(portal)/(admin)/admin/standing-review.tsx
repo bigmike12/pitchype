@@ -45,6 +45,7 @@ export function StandingDecision({
         <input type="hidden" name="decision" value={decision} />
         <input type="hidden" name="target" value={target} />
         <TextField
+          id={`${decision}-${target}-reason`}
           label={label.reason}
           name="reason"
           required

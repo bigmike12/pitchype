@@ -103,7 +103,8 @@ select throws_ok($$
 $$, 'P0001', 'no_such_application', 'he cannot edit Dayo''s');
 
 set local request.jwt.claims = '{"sub": "eeeeeeee-0000-0000-0000-000000000007"}'; -- Efe
-select is((select count(*)::integer from public.applications), 2, 'admins see all');
+select is((select count(*)::integer from public.applications where campaign_id = 'c5000000-0000-0000-0000-000000000001'), 2,
+  'admins see every application, not only their own');
 
 -- Reviewing and approving K1 (1 place) ----------------------------------------------------------
 set local request.jwt.claims = '{"sub": "eeeeeeee-0000-0000-0000-000000000001"}'; -- Ada

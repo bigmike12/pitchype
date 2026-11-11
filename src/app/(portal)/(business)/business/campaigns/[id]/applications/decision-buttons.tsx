@@ -111,6 +111,7 @@ export function RejectForm({ applicationId }: { applicationId: string }) {
       <form action={formAction} className="mt-3 max-w-md space-y-4">
         <input type="hidden" name="applicationId" value={applicationId} />
         <TextAreaField
+          id={`note-${applicationId}`}
           label="Note to the creator"
           name="note"
           optional
