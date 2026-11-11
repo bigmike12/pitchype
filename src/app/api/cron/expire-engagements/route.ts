@@ -4,7 +4,7 @@ import { expireUnpaidEngagements } from "@/lib/db/applications";
 
 // Lapses approvals that weren't paid within 48 hours. Safe to call twice or
 // late: the database function only changes what is due. Vercel Cron calls it
-// hourly (vercel.json) with `Authorization: Bearer $CRON_SECRET`; any other
+// daily (vercel.json) with `Authorization: Bearer $CRON_SECRET`; any other
 // scheduler can do the same (docs/PROVIDERS.md).
 
 function authorised(request: Request): boolean {

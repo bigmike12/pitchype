@@ -87,8 +87,31 @@ supabase test db               # run the pgTAP tests in supabase/tests/
 npm run db:types               # after any schema change
 ```
 
-To apply migrations to a hosted project: `supabase link --project-ref <ref>`
-then `supabase db push`.
+### Pushing migrations to the live database
+
+The repo is already linked to the live project (`supabase/.temp/project-ref`;
+on a new machine run `supabase link --project-ref <ref>` first). Do this
+after the change is merged or ready, never before it's tested locally:
+
+```bash
+supabase migration up            # 1. apply to your LOCAL database (keeps your data)
+supabase test db                 # 2. all database tests must pass
+supabase migration list --linked # 3. Local vs Remote: a blank Remote means "not pushed yet"
+supabase db push --dry-run       # 4. lists what WOULD run on live; changes nothing
+supabase db push                 # 5. applies it to live (asks y/n)
+```
+
+Rules:
+
+- Read the dry-run list: it should be exactly the migrations you expect, in
+  order. If a Remote row has no Local file, stop and work out why first.
+- Never edit a migration that's already been pushed. Add a new file.
+- A pushed migration can't be undone by deleting it. Fix forward with a new
+  migration.
+- Afterwards check Supabase's security advisor (Dashboard, Advisors) and that
+  every table still has RLS on.
+- Take a backup first for anything that rewrites or drops data (Dashboard,
+  Database, Backups).
 
 ### The waitlist table
 
@@ -267,8 +290,10 @@ Design: `docs/superpowers/specs/2026-11-10-stage-5-applications-chat-design.md`.
   reviews. People can block each other, see their standing at
   `/account/standing` and appeal once a day; admins review at `/admin`.
   Strikes and blocks never touch money (CLAUDE.md §6.5).
-- **The lapse job** is `GET /api/cron/expire-engagements`, run hourly by
-  `vercel.json` and protected by `CRON_SECRET`. Any scheduler can call it.
+- **The lapse job** is `GET /api/cron/expire-engagements`, run daily (03:00 UTC) by
+  `vercel.json` and protected by `CRON_SECRET`. Any scheduler can call it. A
+  hire is lapsed once its 48 hours have passed, so the cancellation can come
+  up to a day later; the job never touches a hire still inside its window.
 - **Rules live in the database** and are proven by
   `supabase/tests/applications_rls.test.sql`, `chat_rls.test.sql` and
   `moderation_rls.test.sql`.

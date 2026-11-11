@@ -196,7 +196,7 @@ Design: `docs/DESIGN_SYSTEM.md` and CLAUDE.md §4a.
 Design: `docs/superpowers/specs/2026-11-10-stage-5-applications-chat-design.md`.
 
 - [ ] **You:** push the Stage 5 migrations (and Stage 4's, if still unpushed) live,
-      and set `CRON_SECRET` in Vercel (the hourly lapse job needs it).
+      and set `CRON_SECRET` in Vercel (the daily lapse job needs it).
 - [ ] Strikes never expire; only an admin removing one lowers the count.
       Revisit with real data (for example, strikes older than a year stop
       counting).
