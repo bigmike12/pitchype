@@ -193,7 +193,7 @@ plus `disputed`, `auto_released`, `cancelled`, `refunded`.
 
 - An influencer must **not** start work until the engagement is `funded`.
 - **"Work started" = the influencer clicks "Start work" on a `funded` engagement** (`funded → in_progress`). Show a clear confirmation before they click. This moment decides who can cancel alone (see §6.2).
-- If a business doesn't fund within X days of approval, the approval expires (value of X: open decision, §12).
+- If a business doesn't fund within **48 hours** of approval, the approval lapses (`awaiting_payment → cancelled`, reason `payment_expired`) and the place is freed. `expire_unpaid_engagements()` does it, run hourly by `/api/cron/expire-engagements` and before every approval on the same campaign. Until Stage 6 there is no way to pay, so every approval lapses.
 
 ### Submission
 Proof of work: links, screenshots, files, notes. `pending_review → accepted | denied | auto_accepted`.
@@ -264,6 +264,16 @@ Completed or auto-released ₦4,046 · business cancels ₦1,546 · business win
 > **Compliance flag (raise with the user, don't decide alone):** holding third-party funds and paying them out may carry regulatory implications in Nigeria (e.g. CBN/PSP rules). Confirm with a lawyer/Paystack how escrow-style flows should be structured before launch. Do not make legal claims in the product copy.
 
 ---
+
+### 6.5 Enforcement and money (decided in Stage 5)
+
+Strikes, blocks and suspensions protect people; they never take money.
+
+- **Blocking is person to person.** It stops new messages and new hires between the two people. It freezes, cancels or settles nothing that's already agreed.
+- **Strikes:** a chat message with contact details (phone number, email, link to another app) is not delivered and is a strike. 1 = warning; 2 = no new messages, applications or hires for 3 days; 3 = suspended until an admin reviews. Strikes don't expire; an admin can remove one, with a written reason. No automatic permanent ban; one appeal a day.
+- **Suspension is not forfeiture.** A suspended account keeps everything it's owed: running work, escrow and payouts carry on. It loses only new activity and its listings (directory, open campaigns).
+- **No fake escrow.** Never mark money "held" because of a strike. If a payment ever needs holding (Stage 6 onward), the hold is per payment, written to the ledger, with a required reason, and reviewable.
+- `moderation_events` is append-only (who, what, why, when). Changes go through the database functions in `20261110100000_create_moderation.sql`, never direct writes.
 
 ## 7. Security & data access
 
@@ -384,9 +394,15 @@ Decided while planning Stage 4 (2026-11-09; details in `docs/campaign-spec-decis
 - **Pay per click is decided but built after Stage 6.** One short tracked link per creator per campaign (never the destination in the URL), a click budget escrowed at go-live, only billable clicks paid, payouts in batches after a hold. Stage 4 only stores `payment_model`.
 - **No campaign images for now** (see `docs/TODO.md`).
 
+Decided in Stage 5 (2026-11-10; details in `docs/superpowers/specs/2026-11-10-stage-5-applications-chat-design.md`):
+- **Approval creates an `awaiting_payment` engagement** and sends the business straight to pay. Nothing starts until it's paid. **48 hours to pay**, then it lapses (§5).
+- **A creator's proposed price:** whole naira, minimum ₦5,000, no ceiling. The business approves the price it saw; if the creator changed it since, approval is refused.
+- **The business messages first.** Creators reply in threads a business started.
+- **Contact details in chat** aren't delivered and count as strikes; blocking, strikes and suspension work as in §6.5.
+
 Still open:
 1. ~~Can one account be both a business and an influencer?~~ Decided above: no.
-2. Deadline to fund after approval before the approval expires.
+2. ~~Deadline to fund after approval before the approval expires.~~ Decided above (Stage 5): 48 hours.
 3. Maximum resubmission rounds after a denial, and the dispute process (who arbitrates, timelines, how an admin decides "influencer at fault").
 4. Minimum payout amount and payout schedule.
 5. Whether negotiated prices can be changed after funding (default: no; cancel per §6.2, then re-engage).

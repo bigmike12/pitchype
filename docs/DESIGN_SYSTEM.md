@@ -256,6 +256,34 @@ the need before adding it (CLAUDE.md §2).
   so every filtered view is a shareable URL. Cards in a 1/2/3/4-column grid.
   Signed-out visitors get one `brand-sun` prompt explaining what businesses
   see.
+- **Applications** (Stage 5): a creator's campaign page ends with the apply
+  form (price and note) or, once applied, a panel with the status, a
+  `<details>` to change price or note, and Withdraw. `/applications` lists
+  them as `panel` rows with a status pill. The business's applicants page
+  (`/business/campaigns/[id]/applications`) has pill tabs (To decide,
+  Hired, Passed or withdrawn) over one `panel` card per creator: profile
+  facts, "Asks ₦X · your price ₦Y", the note, then actions in one row
+  (Hire, Shortlist, Message, Block; "Pass on this creator" in a
+  `<details>`). Hire opens a native `<dialog>` showing price, fee and total
+  before confirming. The pay page is a receipt `panel`, then an `attention`
+  "Pay within 48 hours" callout and the non-refundable fee callout, then the
+  pay button and "Cancel this hire" in a `<details>`.
+- **Inbox** (`/inbox`, `/inbox/[id]`): the list is one `panel` of threads
+  with an unread pill; the Inbox nav item shows the unread count. A thread
+  is bubbles (own messages ink on the right, theirs white `panel` on the
+  left, time under each), then the composer: a textarea, a one-line reminder
+  to keep contact details out, and Send. A held-back message shows as a
+  danger `Callout` above the composer with the sender's own text; when new
+  activity is paused or blocked, a `Callout` replaces the composer.
+- **Account standing** (`/account/standing`): one `Callout` for the state
+  (success, attention, or danger for paused and suspended), the strikes as
+  a `panel` list (the held-back text in a quote, struck through once
+  removed), then the appeal form or the open appeal and past answers. When
+  someone is paused or suspended, the portal layout shows a banner above
+  every page linking here.
+- **Repeated forms on one page** (a decision per card, an admin action per
+  row) pass their own field `id` (for example `` `note-${applicationId}` ``):
+  ids default to the field name, and duplicates break label links.
 - **Forms:** one column, labels always visible (no placeholder-only fields),
   a full-width primary button, errors under the field they belong to, the
   overall result in `FormMessage`, and a `Notice` when the form is finished.

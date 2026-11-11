@@ -1,6 +1,6 @@
 # Stage 5: applications, approvals, chat and enforcement: design
 
-Date: 2026-11-10. Status: draft for review.
+Date: 2026-11-10. Status: built on branch `stage-5-applications` (2026-11-11).
 
 Builds on Stage 4 (campaigns) and the portal shell. Money rules stay in
 CLAUDE.md §6; this stage writes no ledger entries and takes no payments
