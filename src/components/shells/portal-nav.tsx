@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import { Wordmark } from "@/components/brand/wordmark";
 import { CreatorPhoto } from "@/components/creators/creator-photo";
@@ -209,11 +209,14 @@ export function TopBarContent({
   items,
   mainAction,
   signOutAction,
+  bell,
 }: {
   viewer: PortalViewer;
   items: NavItem[];
   mainAction: MainAction;
   signOutAction: SignOut;
+  /** The notifications bell (businesses and creators). */
+  bell?: ReactNode;
 }) {
   const pathname = usePathname();
   const section = sectionLabel(viewer.role, pathname);
@@ -229,6 +232,7 @@ export function TopBarContent({
         {mainAction && (
           <MainActionLink action={mainAction} className="max-sm:hidden" />
         )}
+        {bell}
         <a
           href={`mailto:${CONTACT_EMAIL}`}
           aria-label="Help: email us"

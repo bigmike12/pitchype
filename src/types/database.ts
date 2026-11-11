@@ -805,6 +805,44 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          data: Json
+          group_key: string | null
+          id: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          occurred_at: string
+          read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          data?: Json
+          group_key?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          occurred_at?: string
+          read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          data?: Json
+          group_key?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["notification_kind"]
+          occurred_at?: string
+          read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profile_reports: {
         Row: {
           created_at: string
@@ -1182,6 +1220,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      display_name_of: { Args: { person: string }; Returns: string }
       edit_application: {
         Args: { application: string; note: string; proposed_price_kobo: number }
         Returns: undefined
@@ -1254,10 +1293,20 @@ export type Database = {
         Args: { conversation: string }
         Returns: undefined
       }
+      mark_notifications_read: { Args: { ids?: string[] }; Returns: number }
       my_applications: { Args: never; Returns: Json }
       my_blocks: { Args: never; Returns: Json }
       my_conversations: { Args: never; Returns: Json }
       new_verification_code: { Args: never; Returns: string }
+      notify: {
+        Args: {
+          facts: Json
+          key?: string
+          person: string
+          what: Database["public"]["Enums"]["notification_kind"]
+        }
+        Returns: undefined
+      }
       open_campaign_count: { Args: never; Returns: number }
       record_strike: {
         Args: { dedupe: string; detail: string; flag: string; person: string }
@@ -1426,6 +1475,24 @@ export type Database = {
         | "strike_voided"
         | "suspension_lifted"
         | "appeal_declined"
+      notification_kind:
+        | "application_received"
+        | "application_updated"
+        | "application_withdrawn"
+        | "campaign_approved"
+        | "campaign_sent_back"
+        | "campaign_taken_down"
+        | "application_shortlisted"
+        | "application_hired"
+        | "application_passed"
+        | "hire_cancelled"
+        | "verification_approved"
+        | "verification_rejected"
+        | "profile_hidden"
+        | "profile_restored"
+        | "hire_lapsed"
+        | "new_message"
+        | "appeal_answered"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -1614,6 +1681,25 @@ export const Constants = {
         "strike_voided",
         "suspension_lifted",
         "appeal_declined",
+      ],
+      notification_kind: [
+        "application_received",
+        "application_updated",
+        "application_withdrawn",
+        "campaign_approved",
+        "campaign_sent_back",
+        "campaign_taken_down",
+        "application_shortlisted",
+        "application_hired",
+        "application_passed",
+        "hire_cancelled",
+        "verification_approved",
+        "verification_rejected",
+        "profile_hidden",
+        "profile_restored",
+        "hire_lapsed",
+        "new_message",
+        "appeal_answered",
       ],
       payment_model: ["fixed", "per_click"],
       report_reason: [

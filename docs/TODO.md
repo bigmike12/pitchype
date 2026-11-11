@@ -156,7 +156,8 @@ Design: `docs/superpowers/specs/2026-11-09-portal-ui-design.md`.
 
 - [ ] Collapse the sidebar to icons once Inbox and Wallet make it longer
       (Stage 5 and 6).
-- [ ] Notification bell in the top bar (Stage 8).
+- [x] Notification bell in the top bar. Built 2026-11-11 (in-app, live); emails
+      off the same table are Stage 8.
 - [ ] Signed-in pages need JavaScript: their content streams in behind
       Suspense, so without it they stay on the loading message. True since
       Stage 2; revisit only if no-JS visitors matter.
@@ -214,6 +215,19 @@ Design: `docs/superpowers/specs/2026-11-10-stage-5-applications-chat-design.md`.
 - [ ] Admin decisions on standing show no confirmation when the row leaves
       the list (lifting a suspension, answering an appeal). The list
       changing is the confirmation; add a toast when toasts arrive.
+
+## 11. From the notifications bell (2026-11-11)
+
+- [ ] Stage 8: email off the `notifications` table (Resend), with
+      per-person preferences; money-critical ones always send (CLAUDE.md §8).
+- [ ] Stages 6–7: add kinds for payments, submissions, auto-release and
+      payouts (a trigger plus a case in `src/lib/notifications.ts`).
+- [ ] The bell shows the latest 20. Add a full `/notifications` page if
+      people need older ones.
+- [ ] Notifications are never deleted. Prune read ones after a few months
+      once the table grows.
+- [ ] Admins have no bell: they check `/admin`. Notify them of new
+      verification requests, reports and first campaigns (Stage 8).
 
 ## Done
 

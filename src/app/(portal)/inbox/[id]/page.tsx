@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { BlockControl } from "@/app/(portal)/account/block-control";
 import { Composer } from "./composer";
 import { LiveUpdates } from "./live-updates";
+import { ReadRefresh } from "./read-refresh";
 
 export const metadata: Metadata = { title: "Conversation" };
 
@@ -157,6 +158,7 @@ async function Conversation({ params }: { params: Params }) {
       </div>
 
       <LiveUpdates conversationId={conversation.id} />
+      {conversation.unread > 0 && <ReadRefresh />}
     </>
   );
 }

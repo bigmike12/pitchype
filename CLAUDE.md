@@ -296,7 +296,9 @@ Notification events (each = in-app via Supabase Realtime + email via Resend, unl
 - Business: new application, influencer submitted completion, review deadline approaching, auto-release occurred, new message.
 - Influencer: application approved/rejected, engagement funded, submission accepted/denied (with reasons), auto-release triggered, payout status, new message, new matching campaign (digest/alert; see §10).
 
-Rules: one `notifications` table is the source of truth; email is a delivery channel off it, not a parallel system. Emails are transactional templates in code; keep them plain and testable. Respect user notification preferences, except for money-critical messages which always send.
+Built so far (2026-11-11): the in-app side. Database triggers write `notifications` rows (kind + facts) wherever an application, hire, message, campaign review, verification, profile visibility or appeal changes; the words and links live in `src/lib/notifications.ts`; the bell in the portal top bar shows them live. Messages are one entry per conversation, cleared when the thread is read. Payment, submission and payout kinds arrive with Stages 6–7; email in Stage 8.
+
+Rules: one `notifications` table is the source of truth; email is a delivery channel off it, not a parallel system. Add new events as triggers (or in the one function that makes the change) plus a case in `describeNotification`; never notify someone of their own action. Emails are transactional templates in code; keep them plain and testable. Respect user notification preferences, except for money-critical messages which always send.
 
 ---
 
