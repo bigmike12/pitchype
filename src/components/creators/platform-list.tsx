@@ -46,8 +46,10 @@ export function PlatformSummary({
           </span>
           {p.verified && (
             <>
+              {/* A solid coral seal with a white tick, so verified accounts
+                  stand out on a card at a glance. */}
               <BadgeCheck
-                className="size-4 text-brand-green"
+                className="size-[1.125rem] fill-brand-coral text-white"
                 aria-hidden="true"
               />
               <span className="sr-only">verified</span>
