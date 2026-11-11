@@ -6,14 +6,34 @@ import { formatNaira } from "@/lib/money";
 
 import { StatusPill } from "./campaign-facts";
 
+type Counts = Map<string, { total: number; waiting: number }>;
+
+/** "3 to decide · 5" or "5", linking to the campaign's applications. */
+function ApplicationsLink({ id, counts }: { id: string; counts: Counts }) {
+  const count = counts.get(id) ?? { total: 0, waiting: 0 };
+  if (count.total === 0) return <span className="text-muted">None yet</span>;
+  return (
+    <Link
+      href={`/business/campaigns/${id}/applications`}
+      className="relative font-semibold underline-offset-4 hover:underline"
+    >
+      {count.waiting > 0 ? `${count.waiting} to decide · ` : ""}
+      {count.total}
+    </Link>
+  );
+}
+
 /**
  * A business's campaigns: a table from 640px, a stacked list on phones. The
- * title is the link to each campaign.
+ * title is the link to each campaign; with `counts`, a column shows the
+ * applications to decide.
  */
 export function CampaignTable({
   campaigns,
+  counts,
 }: {
   campaigns: OwnCampaignSummary[];
+  counts?: Counts;
 }) {
   return (
     <>
@@ -40,6 +60,11 @@ export function CampaignTable({
               {c.places} {c.places === 1 ? "place" : "places"} · closes{" "}
               {formatDay(c.applicationsCloseOn)}
             </p>
+            {counts && (
+              <p className="mt-1 text-sm">
+                Applications: <ApplicationsLink id={c.id} counts={counts} />
+              </p>
+            )}
           </li>
         ))}
       </ul>
@@ -63,6 +88,11 @@ export function CampaignTable({
               <th scope="col" className="px-4 py-3 font-medium">
                 Applications close
               </th>
+              {counts && (
+                <th scope="col" className="px-4 py-3 font-medium">
+                  Applications
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-hairline bg-white text-ink">
@@ -92,6 +122,11 @@ export function CampaignTable({
                 <td className="px-4 py-3 whitespace-nowrap">
                   {formatDay(c.applicationsCloseOn)}
                 </td>
+                {counts && (
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <ApplicationsLink id={c.id} counts={counts} />
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

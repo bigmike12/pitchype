@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth";
+import { getApplicationCounts } from "@/lib/db/applications";
 import { listOwnCampaigns } from "@/lib/db/campaigns";
 import {
   HeaderSkeleton,
@@ -34,7 +35,10 @@ export default function CampaignsPage() {
 
 async function Campaigns() {
   const user = await requireRole("business");
-  const campaigns = await listOwnCampaigns(user.id);
+  const [campaigns, counts] = await Promise.all([
+    listOwnCampaigns(user.id),
+    getApplicationCounts(),
+  ]);
   const newCampaign = (
     <Link href="/business/campaigns/new" className={buttonVariants()}>
       <Plus aria-hidden="true" />
@@ -50,7 +54,7 @@ async function Campaigns() {
         actions={campaigns.length > 0 ? newCampaign : undefined}
       />
       {campaigns.length > 0 ? (
-        <CampaignTable campaigns={campaigns} />
+        <CampaignTable campaigns={campaigns} counts={counts} />
       ) : (
         <EmptyState
           icon={Megaphone}
