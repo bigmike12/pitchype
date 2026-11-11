@@ -12,6 +12,8 @@ import {
 } from "@/lib/db/reports";
 import { reviewVerification } from "@/lib/db/verification";
 import { text, type FormState } from "@/lib/form-data";
+import { answerAppeal, liftSuspension, voidStrike } from "@/lib/db/moderation";
+import { refusalText } from "@/lib/refusals";
 import { deleteProfilePhoto } from "@/lib/storage";
 
 // Each action checks the admin role itself; the database functions check it
@@ -165,4 +167,48 @@ export async function takeDownCampaignAction(form: FormData): Promise<void> {
   await transitionCampaign(campaignId, "take_down", reason);
   await resolveCampaignReport(reportId);
   refresh();
+}
+
+// Account standing -----------------------------------------------------------------------
+// Every decision needs a written reason; the database refuses one without.
+
+export type StandingDecisionState = FormState<"reason">;
+
+export async function standingDecisionAction(
+  _previous: StandingDecisionState,
+  form: FormData,
+): Promise<StandingDecisionState> {
+  await requireRole("admin");
+  const decision = text(form, "decision");
+  const target = text(form, "target");
+  const reason = text(form, "reason").trim();
+  const values = { reason };
+  if (!UUID.test(target)) {
+    return { status: "error", message: "Something went wrong.", values };
+  }
+  const limit = decision === "answer" || decision === "decline" ? 1000 : 200;
+  if (reason.length < 2 || reason.length > limit) {
+    return {
+      status: "error",
+      errors: {
+        reason: `Write 2 to ${limit.toLocaleString("en-NG")} characters.`,
+      },
+      values,
+    };
+  }
+
+  const result =
+    decision === "void"
+      ? await voidStrike(target, reason)
+      : decision === "lift"
+        ? await liftSuspension(target, reason)
+        : decision === "answer" || decision === "decline"
+          ? await answerAppeal(target, reason, decision === "decline")
+          : null;
+  if (!result) return { status: "error", message: "Unknown decision.", values };
+  if (!result.ok) {
+    return { status: "error", message: refusalText(result.reason), values };
+  }
+  refresh();
+  return { status: "success", message: "Done." };
 }

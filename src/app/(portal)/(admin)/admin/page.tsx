@@ -9,6 +9,12 @@ import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth";
+import { formatNaira } from "@/lib/money";
+import {
+  getStandingReview,
+  type StandingReview,
+  type StrikeRecord,
+} from "@/lib/db/moderation";
 import {
   listCampaignsForReview,
   listOpenCampaignReports,
@@ -41,6 +47,7 @@ import {
   unhideCreatorAction,
 } from "./actions";
 import { ReviewForm } from "./review-form";
+import { StandingDecision } from "./standing-review";
 import {
   HeaderSkeleton,
   PageLoading,
@@ -74,21 +81,24 @@ export default function AdminPage() {
 
 async function Admin() {
   await requireRole("admin");
-  const [campaignsToReview, campaignReports, queue, reports, hidden] =
+  const [campaignsToReview, campaignReports, queue, reports, hidden, standing] =
     await Promise.all([
       listCampaignsForReview(),
       listOpenCampaignReports(),
       listVerificationQueue(),
       listOpenReports(),
       listHiddenCreators(),
+      getStandingReview(),
     ]);
 
   return (
     <>
       <PageHeader
         title="Admin"
-        lead="First campaigns to review, verification requests, reports and hidden profiles."
+        lead="Account standing, first campaigns to review, verification requests, reports and hidden profiles."
       />
+
+      <StandingSection review={standing} />
 
       <section aria-labelledby="campaign-review-title" className="mt-10">
         <h2 id="campaign-review-title" className="text-display-md">
@@ -432,5 +442,128 @@ function CampaignReportItem({ report }: { report: OpenCampaignReport }) {
         </form>
       )}
     </li>
+  );
+}
+
+// Account standing ----------------------------------------------------------------------
+// Suspensions (with the person's live campaigns and hires, which suspension
+// leaves unchanged), open appeals, and strikes from the last 30 days.
+
+function StandingSection({ review }: { review: StandingReview }) {
+  return (
+    <section aria-labelledby="standing-title" className="mt-10">
+      <h2 id="standing-title" className="text-display-md">
+        Account standing ({review.suspended.length} suspended,{" "}
+        {review.appeals.length} appeals)
+      </h2>
+
+      {review.appeals.length > 0 && (
+        <ul className="mt-4 space-y-3">
+          {review.appeals.map((a) => (
+            <li key={a.id} className="rounded-card panel p-4 sm:p-5">
+              <p className="font-semibold text-ink">
+                Appeal from {a.name}{" "}
+                <span className="font-normal text-muted">({a.email})</span>
+              </p>
+              <p className="text-sm text-muted">
+                {formatDateTime(a.createdAt)} · {a.activeStrikes} active strikes
+                {a.suspended ? " · suspended" : ""}
+              </p>
+              <p className="mt-2 break-words whitespace-pre-line">
+                {a.message}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-x-6">
+                <StandingDecision decision="answer" target={a.id} />
+                <StandingDecision decision="decline" target={a.id} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {review.suspended.length > 0 && (
+        <ul className="mt-4 space-y-3">
+          {review.suspended.map((p) => (
+            <li key={p.userId} className="rounded-card panel p-4 sm:p-5">
+              <p className="font-semibold text-ink">
+                {p.name}{" "}
+                <span className="font-normal text-muted">
+                  ({p.email}, {p.role})
+                </span>
+              </p>
+              <p className="text-sm text-muted">
+                Suspended {formatDateTime(p.suspendedAt)}
+              </p>
+              <StrikeList strikes={p.strikes} />
+              {(p.campaigns.length > 0 || p.engagements.length > 0) && (
+                <p className="mt-3 text-sm">
+                  Unchanged by the suspension:{" "}
+                  {[
+                    ...p.campaigns.map(
+                      (k) => `campaign “${k.title}” (${k.status})`,
+                    ),
+                    ...p.engagements.map(
+                      (e) =>
+                        `hire on “${e.campaignTitle}” at ${formatNaira(e.agreedPriceKobo)} (${e.status})`,
+                    ),
+                  ].join("; ")}
+                  .
+                </p>
+              )}
+              <div className="mt-3">
+                <StandingDecision decision="lift" target={p.userId} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {review.recentStrikes.length > 0 && (
+        <details className="mt-4">
+          <summary className="cursor-pointer font-semibold text-ink">
+            Strikes in the last 30 days ({review.recentStrikes.length})
+          </summary>
+          <ul className="mt-3 divide-y divide-hairline rounded-card panel">
+            {review.recentStrikes.map((s) => (
+              <li key={s.id} className="p-4">
+                <p className="font-semibold text-ink">
+                  {s.name}{" "}
+                  <span className="font-normal text-muted">({s.email})</span>
+                </p>
+                <StrikeList strikes={[s]} />
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {review.appeals.length === 0 &&
+        review.suspended.length === 0 &&
+        review.recentStrikes.length === 0 && (
+          <p className="mt-4 text-muted">Nothing to review.</p>
+        )}
+    </section>
+  );
+}
+
+function StrikeList({ strikes }: { strikes: StrikeRecord[] }) {
+  return (
+    <ul className="mt-2 space-y-2">
+      {strikes.map((s) => (
+        <li key={s.id} className="text-sm">
+          <span
+            className={s.voided ? "line-through" : "font-semibold text-ink"}
+          >
+            {s.flag}
+          </span>{" "}
+          · {formatDateTime(s.createdAt)}
+          {s.voided && " · removed"}
+          <blockquote className="mt-1 border-l-2 border-hairline pl-3 break-words whitespace-pre-line">
+            {s.detail}
+          </blockquote>
+          {!s.voided && <StandingDecision decision="void" target={s.id} />}
+        </li>
+      ))}
+    </ul>
   );
 }
