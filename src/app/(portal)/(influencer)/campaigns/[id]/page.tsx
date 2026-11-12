@@ -20,11 +20,14 @@ import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth";
 import { creatorReceivesKobo, formatDay, problemText } from "@/lib/campaign";
 import { formatDate } from "@/lib/creator-profile";
+import { listMyApplications } from "@/lib/db/applications";
 import { getCampaign } from "@/lib/db/campaigns";
 import { listNiches } from "@/lib/db/creators";
 import { formatNaira } from "@/lib/money";
 import { stateLabel } from "@/lib/profile";
 
+import { ApplicationPanel } from "./application-panel";
+import { ApplyForm } from "./apply-form";
 import { CampaignReportForm } from "./report-form";
 import {
   HeaderSkeleton,
@@ -64,10 +67,14 @@ async function Campaign({ params }: { params: Params }) {
   const campaign = await getCampaign(id);
   if (!campaign) notFound();
 
-  const niches = await listNiches();
+  const isCreator = user.role === "influencer";
+  const [niches, myApplications] = await Promise.all([
+    listNiches(),
+    isCreator ? listMyApplications() : Promise.resolve([]),
+  ]);
+  const application = myApplications.find((a) => a.campaign.id === campaign.id);
   const nicheName = new Map(niches.map((n) => [n.slug, n.name]));
   const nicheNames = campaign.niches.flatMap((s) => nicheName.get(s) ?? []);
-  const isCreator = user.role === "influencer";
   const qualifies = campaign.problems.length === 0;
 
   return (
@@ -128,15 +135,28 @@ async function Campaign({ params }: { params: Params }) {
       </dl>
 
       {isCreator &&
-        (qualifies ? (
-          <Callout
-            tone="success"
-            icon={BadgeCheck}
-            title="You qualify for this campaign"
-            className="mt-6"
+        (application ? (
+          <ApplicationPanel application={application} />
+        ) : qualifies && campaign.priceKobo !== null ? (
+          <section
+            aria-labelledby="apply-title"
+            className="mt-6 rounded-card panel p-5 sm:p-6"
           >
-            Applying opens soon. We’ll let you know when you can.
-          </Callout>
+            <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+              <BadgeCheck
+                className="size-4 text-brand-green"
+                aria-hidden="true"
+              />
+              You qualify for this campaign
+            </p>
+            <h2 id="apply-title" className="mt-2 mb-5 text-display-md">
+              Apply
+            </h2>
+            <ApplyForm
+              campaignId={campaign.id}
+              campaignPriceKobo={campaign.priceKobo}
+            />
+          </section>
         ) : (
           <Callout
             tone="info"

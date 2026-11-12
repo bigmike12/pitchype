@@ -1,9 +1,25 @@
 "use server";
 
-import { requireUser } from "@/lib/auth";
-import { reportCampaign, type CampaignReportReason } from "@/lib/db/campaigns";
+import { refresh } from "next/cache";
+
+import {
+  parseApplicationForm,
+  type ApplicationField,
+} from "@/lib/applications";
+import { requireRole, requireUser } from "@/lib/auth";
+import {
+  applyToCampaign,
+  editApplication,
+  withdrawApplication,
+} from "@/lib/db/applications";
+import {
+  getCampaign,
+  reportCampaign,
+  type CampaignReportReason,
+} from "@/lib/db/campaigns";
 import { text, type FormState } from "@/lib/form-data";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { refusalText } from "@/lib/refusals";
 
 export type CampaignReportState = FormState<"reason" | "note">;
 
@@ -79,4 +95,65 @@ export async function reportCampaignAction(
     status: "success",
     message: "Thanks. Our team will look at this campaign.",
   };
+}
+
+// Applying ----------------------------------------------------------------------------
+
+export type ApplyState = FormState<ApplicationField>;
+
+const isApplyLimited = createRateLimiter({
+  maxAttempts: 10,
+  windowMs: 10 * 60 * 1000,
+});
+
+/**
+ * Applies, or edits an application when `applicationId` is set. The price
+ * is checked against the campaign as the server reads it, never the form;
+ * eligibility, places and standing are checked by the database.
+ */
+export async function applyAction(
+  _previous: ApplyState,
+  form: FormData,
+): Promise<ApplyState> {
+  const user = await requireRole("influencer");
+  const campaignId = text(form, "campaignId");
+  const applicationId = text(form, "applicationId");
+  const values = { price: text(form, "price"), note: text(form, "note") };
+
+  if (isApplyLimited(user.id)) {
+    return {
+      status: "error",
+      message: "Too many tries. Wait a few minutes, then try again.",
+      values,
+    };
+  }
+  const campaign = await getCampaign(campaignId);
+  if (!campaign || campaign.priceKobo === null) {
+    return { status: "error", message: refusalText("campaign_closed"), values };
+  }
+  const parsed = parseApplicationForm(form, campaign.priceKobo);
+  if (!parsed.ok) {
+    return { status: "error", errors: parsed.errors, values: parsed.values };
+  }
+
+  const result = applicationId
+    ? await editApplication(applicationId, parsed.value)
+    : await applyToCampaign(campaign.id, parsed.value);
+  if (!result.ok) {
+    return { status: "error", message: refusalText(result.reason), values };
+  }
+  refresh();
+  return {
+    status: "success",
+    message: applicationId
+      ? "Saved. The business sees your new price and note."
+      : "Applied. The business can now see your application.",
+    values,
+  };
+}
+
+export async function withdrawAction(form: FormData): Promise<void> {
+  await requireRole("influencer");
+  await withdrawApplication(text(form, "applicationId"));
+  refresh();
 }

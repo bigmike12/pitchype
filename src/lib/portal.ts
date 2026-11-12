@@ -4,9 +4,22 @@
 
 export type PortalRole = "business" | "influencer" | "admin";
 
-export type NavIcon = "home" | "campaigns" | "creators" | "profile" | "admin";
+export type NavIcon =
+  | "home"
+  | "campaigns"
+  | "creators"
+  | "applications"
+  | "profile"
+  | "inbox"
+  | "admin";
 
-export type NavItem = { href: string; label: string; icon: NavIcon };
+export type NavItem = {
+  href: string;
+  label: string;
+  icon: NavIcon;
+  /** A count shown on the link, e.g. unread messages. */
+  badge?: number;
+};
 
 /** Who the shell is drawn for. */
 export type PortalViewer = {
@@ -17,6 +30,8 @@ export type PortalViewer = {
   photoUrl: string | null;
   /** Signed up but no profile yet: every portal page sends them to onboarding. */
   needsOnboarding: boolean;
+  /** Unread chat messages, for the Inbox link. */
+  unread: number;
 };
 
 const NAV: Record<PortalRole, NavItem[]> = {
@@ -24,11 +39,14 @@ const NAV: Record<PortalRole, NavItem[]> = {
     { href: "/home", label: "Home", icon: "home" },
     { href: "/business/campaigns", label: "Campaigns", icon: "campaigns" },
     { href: "/business/creators", label: "Find creators", icon: "creators" },
+    { href: "/inbox", label: "Inbox", icon: "inbox" },
   ],
   influencer: [
     { href: "/home", label: "Home", icon: "home" },
     { href: "/campaigns", label: "Campaigns", icon: "campaigns" },
+    { href: "/applications", label: "Applications", icon: "applications" },
     { href: "/profile", label: "Your profile", icon: "profile" },
+    { href: "/inbox", label: "Inbox", icon: "inbox" },
   ],
   admin: [{ href: "/admin", label: "Admin", icon: "admin" }],
 };

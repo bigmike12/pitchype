@@ -89,7 +89,7 @@ async function Campaigns({ searchParams }: { searchParams: SearchParams }) {
     <>
       <PageHeader
         title="Campaigns"
-        lead="Paid work from businesses. Each campaign shows whether you qualify, and what to change if you don’t. Applying opens soon."
+        lead="Paid work from businesses. Each campaign shows whether you qualify, and what to change if you don’t. Apply to the ones that fit."
       />
 
       <form

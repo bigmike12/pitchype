@@ -59,6 +59,8 @@ export type CreatorCard = {
 };
 
 export type CreatorPage = CreatorCard & {
+  /** Our user id, for messaging and blocking from the business portal. */
+  userId: string;
   /** Null when empty, or when this viewer may not see it. */
   bio: string | null;
   allowIndexing: boolean;
@@ -110,6 +112,7 @@ export const getListedCreator = cache(
     if (error) throw new Error(`creator lookup failed (${error.code})`);
     if (!data) return null;
     return {
+      userId: data.user_id,
       slug: data.slug,
       displayName: data.display_name,
       photoUrl: profilePhotoUrl(data.user_id, data.photo_version ?? null),
@@ -137,7 +140,8 @@ export async function listIndexableCreators(): Promise<
 }
 
 // The JSON the directory functions return for platforms; checked, not trusted.
-function toPlatformListings(value: Json): PlatformListing[] {
+// Also used for applicants (src/lib/db/applications.ts).
+export function toPlatformListings(value: Json): PlatformListing[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item): PlatformListing[] => {
     if (!item || typeof item !== "object" || Array.isArray(item)) return [];

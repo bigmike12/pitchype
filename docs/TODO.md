@@ -10,22 +10,22 @@ everything else is code.
 The live database is ready; these are what stand between it and a working
 sign-up email. Details: README, "Auth email setup".
 
-- [ ] **You:** Resend → add the domain `pitchype.com` and its DNS records; wait
+- [x] **You:** Resend → add the domain `pitchype.com` and its DNS records; wait
       for "Verified".
-- [ ] **You:** pick the sender address. The README says `no-reply@pitchype.com`,
+- [x] **You:** pick the sender address. The README says `no-reply@pitchype.com`,
       your env file says `noreply@pitchype.com`. Either works; make the README
       match.
-- [ ] **You:** Supabase → Authentication → Emails → SMTP: host
+- [x] **You:** Supabase → Authentication → Emails → SMTP: host
       `smtp.resend.com`, port `465`, user `resend`, password = Resend API key,
       sender name `Pitchype`.
-- [ ] **You:** Supabase → Emails → Templates: paste
+- [x] **You:** Supabase → Emails → Templates: paste
       `supabase/templates/confirmation.html` ("Confirm your Pitchype account")
       and `recovery.html` ("Reset your Pitchype password").
-- [ ] **You:** Supabase → URL configuration: Site URL
+- [x] **You:** Supabase → URL configuration: Site URL
       `https://www.pitchype.com`; add every other address the app runs on
       (Vercel previews, `http://localhost:3000` for local production builds)
       to Redirect URLs.
-- [ ] **You:** Supabase → Sign in / Providers → Email: "Confirm email" on,
+- [x] **You:** Supabase → Sign in / Providers → Email: "Confirm email" on,
       minimum password length 8. Then raise "emails sent per hour" under Rate
       limits.
 - [ ] Sign up with a real inbox on the live site, confirm, finish onboarding.
@@ -137,11 +137,12 @@ Decisions: `docs/campaign-spec-decisions.md`.
       rule it out.
 - [x] Signed-in pages have no navigation bar (done in the portal UI pass:
       sidebar, top bar and phone drawer).
-- [ ] Tell existing applicants when a live brief changes (Stage 5 creates
-      applicants; Stage 8 sends the notification). The history is already
+- [ ] Tell existing applicants when a live brief changes (applicants exist
+      since Stage 5; Stage 8 sends the notification). The history is already
       kept in `campaign_revisions`.
-- [ ] From Stage 5, stop places dropping below the number of accepted
-      creators (in `campaigns_before_write`).
+- [x] From Stage 5, stop places dropping below the number of accepted
+      creators (in `campaigns_before_write`). Done in Stage 5: places can't
+      drop below the hires held.
 - [ ] Admins aren't alerted to first campaigns waiting for review or to new
       campaign reports (Stage 8); they check `/admin`.
 - [ ] Eligibility is worked out per campaign per creator on every list; add
@@ -155,7 +156,8 @@ Design: `docs/superpowers/specs/2026-11-09-portal-ui-design.md`.
 
 - [ ] Collapse the sidebar to icons once Inbox and Wallet make it longer
       (Stage 5 and 6).
-- [ ] Notification bell in the top bar (Stage 8).
+- [x] Notification bell in the top bar. Built 2026-11-11 (in-app, live); emails
+      off the same table are Stage 8.
 - [ ] Signed-in pages need JavaScript: their content streams in behind
       Suspense, so without it they stay on the loading message. True since
       Stage 2; revisit only if no-JS visitors matter.
@@ -188,6 +190,44 @@ Design: `docs/DESIGN_SYSTEM.md` and CLAUDE.md §4a.
       form. Remove it if nothing needs it by the next design pass.
 - [ ] `docs/design-inspiration-clay.md` still describes the old cream look;
       rewrite or archive it when convenient.
+
+## 10. From building Stage 5 (applications, chat, account standing)
+
+Design: `docs/superpowers/specs/2026-11-10-stage-5-applications-chat-design.md`.
+
+- [ ] **You:** push the Stage 5 migrations (and Stage 4's, if still unpushed) live,
+      and set `CRON_SECRET` in Vercel (the daily lapse job needs it).
+- [ ] Strikes never expire; only an admin removing one lowers the count.
+      Revisit with real data (for example, strikes older than a year stop
+      counting).
+- [ ] Blocking hides nothing in lists: a creator who blocked a business
+      still sees its campaigns. Hide them if people ask.
+- [ ] Stage 6: a suspended account keeps what it's owed. Payouts carry on;
+      any hold must be per payment, with a written reason (spec, "Money").
+- [ ] Stage 6: store that the business saw the non-refundable fee notice on
+      the pay page (CLAUDE.md §6.2). Today the page shows it but nothing
+      records it.
+- [ ] A hire that lapsed or was cancelled can't be re-made for the same
+      application; the creator would apply again (or, once Stage 6 exists,
+      decide on a "hire again" button).
+- [ ] Business home: show new applications waiting for a decision (today the
+      campaign table shows the counts).
+- [ ] Admin decisions on standing show no confirmation when the row leaves
+      the list (lifting a suspension, answering an appeal). The list
+      changing is the confirmation; add a toast when toasts arrive.
+
+## 11. From the notifications bell (2026-11-11)
+
+- [ ] Stage 8: email off the `notifications` table (Resend), with
+      per-person preferences; money-critical ones always send (CLAUDE.md §8).
+- [ ] Stages 6–7: add kinds for payments, submissions, auto-release and
+      payouts (a trigger plus a case in `src/lib/notifications.ts`).
+- [ ] The bell shows the latest 20. Add a full `/notifications` page if
+      people need older ones.
+- [ ] Notifications are never deleted. Prune read ones after a few months
+      once the table grows.
+- [ ] Admins have no bell: they check `/admin`. Notify them of new
+      verification requests, reports and first campaigns (Stage 8).
 
 ## Done
 

@@ -23,6 +23,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth";
 import { formatDay, maxSpend, type CampaignAction } from "@/lib/campaign";
 import { formatDateTime } from "@/lib/creator-profile";
+import { getApplicationCounts } from "@/lib/db/applications";
 import {
   countQualifyingCreators,
   getOwnCampaign,
@@ -73,13 +74,15 @@ async function Campaign({ params }: { params: Params }) {
   const live = ["draft", "pending_review", "open", "paused"].includes(
     campaign.status,
   );
-  const [niches, trusted, qualifying] = await Promise.all([
+  const [niches, trusted, qualifying, counts] = await Promise.all([
     listNiches(),
     campaign.status === "draft"
       ? isTrustedBusiness(user.id)
       : Promise.resolve(true),
     live ? countQualifyingCreators(campaign.id) : Promise.resolve(null),
+    getApplicationCounts(),
   ]);
+  const applications = counts.get(campaign.id) ?? { total: 0, waiting: 0 };
   const nicheName = new Map(niches.map((n) => [n.slug, n.name]));
   const spend = maxSpend(campaign.priceKobo, campaign.places);
 
@@ -99,6 +102,19 @@ async function Campaign({ params }: { params: Params }) {
       <StatusNotice campaign={campaign} trusted={trusted} />
 
       <div className="mt-6 flex flex-wrap items-start gap-3">
+        {campaign.status !== "draft" &&
+          campaign.status !== "pending_review" && (
+            <Link
+              href={`/business/campaigns/${campaign.id}/applications`}
+              className={buttonVariants()}
+            >
+              Applications ({applications.total}
+              {applications.waiting > 0
+                ? `, ${applications.waiting} to decide`
+                : ""}
+              )
+            </Link>
+          )}
         <CampaignActions
           campaignId={campaign.id}
           choices={choicesFor(campaign, trusted)}

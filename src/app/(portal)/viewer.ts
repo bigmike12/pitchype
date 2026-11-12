@@ -1,6 +1,7 @@
 import { cache } from "react";
 
 import { getSignedInUser } from "@/lib/auth";
+import { unreadMessageCount } from "@/lib/db/chat";
 import { getOwnCreatorProfile } from "@/lib/db/creators";
 import { getProfile } from "@/lib/db/profiles";
 import type { PortalViewer } from "@/lib/portal";
@@ -9,7 +10,7 @@ const emailName = (email: string) => email.split("@")[0] || email;
 
 /**
  * Who the portal shell is drawn for: role, a name to show and, for creators,
- * their photo. Null when signed out (the proxy normally sends them to /login
+ * their photo, and unread messages. Null when signed out (the proxy normally sends them to /login
  * first). Before onboarding there's no profile, so the email stands in.
  */
 export const getPortalViewer = cache(async (): Promise<PortalViewer | null> => {
@@ -23,19 +24,27 @@ export const getPortalViewer = cache(async (): Promise<PortalViewer | null> => {
       email: user.email,
       photoUrl: null,
       needsOnboarding: false,
+      unread: 0,
     };
   }
   if (user.role === "influencer") {
-    const profile = await getOwnCreatorProfile(user.id);
+    const [profile, unread] = await Promise.all([
+      getOwnCreatorProfile(user.id),
+      unreadMessageCount(),
+    ]);
     return {
       role: "influencer",
       name: profile?.displayName ?? emailName(user.email),
       email: user.email,
       photoUrl: profile?.photoUrl ?? null,
       needsOnboarding: !profile,
+      unread,
     };
   }
-  const profile = await getProfile(user);
+  const [profile, unread] = await Promise.all([
+    getProfile(user),
+    unreadMessageCount(),
+  ]);
   return {
     role: "business",
     name:
@@ -45,5 +54,6 @@ export const getPortalViewer = cache(async (): Promise<PortalViewer | null> => {
     email: user.email,
     photoUrl: null,
     needsOnboarding: !profile,
+    unread,
   };
 });

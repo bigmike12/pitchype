@@ -4,11 +4,12 @@ Pitchype is a marketplace that connects Nigerian businesses with micro and nano
 creators. Businesses post campaigns or hire creators directly; creators apply,
 do the work, and get paid through escrow once the work is approved.
 
-This repository is at **Stage 4**: the public landing page;
+This repository is at **Stage 5**: the public landing page;
 accounts (sign-up, login, password reset, onboarding, an account page);
 creator profiles with a public directory, handle verification and moderation;
-and campaigns that businesses publish and creators browse. Applying, hiring
-and payments come next. `CLAUDE.md` holds the product rules and
+campaigns that businesses publish and creators browse; and applications,
+hiring up to the pay step, live chat, blocking and account standing.
+Payments and escrow come next (Stage 6). `CLAUDE.md` holds the product rules and
 engineering guidelines; `docs/BUILD_PROMPT.md` holds the stage plan.
 
 ## Stack
@@ -23,7 +24,8 @@ You need Node 22.18 or newer, Docker, and the
 
 ```bash
 npm install
-supabase start                 # local Postgres + API in Docker; applies migrations
+supabase start -x studio,edge-runtime,logflare,vector,supavisor,postgres-meta,imgproxy
+                               # local Postgres, API, auth, storage and Realtime (chat) in Docker
 cp .env.example .env.local     # then fill it in (see below)
 npm run dev                    # http://localhost:3030
 ```
@@ -33,12 +35,13 @@ Local development always points at the local Supabase, never the hosted one.
 
 ## Environment variables
 
-| Name                                   | What it is                                                                                 |
-| -------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `NEXT_PUBLIC_SUPABASE_URL`             | Supabase project URL (local: `http://127.0.0.1:54321`)                                     |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key (`sb_publishable_…`). Safe in the browser; RLS protects the data  |
-| `NEXT_PUBLIC_APP_URL`                  | Public site URL for canonical links, sitemap and social cards, e.g. `https://pitchype.com` |
-| `SUPABASE_SECRET_KEY`                  | **Server-only.** Supabase secret key (`sb_secret_…`), used only to store profile photos    |
+| Name                                   | What it is                                                                                                                                |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | Supabase project URL (local: `http://127.0.0.1:54321`)                                                                                    |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key (`sb_publishable_…`). Safe in the browser; RLS protects the data                                                 |
+| `NEXT_PUBLIC_APP_URL`                  | Public site URL for canonical links, sitemap and social cards, e.g. `https://pitchype.com`                                                |
+| `SUPABASE_SECRET_KEY`                  | **Server-only.** Supabase secret key (`sb_secret_…`), used for profile photos and the lapse job                                           |
+| `CRON_SECRET`                          | **Server-only.** Shared secret for `/api/cron/expire-engagements` (sent as `Authorization: Bearer …`; Vercel Cron sends it automatically) |
 
 The first three are safe to expose. A legacy anon key also works in
 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. The secret key bypasses row level
@@ -84,8 +87,31 @@ supabase test db               # run the pgTAP tests in supabase/tests/
 npm run db:types               # after any schema change
 ```
 
-To apply migrations to a hosted project: `supabase link --project-ref <ref>`
-then `supabase db push`.
+### Pushing migrations to the live database
+
+The repo is already linked to the live project (`supabase/.temp/project-ref`;
+on a new machine run `supabase link --project-ref <ref>` first). Do this
+after the change is merged or ready, never before it's tested locally:
+
+```bash
+supabase migration up            # 1. apply to your LOCAL database (keeps your data)
+supabase test db                 # 2. all database tests must pass
+supabase migration list --linked # 3. Local vs Remote: a blank Remote means "not pushed yet"
+supabase db push --dry-run       # 4. lists what WOULD run on live; changes nothing
+supabase db push                 # 5. applies it to live (asks y/n)
+```
+
+Rules:
+
+- Read the dry-run list: it should be exactly the migrations you expect, in
+  order. If a Remote row has no Local file, stop and work out why first.
+- Never edit a migration that's already been pushed. Add a new file.
+- A pushed migration can't be undone by deleting it. Fix forward with a new
+  migration.
+- Afterwards check Supabase's security advisor (Dashboard, Advisors) and that
+  every table still has RLS on.
+- Take a backup first for anything that rewrites or drops data (Dashboard,
+  Database, Backups).
 
 ### The waitlist table
 
@@ -234,7 +260,7 @@ Decisions: `docs/campaign-spec-decisions.md`; scope and build choices:
 - **Creators** browse open campaigns at `/campaigns`, filter them, and see
   for each one whether they qualify and what to change if not. They can
   report a campaign; admins take campaigns down with a reason the business
-  sees. Applying arrives in Stage 5.
+  sees. They apply from the campaign page (see below).
 - **Visitors** only see the number of open campaigns, on the landing page
   (cached for an hour).
 - **Rules live in the database:** `transition_campaign()` is the one place
@@ -242,6 +268,35 @@ Decisions: `docs/campaign-spec-decisions.md`; scope and build choices:
   proven by `supabase/tests/campaigns_rls.test.sql`. Phone numbers, emails
   and WhatsApp/Telegram links are refused in briefs and in creator bios
   (`src/lib/contact-details.ts`).
+
+## Applications, chat and account standing
+
+Design: `docs/superpowers/specs/2026-11-10-stage-5-applications-chat-design.md`.
+
+- **Creators** apply from a campaign page, at the campaign price or their
+  own (whole naira, at least ₦5,000), with an optional note; they can change
+  it or withdraw while it's undecided. `/applications` lists them.
+- **Businesses** review applicants at `/business/campaigns/[id]/applications`:
+  shortlist, pass (with an optional note) or hire. Hiring creates an
+  engagement waiting for payment and opens the pay page. It lapses after
+  48 hours unpaid, and until Stage 6 it can't be paid. Two hires can never
+  over-fill a campaign, and a price the creator changed since the page
+  loaded is refused.
+- **Chat** at `/inbox`: the business starts a thread; new messages arrive
+  live through Supabase Realtime (the `messages` table is in the
+  `supabase_realtime` publication). Messages with phone numbers, emails or
+  links to other apps aren't delivered and count as strikes: 1 warns, 2
+  pause new activity for 3 days, 3 suspend the account until an admin
+  reviews. People can block each other, see their standing at
+  `/account/standing` and appeal once a day; admins review at `/admin`.
+  Strikes and blocks never touch money (CLAUDE.md §6.5).
+- **The lapse job** is `GET /api/cron/expire-engagements`, run daily (03:00 UTC) by
+  `vercel.json` and protected by `CRON_SECRET`. Any scheduler can call it. A
+  hire is lapsed once its 48 hours have passed, so the cancellation can come
+  up to a day later; the job never touches a hire still inside its window.
+- **Rules live in the database** and are proven by
+  `supabase/tests/applications_rls.test.sql`, `chat_rls.test.sql` and
+  `moderation_rls.test.sql`.
 
 ## Deferred work
 

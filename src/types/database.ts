@@ -34,6 +34,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      applications: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          creator_id: string
+          decision_note: string | null
+          id: string
+          note: string | null
+          proposed_price_kobo: number | null
+          status: Database["public"]["Enums"]["application_status"]
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          creator_id: string
+          decision_note?: string | null
+          id?: string
+          note?: string | null
+          proposed_price_kobo?: number | null
+          status?: Database["public"]["Enums"]["application_status"]
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          creator_id?: string
+          decision_note?: string | null
+          id?: string
+          note?: string | null
+          proposed_price_kobo?: number | null
+          status?: Database["public"]["Enums"]["application_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applications_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "applications_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_profiles: {
         Row: {
           business_name: string
@@ -319,6 +370,162 @@ export type Database = {
           },
         ]
       }
+      conversation_reads: {
+        Row: {
+          conversation_id: string
+          last_read_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          last_read_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          last_read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_reads_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_reads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          application_id: string | null
+          business_id: string
+          created_at: string
+          creator_id: string
+          id: string
+          last_message_at: string | null
+        }
+        Insert: {
+          application_id?: string | null
+          business_id: string
+          created_at?: string
+          creator_id: string
+          id?: string
+          last_message_at?: string | null
+        }
+        Update: {
+          application_id?: string | null
+          business_id?: string
+          created_at?: string
+          creator_id?: string
+          id?: string
+          last_message_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      engagements: {
+        Row: {
+          agreed_price_kobo: number
+          application_id: string
+          approved_at: string
+          business_id: string
+          campaign_id: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          creator_id: string
+          id: string
+          pay_by: string
+          status: Database["public"]["Enums"]["engagement_status"]
+          updated_at: string
+        }
+        Insert: {
+          agreed_price_kobo: number
+          application_id: string
+          approved_at?: string
+          business_id: string
+          campaign_id: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          creator_id: string
+          id?: string
+          pay_by: string
+          status?: Database["public"]["Enums"]["engagement_status"]
+          updated_at?: string
+        }
+        Update: {
+          agreed_price_kobo?: number
+          application_id?: string
+          approved_at?: string
+          business_id?: string
+          campaign_id?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          creator_id?: string
+          id?: string
+          pay_by?: string
+          status?: Database["public"]["Enums"]["engagement_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engagements_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: true
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagements_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagements_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagements_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       influencer_platforms: {
         Row: {
           created_at: string
@@ -426,6 +633,157 @@ export type Database = {
           },
         ]
       }
+      messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          dedupe_key: string
+          id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          dedupe_key: string
+          id?: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          dedupe_key?: string
+          id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      moderation_appeals: {
+        Row: {
+          answer: string | null
+          created_at: string
+          id: string
+          message: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          answer?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          answer?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moderation_appeals_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moderation_appeals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      moderation_events: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          dedupe_key: string | null
+          detail: string | null
+          flag: string | null
+          id: string
+          kind: Database["public"]["Enums"]["moderation_event_kind"]
+          reason: string | null
+          strike_id: string | null
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          detail?: string | null
+          flag?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["moderation_event_kind"]
+          reason?: string | null
+          strike_id?: string | null
+          user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          detail?: string | null
+          flag?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["moderation_event_kind"]
+          reason?: string | null
+          strike_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moderation_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moderation_events_strike_id_fkey"
+            columns: ["strike_id"]
+            isOneToOne: false
+            referencedRelation: "moderation_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moderation_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       niches: {
         Row: {
           created_at: string
@@ -446,6 +804,44 @@ export type Database = {
           sort_order?: number
         }
         Relationships: []
+      }
+      notifications: {
+        Row: {
+          data: Json
+          group_key: string | null
+          id: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          occurred_at: string
+          read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          data?: Json
+          group_key?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          occurred_at?: string
+          read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          data?: Json
+          group_key?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["notification_kind"]
+          occurred_at?: string
+          read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profile_reports: {
         Row: {
@@ -509,27 +905,66 @@ export type Database = {
           },
         ]
       }
+      user_blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_blocks_blocked_id_fkey"
+            columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_blocks_blocker_id_fkey"
+            columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           auth_user_id: string
           created_at: string
           email: string
           id: string
+          messaging_restricted_until: string | null
           role: Database["public"]["Enums"]["user_role"]
+          suspended_at: string | null
         }
         Insert: {
           auth_user_id: string
           created_at?: string
           email: string
           id?: string
+          messaging_restricted_until?: string | null
           role: Database["public"]["Enums"]["user_role"]
+          suspended_at?: string | null
         }
         Update: {
           auth_user_id?: string
           created_at?: string
           email?: string
           id?: string
+          messaging_restricted_until?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          suspended_at?: string | null
         }
         Relationships: []
       }
@@ -721,6 +1156,29 @@ export type Database = {
       }
     }
     Functions: {
+      active_strike_count: { Args: { person: string }; Returns: number }
+      answer_appeal: {
+        Args: { answer: string; appeal: string; decline: boolean }
+        Returns: undefined
+      }
+      apply_to_campaign: {
+        Args: { campaign: string; note: string; proposed_price_kobo: number }
+        Returns: string
+      }
+      approve_application: {
+        Args: { application: string; expected_price_kobo: number }
+        Returns: string
+      }
+      block_user: { Args: { other: string }; Returns: undefined }
+      campaign_application_counts: {
+        Args: never
+        Returns: {
+          campaign_id: string
+          total: number
+          waiting: number
+        }[]
+      }
+      campaign_applications: { Args: { campaign: string }; Returns: Json }
       campaign_card: {
         Args: {
           k: Database["public"]["Tables"]["campaigns"]["Row"]
@@ -732,6 +1190,11 @@ export type Database = {
         Args: { campaign: string; creator: string }
         Returns: Json
       }
+      cancel_engagement: { Args: { engagement: string }; Returns: undefined }
+      check_standing: { Args: { person: string }; Returns: undefined }
+      clean_note: { Args: { note: string }; Returns: string }
+      clean_reason: { Args: { reason: string }; Returns: string }
+      contact_detail_kind: { Args: { body: string }; Returns: string }
       count_qualifying_creators: { Args: { campaign: string }; Returns: number }
       create_app_user: {
         Args: { requested_role: Database["public"]["Enums"]["user_role"] }
@@ -746,12 +1209,30 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      decide_application: {
+        Args: { application: string; decision: string; note: string }
+        Returns: undefined
+      }
       deliverable_kind_allowed: {
         Args: {
           kind: Database["public"]["Enums"]["deliverable_kind"]
           on_platform: Database["public"]["Enums"]["social_platform"]
         }
         Returns: boolean
+      }
+      display_name_of: { Args: { person: string }; Returns: string }
+      edit_application: {
+        Args: { application: string; note: string; proposed_price_kobo: number }
+        Returns: undefined
+      }
+      engagement_details: { Args: { engagement: string }; Returns: Json }
+      engagement_json: {
+        Args: { e: Database["public"]["Tables"]["engagements"]["Row"] }
+        Returns: Json
+      }
+      expire_unpaid_engagements: {
+        Args: { campaign?: string }
+        Returns: number
       }
       follower_range_for: {
         Args: { follower_count: number }
@@ -776,6 +1257,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      held_places: { Args: { campaign: string }; Returns: number }
       indexable_creators: {
         Args: never
         Returns: {
@@ -783,7 +1265,17 @@ export type Database = {
           updated_at: string
         }[]
       }
+      is_blocked_between: { Args: { a: string; b: string }; Returns: boolean }
+      is_participant: {
+        Args: { conversation: string; person: string }
+        Returns: boolean
+      }
+      is_suspended: { Args: { person: string }; Returns: boolean }
       lagos_today: { Args: never; Returns: string }
+      lift_suspension: {
+        Args: { person: string; reason: string }
+        Returns: undefined
+      }
       list_open_campaigns: {
         Args: {
           niche_slug?: string
@@ -797,8 +1289,30 @@ export type Database = {
           total_count: number
         }[]
       }
+      mark_conversation_read: {
+        Args: { conversation: string }
+        Returns: undefined
+      }
+      mark_notifications_read: { Args: { ids?: string[] }; Returns: number }
+      my_applications: { Args: never; Returns: Json }
+      my_blocks: { Args: never; Returns: Json }
+      my_conversations: { Args: never; Returns: Json }
       new_verification_code: { Args: never; Returns: string }
+      notify: {
+        Args: {
+          facts: Json
+          key?: string
+          person: string
+          what: Database["public"]["Enums"]["notification_kind"]
+        }
+        Returns: undefined
+      }
       open_campaign_count: { Args: never; Returns: number }
+      record_strike: {
+        Args: { dedupe: string; detail: string; flag: string; person: string }
+        Returns: Json
+      }
+      relax_standing: { Args: { person: string }; Returns: undefined }
       report_campaign: {
         Args: {
           campaign: string
@@ -825,6 +1339,7 @@ export type Database = {
           id: string
         }[]
       }
+      require_admin: { Args: never; Returns: string }
       resolve_campaign_report: {
         Args: { report_id: string }
         Returns: undefined
@@ -879,10 +1394,21 @@ export type Database = {
           user_id: string
         }[]
       }
+      send_message: {
+        Args: { body: string; conversation: string; dedupe: string }
+        Returns: Json
+      }
       set_creator_hidden: {
         Args: { creator: string; reason: string }
         Returns: undefined
       }
+      standing_problem: { Args: { person: string }; Returns: string }
+      standing_review: { Args: never; Returns: Json }
+      start_conversation: {
+        Args: { application?: string; creator: string }
+        Returns: string
+      }
+      submit_appeal: { Args: { message: string }; Returns: string }
       submit_handle_verification: {
         Args: { request_id: string }
         Returns: undefined
@@ -891,9 +1417,30 @@ export type Database = {
         Args: { action: string; campaign_id: string; note?: string }
         Returns: Database["public"]["Enums"]["campaign_status"]
       }
+      unblock_user: { Args: { other: string }; Returns: undefined }
+      unread_in: {
+        Args: { conversation: string; person: string }
+        Returns: number
+      }
+      unread_message_count: { Args: never; Returns: number }
+      valid_proposed_price: { Args: { price: number }; Returns: boolean }
       viewer_sees_creator_details: { Args: never; Returns: boolean }
+      void_strike: {
+        Args: { reason: string; strike: string }
+        Returns: undefined
+      }
+      withdraw_application: {
+        Args: { application: string }
+        Returns: undefined
+      }
     }
     Enums: {
+      application_status:
+        | "submitted"
+        | "shortlisted"
+        | "approved"
+        | "rejected"
+        | "withdrawn"
       campaign_report_reason:
         | "scam_or_fraud"
         | "banned_content"
@@ -910,7 +1457,42 @@ export type Database = {
         | "completed"
         | "cancelled"
       deliverable_kind: "post" | "reel" | "story" | "video" | "short"
+      engagement_status:
+        | "awaiting_payment"
+        | "funded"
+        | "in_progress"
+        | "submitted"
+        | "accepted"
+        | "denied"
+        | "paid_out"
+        | "disputed"
+        | "auto_released"
+        | "cancelled"
+        | "refunded"
       follower_range: "1k_5k" | "5k_10k" | "10k_50k" | "50k_100k" | "100k_plus"
+      moderation_event_kind:
+        | "strike"
+        | "strike_voided"
+        | "suspension_lifted"
+        | "appeal_declined"
+      notification_kind:
+        | "application_received"
+        | "application_updated"
+        | "application_withdrawn"
+        | "campaign_approved"
+        | "campaign_sent_back"
+        | "campaign_taken_down"
+        | "application_shortlisted"
+        | "application_hired"
+        | "application_passed"
+        | "hire_cancelled"
+        | "verification_approved"
+        | "verification_rejected"
+        | "profile_hidden"
+        | "profile_restored"
+        | "hire_lapsed"
+        | "new_message"
+        | "appeal_answered"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -1055,6 +1637,13 @@ export const Constants = {
   },
   public: {
     Enums: {
+      application_status: [
+        "submitted",
+        "shortlisted",
+        "approved",
+        "rejected",
+        "withdrawn",
+      ],
       campaign_report_reason: [
         "scam_or_fraud",
         "banned_content",
@@ -1073,7 +1662,45 @@ export const Constants = {
         "cancelled",
       ],
       deliverable_kind: ["post", "reel", "story", "video", "short"],
+      engagement_status: [
+        "awaiting_payment",
+        "funded",
+        "in_progress",
+        "submitted",
+        "accepted",
+        "denied",
+        "paid_out",
+        "disputed",
+        "auto_released",
+        "cancelled",
+        "refunded",
+      ],
       follower_range: ["1k_5k", "5k_10k", "10k_50k", "50k_100k", "100k_plus"],
+      moderation_event_kind: [
+        "strike",
+        "strike_voided",
+        "suspension_lifted",
+        "appeal_declined",
+      ],
+      notification_kind: [
+        "application_received",
+        "application_updated",
+        "application_withdrawn",
+        "campaign_approved",
+        "campaign_sent_back",
+        "campaign_taken_down",
+        "application_shortlisted",
+        "application_hired",
+        "application_passed",
+        "hire_cancelled",
+        "verification_approved",
+        "verification_rejected",
+        "profile_hidden",
+        "profile_restored",
+        "hire_lapsed",
+        "new_message",
+        "appeal_answered",
+      ],
       payment_model: ["fixed", "per_click"],
       report_reason: [
         "inappropriate_photo",

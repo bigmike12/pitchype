@@ -15,6 +15,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { getApplicationCounts } from "@/lib/db/applications";
 import { listOwnCampaigns } from "@/lib/db/campaigns";
 import {
   campaignAlerts,
@@ -33,7 +34,10 @@ export async function BusinessHome({
   userId: string;
   contactName: string;
 }) {
-  const campaigns = await listOwnCampaigns(userId);
+  const [campaigns, counts] = await Promise.all([
+    listOwnCampaigns(userId),
+    getApplicationCounts(),
+  ]);
   const alerts = campaignAlerts(campaigns);
 
   return (
@@ -91,7 +95,10 @@ export async function BusinessHome({
           )}
         </div>
         {campaigns.length > 0 ? (
-          <CampaignTable campaigns={campaigns.slice(0, RECENT)} />
+          <CampaignTable
+            campaigns={campaigns.slice(0, RECENT)}
+            counts={counts}
+          />
         ) : (
           <EmptyState
             icon={Megaphone}

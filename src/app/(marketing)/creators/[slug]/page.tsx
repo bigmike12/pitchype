@@ -75,9 +75,13 @@ async function Profile({ params }: { params: Params }) {
   return (
     <CreatorProfileView creator={creator} nicheNames={niches}>
       {creator.detailsVisible ? (
+        // Admins see details too; only businesses can message.
         <p className="mt-8 rounded-card bg-surface-card p-5 text-ink">
-          Messaging and hiring creators open soon. We’ll email you as soon as
-          you can.
+          Message {creator.displayName} from{" "}
+          <Link href={`/business/creators/${creator.slug}`} className="link">
+            their profile in your account
+          </Link>
+          .
         </p>
       ) : (
         <aside className="mt-8 rounded-card p-5 ring-1 ring-hairline aurora-warm sm:p-6">

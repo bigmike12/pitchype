@@ -16,6 +16,7 @@ test("each role gets its own links", () => {
       ["/home", "Home"],
       ["/business/campaigns", "Campaigns"],
       ["/business/creators", "Find creators"],
+      ["/inbox", "Inbox"],
     ],
   );
   assert.deepEqual(
@@ -23,7 +24,9 @@ test("each role gets its own links", () => {
     [
       ["/home", "Home"],
       ["/campaigns", "Campaigns"],
+      ["/applications", "Applications"],
       ["/profile", "Your profile"],
+      ["/inbox", "Inbox"],
     ],
   );
   assert.deepEqual(
@@ -69,4 +72,9 @@ test("greets by first name", () => {
   assert.equal(greeting("Ada Okafor"), "Hi Ada");
   assert.equal(greeting("  Tolu  "), "Hi Tolu");
   assert.equal(greeting(""), "Hi there");
+});
+
+test("a thread keeps Inbox active", () => {
+  assert.equal(isNavActive("/inbox/9f1c", "/inbox"), true);
+  assert.equal(sectionLabel("influencer", "/applications"), "Applications");
 });

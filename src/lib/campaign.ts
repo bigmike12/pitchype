@@ -126,7 +126,8 @@ export function creatorReceivesKobo(priceKobo: number): number {
   return feeExample(priceKobo).influencerReceivesKobo;
 }
 
-function parsePrice(raw: string): { kobo: number } | { error: string } {
+/** Whole naira from ₦5,000 (MIN_PRICE_NAIRA) to MAX_PRICE_NAIRA; used for campaign prices and proposals. */
+export function parsePrice(raw: string): { kobo: number } | { error: string } {
   const cleaned = raw.replace(/[₦,\s]/g, "").replace(/^ngn/i, "");
   if (cleaned === "") return { error: "Enter the price per creator." };
   if (!/^\d+$/.test(cleaned)) {

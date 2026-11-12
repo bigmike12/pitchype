@@ -8,6 +8,7 @@ import {
 } from "@/components/shells/portal-shell";
 
 import { PortalSidebar, PortalTopBar } from "./chrome";
+import { StandingBanner } from "./standing-banner";
 
 // Signed-in pages for every role: never indexed.
 export const metadata: Metadata = {
@@ -28,6 +29,9 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
         </Suspense>
       }
     >
+      <Suspense fallback={null}>
+        <StandingBanner />
+      </Suspense>
       {children}
     </PortalShell>
   );

@@ -7,10 +7,12 @@ import { Suspense, type ReactNode } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth";
+import { listMyBlocks } from "@/lib/db/moderation";
 import { getProfile } from "@/lib/db/profiles";
 
 import { signOutAction } from "../actions";
 import { updateProfileAction } from "./actions";
+import { BlockControl } from "./block-control";
 import { ProfileForm } from "./profile-form";
 import {
   FormSkeleton,
@@ -49,7 +51,10 @@ export default function AccountPage() {
 // /profile), and signing out.
 async function Account() {
   const user = await requireUser();
-  const profile = await getProfile(user);
+  const [profile, blocks] = await Promise.all([
+    getProfile(user),
+    user.role === "admin" ? Promise.resolve([]) : listMyBlocks(),
+  ]);
   if (!profile && user.role !== "admin") redirect("/onboarding");
 
   return (
@@ -105,6 +110,51 @@ async function Account() {
               })}
             >
               Edit your profile
+            </Link>
+          </Section>
+        )}
+
+        {user.role !== "admin" && (
+          <Section id="blocked" title="Blocked people">
+            {blocks.length === 0 ? (
+              <p>
+                You haven’t blocked anyone. Block someone from a conversation or
+                their profile; you won’t be able to message or start new work
+                with each other.
+              </p>
+            ) : (
+              <ul className="divide-y divide-hairline">
+                {blocks.map((b) => (
+                  <li
+                    key={b.id}
+                    className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+                    <span className="min-w-0 truncate font-semibold text-ink">
+                      {b.name}
+                    </span>
+                    <BlockControl
+                      otherId={b.id}
+                      otherName={b.name}
+                      blockedByMe
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+        )}
+
+        {user.role !== "admin" && (
+          <Section id="standing" title="Account standing">
+            <p>Strikes for sharing contact details in messages, and appeals.</p>
+            <Link
+              href="/account/standing"
+              className={buttonVariants({
+                variant: "secondary",
+                className: "mt-5",
+              })}
+            >
+              See your account standing
             </Link>
           </Section>
         )}

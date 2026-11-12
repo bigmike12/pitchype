@@ -177,6 +177,7 @@ the need before adding it (CLAUDE.md §2).
 | Stickers | `brand/stickers.tsx` | `EscrowSticker` (`tone="light"` on dark backgrounds), `ApprovedBadge`, `clay()` shading for shapes. |
 | `ClayTile` | `brand/stickers.tsx` | A glossy rounded square in a pastel (`Tone`: sun, lilac, mint, peach, coral, sky, rose): `clay()` gradient, lit top edge, soft drop, an ink Lucide icon; `md` 36px, `lg` 48px. Our stand-in for 3D icons: onboarding's why-card, action cards, empty states, the creators band. Decorative. |
 | `PageHeader` | `ui/page-header.tsx` | The top of every portal page: optional breadcrumbs (ancestors only, each truncated), the `text-display-page` title with an optional `badge`, a lead, and `actions` (right from 640px, below on phones). |
+| `Popover` | `ui/popover.tsx` | shadcn/ui's popover (Radix), restyled: a white card floating over the page (hairline and `shadow-pop`, `rounded-card`), aligned to the end of its trigger, kept 16px from the screen edges. Focus the panel itself on open (`onOpenAutoFocus`), so a mouse click doesn't ring the first button. Used by the notifications bell. |
 | `Callout` | `ui/callout.tsx` | One style for every status message in the portal. Tones `info` (a `panel`), `attention` (pale butter with a sun outline), `success` (mint), `danger` (white, danger outline and icon). Icon, bold title, text, optional `action`. Quote an admin's note on its own line, so a note ending in a full stop doesn't get a second one. |
 | `Skeleton` and friends | `ui/skeleton.tsx` | shadcn/ui's Skeleton, restyled (`skeleton` utility). `PageLoading` (the fallback wrapper with its screen-reader label), `HeaderSkeleton` (crumbs, action), `SectionTitleSkeleton`, `PanelSkeleton`, `FormSkeleton`, `FiltersSkeleton`, `CardGridSkeleton` (`action`, `creator`, `campaign`), `TableSkeleton` (like `CampaignTable`). Compose them to match the page's real layout so nothing jumps when it arrives. `OnboardingStepSkeleton` (in `onboarding-step.tsx`), `SidebarSkeleton` and `TopBarSkeleton` (in `portal-shell.tsx`). |
 | `EmptyState` | `ui/empty-state.tsx` | What a list shows when it has nothing yet: large clay tile, title, one line, optional action. With no results, keep the results count for screen readers only (`sr-only`) so the message isn't repeated. |
@@ -189,7 +190,7 @@ the need before adding it (CLAUDE.md §2).
 | `CreatorPhoto` | `creators/creator-photo.tsx` | A real creator's square photo (`rounded-card`), or their initials on a brand colour picked from their name. Decorative: the name is always beside it. Not `Avatar`, which is for fictional people. |
 | `CreatorCard` | `creators/creator-card.tsx` | A directory card: photo, name (the link, stretched over the card), location, niche chips, platform summary, and the rate line for viewers who may see it. `href` is the profile page; `null` for a preview with no link. |
 | `PlatformIcon` | `creators/platform-icon.tsx` | Line glyphs for Instagram, TikTok, YouTube and X in Lucide's style. Always next to the platform's name (visible or `sr-only`). |
-| `PlatformSummary`, `PlatformDetails`, `VerifiedMark` | `creators/platform-list.tsx` | Followers as "10K–50K" or a verified count, labelled "Self-reported, updated …" or "Verified, as of …". `VerifiedMark` is the mint "Verified" pill. |
+| `PlatformSummary`, `PlatformDetails`, `VerifiedMark` | `creators/platform-list.tsx` | Followers as "10K–50K" or a verified count, labelled "Self-reported, updated …" or "Verified, as of …". `VerifiedMark` is the mint "Verified" pill; on cards (`PlatformSummary`) a verified platform gets a solid `brand-coral` seal with a white tick. |
 | Shells | `shells/auth-shell.tsx`, `shells/portal-shell.tsx` (+ `portal-nav.tsx`), `shells/onboarding-shell.tsx`, `app/(marketing)/layout.tsx` | See below. |
 
 ## Page patterns
@@ -256,6 +257,35 @@ the need before adding it (CLAUDE.md §2).
   so every filtered view is a shareable URL. Cards in a 1/2/3/4-column grid.
   Signed-out visitors get one `brand-sun` prompt explaining what businesses
   see.
+- **Applications** (Stage 5): a creator's campaign page ends with the apply
+  form (price and note) or, once applied, a panel with the status, a
+  `<details>` to change price or note, and Withdraw. `/applications` lists
+  them as `panel` rows with a status pill. The business's applicants page
+  (`/business/campaigns/[id]/applications`) has pill tabs (To decide,
+  Hired, Passed or withdrawn) over one `panel` card per creator: profile
+  facts, "Asks ₦X · your price ₦Y", the note, then actions in one row
+  (Hire, Shortlist, Message, Block; "Pass on this creator" in a
+  `<details>`). Hire opens a native `<dialog>` showing price, fee and total
+  before confirming. The pay page is a receipt `panel`, then an `attention`
+  "Pay within 48 hours" callout and the non-refundable fee callout, then the
+  pay button and "Cancel this hire" in a `<details>`.
+- **Inbox** (`/inbox`, `/inbox/[id]`): the list is one `panel` of threads
+  with an unread pill; the Inbox nav item shows the unread count. A thread
+  is bubbles (own messages ink on the right, theirs white `panel` on the
+  left, time under each), then the composer: a textarea, a one-line reminder
+  to keep contact details out, and Send. A held-back message shows as a
+  danger `Callout` above the composer with the sender's own text; when new
+  activity is paused or blocked, a `Callout` replaces the composer.
+- **Account standing** (`/account/standing`): one `Callout` for the state
+  (success, attention, or danger for paused and suspended), the strikes as
+  a `panel` list (the held-back text in a quote, struck through once
+  removed), then the appeal form or the open appeal and past answers. When
+  someone is paused or suspended, the portal layout shows a banner above
+  every page linking here.
+- **Notifications bell** (top bar, businesses and creators): a ghost icon button with a small `brand-coral` count (9+ past nine) and an aria-label carrying the count. It opens a `Popover`, up to 24rem wide: "Notifications" and "Mark all as read", then the latest 20 as full-width rows: a violet dot and bold title when unread, an optional muted second line (a note or message preview, two lines at most) and the time. Clicking a row marks it read and goes to its page.
+- **Repeated forms on one page** (a decision per card, an admin action per
+  row) pass their own field `id` (for example `` `note-${applicationId}` ``):
+  ids default to the field name, and duplicates break label links.
 - **Forms:** one column, labels always visible (no placeholder-only fields),
   a full-width primary button, errors under the field they belong to, the
   overall result in `FormMessage`, and a `Notice` when the form is finished.

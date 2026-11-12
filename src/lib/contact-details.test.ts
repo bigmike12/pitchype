@@ -39,3 +39,25 @@ test("leaves ordinary brief text alone", () => {
     assert.equal(findContactDetails(text), null, text);
   }
 });
+
+// Chat strikes (Stage 5) depend on these not being flagged. The same strings
+// are checked against the database's copy of the patterns in
+// supabase/tests/moderation_rls.test.sql; keep the two lists in step.
+test("chat: ordinary messages aren't flagged", () => {
+  for (const text of [
+    "Can you do it for ₦50,000?",
+    "Deliver by 12/12/2026 please",
+    "Call me at 5pm on the app",
+    "Tag @brightside.ng in the reel",
+    "2 reels and 3 stories",
+  ]) {
+    assert.equal(findContactDetails(text), null, text);
+  }
+});
+
+test("chat: a phone number in a message is flagged", () => {
+  assert.equal(
+    findContactDetails("0803 123 4567 is my number"),
+    "phone number",
+  );
+});
