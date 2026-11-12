@@ -54,7 +54,7 @@ async function Campaigns() {
         actions={campaigns.length > 0 ? newCampaign : undefined}
       />
       {campaigns.length > 0 ? (
-        <CampaignTable campaigns={campaigns} counts={counts} />
+        <CampaignTable campaigns={campaigns} counts={counts} showCount />
       ) : (
         <EmptyState
           icon={Megaphone}

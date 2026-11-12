@@ -166,7 +166,8 @@ the need before adding it (CLAUDE.md §2).
 | Component | File | Notes |
 |---|---|---|
 | `Button`, `buttonVariants` | `ui/button.tsx` | shadcn/ui's Button, restyled. `default` (ink, `shadow-button`), `secondary` (white, `hairline-strong` outline, `shadow-card`), `light` (on dark surfaces), `ghost` (4% ink wash). Sizes `default` (44px), `lg` (48px), `icon`. Use `buttonVariants` to style links as buttons. |
-| `TextField`, `SelectField`, `TextAreaField` | `ui/field.tsx` | Visible label, optional leading `icon` (not on text areas), `hint`, `error`, `labelAside` (e.g. "Forgot your password?"); `TextAreaField` also takes `optional`. |
+| `TextField`, `SelectField`, `TextAreaField` | `ui/field.tsx` | Visible label, optional leading `icon` (not on text areas), `hint`, `error`, `labelAside` (e.g. "Forgot your password?"); `TextAreaField` also takes `optional`. `SelectField` takes `compact` (44px control, `text-sm` label) for filter toolbars. |
+| `FilterBar`, `filterHref` | `ui/filter-bar.tsx` | The toolbar above a campaign or creator list: a plain GET `panel` form with a header strip (filters icon, a lilac count of active filters, "Clear all"), a grid of `compact` fields, and a `surface-soft` footer holding the active filters as removable chips (each a link to the same page without that filter, with "Remove … filter" for screen readers) and the submit button. `filterHref(action, params)` builds those links. Used by the creator directory (public and portal) and the creator's campaigns list. |
 | `PasswordField` | `ui/password-field.tsx` | Adds a Show button. |
 | `ChoiceGroup` | `ui/choice-group.tsx` | One choice from 2–3 options, on real radio buttons. `variant="pills"` (compact, label only; not used at the moment) or `variant="cards"` (stacked, with icon, tone and a one-line description; the sign-up account type). Controlled (`value` + `onValueChange`) or not (`defaultValue`). |
 | `FormMessage` | `ui/form-message.tsx` | The form's overall result, just above the submit button. Always rendered (announces changes). |
@@ -181,8 +182,8 @@ the need before adding it (CLAUDE.md §2).
 | `Callout` | `ui/callout.tsx` | One style for every status message in the portal. Tones `info` (a `panel`), `attention` (pale butter with a sun outline), `success` (mint), `danger` (white, danger outline and icon). Icon, bold title, text, optional `action`. Quote an admin's note on its own line, so a note ending in a full stop doesn't get a second one. |
 | `Skeleton` and friends | `ui/skeleton.tsx` | shadcn/ui's Skeleton, restyled (`skeleton` utility). `PageLoading` (the fallback wrapper with its screen-reader label), `HeaderSkeleton` (crumbs, action), `SectionTitleSkeleton`, `PanelSkeleton`, `FormSkeleton`, `FiltersSkeleton`, `CardGridSkeleton` (`action`, `creator`, `campaign`), `TableSkeleton` (like `CampaignTable`). Compose them to match the page's real layout so nothing jumps when it arrives. `OnboardingStepSkeleton` (in `onboarding-step.tsx`), `SidebarSkeleton` and `TopBarSkeleton` (in `portal-shell.tsx`). |
 | `EmptyState` | `ui/empty-state.tsx` | What a list shows when it has nothing yet: large clay tile, title, one line, optional action. With no results, keep the results count for screen readers only (`sr-only`) so the message isn't repeated. |
-| `ActionCard` | `ui/action-card.tsx` | A quick action (Clay-style): a `panel` with a clay tile, title and one line; the whole card is one link. Lifts on hover and shows an arrow in the corner. |
-| `CampaignTable` | `campaigns/campaign-table.tsx` | A business's campaigns: a table from 640px (titles wrap), a stacked list on phones (titles truncate). |
+| `ActionCard` | `ui/action-card.tsx` | A quick action (Clay-style): a `panel` with a large clay tile, title and one line; the whole card is one link. Lifts on hover; a small round arrow chip in the corner turns ink on hover. |
+| `CampaignTable` | `campaigns/campaign-table.tsx` | A business's campaigns. The table pattern: a `surface-soft/60` head with 13px muted column titles, 20px cell padding, a hairline between rows, hover wash, money and counts right-aligned in `tabular-nums`, the title as the stretched row link with a muted second line, a chevron that nudges on hover, and optional `showCount` footer ("6 campaigns"). "N to decide" is a lilac pill above the row's link, so it stays clickable. From 640px a table (titles wrap), on phones a stacked list (titles truncate). `StatusPill` carries a small dot in the pill's own colour. |
 | `NichePicker` | `creators/niche-picker.tsx` | Niche pills (checkboxes named `niches`), up to three; controlled. Profile editor and onboarding. |
 | `Directory`, `DirectoryFilters`, `CreatorProfileView` | `creators/directory.tsx`, `creators/directory-filters.tsx`, `creators/creator-profile-view.tsx` | The creator directory and a profile, shared by the public pages (`basePath="/creators"`) and the business portal (`/business/creators`). |
 | Illustrations | `landing/hero-illustration.tsx`, `brand/auth-scene.tsx` | Built from the fragments and stickers. Stickers sit only over empty areas. |
@@ -249,12 +250,11 @@ the need before adding it (CLAUDE.md §2).
   and let tables and grids use the full width. Cards are `panel`s; tinted
   fills are only for callouts, pills, tiles and quiet boxes. Status is a `Callout`, empty lists an
   `EmptyState`, quick actions `ActionCard`s, figures white outlined stat
-  cards. Filter forms are a white outlined toolbar.
+  cards. Filter forms are a `FilterBar`.
 - **Directory pages:** the public pages use the marketing layout; the business
-  portal has the same directory at `/business/creators`. Filters are a plain
-  GET form (a `surface-soft` panel in public, a white `panel` toolbar in the
-  portal),
-  so every filtered view is a shareable URL. Cards in a 1/2/3/4-column grid.
+  portal has the same directory at `/business/creators`. Filters are a `FilterBar`
+  (a plain GET form, the same white `panel` toolbar in public and in the
+  portal), so every filtered view is a shareable URL. Cards in a 1/2/3/4-column grid. Cards (creator, campaign) keep their footer facts below a hairline, so prices and platforms line up across a row; a creator's photo is 5:4.
   Signed-out visitors get one `brand-sun` prompt explaining what businesses
   see.
 - **Applications** (Stage 5): a creator's campaign page ends with the apply

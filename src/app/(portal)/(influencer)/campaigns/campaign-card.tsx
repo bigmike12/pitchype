@@ -56,13 +56,13 @@ export function CampaignCard({
         {campaign.businessName}, {campaign.businessCity}
       </p>
 
-      <p className="mt-4 text-sm text-ink">
+      <p className="mt-4 mb-5 text-sm text-ink">
         {campaign.deliverables.map(deliverableText).join(", ")}
       </p>
 
-      <div className="mt-auto pt-5">
+      <div className="mt-auto border-t border-hairline pt-4">
         {campaign.priceKobo !== null && (
-          <p className="text-display-md">
+          <p className="text-display-md tabular-nums">
             {formatNaira(campaign.priceKobo)}
             <span className="ml-2 align-middle font-sans text-sm font-normal text-muted">
               you receive {formatNaira(creatorReceivesKobo(campaign.priceKobo))}
