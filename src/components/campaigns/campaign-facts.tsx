@@ -42,10 +42,11 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex rounded-full px-2.5 py-1 text-xs font-semibold",
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap",
         takenDown ? "bg-surface-card text-danger" : STATUS_TONES[status],
       )}
     >
+      <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
       {takenDown ? "Taken down" : STATUS_LABELS[status]}
     </span>
   );

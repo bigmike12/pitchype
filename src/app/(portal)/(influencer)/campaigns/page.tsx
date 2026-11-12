@@ -4,9 +4,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SelectField } from "@/components/ui/field";
+import {
+  FilterBar,
+  filterHref,
+  type ActiveFilter,
+} from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth";
 import { PLATFORM_RULES, PLATFORMS, isPlatform } from "@/lib/creator-profile";
@@ -85,6 +90,36 @@ async function Campaigns({ searchParams }: { searchParams: SearchParams }) {
     return s ? `/campaigns?${s}` : "/campaigns";
   };
 
+  const current = {
+    niche,
+    platform,
+    qualified: qualifiedOnly ? "1" : undefined,
+  };
+  const without = (key: keyof typeof current) =>
+    filterHref("/campaigns", { ...current, [key]: undefined });
+  const active: ActiveFilter[] = [];
+  if (niche) {
+    active.push({
+      label: "Niche",
+      value: nicheName.get(niche) ?? niche,
+      href: without("niche"),
+    });
+  }
+  if (platform) {
+    active.push({
+      label: "Platform",
+      value: PLATFORM_RULES[platform].label,
+      href: without("platform"),
+    });
+  }
+  if (qualifiedOnly) {
+    active.push({
+      label: "Show",
+      value: "Campaigns I qualify for",
+      href: without("qualified"),
+    });
+  }
+
   return (
     <>
       <PageHeader
@@ -92,52 +127,45 @@ async function Campaigns({ searchParams }: { searchParams: SearchParams }) {
         lead="Paid work from businesses. Each campaign shows whether you qualify, and what to change if you don’t. Apply to the ones that fit."
       />
 
-      <form
-        method="get"
+      <FilterBar
         action="/campaigns"
-        aria-label="Filter campaigns"
-        className="rounded-card panel p-4 sm:p-5"
+        label="Filter campaigns"
+        submitLabel="Show campaigns"
+        active={active}
+        fieldsClassName="grid sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
       >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <SelectField
-            label="Niche"
-            name="niche"
-            placeholder="Any niche"
-            options={niches.map((n) => ({ value: n.slug, label: n.name }))}
-            defaultValue={niche ?? ""}
-          />
-          <SelectField
-            label="Platform"
-            name="platform"
-            placeholder="Any platform"
-            options={PLATFORMS.map((p) => ({
-              value: p,
-              label: PLATFORM_RULES[p].label,
-            }))}
-            defaultValue={platform ?? ""}
-          />
-        </div>
-        <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
-          {user.role === "influencer" && (
-            <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-ink">
-              <input
-                type="checkbox"
-                name="qualified"
-                value="1"
-                defaultChecked={qualifiedOnly}
-                className="size-5 accent-ink"
-              />
-              Only campaigns I qualify for
-            </label>
-          )}
-          <Button type="submit">Show campaigns</Button>
-          {(niche || platform || qualifiedOnly) && (
-            <Link href="/campaigns" className="link text-sm font-medium">
-              Clear filters
-            </Link>
-          )}
-        </div>
-      </form>
+        <SelectField
+          compact
+          label="Niche"
+          name="niche"
+          placeholder="Any niche"
+          options={niches.map((n) => ({ value: n.slug, label: n.name }))}
+          defaultValue={niche ?? ""}
+        />
+        <SelectField
+          compact
+          label="Platform"
+          name="platform"
+          placeholder="Any platform"
+          options={PLATFORMS.map((p) => ({
+            value: p,
+            label: PLATFORM_RULES[p].label,
+          }))}
+          defaultValue={platform ?? ""}
+        />
+        {user.role === "influencer" && (
+          <label className="flex h-11 cursor-pointer items-center gap-2.5 self-end rounded-control border border-field bg-surface px-3.5 text-[0.9375rem] text-ink shadow-[0_1px_2px_rgb(14_14_16/0.04)] has-[:checked]:border-ink has-[:checked]:bg-surface-soft sm:col-span-2 lg:col-span-1">
+            <input
+              type="checkbox"
+              name="qualified"
+              value="1"
+              defaultChecked={qualifiedOnly}
+              className="size-4.5 accent-ink"
+            />
+            Only campaigns I qualify for
+          </label>
+        )}
+      </FilterBar>
 
       <section aria-labelledby="results-title" className="mt-10">
         <h2 id="results-title" className="sr-only">
