@@ -299,7 +299,7 @@ real figure comes from the verify response)
 |---|---|---|
 | 1. Business pays ₦52,500 by card | Paystack charge ≈ ₦954 booked to `paystack_fees`. Escrow ₦50,000; business fee ₦2,500 to platform revenue | Paystack cash ₦51,546 net; owed to the hire ₦50,000; revenue ₦2,500 |
 | 2. Work accepted | Escrow ₦50,000 → creator wallet ₦47,500; creator fee ₦2,500 to platform revenue | Creator sees ₦47,500; still in Paystack |
-| 3. Creator requests ₦47,500; admin approves | On request, wallet → payout in flight. On approval, the ₦50 transfer fee is taken from the creator's payout and the transfer is sent | Paystack sends ₦47,450 to the bank; Paystack's ₦50 charge is recovered from the creator, so the platform's net cost is zero |
+| 3. Creator requests ₦47,500; admin approves | On request, wallet → payout in flight. On approval, the ₦75 transfer cost (₦25 tier fee + ₦50 stamp duty) is taken from the creator's payout and the transfer is sent | Paystack sends ₦47,425 to the bank; Paystack's ₦75 cost is recovered from the creator, so the platform's net cost is zero |
 | 4a. Transfer succeeds | Payout `paid`. Cash has left Paystack | Nothing left in the trail to move |
 | 4b. Transfer fails | Reversing group re-credits the creator wallet ₦47,500 | Creator wallet ₦47,500 again |
 
