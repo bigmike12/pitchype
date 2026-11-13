@@ -15,10 +15,12 @@ import {
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
 import { getEngagementDetails } from "@/lib/db/applications";
+import { getWalletBalance } from "@/lib/db/money";
 import { feeExample } from "@/lib/fees";
 import { formatNaira } from "@/lib/money";
 
 import { cancelHireAction } from "./actions";
+import { PayForm } from "./pay-form";
 
 export const metadata: Metadata = { title: "Pay to start" };
 
@@ -41,9 +43,10 @@ export default function PayPage({ params }: { params: Params }) {
   );
 }
 
-// Stage 5 stops here: payment into escrow arrives in Stage 6. Until then
-// the page shows exactly what will be charged, and the hire lapses after
-// 48 hours (CLAUDE.md §6.1, §6.2).
+// Shows exactly what will be charged, with the wallet applied first, and the
+// hire lapses after 48 hours (CLAUDE.md §6.1, §6.2, §6.3). The wallet is
+// read for the signed-in business only; the server works the amounts out
+// again when the payment starts.
 async function Pay({ params }: { params: Params }) {
   const user = await requireRole("business");
   const { id } = await params;
@@ -51,6 +54,9 @@ async function Pay({ params }: { params: Params }) {
   if (!engagement || engagement.business.id !== user.id) notFound();
 
   const fees = feeExample(engagement.agreedPriceKobo);
+  const walletKobo = await getWalletBalance(user.id, "business_wallet");
+  const walletAppliedKobo = Math.min(walletKobo, fees.businessPaysKobo);
+  const cardAmountKobo = fees.businessPaysKobo - walletAppliedKobo;
   const now = new Date();
   const waiting =
     engagement.status === "awaiting_payment" &&
@@ -76,7 +82,7 @@ async function Pay({ params }: { params: Params }) {
         <>
           <dl className="space-y-3 rounded-card panel p-5 sm:p-6">
             <div className="flex justify-between gap-4">
-              <dt>Agreed price (held in escrow)</dt>
+              <dt>Agreed price (held by Pitchype until the job is done)</dt>
               <dd className="font-semibold text-ink">
                 {formatNaira(fees.agreedPriceKobo)}
               </dd>
@@ -88,11 +94,33 @@ async function Pay({ params }: { params: Params }) {
               </dd>
             </div>
             <div className="flex justify-between gap-4 border-t border-hairline pt-3 text-lg">
-              <dt className="font-semibold text-ink">You pay</dt>
+              <dt className="font-semibold text-ink">
+                {walletAppliedKobo > 0 ? "Total" : "You pay"}
+              </dt>
               <dd className="font-semibold text-ink">
                 {formatNaira(fees.businessPaysKobo)}
               </dd>
             </div>
+            {walletAppliedKobo > 0 && (
+              <>
+                <div className="flex justify-between gap-4">
+                  <dt>From your wallet</dt>
+                  <dd className="font-semibold text-ink">
+                    −{formatNaira(walletAppliedKobo)}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4 text-lg">
+                  <dt className="font-semibold text-ink">
+                    {cardAmountKobo === 0
+                      ? "To pay by card"
+                      : "You pay by card"}
+                  </dt>
+                  <dd className="font-semibold text-ink">
+                    {formatNaira(cardAmountKobo)}
+                  </dd>
+                </div>
+              </>
+            )}
           </dl>
 
           <div className="mt-4 space-y-3">
@@ -107,14 +135,10 @@ async function Pay({ params }: { params: Params }) {
             </Callout>
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <Button type="button" size="lg" disabled>
-              Pay with Paystack
-            </Button>
-            <p className="text-sm text-muted">
-              Payments open soon. Until then, hires lapse after 48 hours.
-            </p>
-          </div>
+          <PayForm
+            engagementId={engagement.id}
+            cardAmountKobo={cardAmountKobo}
+          />
 
           <details className="mt-8 border-t border-hairline pt-5">
             <summary className="cursor-pointer font-semibold text-ink">

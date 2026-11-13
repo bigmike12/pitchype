@@ -58,10 +58,7 @@ test("an unknown event, or a known one on an unexpected account, is plain wallet
     row("something_new", "creator_wallet", -100).label,
     "Wallet activity",
   );
-  assert.equal(
-    row("hire_settled", "escrow", -100).label,
-    "Wallet activity",
-  );
+  assert.equal(row("hire_settled", "escrow", -100).label, "Wallet activity");
   assert.equal(
     row("payout_requested", "business_wallet", 100).label,
     "Wallet activity",
@@ -70,7 +67,9 @@ test("an unknown event, or a known one on an unexpected account, is plain wallet
 
 test("the wallet amount is never negative", () => {
   for (const amount of [-5, -1, 0, 1, 5_000_000, -5_000_000]) {
-    assert.ok(row("hire_funded", "business_wallet", amount).walletAmountKobo >= 0);
+    assert.ok(
+      row("hire_funded", "business_wallet", amount).walletAmountKobo >= 0,
+    );
     assert.ok(row("nope", "creator_wallet", amount).walletAmountKobo >= 0);
   }
 });
