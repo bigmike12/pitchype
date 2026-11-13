@@ -123,6 +123,7 @@ test("missing facts never show 'undefined'", () => {
     "payout_paid",
     "payout_failed",
     "payout_rejected",
+    "payment_stranded",
   ]) {
     const d = describeNotification(row(kind));
     assert.ok(d, kind);
@@ -226,7 +227,19 @@ test("payout notifications show the amount and link to the wallet", () => {
     "influencer",
   );
   assert.equal(paid?.title, "Your ₦47,500 payout was sent");
+  // ₦47,500 is over ₦10,000 and up to ₦50,000: ₦25 tier fee + ₦50 stamp duty.
+  assert.equal(
+    paid?.body,
+    "₦47,425 is on its way to your bank after the ₦75 transfer cost.",
+  );
   assert.equal(paid?.href, "/wallet");
+
+  const paidNoAmount = describeNotification(
+    row("payout_paid", { payout_id: "p1" }),
+    "influencer",
+  );
+  assert.equal(paidNoAmount?.title, "Your payout was sent");
+  assert.equal(paidNoAmount?.body, "It’s on its way to your bank account.");
 
   const failed = describeNotification(
     row("payout_failed", { payout_id: "p1", amount_kobo: 4750000 }),
@@ -247,6 +260,36 @@ test("payout notifications show the amount and link to the wallet", () => {
   assert.equal(rejected?.title, "We couldn’t approve your ₦47,500 payout");
   assert.equal(rejected?.body, "The account name does not match.");
   assert.equal(rejected?.href, "/wallet");
+});
+
+test("a stranded payment tells the business where its money is", () => {
+  const d = describeNotification(
+    row("payment_stranded", {
+      ...campaign,
+      engagement_id: "e1",
+      amount_kobo: 5250000,
+    }),
+    "business",
+  );
+  assert.equal(
+    d?.title,
+    "Your payment of ₦52,500 arrived, but this hire could not be started",
+  );
+  assert.equal(d?.body, "The money is in your Pitchype wallet.");
+  assert.equal(d?.href, "/business/wallet");
+
+  const noAmount = describeNotification(row("payment_stranded"), "business");
+  assert.equal(
+    noAmount?.title,
+    "Your payment arrived, but this hire could not be started",
+  );
+});
+
+test("a creator's job link falls back to their applications without a hire", () => {
+  for (const kind of ["hire_funded", "engagement_settled"]) {
+    const d = describeNotification(row(kind, campaign), "influencer");
+    assert.equal(d?.href, "/applications", kind);
+  }
 });
 
 test("unknown kinds are skipped, not shown blank", () => {

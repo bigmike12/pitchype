@@ -3,6 +3,7 @@
 // turns that into what a person reads, so copy changes need no migration.
 
 import { PLATFORM_RULES, type Platform } from "./creator-profile.ts";
+import { transferFee } from "./fees.ts";
 import { formatNaira } from "./money.ts";
 
 export type NotificationRow = {
@@ -47,7 +48,8 @@ export function describeNotification(
   const businessHire = engagementId
     ? `/business/engagements/${engagementId}`
     : "/business/campaigns";
-  const creatorJob = engagementId ? `/jobs/${engagementId}` : "/jobs";
+  // There is no list of jobs yet; a creator's applications list their hires.
+  const creatorJob = engagementId ? `/jobs/${engagementId}` : "/applications";
 
   const applicants = campaignId
     ? `/business/campaigns/${campaignId}/applications`
@@ -150,7 +152,7 @@ export function describeNotification(
     case "payout_paid":
       return {
         title: `Your ${payoutAmount(d)}payout was sent`,
-        body: "It’s on its way to your bank account.",
+        body: payoutSentBody(d),
         href: "/wallet",
       };
     case "payout_failed":
@@ -165,6 +167,14 @@ export function describeNotification(
         body: text(d.decision_reason),
         href: "/wallet",
       };
+    case "payment_stranded": {
+      const amount = kobo(d.amount_kobo);
+      return {
+        title: `Your payment ${amount === null ? "" : `of ${formatNaira(amount)} `}arrived, but this hire could not be started`,
+        body: "The money is in your Pitchype wallet.",
+        href: "/business/wallet",
+      };
+    }
     case "new_message": {
       const count = typeof d.count === "number" && d.count > 1 ? d.count : 1;
       const conversationId = text(d.conversation_id);
@@ -240,6 +250,22 @@ function platformLabel(value: unknown): string {
 function payoutAmount(d: Record<string, unknown>): string {
   const amount = kobo(d.amount_kobo);
   return amount === null ? "" : `${formatNaira(amount)} `;
+}
+
+/**
+ * What reaches the bank. The notification stores only the gross amount taken
+ * from the wallet, so the transfer cost is worked out again with
+ * transferFee(), the same table the creator saw when asking (fees.ts mirrors
+ * fee_config; if they ever differ, this line is what drifts, not the money).
+ */
+function payoutSentBody(d: Record<string, unknown>): string {
+  const amount = kobo(d.amount_kobo);
+  if (amount === null || amount <= 0) {
+    return "It’s on its way to your bank account.";
+  }
+  const fee = transferFee(amount);
+  if (fee >= amount) return "It’s on its way to your bank account.";
+  return `${formatNaira(amount - fee)} is on its way to your bank after the ${formatNaira(fee)} transfer cost.`;
 }
 
 function kobo(value: unknown): number | null {
