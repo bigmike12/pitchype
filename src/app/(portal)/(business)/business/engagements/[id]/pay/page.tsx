@@ -83,13 +83,13 @@ async function Pay({ params }: { params: Params }) {
           <dl className="space-y-3 rounded-card panel p-5 sm:p-6">
             <div className="flex justify-between gap-4">
               <dt>Agreed price (held by Pitchype until the job is done)</dt>
-              <dd className="font-semibold text-ink">
+              <dd className="font-semibold text-ink tabular-nums">
                 {formatNaira(fees.agreedPriceKobo)}
               </dd>
             </div>
             <div className="flex justify-between gap-4">
               <dt>Our fee</dt>
-              <dd className="font-semibold text-ink">
+              <dd className="font-semibold text-ink tabular-nums">
                 {formatNaira(fees.businessFeeKobo)}
               </dd>
             </div>
@@ -97,7 +97,7 @@ async function Pay({ params }: { params: Params }) {
               <dt className="font-semibold text-ink">
                 {walletAppliedKobo > 0 ? "Total" : "You pay"}
               </dt>
-              <dd className="font-semibold text-ink">
+              <dd className="font-semibold text-ink tabular-nums">
                 {formatNaira(fees.businessPaysKobo)}
               </dd>
             </div>
@@ -105,7 +105,7 @@ async function Pay({ params }: { params: Params }) {
               <>
                 <div className="flex justify-between gap-4">
                   <dt>From your wallet</dt>
-                  <dd className="font-semibold text-ink">
+                  <dd className="font-semibold text-ink tabular-nums">
                     −{formatNaira(walletAppliedKobo)}
                   </dd>
                 </div>
@@ -115,7 +115,7 @@ async function Pay({ params }: { params: Params }) {
                       ? "To pay by card"
                       : "You pay by card"}
                   </dt>
-                  <dd className="font-semibold text-ink">
+                  <dd className="font-semibold text-ink tabular-nums">
                     {formatNaira(cardAmountKobo)}
                   </dd>
                 </div>

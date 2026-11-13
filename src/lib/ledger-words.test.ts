@@ -81,3 +81,56 @@ test("a zero amount counts as out and stays zero", () => {
     walletAmountKobo: 0,
   });
 });
+
+test("a card payment that used wallet money reads as money out, not received", () => {
+  // record_card_payment funding a hire posts business_wallet +wallet part.
+  assert.deepEqual(row("payment_received", "business_wallet", 1_000_000), {
+    label: "Paid for a hire",
+    direction: "out",
+    walletAmountKobo: 1_000_000,
+  });
+  assert.equal(
+    row("payment_received", "business_wallet", 0).label,
+    "Paid for a hire",
+  );
+  // A stranded card payment lands in the wallet: money in.
+  assert.deepEqual(row("payment_received", "business_wallet", -1_000_000), {
+    label: "Payment received",
+    direction: "in",
+    walletAmountKobo: 1_000_000,
+  });
+});
+
+test("a label never contradicts its sign", () => {
+  // Money in labelled as out, or the reverse, becomes plain wallet activity.
+  const contradictions: [string, string, number][] = [
+    ["hire_settled", "business_wallet", 5_000_000],
+    ["hire_settled", "creator_wallet", 4_750_000],
+    ["hire_funded", "business_wallet", -2_000_000],
+    ["payout_requested", "creator_wallet", -1_500_000],
+    ["payout_rejected", "creator_wallet", 1_500_000],
+    ["payout_failed", "creator_wallet", 1_500_000],
+    ["payment_received", "creator_wallet", 100],
+  ];
+  for (const [eventType, account, amount] of contradictions) {
+    const words = row(eventType, account, amount);
+    assert.equal(
+      words.label,
+      "Wallet activity",
+      `${eventType} ${account} ${amount}`,
+    );
+    assert.equal(words.walletAmountKobo, Math.abs(amount));
+  }
+});
+
+test("an adjustment is true in either direction", () => {
+  assert.equal(row("correction", "business_wallet", -100).direction, "in");
+  assert.equal(row("correction", "business_wallet", 100).direction, "out");
+});
+
+test("a hire payment is a business wallet event only", () => {
+  assert.equal(
+    row("hire_funded", "creator_wallet", 100).label,
+    "Wallet activity",
+  );
+});

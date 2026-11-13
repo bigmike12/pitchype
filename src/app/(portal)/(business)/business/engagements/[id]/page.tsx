@@ -14,11 +14,9 @@ import {
 } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
-import {
-  getEngagementDetails,
-  type EngagementDetails,
-} from "@/lib/db/applications";
+import { getEngagementDetails } from "@/lib/db/applications";
 import { feeExample } from "@/lib/fees";
+import { describeHireStatus } from "@/lib/hire-status-words";
 import { formatNaira } from "@/lib/money";
 import { CONTACT_EMAIL } from "@/lib/site";
 
@@ -48,104 +46,6 @@ export default function EngagementPage({ params }: { params: Params }) {
   );
 }
 
-type Status = { title: string; body: string; done: boolean };
-
-/** What has happened to this hire, in plain words, for every status. */
-function describeStatus(e: EngagementDetails): Status {
-  const creator = e.creator.name;
-  const refunded = formatNaira(e.refundedKobo ?? 0);
-  const released = formatNaira(e.releasedKobo ?? 0);
-  const fee = formatNaira(e.businessFeeKobo ?? 0);
-
-  switch (e.status) {
-    case "awaiting_payment":
-      return {
-        title: "Waiting for your payment",
-        body: `Nothing starts until you pay. Pay by ${formatDateTime(e.payBy)} (Lagos time), or the hire lapses.`,
-        done: false,
-      };
-    case "funded":
-      return {
-        title: "Paid",
-        body: `Paid. Waiting for ${creator} to start. The money is held by Pitchype until the job is done.`,
-        done: false,
-      };
-    case "in_progress":
-      return {
-        title: "Work has started",
-        body: `${creator} is working on this. The money is held by Pitchype until the job is done.`,
-        done: false,
-      };
-    case "submitted":
-      return {
-        title: "Waiting for your review",
-        body: `${creator} has sent in the work.`,
-        done: false,
-      };
-    case "denied":
-      return {
-        title: "Sent back",
-        body: `${creator} can fix the work and send it again.`,
-        done: false,
-      };
-    case "disputed":
-      return {
-        title: "Under review",
-        body: "We’re looking at this hire. We’ll be in touch.",
-        done: false,
-      };
-    case "cancelled":
-      if (e.fundedAt === null) {
-        return {
-          title: "Cancelled",
-          body:
-            e.cancelReason === "payment_expired"
-              ? "It wasn’t paid within 48 hours, so the place went back on offer. Nothing was charged."
-              : "Nothing was charged, and the place went back on offer.",
-          done: true,
-        };
-      }
-      return {
-        title: "Cancelled",
-        body:
-          e.cancelReason === "cancelled_by_creator" ||
-          e.settleOutcome === "refund_creator_fault"
-            ? `${creator} pulled out. ${refunded} is back in your wallet, including our fee.`
-            : `You cancelled. ${refunded} is back in your wallet. Our fee of ${fee} isn’t refunded.`,
-        done: true,
-      };
-    default: {
-      // accepted, auto_released, paid_out, refunded: money has moved.
-      switch (e.settleOutcome) {
-        case "refund":
-          return {
-            title: "Refunded",
-            body: `${refunded} is back in your wallet. Our fee of ${fee} isn’t refunded.`,
-            done: true,
-          };
-        case "refund_creator_fault":
-          return {
-            title: "Refunded",
-            body: `${refunded} is back in your wallet, including our fee.`,
-            done: true,
-          };
-        case "split":
-          return {
-            title: "Settled",
-            body: `${released} went to ${creator} and ${refunded} is back in your wallet.`,
-            done: true,
-          };
-        default:
-          return {
-            title: "Done",
-            body: `The job is done and ${creator} has been paid ${released}.`,
-            done: true,
-          };
-      }
-    }
-  }
-}
-
 async function Engagement({ params }: { params: Params }) {
   const user = await requireRole("business");
   const { id } = await params;
@@ -155,7 +55,10 @@ async function Engagement({ params }: { params: Params }) {
   const feeKobo =
     engagement.businessFeeKobo ??
     feeExample(engagement.agreedPriceKobo).businessFeeKobo;
-  const status = describeStatus(engagement);
+  const status = describeHireStatus(
+    { ...engagement, creatorName: engagement.creator.name },
+    new Date(),
+  );
   const applicationsHref = `/business/campaigns/${engagement.campaign.id}/applications`;
 
   const timeline = [
@@ -202,12 +105,19 @@ async function Engagement({ params }: { params: Params }) {
         }
         title={status.title}
         action={
-          engagement.status === "awaiting_payment" ? (
+          status.canPay ? (
             <Link
               href={`/business/engagements/${engagement.id}/pay`}
               className={buttonVariants()}
             >
               Pay now
+            </Link>
+          ) : engagement.status === "awaiting_payment" ? (
+            <Link
+              href={applicationsHref}
+              className={buttonVariants({ variant: "secondary" })}
+            >
+              Back to applications
             </Link>
           ) : undefined
         }
