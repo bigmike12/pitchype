@@ -12,5 +12,10 @@ test("every refusal the database can give has words", () => {
 test("only known codes count as refusals", () => {
   assert.equal(isRefusal("campaign_full"), true);
   assert.equal(isRefusal("appeal_too_soon"), true);
+  assert.equal(isRefusal("payment_in_progress"), true);
+  assert.equal(isRefusal("payment_mismatch"), true);
+  assert.equal(isRefusal("not_enough_balance"), true);
+  assert.equal(isRefusal("wallet_covers_total"), true);
+  assert.equal(isRefusal("fee_notice_required"), false);
   assert.equal(isRefusal("duplicate key value"), false);
 });

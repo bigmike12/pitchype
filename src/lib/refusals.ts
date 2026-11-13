@@ -1,6 +1,6 @@
-// Every refusal the Stage 5 database functions raise (errcode P0001, the
+// Every refusal the Stage 5 and 6 database functions raise (errcode P0001, the
 // code as the message), with the words people see. One list for
-// applications, chat and account standing, because several codes
+// applications, payments, chat and account standing, because several codes
 // (not_allowed, activity_paused, account_suspended) are shared.
 // No framework imports, so it can be unit-tested.
 
@@ -24,6 +24,15 @@ const REFUSAL_TEXT = {
   no_such_campaign: "We couldn’t find that campaign.",
   places_below_held:
     "You’ve already hired more creators than that. Keep at least that many places.",
+  // Paying for a hire
+  payment_in_progress:
+    "A payment for this hire is still going through. Try again in 30 minutes.",
+  payment_mismatch:
+    "The amount paid didn’t match this hire, so the hire isn’t paid yet. If your card was charged, contact us and we’ll sort it out.",
+  not_enough_balance:
+    "Your wallet doesn’t cover this hire. Pay the rest by card.",
+  wallet_covers_total:
+    "Your wallet covers this hire. Pay from your wallet instead.",
   // Shared
   not_allowed: "You can’t do this with this person.",
   activity_paused:

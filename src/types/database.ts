@@ -457,13 +457,23 @@ export type Database = {
           agreed_price_kobo: number
           application_id: string
           approved_at: string
+          business_fee_kobo: number | null
           business_id: string
           campaign_id: string
           cancel_reason: string | null
           cancelled_at: string | null
+          creator_fee_bps: number | null
           creator_id: string
+          creator_min_fee_kobo: number | null
+          fee_config_id: string | null
+          funded_at: string | null
           id: string
           pay_by: string
+          refunded_kobo: number | null
+          released_kobo: number | null
+          settle_outcome: string | null
+          settled_at: string | null
+          started_at: string | null
           status: Database["public"]["Enums"]["engagement_status"]
           updated_at: string
         }
@@ -471,13 +481,23 @@ export type Database = {
           agreed_price_kobo: number
           application_id: string
           approved_at?: string
+          business_fee_kobo?: number | null
           business_id: string
           campaign_id: string
           cancel_reason?: string | null
           cancelled_at?: string | null
+          creator_fee_bps?: number | null
           creator_id: string
+          creator_min_fee_kobo?: number | null
+          fee_config_id?: string | null
+          funded_at?: string | null
           id?: string
           pay_by: string
+          refunded_kobo?: number | null
+          released_kobo?: number | null
+          settle_outcome?: string | null
+          settled_at?: string | null
+          started_at?: string | null
           status?: Database["public"]["Enums"]["engagement_status"]
           updated_at?: string
         }
@@ -485,13 +505,23 @@ export type Database = {
           agreed_price_kobo?: number
           application_id?: string
           approved_at?: string
+          business_fee_kobo?: number | null
           business_id?: string
           campaign_id?: string
           cancel_reason?: string | null
           cancelled_at?: string | null
+          creator_fee_bps?: number | null
           creator_id?: string
+          creator_min_fee_kobo?: number | null
+          fee_config_id?: string | null
+          funded_at?: string | null
           id?: string
           pay_by?: string
+          refunded_kobo?: number | null
+          released_kobo?: number | null
+          settle_outcome?: string | null
+          settled_at?: string | null
+          started_at?: string | null
           status?: Database["public"]["Enums"]["engagement_status"]
           updated_at?: string
         }
@@ -522,6 +552,13 @@ export type Database = {
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagements_fee_config_id_fkey"
+            columns: ["fee_config_id"]
+            isOneToOne: false
+            referencedRelation: "fee_config"
             referencedColumns: ["id"]
           },
         ]
@@ -750,6 +787,13 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ledger_entries_payment_fk"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
         ]
       }
       messages: {
@@ -958,6 +1002,87 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_events: {
+        Row: {
+          event_key: string
+          payload: Json
+          received_at: string
+        }
+        Insert: {
+          event_key: string
+          payload: Json
+          received_at?: string
+        }
+        Update: {
+          event_key?: string
+          payload?: Json
+          received_at?: string
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          business_fee_kobo: number
+          card_amount_kobo: number
+          created_at: string
+          engagement_id: string
+          fee_config_id: string
+          fee_notice_seen_at: string
+          id: string
+          paystack_fee_kobo: number | null
+          reference: string
+          status: string
+          total_kobo: number
+          updated_at: string
+          wallet_part_kobo: number
+        }
+        Insert: {
+          business_fee_kobo: number
+          card_amount_kobo: number
+          created_at?: string
+          engagement_id: string
+          fee_config_id: string
+          fee_notice_seen_at: string
+          id?: string
+          paystack_fee_kobo?: number | null
+          reference: string
+          status?: string
+          total_kobo: number
+          updated_at?: string
+          wallet_part_kobo: number
+        }
+        Update: {
+          business_fee_kobo?: number
+          card_amount_kobo?: number
+          created_at?: string
+          engagement_id?: string
+          fee_config_id?: string
+          fee_notice_seen_at?: string
+          id?: string
+          paystack_fee_kobo?: number | null
+          reference?: string
+          status?: string
+          total_kobo?: number
+          updated_at?: string
+          wallet_part_kobo?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_fee_config_id_fkey"
+            columns: ["fee_config_id"]
+            isOneToOne: false
+            referencedRelation: "fee_config"
             referencedColumns: ["id"]
           },
         ]
@@ -1374,10 +1499,15 @@ export type Database = {
         Args: { campaign?: string }
         Returns: number
       }
+      fee_kobo: {
+        Args: { amount: number; bps: number; min_fee: number }
+        Returns: number
+      }
       follower_range_for: {
         Args: { follower_count: number }
         Returns: Database["public"]["Enums"]["follower_range"]
       }
+      fund_engagement: { Args: { payment: string }; Returns: boolean }
       get_campaign: { Args: { campaign: string }; Returns: Json }
       get_listed_creator: {
         Args: { creator_slug: string }
@@ -1449,6 +1579,11 @@ export type Database = {
         Returns: undefined
       }
       open_campaign_count: { Args: never; Returns: number }
+      pay_from_wallet: {
+        Args: { engagement: string; fee_notice_seen: boolean }
+        Returns: undefined
+      }
+      payment_in_flight: { Args: { engagement: string }; Returns: boolean }
       post_ledger_group: {
         Args: {
           actor: string
@@ -1459,6 +1594,16 @@ export type Database = {
           payment: string
           payout: string
           reason: string
+          reference: string
+        }
+        Returns: string
+      }
+      record_card_payment: {
+        Args: {
+          event_key: string
+          paid_kobo: number
+          payload: Json
+          paystack_fee_kobo: number
           reference: string
         }
         Returns: string
@@ -1562,6 +1707,10 @@ export type Database = {
       start_conversation: {
         Args: { application?: string; creator: string }
         Returns: string
+      }
+      start_payment: {
+        Args: { engagement: string; fee_notice_seen: boolean }
+        Returns: Json
       }
       submit_appeal: { Args: { message: string }; Returns: string }
       submit_handle_verification: {
