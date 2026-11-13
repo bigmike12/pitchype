@@ -150,7 +150,9 @@ async function Pay({ params }: { params: Params }) {
           tone="info"
           icon={CircleSlash}
           title={
-            view === "cancelled" ? "You cancelled this hire" : "This hire lapsed"
+            view === "cancelled"
+              ? "You cancelled this hire"
+              : "This hire lapsed"
           }
           action={
             <Link
