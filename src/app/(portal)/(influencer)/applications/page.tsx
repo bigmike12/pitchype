@@ -95,6 +95,14 @@ async function Applications() {
                       )}{" "}
                       · applied {formatDate(a.createdAt)}
                     </p>
+                    {a.engagement && !lapsed(a.engagement) && (
+                      <Link
+                        href={`/jobs/${a.engagement.id}`}
+                        className="relative mt-1 inline-flex min-h-11 items-center font-semibold text-ink underline underline-offset-4"
+                      >
+                        View job
+                      </Link>
+                    )}
                     {a.briefEditedAt && (
                       <p className="mt-1 flex items-center gap-1.5 text-sm text-ink">
                         <PencilLine className="size-4" aria-hidden="true" />
@@ -110,6 +118,14 @@ async function Applications() {
         </ul>
       )}
     </>
+  );
+}
+
+// A hire that lapsed unpaid never became a job, so there is nothing to open.
+function lapsed(engagement: NonNullable<MyApplication["engagement"]>) {
+  return (
+    engagement.status === "cancelled" &&
+    engagement.cancelReason === "payment_expired"
   );
 }
 
