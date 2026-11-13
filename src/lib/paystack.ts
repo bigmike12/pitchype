@@ -85,9 +85,18 @@ async function request(
     return fail("Could not reach Paystack");
   }
 
+  // A dropped connection or timeout while reading the body leaves the outcome
+  // unknown (status 0), which is not the same as an unreadable answer.
+  let text: string;
+  try {
+    text = await response.text();
+  } catch {
+    return fail("Could not read Paystack's response");
+  }
+
   let parsed: PaystackBody | null = null;
   try {
-    const value: unknown = JSON.parse(await response.text());
+    const value: unknown = JSON.parse(text);
     if (typeof value === "object" && value !== null) {
       parsed = value as PaystackBody;
     }
@@ -132,7 +141,8 @@ function requireAmountKobo(amountKobo: number): void {
 // Letters, digits and _ . = - only: our references are built from these, and
 // a stray "/" or "?" must never reach a URL path.
 function requireReference(reference: string): void {
-  if (!/^[A-Za-z0-9_.=-]{1,100}$/.test(reference)) {
+  // "." and ".." would alter the URL path.
+  if (!/^[A-Za-z0-9_.=-]{1,100}$/.test(reference) || /^\.+$/.test(reference)) {
     fail("Invalid payment reference");
   }
 }
@@ -157,6 +167,8 @@ export async function initializeTransaction(input: {
   };
 }
 
+// `raw` is Paystack's data object as received: it can hold customer details, so
+// the CALLER must trim or scrub it before storing or logging it.
 export async function verifyTransaction(reference: string): Promise<{
   status: "success" | "failed" | "abandoned" | "pending";
   amountKobo: number;
@@ -177,10 +189,21 @@ export async function verifyTransaction(reference: string): Promise<{
     data.status === "abandoned"
       ? data.status
       : "pending";
-  if (typeof data.amount !== "number") {
-    fail("Paystack did not return the amount");
+  if (
+    data.reference !== undefined &&
+    data.reference !== null &&
+    data.reference !== reference
+  ) {
+    fail("Paystack answered for a different payment than the one requested");
   }
-  const fees = typeof data.fees === "number" ? data.fees : null;
+  // Amounts decide "funded", so only whole, positive kobo are believed.
+  if (!Number.isSafeInteger(data.amount) || (data.amount as number) <= 0) {
+    fail("Paystack did not return a valid amount");
+  }
+  const fees =
+    Number.isSafeInteger(data.fees) && (data.fees as number) >= 0
+      ? (data.fees as number)
+      : null;
   // The fee decides the refund maths later, so a payment is never recorded
   // with a made-up zero: the caller tries again when Paystack has the figure.
   if (status === "success" && fees === null) {
@@ -188,7 +211,7 @@ export async function verifyTransaction(reference: string): Promise<{
   }
   return {
     status,
-    amountKobo: data.amount,
+    amountKobo: data.amount as number,
     feesKobo: fees ?? 0,
     currency: typeof data.currency === "string" ? data.currency : "",
     raw: data,
@@ -280,6 +303,8 @@ export async function initiateTransfer(input: {
   return { transferCode: requireString(asObject(result.data).transfer_code) };
 }
 
+// `raw` is Paystack's data object as received: it can hold full account numbers
+// and recipient details, so the CALLER must trim or scrub it before storing or logging it.
 export async function verifyTransfer(reference: string): Promise<{
   status: "success" | "failed" | "reversed" | "pending" | "not_found";
   raw: unknown;
@@ -293,9 +318,12 @@ export async function verifyTransfer(reference: string): Promise<{
     );
   } catch (error) {
     // Not an error: the transfer was never created (e.g. we crashed before sending it).
+    // The message fallback never applies to a 5xx: an outage must not read as
+    // "never created", or the caller would re-credit a transfer that may exist.
     if (
       error instanceof PaystackError &&
-      (error.status === 404 || /transfer not found/i.test(error.message))
+      (error.status === 404 ||
+        (error.status < 500 && /transfer not found/i.test(error.message)))
     ) {
       return { status: "not_found", raw: null };
     }
@@ -317,8 +345,12 @@ export async function getBalanceKobo(): Promise<number> {
   if (!Array.isArray(result.data)) fail("Paystack returned an unexpected response");
   for (const entry of result.data) {
     const balance = asObject(entry);
-    if (balance.currency === "NGN" && typeof balance.balance === "number") {
-      return balance.balance;
+    if (
+      balance.currency === "NGN" &&
+      Number.isSafeInteger(balance.balance) &&
+      (balance.balance as number) >= 0
+    ) {
+      return balance.balance as number;
     }
   }
   return fail("Paystack returned no NGN balance");

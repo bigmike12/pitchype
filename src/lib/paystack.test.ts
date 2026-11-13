@@ -149,22 +149,22 @@ test("verifyTransaction maps a successful payment and sends the right request", 
 
 test("verifyTransaction maps failed and abandoned", async () => {
   stubFetch(ok({ ...verifyFixture, status: "failed" }));
-  assert.equal((await verifyTransaction("r1")).status, "failed");
+  assert.equal((await verifyTransaction("re4lyvq3s3")).status, "failed");
   stubFetch(ok({ ...verifyFixture, status: "abandoned" }));
-  assert.equal((await verifyTransaction("r1")).status, "abandoned");
+  assert.equal((await verifyTransaction("re4lyvq3s3")).status, "abandoned");
 });
 
 test("verifyTransaction treats every other status as pending", async () => {
   for (const status of ["ongoing", "pending", "processing", "queued", "reversed"]) {
     stubFetch(ok({ ...verifyFixture, status }));
-    assert.equal((await verifyTransaction("r1")).status, "pending", status);
+    assert.equal((await verifyTransaction("re4lyvq3s3")).status, "pending", status);
   }
 });
 
 test("verifyTransaction refuses a successful payment with no fee figure", async () => {
   for (const fees of [null, undefined, "10050"]) {
     stubFetch(ok({ ...verifyFixture, fees }));
-    const error = await rejection(verifyTransaction("r1"));
+    const error = await rejection(verifyTransaction("re4lyvq3s3"));
     assert.equal(error.status, 0);
     assert.equal(
       error.message,
@@ -173,15 +173,46 @@ test("verifyTransaction refuses a successful payment with no fee figure", async 
   }
 });
 
+test("verifyTransaction refuses amounts that are not whole positive kobo", async () => {
+  for (const amount of [100.5, -4050000, 0, "4050000", null]) {
+    stubFetch(ok({ ...verifyFixture, amount }));
+    const error = await rejection(verifyTransaction("re4lyvq3s3"));
+    assert.equal(error.status, 0);
+  }
+});
+
+test("verifyTransaction treats a fractional or negative fee as missing", async () => {
+  for (const fees of [10.5, -1]) {
+    stubFetch(ok({ ...verifyFixture, fees }));
+    const error = await rejection(verifyTransaction("re4lyvq3s3"));
+    assert.equal(
+      error.message,
+      "Paystack did not return the fee for a successful payment",
+    );
+    stubFetch(ok({ ...verifyFixture, status: "failed", fees }));
+    assert.equal((await verifyTransaction("re4lyvq3s3")).feesKobo, 0);
+  }
+});
+
+test("verifyTransaction refuses an answer for a different reference", async () => {
+  stubFetch(ok({ ...verifyFixture, reference: "someone_else" }));
+  const error = await rejection(verifyTransaction("re4lyvq3s3"));
+  assert.equal(error.status, 0);
+  assert.ok(!error.message.includes(SECRET));
+  // A missing reference in the answer is not a mismatch.
+  stubFetch(ok({ ...verifyFixture, reference: undefined }));
+  assert.equal((await verifyTransaction("re4lyvq3s3")).status, "success");
+});
+
 test("verifyTransaction returns a zero fee for a non-success status without one", async () => {
   stubFetch(ok({ ...verifyFixture, status: "abandoned", fees: null }));
-  const result = await verifyTransaction("r1");
+  const result = await verifyTransaction("re4lyvq3s3");
   assert.equal(result.status, "abandoned");
   assert.equal(result.feesKobo, 0);
 });
 
 test("verifyTransaction URL-encodes the reference and rejects bad ones before fetching", async () => {
-  stubFetch(ok(verifyFixture));
+  stubFetch(ok({ ...verifyFixture, reference: "a.b-c_d=" }));
   await verifyTransaction("a.b-c_d=");
   assert.equal(
     calls[0].url,
@@ -189,7 +220,7 @@ test("verifyTransaction URL-encodes the reference and rejects bad ones before fe
   );
 
   calls = [];
-  for (const reference of ["", "   ", "a/b", "a b", "x".repeat(101), "a?b=1"]) {
+  for (const reference of [".", "..", "...", "", "   ", "a/b", "a b", "x".repeat(101), "a?b=1"]) {
     const error = await rejection(verifyTransaction(reference));
     assert.equal(error.status, 0);
   }
@@ -404,6 +435,25 @@ test("verifyTransfer treats a 404 as not_found, not an error", async () => {
   assert.equal(result.status, "not_found");
 });
 
+test("verifyTransfer does not read a 5xx saying 'not found' as never created", async () => {
+  for (const status of [500, 502, 503]) {
+    stubFetch({
+      status,
+      body: { status: false, message: "Transfer not found" },
+    });
+    const error = await rejection(verifyTransfer("payout_1"));
+    assert.equal(error.status, status);
+  }
+});
+
+test("verifyTransfer treats a 400 saying 'Transfer not found' as not_found", async () => {
+  stubFetch({
+    status: 400,
+    body: { status: false, message: "Transfer not found" },
+  });
+  assert.equal((await verifyTransfer("payout_1")).status, "not_found");
+});
+
 test("verifyTransfer still throws on other failures", async () => {
   stubFetch({ status: 500, body: { status: false, message: "Server error" } });
   const error = await rejection(verifyTransfer("payout_1"));
@@ -423,6 +473,13 @@ test("getBalanceKobo picks the NGN entry", async () => {
   assert.equal(calls[0].url, "https://api.paystack.co/balance");
 });
 
+test("getBalanceKobo ignores a fractional or negative NGN balance", async () => {
+  for (const balance of [10.5, -1, "5"]) {
+    stubFetch(ok([{ currency: "NGN", balance }]));
+    await rejection(getBalanceKobo());
+  }
+});
+
 test("getBalanceKobo throws when there is no NGN entry", async () => {
   stubFetch(ok([{ currency: "GHS", balance: 5 }]));
   await rejection(getBalanceKobo());
@@ -437,7 +494,7 @@ test("errors carry the HTTP status and Paystack's message", async () => {
     status: 400,
     body: { status: false, message: "Invalid transaction reference" },
   });
-  const error = await rejection(verifyTransaction("r1"));
+  const error = await rejection(verifyTransaction("re4lyvq3s3"));
   assert.equal(error.status, 400);
   assert.equal(error.message, "Invalid transaction reference");
 });
@@ -493,6 +550,26 @@ test("a network error that mentions the account number or key is not repeated", 
   assert.equal(error.status, 0);
   assert.ok(!error.message.includes(SECRET));
   assert.ok(!error.message.includes("0123456789"));
+});
+
+test("a body read that fails mid-way is status 0, not an unreadable answer", async () => {
+  globalThis.fetch = (async () => {
+    const failing = new ReadableStream({
+      pull() {
+        throw new TypeError("terminated");
+      },
+    });
+    return new Response(failing, { status: 200 });
+  }) as typeof fetch;
+  const error = await rejection(
+    initiateTransfer({
+      amountKobo: 1000,
+      recipientCode: "RCP_x",
+      reference: "payout_1",
+      reason: "r",
+    }),
+  );
+  assert.equal(error.status, 0);
 });
 
 test("a missing secret key is a clear error and nothing is sent", async () => {
