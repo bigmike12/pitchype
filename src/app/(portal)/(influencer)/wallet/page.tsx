@@ -118,10 +118,20 @@ async function WalletContent({ searchParams }: { searchParams: SearchParams }) {
         <div className="rounded-card panel p-5 sm:p-6">
           {showBankForm ? (
             banksUnavailable ? (
-              <p>
-                We couldn’t load the list of banks just now. Please try again in
-                a few minutes.
-              </p>
+              <div className="space-y-3">
+                <p>
+                  We couldn’t load the list of banks just now. Please try again
+                  in a few minutes.
+                </p>
+                {bankAccount !== null && (
+                  <Link
+                    href="/wallet"
+                    className="inline-flex min-h-11 items-center font-semibold text-ink underline underline-offset-4"
+                  >
+                    Keep my current account
+                  </Link>
+                )}
+              </div>
             ) : (
               <BankAccountForm
                 banks={banks}

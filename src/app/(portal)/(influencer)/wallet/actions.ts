@@ -12,6 +12,12 @@ import {
   PaystackError,
   resolveAccount,
 } from "@/lib/paystack";
+import {
+  BANK_CHECK_LIMITED_MESSAGE,
+  isBankCheckLimited,
+  isPayoutLimited,
+  PAYOUT_LIMITED_MESSAGE,
+} from "@/lib/money-limits";
 import { parsePayoutAmount } from "@/lib/payout-request";
 import { refusalText } from "@/lib/refusals";
 
@@ -33,6 +39,9 @@ export type BankState = {
 const COULDNT_CHECK =
   "We couldn’t check that account. Please check the number and bank and try again.";
 
+const BANKS_UNAVAILABLE =
+  "We couldn’t reach the bank list. Please try again shortly.";
+
 type BankDetails =
   | { ok: true; bankCode: string; bankName: string; accountNumber: string }
   | { ok: false; state: BankState };
@@ -53,7 +62,16 @@ async function readBankDetails(form: FormData): Promise<BankDetails> {
       },
     };
   }
-  const banks = await listBanks();
+  let banks: { code: string; name: string }[];
+  try {
+    banks = await listBanks();
+  } catch (error) {
+    if (!(error instanceof PaystackError)) throw error;
+    return {
+      ok: false,
+      state: { status: "error", message: BANKS_UNAVAILABLE },
+    };
+  }
   const bank = banks.find((b) => b.code === bankCode);
   if (!bank) {
     return {
@@ -72,7 +90,10 @@ export async function checkBankAccountAction(
   _previous: BankState,
   form: FormData,
 ): Promise<BankState> {
-  await requireRole("influencer");
+  const user = await requireRole("influencer");
+  if (isBankCheckLimited(user.id)) {
+    return { status: "error", message: BANK_CHECK_LIMITED_MESSAGE };
+  }
   try {
     const details = await readBankDetails(form);
     if (!details.ok) return details.state;
@@ -105,6 +126,9 @@ export async function saveBankAccountAction(
   form: FormData,
 ): Promise<BankState> {
   const user = await requireRole("influencer");
+  if (isBankCheckLimited(user.id)) {
+    return { status: "error", message: BANK_CHECK_LIMITED_MESSAGE };
+  }
   try {
     const details = await readBankDetails(form);
     if (!details.ok) return details.state;
@@ -149,7 +173,10 @@ export async function requestPayoutAction(
   _previous: PayoutState,
   form: FormData,
 ): Promise<PayoutState> {
-  await requireRole("influencer");
+  const user = await requireRole("influencer");
+  if (isPayoutLimited(user.id)) {
+    return { status: "error", message: PAYOUT_LIMITED_MESSAGE };
+  }
   const amount = parsePayoutAmount(text(form, "amount"));
   if (!amount.ok) return { status: "error", message: amount.error };
 

@@ -13,7 +13,7 @@ import {
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
 import { getEngagementDetails } from "@/lib/db/applications";
-import { formatRate, INFLUENCER_FEE_BPS } from "@/lib/fees";
+import { formatRate, INFLUENCER_FEE_BPS, MIN_FEE_KOBO } from "@/lib/fees";
 import { describeJobStatus } from "@/lib/job-status-words";
 import { formatNaira } from "@/lib/money";
 import { CONTACT_EMAIL } from "@/lib/site";
@@ -24,6 +24,15 @@ import { WithdrawForm } from "./withdraw-form";
 export const metadata: Metadata = { title: "Your job" };
 
 type Params = Promise<{ id: string }>;
+
+const UNSETTLED = [
+  "awaiting_payment",
+  "funded",
+  "in_progress",
+  "submitted",
+  "denied",
+  "disputed",
+];
 
 export default function JobPage({ params }: { params: Params }) {
   return (
@@ -57,7 +66,11 @@ async function Job({ params }: { params: Params }) {
     new Date(),
   );
   const rate = formatRate(engagement.creatorFeeBps ?? INFLUENCER_FEE_BPS);
-  const open = engagement.status !== "cancelled";
+  // The full-price figure only applies until the job settles; after that the
+  // callout says what actually reached the wallet.
+  const showEarnings = UNSETTLED.includes(engagement.status);
+  const feeKobo = engagement.agreedPriceKobo - status.youReceiveKobo;
+  const minFee = formatNaira(engagement.creatorMinFeeKobo ?? MIN_FEE_KOBO);
 
   const timeline = [
     { label: "Approved", at: engagement.approvedAt },
@@ -101,25 +114,28 @@ async function Job({ params }: { params: Params }) {
         {status.body}
       </Callout>
 
-      {open && engagement.status !== "refunded" && (
-        <dl className="mt-4 space-y-3 rounded-card panel p-5 sm:p-6">
-          <div className="flex justify-between gap-4">
-            <dt>Agreed price</dt>
-            <dd className="font-semibold text-ink tabular-nums">
-              {formatNaira(engagement.agreedPriceKobo)}
-            </dd>
-          </div>
-          <div className="flex justify-between gap-4 border-t border-hairline pt-3">
-            <dt className="font-semibold text-ink">You’ll receive</dt>
-            <dd className="font-semibold text-ink tabular-nums">
-              {formatNaira(status.youReceiveKobo)}
-            </dd>
-          </div>
-          <p className="text-sm text-muted">
-            That’s after our {rate} fee, which comes off when the payment is
-            released to your wallet.
+      {showEarnings && (
+        <>
+          <dl className="mt-4 space-y-3 rounded-card panel p-5 sm:p-6">
+            <div className="flex justify-between gap-4">
+              <dt>Agreed price</dt>
+              <dd className="font-semibold text-ink tabular-nums">
+                {formatNaira(engagement.agreedPriceKobo)}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4 border-t border-hairline pt-3">
+              <dt className="font-semibold text-ink">You’ll receive</dt>
+              <dd className="font-semibold text-ink tabular-nums">
+                {formatNaira(status.youReceiveKobo)}
+              </dd>
+            </div>
+          </dl>
+          <p className="mt-2 text-sm text-muted">
+            That’s after our {formatNaira(feeKobo)} fee ({rate}, at least{" "}
+            {minFee}), which comes off when the payment is released to your
+            wallet.
           </p>
-        </dl>
+        </>
       )}
 
       <h2 className="mt-8 text-display-md">What’s happened</h2>

@@ -9,6 +9,7 @@ import { MIN_PAYOUT_KOBO, transferFee } from "@/lib/fees";
 import { formatNaira } from "@/lib/money";
 import { parsePayoutAmount, payoutPreview } from "@/lib/payout-request";
 import { refusalText } from "@/lib/refusals";
+import { cn } from "@/lib/utils";
 
 import { requestPayoutAction, type PayoutState } from "./actions";
 
@@ -73,14 +74,16 @@ export function PayoutForm({
         disabled={blocked !== null}
         aria-describedby="payout-preview"
       />
-      {blocked === null && (
-        <p
-          id="payout-preview"
-          className={problem ? "font-medium text-danger" : "text-ink"}
-        >
-          {line}
-        </p>
-      )}
+      <p
+        id="payout-preview"
+        aria-live="polite"
+        className={cn(
+          "empty:hidden",
+          problem ? "font-medium text-danger" : "text-ink",
+        )}
+      >
+        {blocked === null ? line : ""}
+      </p>
       <p className="text-sm text-muted">
         A member of our team approves each payout before it’s sent.
       </p>

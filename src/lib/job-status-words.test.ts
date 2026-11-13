@@ -115,6 +115,34 @@ test("cancelled wording follows the reason", () => {
   );
 });
 
+test("a business cancelling says whether anything was paid", () => {
+  assert.equal(
+    words({
+      status: "cancelled",
+      fundedAt: null,
+      cancelReason: "cancelled_by_business",
+    }).body,
+    "Nothing was paid.",
+  );
+  assert.equal(
+    words({ status: "cancelled", cancelReason: "cancelled_by_business" }).body,
+    "The payment went back to Acme.",
+  );
+});
+
+test("ended jobs offer no actions", () => {
+  for (const over of [
+    { status: "refunded" },
+    { status: "cancelled", cancelReason: "cancelled_by_business" },
+    { status: "cancelled", cancelReason: "cancelled_by_creator" },
+    { status: "cancelled", fundedAt: null, cancelReason: "payment_expired" },
+  ]) {
+    const w = words(over);
+    assert.equal(w.canStart, false);
+    assert.equal(w.canWithdraw, false);
+  }
+});
+
 function pick(w: { title: string; body: string }) {
   return [w.title, w.body];
 }
