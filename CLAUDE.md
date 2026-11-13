@@ -121,7 +121,8 @@ src/
       (influencer)/        browse campaigns, profile, applications, jobs, wallet, inbox
       (admin)/             reviews, disputes, payouts, moderation
     auth/                  route handlers for emailed links
-    api/webhooks/paystack/ webhook endpoint
+    api/webhooks/paystack/ webhook endpoint (thin adapter; the decisions are in lib/payments.ts)
+    api/cron/              scheduled jobs: expire-engagements, money-checks (bearer CRON_SECRET)
   components/
     ui/                    design-system components (Button, fields, …; shadcn/ui-based where a primitive is needed); see docs/DESIGN_SYSTEM.md
     brand/                 wordmark, product fragments, stickers, illustrations
@@ -132,12 +133,18 @@ src/
     supabase/              server, browser, and admin clients
     auth.ts                auth boundary (from Stage 2; §2a)
     money.ts               formatting + integer math (see §6)
-    escrow.ts              state transitions for money (see §6)
-    paystack.ts            thin fetch wrapper for the endpoints we use
+    fees.ts                fee, Paystack-charge and transfer-fee maths; mirrors the fee_config seed (§6.1)
+    paystack.ts            thin fetch wrapper for the endpoints we use; the only file that calls Paystack
+    payments.ts            what a verified Paystack answer means: funding, stranding, payout results, webhook decisions (§6.6)
+    money-checks.ts        the daily job: settle stuck payouts, record a reconciliation run
+    money-limits.ts        rate limits for bank checks and payout requests
+    ledger-words.ts, …     pure money helpers (words for ledger rows, payout and settle previews, trail checks, CSV)
   types/                   generated DB types + hand-written domain types
 supabase/
-  migrations/              timestamped SQL, the source of truth for schema
+  migrations/              timestamped SQL, the source of truth for schema; escrow, settlement and payout transitions live here as functions (§6.6)
+  tests/                   pgTAP tests, run by `supabase test db`
   seed.sql
+scripts/                   development tools: money-race.mjs (concurrency), sign-webhook.mjs (signed fake webhooks)
 docs/
   PROVIDERS.md             provider-specific dependencies and how to replace them
   creator-directory-decisions.md   why the creator directory works the way it does (built in Stage 3)
@@ -193,7 +200,7 @@ plus `disputed`, `auto_released`, `cancelled`, `refunded`.
 
 - An influencer must **not** start work until the engagement is `funded`.
 - **"Work started" = the influencer clicks "Start work" on a `funded` engagement** (`funded → in_progress`). Show a clear confirmation before they click. This moment decides who can cancel alone (see §6.2).
-- If a business doesn't fund within **48 hours** of approval, the approval lapses (`awaiting_payment → cancelled`, reason `payment_expired`) and the place is freed. `expire_unpaid_engagements()` does it, run hourly by `/api/cron/expire-engagements` and before every approval on the same campaign. Until Stage 6 there is no way to pay, so every approval lapses.
+- If a business doesn't fund within **48 hours** of approval, the approval lapses (`awaiting_payment → cancelled`, reason `payment_expired`) and the place is freed. `expire_unpaid_engagements()` does it, run hourly by `/api/cron/expire-engagements` and before every approval on the same campaign. Since Stage 6 the business pays from the engagement's pay page (§6.6).
 
 ### Submission
 Proof of work: links, screenshots, files, notes. `pending_review → accepted | denied | auto_accepted`.
@@ -255,7 +262,7 @@ Rules:
 
 - A separate ledger account from escrow and from influencer wallets. At any time: business wallets + escrow + influencer wallets must be fully covered by the Paystack balance. Reconcile regularly.
 - Funding an engagement uses wallet balance first and Paystack for any remainder. The Paystack charge applies only to the remainder.
-- **Do not build wallet top-ups yet.** The wallet fills only from refunds until a real need appears.
+- **Do not build wallet top-ups yet.** The wallet fills only from refunds (and from stranded payments, §6.6) until a real need appears.
 
 ### 6.4 Expected profit per ₦50,000 job (before support costs)
 
@@ -274,6 +281,46 @@ Strikes, blocks and suspensions protect people; they never take money.
 - **Suspension is not forfeiture.** A suspended account keeps everything it's owed: running work, escrow and payouts carry on. It loses only new activity and its listings (directory, open campaigns).
 - **No fake escrow.** Never mark money "held" because of a strike. If a payment ever needs holding (Stage 6 onward), the hold is per payment, written to the ledger, with a required reason, and reviewable.
 - `moderation_events` is append-only (who, what, why, when). Changes go through the database functions in `20261110100000_create_moderation.sql`, never direct writes.
+
+### 6.6 How the ledger, escrow and payouts work (built in Stage 6)
+
+Design and reasons: `docs/superpowers/specs/2026-11-13-stage-6-money-design.md`, including §13, "Built differently from this design". Everything below is in test mode until the compliance flag above is settled.
+
+**The ledger** (`ledger_entries`, migration `20261113100000`)
+- One row per signed amount in kobo, grouped by `group_id`: a group is one business event and sums to zero. Only `post_ledger_group()` writes, and it refuses an unbalanced group. A trigger rejects update, delete and truncate for every role; corrections are reversing groups with a `reason`.
+- **Sign convention:** cash (`paystack`) and expense (`paystack_fees`) are positive; liabilities (`escrow`, `business_wallet`, `creator_wallet`, `payout_in_flight`) and revenue (`platform_revenue`) are negative. A balance is the negated sum, read through `wallet_balance()`; the screens word and sign rows through `lib/ledger-words.ts`.
+- **Event types** (a check constraint; widen it in a new migration if you need another): `payment_received`, `hire_funded`, `hire_settled`, `payout_requested`, `payout_rejected`, `payout_paid`, `payout_failed`, `paystack_fee`, `correction`. Rows carry the actor (null for the system), the engagement, payment or payout, the Paystack reference and the `fee_config` id used.
+- People read only their own wallet rows and the escrow rows of their own hires; admins read everything. Neither `anon`, `authenticated` nor `service_role` may write the table directly.
+
+**Paying a hire** (`20261113100100`)
+- `start_payment()` freezes the total (price plus business fee), the fee, the `fee_config` id, the wallet part and the card part on a `payments` row, and a reference `pit_<32 hex>`. The business must tick the non-refundable-fee notice; the time is stored. Wallet balance is used first; if it covers the whole total the app calls `pay_from_wallet()` instead (`wallet_covers_total`).
+- **A card payment goes straight to escrow.** `record_card_payment()` (service role) stores the event key first and answers `funded`, `stranded`, `duplicate`, `mismatch` or `unknown_reference`. Funding writes one `payment_received` group (Paystack cash in, escrow price, platform revenue fee) and a `paystack_fee` group for Paystack's actual charge from the verified transaction. The business wallet never shows a card payment as a balance.
+- **Stranded payments.** A payment that succeeds after the approval lapsed, after a cancel, after another payment funded the hire, or when the wallet part is no longer covered, credits the business wallet and nothing else. The wallet therefore holds only refunds and stranded payments; there are no top-ups.
+- A payment started in the last 30 minutes holds the lapse and the business's cancel. Money functions take locks in one order (the business's `users` row, then the engagement, then the payment), so two payments, or a payment and the lapse, cannot both win. The fee on the engagement (`business_fee_kobo`, `creator_fee_bps`, `creator_min_fee_kobo`, `fee_config_id`) is a snapshot from the payment's frozen config and never changes.
+
+**Settling and cancelling** (`20261113100200`, `20261113100250`)
+- Escrow leaves a hire only through `settle_money()`, one `hire_settled` group that empties the hire's escrow exactly. Outcomes: `release`, `refund`, `split` (admin-chosen whole-naira amount), `refund_creator_fault`. The creator fee applies to the part released (5%, minimum ₦500, never more than the part). Any release sets the engagement to `accepted`; a full refund sets `refunded`. `paid_out` is not used: payouts come from the wallet, not from one engagement.
+- **Fault refund:** the business gets price plus business fee minus the Paystack charge of the one payment that funded the hire (wallet-only funding has none), capped so the business never gets back less than the price. A stranded late payment is not part of the hire; its charge was already absorbed.
+- Who may call what: `settle_engagement()` (admin only, checked inside) is the admin tool; `settle_engagement_internal()` is granted to no role and is what **Stage 7 calls for accept, auto-release and disputes**. Stage 7's accept by the business must skip the actor in `engagements_money_notify`, which today tells both people of an admin settlement. `start_engagement()` (the creator) and `cancel_funded_engagement()` (the business, or the creator withdrawing, which is treated as creator at fault) are the other user-callable ones. Settlement widens to `submitted` and `disputed` in Stage 7. Settling a settled hire is a no-op that writes nothing.
+
+**Payouts** (`20261113100300`, `20261113100500`, `20261113100550`)
+- A creator's bank account is saved by the server after Paystack resolves the account name and creates a transfer recipient (`save_bank_account_for()`, service role only); only the bank, the last four digits, the name and the recipient code are stored, never the full number.
+- `request_payout()` checks the minimum (₦1,000, from `fee_config`) and the balance under the creator's lock, debits the wallet into `payout_in_flight`, and snapshots the destination and the transfer cost on the payout. The cost is Paystack's tier fee plus a flat ₦50 stamp duty from ₦10,000, paid by the creator and shown before they confirm.
+- **Every payout is approved by an admin.** `approve_payout()` moves `requested → processing` and fixes the reference `pit_po_<32 hex>`; the server then calls Paystack Transfer with the snapshotted destination. If that call fails, the payout stays `processing` and the daily check finishes it. `reject_payout()` needs a reason and returns the amount to the wallet. `paid`, `failed` and `rejected` are final.
+- `finish_payout()` (service role) stores the event key first; a repeat is `duplicate`, the same outcome again is `duplicate`, and a contradicting event after a final state (for example `failed` after `paid`) is `ignored` and moves nothing. It removes any full account number from the stored payload. Cash leaves the ledger only when Paystack confirms the transfer (`paid`), and the wallet is re-credited only after Paystack confirms a failure.
+
+**Webhook and callback** (`src/lib/payments.ts`; routes are thin adapters)
+- The signature (HMAC SHA-512 of the raw body) is checked before parsing. Only the event name and the reference are read; the payment or transfer is then verified with Paystack, and the event key is built from Paystack's verified status. Non-NGN charges are not applied. Only a trimmed copy of Paystack's answer is stored.
+- The return page and the webhook call the same `confirmCardPayment()`; the stuck-payout poller and the transfer webhook call the same `confirmTransfer()`.
+- **Retries:** an invalid signature is 401. If verifying fails with Paystack 400 or 404 (it does not know the reference) the event is acknowledged with 200. Any other Paystack or database error (outage, 429, 401, 403) returns 500 so Paystack retries, because nothing else polls card payments. A charge Paystack still calls pending returns 503. A transfer that Paystack cannot find is failed only once its payout has been `processing` for over 15 minutes. A `needs_review` or currency-mismatch payment is only logged for now (`docs/TODO.md`).
+
+**Reconciliation and the admin audit tools** (`20261113100500`)
+- `/api/cron/money-checks` runs daily. It settles payouts stuck in `processing`, then records a `reconciliation_runs` row (append-only) from Paystack's balance. Expected cash is `−(escrow + business_wallet + creator_wallet + payout_in_flight + platform_revenue) − paystack_fees` using the stored signs. A non-zero difference, or a ledger whose accounts do not sum to zero, shows in `note` and as a callout on `/admin/money`. If the balance cannot be read, no row is written. The response is 500 if any step failed.
+- Admin tools: `/admin/money` (payouts awaiting approval, hires in escrow with settle actions, the latest reconciliation), `/admin/money/payouts`, `/admin/money/ledger` (filters, CSV export), and `/admin/money/engagements/[id]`, a per-hire trail that must add up. Businesses and creators see their own wallet and trail without the internal accounts.
+
+**Tests that protect these rules:** `supabase/tests/{ledger,funding,settlement,payouts,money_notifications,audit}.test.sql` (append-only, balanced groups, funding and settling twice, wallets never negative, grants and RLS, payout state rules, the reconciliation arithmetic); `src/lib/*.test.ts` (fee maths, including the business fee being larger than Paystack's charge for every allowed price, and that the `fee_config` seed equals `src/lib/fees.ts`; the webhook decisions; the cron); and `scripts/money-race.mjs`, which races the money functions from separate Postgres sessions on the local database. Add a test there, not only in pgTAP, for any new money function that two callers could reach at once.
+
+---
 
 ## 7. Security & data access
 
@@ -296,7 +343,7 @@ Notification events (each = in-app via Supabase Realtime + email via Resend, unl
 - Business: new application, influencer submitted completion, review deadline approaching, auto-release occurred, new message.
 - Influencer: application approved/rejected, engagement funded, submission accepted/denied (with reasons), auto-release triggered, payout status, new message, new matching campaign (digest/alert; see §10).
 
-Built so far (2026-11-11): the in-app side. Database triggers write `notifications` rows (kind + facts) wherever an application, hire, message, campaign review, verification, profile visibility or appeal changes; the words and links live in `src/lib/notifications.ts`; the bell in the portal top bar shows them live. Messages are one entry per conversation, cleared when the thread is read. Payment, submission and payout kinds arrive with Stages 6–7; email in Stage 8.
+Built so far (2026-11-11): the in-app side. Database triggers write `notifications` rows (kind + facts) wherever an application, hire, message, campaign review, verification, profile visibility or appeal changes; the words and links live in `src/lib/notifications.ts`; the bell in the portal top bar shows them live. Messages are one entry per conversation, cleared when the thread is read. Stage 6 added the money kinds (hire funded, work started, a paid hire cancelled, escrow settled, payout paid, failed or rejected; trigger functions in `20261113100400_money_notifications.sql`). Submission and auto-release kinds arrive with Stage 7; email in Stage 8.
 
 Rules: one `notifications` table is the source of truth; email is a delivery channel off it, not a parallel system. Add new events as triggers (or in the one function that makes the change) plus a case in `describeNotification`; never notify someone of their own action. Emails are transactional templates in code; keep them plain and testable. Respect user notification preferences, except for money-critical messages which always send.
 
@@ -402,11 +449,21 @@ Decided in Stage 5 (2026-11-10; details in `docs/superpowers/specs/2026-11-10-st
 - **The business messages first.** Creators reply in threads a business started.
 - **Contact details in chat** aren't delivered and count as strikes; blocking, strikes and suspension work as in §6.5.
 
+Decided in Stage 6 (2026-11-13; design in `docs/superpowers/specs/2026-11-13-stage-6-money-design.md`; how it works in §6.6):
+- **Minimum payout ₦1,000**, on request, no schedule; stored in `fee_config`.
+- **Every payout is approved by an admin** before any transfer is sent. The admin approves or rejects (with a written reason) from `/admin/money`.
+- **Card payments go straight to escrow.** A payment that succeeds after the approval lapsed (or the hire was cancelled) is not refunded to the card: it lands in the business wallet. The wallet holds only refunds and such stranded payments; there are no top-ups.
+- **An admin releases, refunds or splits escrow until Stage 7**, with a written reason. Stage 7's accept, auto-release and disputes call the same function.
+- **The creator pays the transfer cost**: Paystack's tier fee plus the ₦50 stamp duty from ₦10,000, shown before they confirm.
+- **The payout destination is snapshotted** on the payout when it is requested; changing the bank account later cannot redirect it.
+- **Suspended accounts are still paid out** (§6.5); Stage 6 has no payment holds.
+- **Business wallet withdrawal to a bank is still not built** (open item 9 stays open); an admin refunds by hand on request.
+
 Still open:
 1. ~~Can one account be both a business and an influencer?~~ Decided above: no.
 2. ~~Deadline to fund after approval before the approval expires.~~ Decided above (Stage 5): 48 hours.
 3. Maximum resubmission rounds after a denial, and the dispute process (who arbitrates, timelines, how an admin decides "influencer at fault").
-4. Minimum payout amount and payout schedule.
+4. ~~Minimum payout amount and payout schedule.~~ Decided above (Stage 6): ₦1,000, on request, no schedule.
 5. Whether negotiated prices can be changed after funding (default: no; cancel per §6.2, then re-engage).
 6. ~~Influencer verification~~ Decided above (Stage 3): self-reported ranges plus bio-code verification by an admin.
 7. Launch markets/currencies (NGN first? others later?).
