@@ -702,6 +702,29 @@ export async function getLatestReconciliation(): Promise<ReconciliationRun | nul
   };
 }
 
+/** The most recent reconciliation runs, newest first, for admins (row level security). */
+export async function listReconciliationRuns(
+  limit = 30,
+): Promise<ReconciliationRun[]> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("reconciliation_runs")
+    .select(
+      "id, ran_at, paystack_balance_kobo, expected_cash_kobo, difference_kobo, note",
+    )
+    .order("ran_at", { ascending: false })
+    .limit(Math.max(1, Math.min(limit, 200)));
+  if (error) throw new Error(`reconciliation list failed (${error.code})`);
+  return data.map((row) => ({
+    id: row.id,
+    ranAt: row.ran_at,
+    paystackBalanceKobo: row.paystack_balance_kobo,
+    expectedCashKobo: row.expected_cash_kobo,
+    differenceKobo: row.difference_kobo,
+    note: row.note,
+  }));
+}
+
 /**
  * Stores a reconciliation run against Paystack's balance (fetched by the
  * server). Secret-key client: the scheduled job acts for no one person.

@@ -17,6 +17,7 @@ import { formatDateTime } from "@/lib/creator-profile";
 import {
   getLatestReconciliation,
   listEscrowEngagements,
+  listReconciliationRuns,
   type EscrowEngagement,
   type ReconciliationRun,
 } from "@/lib/db/money";
@@ -53,8 +54,9 @@ export default function MoneyPage() {
 
 async function Money() {
   await requireRole("admin");
-  const [reconciliation, waiting, escrow] = await Promise.all([
+  const [reconciliation, runs, waiting, escrow] = await Promise.all([
     getLatestReconciliation(),
+    listReconciliationRuns(RUNS_SHOWN),
     countPayoutsAwaitingApproval(),
     listEscrowEngagements(),
   ]);
@@ -105,6 +107,8 @@ async function Money() {
           </ul>
         )}
       </section>
+
+      <RecentRuns runs={runs} />
 
       <section aria-labelledby="ledger-title" className="mt-10">
         <h2 id="ledger-title" className="text-display-md">
@@ -164,6 +168,110 @@ function Reconciliation({ run }: { run: ReconciliationRun | null }) {
       icon={CircleCheck}
       title={`Ledger and Paystack agree as of ${when}`}
     />
+  );
+}
+
+const RUNS_SHOWN = 30;
+
+const th = "px-4 py-3 text-[0.8125rem] font-medium text-muted";
+
+/** A difference, signed, with a word so it never relies on colour alone. */
+function Difference({ kobo }: { kobo: number }) {
+  if (kobo === 0) return <span className="text-muted">None</span>;
+  return (
+    <span className="font-semibold text-danger tabular-nums">
+      {kobo < 0 ? "−" : "+"}
+      {formatNaira(Math.abs(kobo))}
+      <span className="font-normal"> (differs)</span>
+    </span>
+  );
+}
+
+/**
+ * The last comparisons of the ledger with Paystack's balance, so a difference
+ * that appears, grows or clears is visible over time (spec §12). A stacked
+ * list on phones, a table from 640px, like the ledger tables.
+ */
+function RecentRuns({ runs }: { runs: ReconciliationRun[] }) {
+  if (runs.length === 0) return null;
+  return (
+    <section aria-labelledby="runs-title" className="mt-10">
+      <h2 id="runs-title" className="text-display-md">
+        Recent comparisons
+      </h2>
+      <p className="mt-2 max-w-xl">
+        Each daily check of the ledger against Paystack’s balance, newest first,
+        in Lagos time. Difference is Paystack’s balance minus what the ledger
+        expects.
+      </p>
+
+      <ul className="mt-4 divide-y divide-hairline overflow-hidden rounded-card panel sm:hidden">
+        {runs.map((run) => (
+          <li key={run.id} className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <p className="font-semibold text-ink">
+                {formatDateTime(run.ranAt)}
+              </p>
+              <Difference kobo={run.differenceKobo} />
+            </div>
+            <p className="mt-1 text-sm text-muted">
+              Paystack {formatNaira(run.paystackBalanceKobo)} · expected{" "}
+              {formatNaira(run.expectedCashKobo)}
+            </p>
+            {run.note && (
+              <p className="mt-1 text-sm break-words text-ink">{run.note}</p>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-4 hidden overflow-x-auto rounded-card panel sm:block">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-hairline bg-surface-soft/60">
+            <tr>
+              <th scope="col" className={th}>
+                Checked
+              </th>
+              <th scope="col" className={`${th} text-right`}>
+                Paystack balance
+              </th>
+              <th scope="col" className={`${th} text-right`}>
+                Expected cash
+              </th>
+              <th scope="col" className={`${th} text-right`}>
+                Difference
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-hairline text-ink">
+            {runs.map((run) => (
+              <tr key={run.id} className="align-top">
+                <th
+                  scope="row"
+                  className="px-4 py-3 font-normal whitespace-nowrap"
+                >
+                  {formatDateTime(run.ranAt)}
+                  {run.note && (
+                    <span className="block max-w-xs text-[0.8125rem] break-words whitespace-normal text-muted">
+                      {run.note}
+                    </span>
+                  )}
+                </th>
+                <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                  {formatNaira(run.paystackBalanceKobo)}
+                </td>
+                <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                  {formatNaira(run.expectedCashKobo)}
+                </td>
+                <td className="px-4 py-3 text-right whitespace-nowrap">
+                  <Difference kobo={run.differenceKobo} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
