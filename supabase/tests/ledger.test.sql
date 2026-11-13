@@ -12,7 +12,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(46);
+select plan(48);
 
 -- Ada is a business; Chidi is a creator hired by Ada; Uche is an unrelated
 -- creator; Efe is an admin.
@@ -182,6 +182,16 @@ select is((select count(*)::integer from public.ledger_entries), 0, 'an unrelate
 
 set local request.jwt.claims = '{"sub": "88888888-0000-0000-0000-0000000c8004"}'; -- Efe
 select is((select count(*)::integer from public.ledger_entries), (select n from all_rows), 'an admin reads every row');
+
+-- Only the money functions post, as the owner: no app role needs the function.
+reset role;
+select ok(not has_function_privilege('service_role',
+  'public.post_ledger_group(text, uuid, text, uuid, uuid, uuid, text, uuid, jsonb)', 'execute'),
+  'the service role has no grant on post_ledger_group');
+set local role service_role;
+select throws_ok($$ select public.post_ledger_group('correction', null, 'x', null, null, null, null, null,
+  '[{"account": "paystack", "amount": 1}, {"account": "platform_revenue", "amount": -1}]') $$,
+  '42501', null, 'the service role cannot post to the ledger directly');
 
 reset role;
 set local role anon;

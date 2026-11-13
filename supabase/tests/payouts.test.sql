@@ -13,7 +13,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(136);
+select plan(137);
 
 -- Ada is a business, Efe an admin. Chidi, Dayo and Funmi are creators paid
 -- ₦47,500 each for a ₦50,000 hire; Kemi is a creator with nothing earned.
@@ -92,6 +92,8 @@ select throws_ok($$ select public.save_bank_account_for('00000000-0000-0000-0000
   '42501', null, 'nor call the server''s function');
 reset role;
 set local role service_role;
+select throws_ok($$ select public.save_bank_account('058', 'GTBank', '1234', 'CHIDI OKAFOR', 'RCP_chidi1') $$,
+  '42501', null, 'the unused save_bank_account is closed to the service role too');
 select throws_ok($$ select public.save_bank_account_for('00000000-0000-0000-0000-0000000cc101', '058', 'GTBank', '12345',
                                                          'CHIDI OKAFOR', 'RCP_chidi1') $$,
   '22023', 'invalid_bank_account', 'five digits is not the last four');

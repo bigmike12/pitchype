@@ -2068,6 +2068,7 @@ export type Database = {
         | "payout_paid"
         | "payout_failed"
         | "payout_rejected"
+        | "payment_stranded"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -2282,6 +2283,7 @@ export const Constants = {
         "payout_paid",
         "payout_failed",
         "payout_rejected",
+        "payment_stranded",
       ],
       payment_model: ["fixed", "per_click"],
       report_reason: [

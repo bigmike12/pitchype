@@ -61,8 +61,8 @@ select ('c9000000-0000-0000-0000-0000000000' || x.tag)::uuid,
 -- Ledger hardening ------------------------------------------------------------------------------
 select is((select string_agg(tgname || '=' || tgenabled::text, ',' order by tgname) from pg_trigger
             where tgrelid in ('public.ledger_entries'::regclass, 'public.fee_config'::regclass) and not tgisinternal),
-  'fee_config_append_only=A,fee_config_no_truncate=A,ledger_entries_append_only=A,ledger_entries_no_truncate=A',
-  'the append-only triggers fire always, even in replica mode');
+  'fee_config_append_only=A,fee_config_no_truncate=A,ledger_entries_append_only=A,ledger_entries_no_truncate=A,ledger_entries_notify=O',
+  'the append-only triggers fire always, even in replica mode (the notification trigger is ordinary)');
 select throws_ok($$ select public.post_ledger_group('correction', null, 'x', null, null, null, null, null,
   '[{"account": "paystack", "amount": "10"}, {"account": "platform_revenue", "amount": -10}]') $$,
   'P0001', 'ledger_bad_line', 'a quoted amount is refused');
