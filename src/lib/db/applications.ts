@@ -127,9 +127,22 @@ export type EngagementSummary = {
   payBy: string;
   cancelledAt: string | null;
   cancelReason: string | null;
+  // Stage 6: funding, work started, settlement and the fee snapshot taken at
+  // funding (null until each happens).
+  fundedAt: string | null;
+  startedAt: string | null;
+  settledAt: string | null;
+  settleOutcome: string | null;
+  releasedKobo: number | null;
+  refundedKobo: number | null;
+  businessFeeKobo: number | null;
+  creatorFeeBps: number | null;
+  creatorMinFeeKobo: number | null;
 };
 
-function toEngagement(value: Json | undefined): EngagementSummary | null {
+export function toEngagement(
+  value: Json | undefined,
+): EngagementSummary | null {
   if (!isObject(value) || !str(value.id)) return null;
   return {
     id: str(value.id) ?? "",
@@ -139,6 +152,15 @@ function toEngagement(value: Json | undefined): EngagementSummary | null {
     payBy: str(value.pay_by) ?? "",
     cancelledAt: str(value.cancelled_at),
     cancelReason: str(value.cancel_reason),
+    fundedAt: str(value.funded_at),
+    startedAt: str(value.started_at),
+    settledAt: str(value.settled_at),
+    settleOutcome: str(value.settle_outcome),
+    releasedKobo: num(value.released_kobo),
+    refundedKobo: num(value.refunded_kobo),
+    businessFeeKobo: num(value.business_fee_kobo),
+    creatorFeeBps: num(value.creator_fee_bps),
+    creatorMinFeeKobo: num(value.creator_min_fee_kobo),
   };
 }
 

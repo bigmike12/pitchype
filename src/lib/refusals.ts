@@ -33,6 +33,8 @@ const REFUSAL_TEXT = {
     "Your wallet doesn’t cover this hire. Pay the rest by card.",
   wallet_covers_total:
     "Your wallet covers this hire. Pay from your wallet instead.",
+  fee_notice_required:
+    "Tick the box to confirm you’ve read that our fee isn’t refundable.",
   // Settling a hire (admins)
   release_invalid:
     "Release a whole number of naira, from ₦0 up to the hire’s price.",

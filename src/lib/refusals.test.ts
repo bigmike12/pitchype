@@ -18,6 +18,7 @@ test("only known codes count as refusals", () => {
   assert.equal(isRefusal("wallet_covers_total"), true);
   assert.equal(isRefusal("release_invalid"), true);
   assert.equal(isRefusal("settle_reason_required"), true);
+  assert.equal(isRefusal("fee_notice_required"), true);
   for (const code of [
     "no_bank_account",
     "payout_too_small",
@@ -31,6 +32,9 @@ test("only known codes count as refusals", () => {
   }
   assert.equal(isRefusal("invalid_bank_account"), false);
   assert.equal(isRefusal("invalid_outcome"), false);
-  assert.equal(isRefusal("fee_notice_required"), false);
   assert.equal(isRefusal("duplicate key value"), false);
+});
+
+test("the fee notice refusal tells the business what to tick", () => {
+  assert.match(refusalText("fee_notice_required"), /fee/i);
 });
