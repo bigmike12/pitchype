@@ -49,6 +49,7 @@ const NAV: Record<PortalRole, NavItem[]> = {
     { href: "/applications", label: "Applications", icon: "applications" },
     { href: "/profile", label: "Your profile", icon: "profile" },
     { href: "/inbox", label: "Inbox", icon: "inbox" },
+    { href: "/wallet", label: "Wallet", icon: "wallet" },
   ],
   admin: [{ href: "/admin", label: "Admin", icon: "admin" }],
 };

@@ -28,6 +28,7 @@ test("each role gets its own links", () => {
       ["/applications", "Applications"],
       ["/profile", "Your profile"],
       ["/inbox", "Inbox"],
+      ["/wallet", "Wallet"],
     ],
   );
   assert.deepEqual(
@@ -56,6 +57,9 @@ test("a link is active on its path and below it; Home only on /home", () => {
   );
   assert.equal(isNavActive("/campaigns", "/campaigns"), true);
   assert.equal(isNavActive("/campaignsx", "/campaigns"), false);
+  assert.equal(isNavActive("/wallet", "/wallet"), true);
+  assert.equal(isNavActive("/wallet/history", "/wallet"), true);
+  assert.equal(isNavActive("/walletx", "/wallet"), false);
   assert.equal(isNavActive("/business/creators", "/business/campaigns"), false);
   assert.equal(isNavActive("/account", "/home"), false);
 });
