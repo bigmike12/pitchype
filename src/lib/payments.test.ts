@@ -155,6 +155,14 @@ test("a payment in another currency is a mismatch without touching the database"
   const { deps, records } = cardDeps(success({ currency: "USD" }));
   assert.equal(await confirmCardPayment(REF, deps), "mismatch");
   assert.equal(records.length, 0);
+  // Logged for a person to follow up: the event and the reference, no amounts.
+  assert.deepEqual(logged, ["card payment currency mismatch " + REF]);
+});
+
+test("a payment whose amount the database rejects is logged", async () => {
+  const { deps } = cardDeps(success(), "mismatch");
+  assert.equal(await confirmCardPayment(REF, deps), "mismatch");
+  assert.deepEqual(logged, ["card payment amount mismatch " + REF]);
 });
 
 test("the database's own answers pass through", async () => {

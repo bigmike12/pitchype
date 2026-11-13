@@ -121,7 +121,11 @@ export async function confirmCardPayment(
     return "failed";
   }
   // Every payment is started in naira; anything else is not ours to apply.
-  if (verified.currency !== "NGN") return "mismatch";
+  // Logged (event and reference only) for a person to follow up.
+  if (verified.currency !== "NGN") {
+    console.error("card payment currency mismatch", reference);
+    return "mismatch";
+  }
 
   try {
     const result = await d.recordCardPayment({
@@ -140,6 +144,11 @@ export async function confirmCardPayment(
         "id",
       ]),
     });
+    if (result === "mismatch") {
+      // Paystack's amount differs from the payment's card part: nothing was
+      // funded, and money may have been collected. Logged for follow-up.
+      console.error("card payment amount mismatch", reference);
+    }
     return result === "unknown_reference" ? "unknown" : result;
   } catch (error) {
     if (error instanceof MoneyStateError) {
