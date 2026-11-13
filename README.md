@@ -87,11 +87,14 @@ supabase test db               # run the pgTAP tests in supabase/tests/
 npm run db:types               # after any schema change
 ```
 
-`node --env-file=.env.local scripts/money-race.mjs` races the money functions
-(payments, settlement, payouts) against each other in separate sessions on the
-local database and checks nothing moves twice and the ledger balances. Local
-only; its rows (people `@race.pitchype.test`) stay, as the ledger is
-append-only.
+`node scripts/money-race.mjs` races the money functions (payments, settlement,
+payouts) against each other in separate sessions on the local database and
+checks nothing moves twice and the ledger balances. It reads no env file. It
+needs Docker running with local Supabase up: it talks to the
+`supabase_db_pitchype` container through `docker exec` (set `RACE_DB_CONTAINER`
+for another name). Local only. Every run leaves permanent rows in the local
+ledger, marked by people whose emails end `@race.pitchype.test`; the ledger is
+append-only, so they cannot be removed.
 
 ### Pushing migrations to the live database
 

@@ -13,6 +13,12 @@ export const RUN = randomUUID().slice(0, 8);
 
 // psql -----------------------------------------------------------------------------------------------
 
+// Database-side bounds for every session: a call stuck on a lock fails with
+// Postgres's own message instead of hanging the run.
+const PGOPTIONS = "-c statement_timeout=30s -c lock_timeout=20s";
+// Client-side bound, above both, in case the session never reports back.
+const KILL_AFTER_MS = 45_000;
+
 // Every call is its own `docker exec … psql`, so its own Postgres backend:
 // separate sessions and transactions, which is the point of this script.
 function psql(text) {
@@ -20,6 +26,8 @@ function psql(text) {
     const child = spawn("docker", [
       "exec",
       "-i",
+      "-e",
+      `PGOPTIONS=${PGOPTIONS}`,
       CONTAINER,
       "psql",
       "-X",
@@ -34,12 +42,24 @@ function psql(text) {
     ]);
     let stdout = "";
     let stderr = "";
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      resolve({
+        code: -2,
+        stdout,
+        stderr: `ERROR:  timeout: psql did not finish within ${KILL_AFTER_MS / 1000} s`,
+      });
+    }, KILL_AFTER_MS);
     child.stdout.on("data", (d) => (stdout += d));
     child.stderr.on("data", (d) => (stderr += d));
-    child.on("error", (error) =>
-      resolve({ code: -1, stdout, stderr: `ERROR:  ${error.message}` }),
-    );
-    child.on("close", (code) => resolve({ code, stdout, stderr }));
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      resolve({ code: -1, stdout, stderr: `ERROR:  ${error.message}` });
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      resolve({ code, stdout, stderr });
+    });
     child.stdin.end(text);
   });
 }
@@ -80,20 +100,45 @@ export const as = {
 // The SQL for one call in its own transaction. `gate` is an optional statement
 // run inside the transaction just before the call (the barrier). The result
 // is the call's value as text ('ok' for void), or `error:<message>`.
+// STARTED and ENDED are clock_timestamp() just before the call and just after
+// it (before commit, or after the rollback of a refused call), so race() can
+// check every call started before any finished.
+const now = `(extract(epoch from clock_timestamp()) * 1000)::text`;
 function callText(who, expr, gate = "") {
   return `begin;
 ${who}
 ${gate}
+select ${now} as race_started \\gset
+\\echo STARTED :race_started
+\\set ON_ERROR_STOP 0
 select coalesce(nullif((${expr})::text, ''), 'ok') as race_result \\gset
+\\if :ERROR
+\\echo REFUSED :LAST_ERROR_MESSAGE
+rollback;
+\\endif
+\\set ON_ERROR_STOP 1
+select ${now} as race_ended \\gset
+\\echo ENDED :race_ended
+\\if :{?race_result}
 commit;
 \\echo RESULT :race_result
+\\endif
 `;
 }
 
 function outcomeOf(result) {
+  const refused = result.stdout.match(/^REFUSED (.*)$/m);
+  if (refused) return `error:${refused[1].trim()}`;
   if (result.code !== 0) return `error:${errorOf(result.stderr)}`;
-  const line = result.stdout.split("\n").find((l) => l.startsWith("RESULT "));
-  return line ? line.slice("RESULT ".length) : "error:no result";
+  const line = result.stdout.match(/^RESULT (.*)$/m);
+  return line ? line[1] : "error:no result";
+}
+
+function timing(result, label) {
+  const value = Number(
+    result.stdout.match(new RegExp(`^${label} (\\S+)$`, "m"))?.[1],
+  );
+  return Number.isNaN(value) ? null : value;
 }
 
 // One call, alone. Returns the outcome string.
@@ -156,28 +201,42 @@ $$;`);
       throw new Error("barrier: the coordinator never took the lock");
   }
 
-  // After the barrier each worker notes when it got through, as evidence
-  // that the calls really started together (see barrier.spreadMs).
-  const gate = `select pg_advisory_xact_lock_shared(${key}) \\gset
-select (extract(epoch from clock_timestamp()) * 1000)::text as race_started \\gset
-\\echo STARTED :race_started`;
+  const gate = `select pg_advisory_xact_lock_shared(${key}) \\gset`;
   const workers = calls.map((c) => psql(callText(c.who, c.call, gate)));
   const [held, ...results] = await Promise.all([coordinator, ...workers]);
+  const outcomes = results.map(outcomeOf);
   if (held.code !== 0) throw new Error(`barrier: ${errorOf(held.stderr)}`);
 
-  const started = results.map((r) =>
-    Number(r.stdout.match(/^STARTED (\S+)$/m)?.[1]),
-  );
-  if (started.some(Number.isNaN))
-    throw new Error("barrier: a worker never got through the barrier");
-  const spread = Math.max(...started) - Math.min(...started);
-  barrier.races++;
-  barrier.spreadMs = Math.max(barrier.spreadMs, spread);
-  return results.map(outcomeOf);
+  // Proof the calls overlapped: every call started before any call finished.
+  const starts = results.map((r) => timing(r, "STARTED"));
+  const ends = results.map((r) => timing(r, "ENDED"));
+  if ([...starts, ...ends].includes(null)) {
+    throw new Error(
+      `race: a call did not report its timings (outcomes ${outcomes.join(", ")})`,
+    );
+  }
+  const spread = Math.max(...starts) - Math.min(...starts);
+  const margin = Math.min(...ends) - Math.max(...starts);
+  overlap.races++;
+  overlap.spreadMs = Math.max(overlap.spreadMs, spread);
+  overlap.marginMs = Math.min(overlap.marginMs, margin);
+  if (margin <= 0) overlap.misses++;
+  return outcomes;
 }
 
-// The widest gap seen between the first and last worker passing a barrier.
-export const barrier = { races: 0, spreadMs: 0 };
+// Per scenario: how many races ran, the widest gap between the first and last
+// call starting, the smallest time all calls were running together, and how
+// many races had no such time. The runner resets it for each scenario.
+export const overlap = {};
+export function resetOverlap() {
+  Object.assign(overlap, {
+    races: 0,
+    spreadMs: 0,
+    marginMs: Infinity,
+    misses: 0,
+  });
+}
+resetOverlap();
 
 // Two competing calls; `flip` launches them in the other order, so repeated
 // rounds exercise both interleavings. Results come back in the given order.
@@ -219,21 +278,27 @@ export async function newAdmin() {
   return admin;
 }
 
-export async function newHire(price) {
-  const business = newPerson("business", "biz");
+// `sameBusinessAs` (another hire) puts this hire on that hire's business and
+// campaign, for the scenarios about one business's wallet.
+export async function newHire(price, sameBusinessAs = null) {
+  const business = sameBusinessAs?.business ?? newPerson("business", "biz");
   const creator = newPerson("influencer", "creator");
-  const campaign = randomUUID();
+  const campaign = sameBusinessAs?.campaign ?? randomUUID();
   const application = randomUUID();
   const id = randomUUID();
-  await run(`
-insert into public.users (id, auth_user_id, email, role) values ${userRow(business)}, ${userRow(creator)};
+  const businessSql = sameBusinessAs
+    ? ""
+    : `
+insert into public.users (id, auth_user_id, email, role) values ${userRow(business)};
 insert into public.business_profiles (user_id, business_name, contact_name, state, city)
 values (${lit(business.id)}, 'Race Test Business', 'Race Tester', 'Lagos', 'Ikeja');
 insert into public.campaigns (id, business_id, status, title, brief, price_kobo, places,
                               applications_close_on, deliver_by, published_at, submitted_at)
 values (${lit(campaign)}, ${lit(business.id)}, 'open', 'Money race test',
         'A brief that is long enough for the checks.', 500000, 10,
-        public.lagos_today() + 10, public.lagos_today() + 20, now(), now());
+        public.lagos_today() + 10, public.lagos_today() + 20, now(), now());`;
+  await run(`${businessSql}
+insert into public.users (id, auth_user_id, email, role) values ${userRow(creator)};
 insert into public.applications (id, campaign_id, creator_id, status)
 values (${lit(application)}, ${lit(campaign)}, ${lit(creator.id)}, 'approved');
 insert into public.engagements (id, application_id, campaign_id, business_id, creator_id, agreed_price_kobo, pay_by)
@@ -317,6 +382,7 @@ select json_build_object(
   'status', e.status,
   'cancel_reason', e.cancel_reason,
   'settle_outcome', e.settle_outcome,
+  'started', e.started_at is not null,
   'escrow', coalesce((select sum(l.amount_kobo) from public.ledger_entries l
                        where l.engagement_id = e.id and l.account = 'escrow'), 0),
   'fundings', (select count(distinct l.group_id) from public.ledger_entries l
@@ -349,6 +415,14 @@ select json_build_object(
                select l.event_type, count(distinct l.group_id) as n from public.ledger_entries l
                 where l.payout_id = p.id group by l.event_type) g)
 ) from public.payouts p where p.id = ${lit(payoutId)}`);
+}
+
+// A hire's card payments, oldest first.
+export function paymentsOf(hire) {
+  return json(`
+select coalesce(json_agg(json_build_object('reference', p.reference, 'status', p.status,
+                                           'card', p.card_amount_kobo) order by p.created_at, p.id), '[]'::json)
+  from public.payments p where p.engagement_id = ${lit(hire.id)}`);
 }
 
 export function paymentFacts(reference) {
@@ -447,12 +521,22 @@ export function fmt(counts) {
 }
 
 // Collects the facts a scenario asserts; any mismatch fails the scenario.
+// Warnings (such as one winner every round) are printed but don't fail it.
 export function checker() {
   const failures = [];
   const facts = [];
+  const warnings = [];
   return {
     failures,
     facts,
+    warnings,
+    winners(label, list) {
+      if (new Set(list).size < 2) {
+        warnings.push(
+          `${label}: only ${list[0]} ever won in ${list.length} rounds`,
+        );
+      }
+    },
     eq(label, actual, expected) {
       const a = JSON.stringify(actual);
       const e = JSON.stringify(expected);

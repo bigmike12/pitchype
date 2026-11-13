@@ -4,11 +4,18 @@
 // transaction, so it cannot show what happens when sessions overlap; this can.
 // Development only: never point it at the live database.
 //
-//   node --env-file=.env.local scripts/money-race.mjs
+//   node scripts/money-race.mjs
 //
 // Needs Docker with local Supabase running (container supabase_db_pitchype,
-// or set RACE_DB_CONTAINER). Reads no secrets. Prints one PASS/FAIL line per
-// scenario and exits 1 if any fails.
+// or set RACE_DB_CONTAINER). Reads no env file and no secrets. Prints one
+// PASS/FAIL line per scenario and exits 1 if any fails. Every psql session is
+// bounded (statement and lock timeouts, and a kill after 45 s), so a stuck
+// call fails its scenario instead of hanging the run.
+//
+// What the invariants prove: the zero-sum, balanced-group and reconciliation
+// checks are guaranteed by post_ledger_group() itself, so they are only a
+// tripwire for writes that bypass it; the strong per-hire check is
+// escrow_not_matching_status, with the overdraft checks per wallet and payout.
 //
 // The ledger is append-only, so the rows this makes stay in the local
 // database for good. They are harmless: every person's email ends
@@ -20,7 +27,6 @@ import {
   RUN,
   as,
   attempt,
-  barrier,
   charge,
   checker,
   creatorWithBalance,
@@ -34,12 +40,15 @@ import {
   must,
   newAdmin,
   newHire,
+  overlap,
   paymentFacts,
+  paymentsOf,
   payoutFacts,
   race,
   racePair,
   recordCall,
   requestPayout,
+  resetOverlap,
   run,
   settleCall,
   startPayment,
@@ -109,19 +118,28 @@ function expireCall(hire) {
 }
 
 async function paymentVsLapse(c) {
-  // Inside the 30-minute hold: the payment wins whatever the order.
-  const held = await newHire(PRICE);
-  const p1 = await startPayment(held);
-  await age(held, p1, { payByAgo: "1 minute", paymentAgo: "5 minutes" });
-  const inHold = await race([
-    { who: as.service, call: recordCall(p1, eventKey("lapse-held")) },
-    { who: as.service, call: expireCall(held) },
-  ]);
-  c.eq("in hold: [payment, lapse]", inHold, ["funded", "0"]);
-  const f1 = await hireFacts(held);
-  c.eq("in hold: hire", [f1.status, f1.cancel_reason], ["funded", null]);
-  c.eq("in hold: escrow", f1.escrow, -PRICE);
-  c.eq("in hold: stranded", f1.stranded, 0);
+  // Inside the 30-minute hold: the payment wins whatever the order. Five
+  // rounds, launched in alternating order, so a missing in-flight guard
+  // cannot pass by ordering luck.
+  const inHold = [];
+  for (let round = 1; round <= 5; round++) {
+    const held = await newHire(PRICE);
+    const p1 = await startPayment(held);
+    await age(held, p1, { payByAgo: "1 minute", paymentAgo: "5 minutes" });
+    const pair = await racePair(
+      { who: as.service, call: recordCall(p1, eventKey("lapse-held")) },
+      { who: as.service, call: expireCall(held) },
+      round % 2 === 0,
+    );
+    inHold.push(...pair);
+    c.eq(`in hold round ${round}: [payment, lapse]`, pair, ["funded", "0"]);
+    const f1 = await hireFacts(held);
+    c.eq(
+      `in hold round ${round}: hire`,
+      [f1.status, f1.cancel_reason, f1.escrow, f1.stranded],
+      ["funded", null, -PRICE, 0],
+    );
+  }
 
   // Hold expired: the hire lapses and the late money lands in the wallet.
   const lapsed = await newHire(PRICE);
@@ -216,6 +234,7 @@ async function paymentVsCancel(c) {
       );
     }
   }
+  c.winners("stale hold", winners);
   return `in flight [${paid}, ${cancel}] | stale hold winners ${fmt(tally(winners))}`;
 }
 
@@ -319,6 +338,7 @@ async function settlementRaces(c) {
       );
     }
   }
+  c.winners("release vs refund", winners);
   return `5× release ${fmt(tally(releases))} | release vs refund winners ${fmt(tally(winners))}`;
 }
 
@@ -372,6 +392,7 @@ async function startVsCancel(c) {
       );
     }
   }
+  c.winners("start vs cancel", winners);
   return `winners ${fmt(tally(winners))}`;
 }
 
@@ -488,6 +509,7 @@ async function payoutApprovalRace(c) {
     await wallet(hire.creator, "creator_wallet"),
     CREATOR_NET - held,
   );
+  c.winners("approve vs reject", winners);
   return `5× approve ${fmt(tally(five))} | approve vs reject winners ${fmt(tally(winners))}`;
 }
 
@@ -541,6 +563,7 @@ async function finishRace(c) {
     await wallet(hire.creator, "creator_wallet"),
     CREATOR_NET - paid * 100_000,
   );
+  c.winners("paid vs failed", winners);
   return `outcomes ${fmt(tally(all))} | winners ${fmt(tally(winners))}`;
 }
 
@@ -605,6 +628,253 @@ async function badReports(c) {
   return `${fmt(tally(outcomes))} | then ${good}`;
 }
 
+// 12 ----------------------------------------------------------------------------------------------------
+
+async function walletSpendRace(c) {
+  // A ₦60,000 paid hire the business cancels puts ₦60,000 in its wallet
+  // through the real functions: enough for one ₦52,500 hire total, not two.
+  const seed = await newHire(6_000_000);
+  await fund(seed);
+  await must(
+    as.user(seed.business),
+    `public.cancel_funded_engagement(${lit(seed.id)}, true)`,
+  );
+  c.eq(
+    "wallet before",
+    await wallet(seed.business, "business_wallet"),
+    6_000_000,
+  );
+
+  const h1 = await newHire(PRICE, seed);
+  const h2 = await newHire(PRICE, seed);
+  const pay = (h) => ({
+    who: as.user(seed.business),
+    call: `public.pay_from_wallet(${lit(h.id)}, true)`,
+  });
+  const fromWallet = await race([pay(h1), pay(h2)]);
+  sameCounts(c, "2× pay_from_wallet", fromWallet, {
+    ok: 1,
+    "error:not_enough_balance": 1,
+  });
+  const [f1, f2] = [await hireFacts(h1), await hireFacts(h2)];
+  c.eq("wallet only: one hire funded", [f1.status, f2.status].sort(), [
+    "awaiting_payment",
+    "funded",
+  ]);
+  c.eq("wallet only: escrow", f1.escrow + f2.escrow, -PRICE);
+  c.eq(
+    "wallet only: wallet after (₦60,000 − ₦52,500)",
+    await wallet(seed.business, "business_wallet"),
+    750_000,
+  );
+
+  // Card + wallet: two payments both count on the same ₦7,500 wallet part.
+  const h3 = await newHire(PRICE, seed);
+  const h4 = await newHire(PRICE, seed);
+  const p3 = await startPayment(h3);
+  const p4 = await startPayment(h4);
+  c.eq(
+    "card + wallet: both payments lean on the wallet",
+    [p3.card, p4.card],
+    [4_500_000, 4_500_000],
+  );
+  const cards = await race([
+    { who: as.service, call: recordCall(p3, eventKey("wallet-part-3")) },
+    { who: as.service, call: recordCall(p4, eventKey("wallet-part-4")) },
+  ]);
+  sameCounts(c, "card + wallet: 2 successes", cards, {
+    funded: 1,
+    stranded: 1,
+  });
+  const [f3, f4] = [await hireFacts(h3), await hireFacts(h4)];
+  c.eq("card + wallet: one hire funded", [f3.status, f4.status].sort(), [
+    "awaiting_payment",
+    "funded",
+  ]);
+  c.eq("card + wallet: escrow", f3.escrow + f4.escrow, -PRICE);
+  c.eq(
+    "card + wallet: wallet after (₦7,500 spent once, ₦45,000 stranded back)",
+    await wallet(seed.business, "business_wallet"),
+    4_500_000,
+  );
+  return `wallet only ${fmt(tally(fromWallet))} | card + wallet ${fmt(tally(cards))}`;
+}
+
+// 13 ----------------------------------------------------------------------------------------------------
+
+async function settleVsCancel(c) {
+  // Release vs the business cancelling: exactly one applies.
+  const winners = [];
+  for (let round = 1; round <= 3; round++) {
+    const hire = await newHire(PRICE);
+    await fund(hire);
+    const [settled, cancelled] = await racePair(
+      { who: as.postgres, call: settleCall(hire, "release") },
+      {
+        who: as.user(hire.business),
+        call: `public.cancel_funded_engagement(${lit(hire.id)}, true)`,
+      },
+      round % 2 === 0,
+    );
+    const f = await hireFacts(hire);
+    // A settle after the cancel is the silent no-op on a settled hire.
+    c.eq(`round ${round}: settle call`, settled, "ok");
+    c.eq(
+      `round ${round}: escrow emptied once`,
+      [f.escrow, f.settlements],
+      [0, 1],
+    );
+    if (f.status === "accepted") {
+      winners.push("settle");
+      c.eq(
+        `round ${round} settle won: cancel`,
+        cancelled,
+        "error:engagement_locked",
+      );
+      c.eq(
+        `round ${round} settle won: wallets`,
+        [f.creator_wallet, f.business_wallet],
+        [CREATOR_NET, 0],
+      );
+    } else {
+      winners.push("cancel");
+      c.eq(
+        `round ${round} cancel won: hire`,
+        [cancelled, f.status, f.cancel_reason, f.settle_outcome],
+        ["ok", "cancelled", "cancelled_by_business", "refund"],
+      );
+      c.eq(
+        `round ${round} cancel won: wallets`,
+        [f.creator_wallet, f.business_wallet],
+        [0, PRICE],
+      );
+    }
+  }
+  c.winners("release vs cancel", winners);
+
+  // Refund vs the creator starting: settling from in_progress is allowed, so
+  // the hire always ends refunded; start either got in first or was refused.
+  const orders = [];
+  for (let round = 1; round <= 3; round++) {
+    const hire = await newHire(PRICE);
+    await fund(hire);
+    const [refunded, started] = await racePair(
+      { who: as.postgres, call: settleCall(hire, "refund") },
+      {
+        who: as.user(hire.creator),
+        call: `public.start_engagement(${lit(hire.id)})`,
+      },
+      round % 2 === 0,
+    );
+    const f = await hireFacts(hire);
+    c.eq(`refund round ${round}: settle call`, refunded, "ok");
+    c.eq(
+      `refund round ${round}: hire`,
+      [f.status, f.settle_outcome, f.escrow, f.settlements],
+      ["refunded", "refund", 0, 1],
+    );
+    c.eq(
+      `refund round ${round}: wallets`,
+      [f.creator_wallet, f.business_wallet],
+      [0, PRICE],
+    );
+    if (started === "ok") {
+      orders.push("start first");
+      c.eq(
+        `refund round ${round} start first: started_at set`,
+        f.started,
+        true,
+      );
+    } else {
+      orders.push("refund first");
+      c.eq(
+        `refund round ${round} refund first: start`,
+        [started, f.started],
+        ["error:engagement_locked", false],
+      );
+    }
+  }
+  c.winners("refund vs start", orders);
+  return `release vs cancel winners ${fmt(tally(winners))} | refund vs start ${fmt(tally(orders))}`;
+}
+
+// 14 ----------------------------------------------------------------------------------------------------
+
+async function concurrentStartPayment(c) {
+  const hire = await newHire(PRICE);
+  const start = {
+    who: as.user(hire.business),
+    call: `case when public.start_payment(${lit(hire.id)}, true) is not null then 'ok' end`,
+  };
+  const starts = await race([start, start]);
+  sameCounts(c, "2× start_payment", starts, { ok: 2 });
+  const payments = await paymentsOf(hire);
+  c.eq(
+    "one payment initiated, the other superseded",
+    payments.map((p) => p.status).sort(),
+    ["failed", "initiated"],
+  );
+
+  // Paystack then reports success for both: the hire is funded once.
+  const late = await race(
+    payments.map((p) => ({
+      who: as.service,
+      call: recordCall(p, eventKey("start-late")),
+    })),
+  );
+  sameCounts(c, "late successes on both", late, { funded: 1, stranded: 1 });
+  const f = await hireFacts(hire);
+  c.eq(
+    "hire",
+    [f.status, f.escrow, f.fundings, f.stranded],
+    ["funded", -PRICE, 1, 1],
+  );
+  c.eq(
+    "business wallet holds one card amount",
+    f.business_wallet,
+    payments[0].card,
+  );
+  return `starts ${fmt(tally(starts))} | late successes ${fmt(tally(late))}`;
+}
+
+// 15 ----------------------------------------------------------------------------------------------------
+
+async function requestVsFailedTransfer(c) {
+  const admin = await newAdmin();
+  const orders = [];
+  for (let round = 1; round <= 2; round++) {
+    // ₦1,500 in the wallet, ₦1,000 of it in a transfer that is about to fail.
+    const hire = await creatorWithBalance(500_000, 200_000);
+    const id = await requestPayout(hire.creator, 100_000);
+    const reference = JSON.parse(
+      await must(as.user(admin), `public.approve_payout(${lit(id)})`),
+    ).reference;
+    const [requested, finished] = await racePair(
+      { who: as.user(hire.creator), call: payoutCall(100_000) },
+      {
+        who: as.service,
+        call: `public.finish_payout(${lit(reference)}, 'failed', ${lit(eventKey("transfer-failed"))}, '{}'::jsonb)`,
+      },
+      round % 2 === 0,
+    );
+    c.eq(`round ${round}: transfer`, finished, "failed");
+    const balance = await wallet(hire.creator, "creator_wallet");
+    if (requested === "ok") {
+      orders.push("re-credit first");
+      c.eq(`round ${round} re-credit first: wallet`, balance, 50_000);
+    } else {
+      orders.push("request first");
+      c.eq(
+        `round ${round} request first: [request, wallet]`,
+        [requested, balance],
+        ["error:payout_not_enough_balance", 150_000],
+      );
+    }
+  }
+  c.winners("request vs re-credit", orders);
+  return `orders ${fmt(tally(orders))}`;
+}
+
 // Runner ------------------------------------------------------------------------------------------------
 
 const scenarios = [
@@ -619,17 +889,40 @@ const scenarios = [
   ["9 payout approval race", payoutApprovalRace],
   ["10 transfer finish race", finishRace],
   ["11 unknown reference, bad amounts", badReports],
+  ["12 wallet spend race", walletSpendRace],
+  ["13 settle vs cancel and start", settleVsCancel],
+  ["14 concurrent start_payment", concurrentStartPayment],
+  ["15 payout request vs failed transfer", requestVsFailedTransfer],
 ];
 
-console.log(`money race, run ${RUN}`);
-let failed = 0;
-for (const [name, scenario] of scenarios) {
+async function runOnce(scenario) {
+  resetOverlap();
   const c = checker();
   let counts = "";
   try {
     counts = await scenario(c);
   } catch (error) {
     c.failures.push(`stopped: ${error.message}`);
+  }
+  return { c, counts, stats: { ...overlap } };
+}
+
+console.log(`money race, run ${RUN}`);
+let failed = 0;
+const overall = { races: 0, spreadMs: 0, marginMs: Infinity };
+for (const [name, scenario] of scenarios) {
+  let { c, counts, stats } = await runOnce(scenario);
+  // A race where some call finished before another started proves nothing.
+  // That can be a scheduler hiccup, so the scenario (fresh fixtures) runs once more.
+  let rerun = "";
+  if (c.failures.length === 0 && stats.misses > 0) {
+    rerun = `rerun once: calls did not overlap in ${stats.misses} of ${stats.races} races`;
+    ({ c, counts, stats } = await runOnce(scenario));
+  }
+  if (stats.misses > 0) {
+    c.failures.push(
+      `calls did not overlap in ${stats.misses} of ${stats.races} races${rerun ? ", on the rerun too" : ""}`,
+    );
   }
   try {
     for (const problem of await invariants())
@@ -638,19 +931,38 @@ for (const [name, scenario] of scenarios) {
   } catch (error) {
     c.failures.push(`invariants not checked: ${error.message}`);
   }
+
   const pass = c.failures.length === 0;
   if (!pass) failed++;
   console.log(`${pass ? "PASS" : "FAIL"}  ${name}  ${counts}`);
   for (const line of pass ? c.facts : c.failures)
     console.log(`      ${pass ? "-" : "!"} ${line}`);
+  for (const line of c.warnings) console.log(`      ~ warning: ${line}`);
+  if (rerun) console.log(`      ~ ${rerun}`);
+  if (stats.races > 0) {
+    console.log(
+      `      ~ overlap: ${stats.races} races, starts within ${stats.spreadMs.toFixed(1)} ms, ` +
+        `all calls running together for at least ${stats.marginMs.toFixed(1)} ms`,
+    );
+    overall.races += stats.races;
+    overall.spreadMs = Math.max(overall.spreadMs, stats.spreadMs);
+    overall.marginMs = Math.min(overall.marginMs, stats.marginMs);
+  }
 }
 
-const totals = await run("select public.ledger_totals();");
+let totals = "not read";
+try {
+  totals = await run("select public.ledger_totals();");
+} catch (error) {
+  totals = `not read (${error.message})`;
+}
 console.log(
   `\n${scenarios.length - failed}/${scenarios.length} scenarios PASS  ledger_totals ${totals}`,
 );
 console.log(
-  `${barrier.races} races; the widest gap between first and last call start was ${barrier.spreadMs.toFixed(1)} ms.`,
+  `${overall.races} races; starts within ${overall.spreadMs.toFixed(1)} ms; ` +
+    `shortest time all of a race's calls were running together: ${overall.marginMs.toFixed(1)} ms ` +
+    "(includes one client round trip of measuring).",
 );
 console.log(
   "Note: the ledger is append-only, so this run's rows (people @race.pitchype.test) stay in the local database.",
