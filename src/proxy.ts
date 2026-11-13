@@ -66,6 +66,7 @@ export const config = {
     "/inbox",
     "/inbox/:path*",
     "/admin",
+    "/admin/:path*",
     "/business/:path*",
     "/campaigns",
     "/campaigns/:path*",
