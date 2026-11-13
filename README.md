@@ -134,8 +134,8 @@ Rules:
 - Take a backup first for anything that rewrites or drops data (Dashboard,
   Database, Backups).
 
-The Stage 6 migrations are the eight files from `20261113100000_create_ledger.sql`
-to `20261113100550_guard_payout_payload_scrub.sql`. They are **not on the live
+The Stage 6 migrations are the nine files from `20261113100000_create_ledger.sql`
+to `20261113100600_stranded_payment_and_hardening.sql`. They are **not on the live
 project yet** and must be pushed with the steps above (together with the Stage
 4 and 5 migrations, if those are still unpushed) before the live site can take
 a payment. They create the ledger, so read the dry-run list carefully.

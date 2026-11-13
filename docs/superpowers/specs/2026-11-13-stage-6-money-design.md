@@ -402,8 +402,9 @@ below win. How it works now: CLAUDE.md §6.6.
 - Ruling: creators' job page is `/jobs/[id]` and the wallets are `/wallet` and `/business/wallet`; the proxy treats `/jobs`, `/wallet` and the nested admin routes as signed-in.
 - Ruling: the wallet ledger labels an outgoing `payment_received` on a business wallet "Paid for a hire", and any
   event and account pair whose sign contradicts its label falls back to "Wallet activity".
-- Ruling: no new Stage 6 migration beyond the eight files: ledger, funding, settlement, the fault-refund fix, payouts, notifications,
-  audit and the payload-scrub guard (the design expected one migration plus types).
+- Ruling: nine Stage 6 migrations: ledger, funding, settlement, the fault-refund fix, payouts, notifications,
+  audit, the payload-scrub guard and, after the final review, the stranded-payment notice and grant hardening
+  (`20261113100600`) (the design expected one migration plus types).
 
 **Testing**
 - Ruling: the concurrency script uses separate `psql` sessions through `docker exec` (no new dependency), with
@@ -411,3 +412,22 @@ below win. How it works now: CLAUDE.md §6.6.
 - Not done: the signed-in browser run with Paystack test cards (§8). The Chrome extension was not connected,
   so no one clicked through the Stage 6 screens signed in; only signed-out routes, a signed webhook
   and the database and unit tests were exercised. Real webhooks need a public URL.
+
+**Built after the final review** (`20261113100600` and the app, 2026-11-13)
+- The **live Paystack check** for payouts (§12): `/admin/money/payouts` has **Check with Paystack** on each
+  payout still `processing`. It runs the same idempotent `confirmTransfer()` as the webhook and the daily job,
+  and says what happened in fixed words (`payoutCheckOutcome` in `src/lib/payout-request.ts`); Paystack's text is never shown.
+- The **reconciliation history** (§12): `/admin/money` lists the last 30 runs (time, Paystack balance, expected cash,
+  difference) under the latest-run callout.
+- The **stranded-payment notification**: an AFTER INSERT trigger on `ledger_entries` tells the business
+  (`payment_stranded`) when a `payment_received` row credits its wallet (a negative `business_wallet` amount, which only
+  a stranded payment writes). The reviewed money functions were not edited.
+- Hardening: the service role lost execute on `post_ledger_group()` (only money functions post, as owner) and on the
+  unused `save_bank_account()`.
+
+**Not built, and RELEASE BLOCKERS before real money**
+- No correction/adjustment tool: the `correction` event type exists but no function or screen can post a reversing
+  group (needed to book a mismatched payment, a reversal after `paid`, or a hand refund of a business wallet).
+- A transfer-fee difference (our fee table vs Paystack's real charge) is not booked to `paystack_fees`; it appears as a
+  reconciliation difference.
+- Both need their own design and review (money-critical SQL); see `docs/TODO.md`, "Before real money".

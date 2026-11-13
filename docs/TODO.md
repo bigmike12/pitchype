@@ -246,8 +246,8 @@ Before any real money (in this order):
 - [ ] **You:** set `PAYSTACK_SECRET_KEY` (the live key) and `CRON_SECRET` in
       Vercel, as sensitive variables. Without `CRON_SECRET` neither daily job
       runs; without the key nobody can pay or be paid.
-- [ ] **You:** push the Stage 6 migrations to the live project (eight files,
-      `20261113100000` to `20261113100550`, plus Stage 4 and 5's if still
+- [ ] **You:** push the Stage 6 migrations to the live project (nine files,
+      `20261113100000` to `20261113100600`, plus Stage 4 and 5's if still
       unpushed). Steps and rules: README, "Pushing migrations to the live
       database". Take a backup first and read the dry-run list.
 - [ ] **You:** in the Paystack dashboard set the webhook URL to
@@ -274,18 +274,56 @@ Before any real money (in this order):
       against the live rates before launch (`src/lib/fees.ts`, the `fee_config`
       seed). The stamp-duty source article was not independently verified.
 
+### Before real money (from the final whole-branch review, 2026-11-13)
+
+Release blockers. Each must be done, or consciously waived by you, before a
+live key is set.
+
+- [ ] **You:** Paystack's settlement mode must keep collected money in the
+      Paystack balance. By default Paystack pays collections out to the bank
+      account; if so, every reconciliation shows a large difference and payouts
+      fail for lack of balance. Configure it, or model settlements in the ledger.
+- [ ] **You:** "Pass transaction charges to the customer" must be OFF in
+      Paystack. Otherwise Paystack's verified amount includes the charge, every
+      payment is a `mismatch`, and money is collected without funding the hire.
+- [ ] **Build:** a correction/adjustment tool with a required reason. The
+      `correction` event type exists but nothing can post a reversing group
+      (needed to book a mismatched payment, a `transfer.reversed` after `paid`,
+      or a hand refund of a business wallet). Money-critical SQL: design and
+      review it first.
+- [ ] **Build:** durable admin alerts for `needs_review` and `mismatch` card
+      payments (today one log line each), a non-zero reconciliation difference
+      (today a callout on `/admin/money`) and payouts waiting for approval
+      (admins have no bell).
+- [ ] **You/Build:** a real webhook run on a deployed preview with test keys:
+      pay, settle, pay out, and a reconciliation run showing zero difference
+      (spec §12 lists this test; it never ran).
+- [ ] **You:** confirm what Paystack's `fees` field contains (is VAT
+      included?) and that one real transfer costs exactly the tier fee plus
+      stamp duty. A transfer-fee difference is not booked to `paystack_fees`; it
+      shows only as a reconciliation difference.
+
+Parked from the final review (not release blockers on their own):
+
+- [ ] `confirmTransfer` does not compare Paystack's returned reference and
+      amount with the payout.
+- [ ] The ledger CSV export pages by offset while ordering newest first, so
+      rows inserted during an export shift pages.
+- [ ] The pay page shows fees from TypeScript constants, not `fee_config`; the
+      first new `fee_config` row will make it disagree with `start_payment`
+      (the `payout_paid` notification's net amount has the same dependency).
+- [ ] `recipient_code` is readable by its owner through RLS; restrict it with
+      column grants.
+- [ ] Consider running the money-checks job more often than daily: a failed
+      transfer call can wait up to 24 hours (an admin can now press **Check
+      with Paystack** meanwhile).
+
 Product and code follow-ups:
 
 - [ ] Business wallet withdrawal to a bank (CLAUDE.md §12, open item 9).
       Today an admin refunds by hand on request.
-- [ ] A "reversal after paid" admin correction tool. A `transfer.reversed`
-      that arrives after `paid` is ignored and logged, and the reconciliation
-      difference is what shows it.
-- [ ] `needs_review` and currency-mismatch card payments are only logged
-      (`src/lib/payments.ts`); add a durable admin alert (Stage 8). Same for a
-      non-zero reconciliation difference, which today is a callout on
-      `/admin/money`, and for payouts waiting for approval (admins have no
-      bell).
+- [ ] A "reversal after paid" correction and the durable admin alerts: moved
+      to "Before real money" above.
 - [ ] The `paid_out` engagement status is unused (payouts come from the
       wallet). Decide in Stage 7 whether to drop it from the enum.
 - [ ] Cache `listBanks()`; it runs uncached, up to five pages, on every form
@@ -303,8 +341,8 @@ Deferred minors, database:
 - [ ] `reject_payout` records the reason but not who rejected or when.
 - [ ] `admin_ledger`'s date filter casts `created_at` per row, so it cannot
       use an index; fine at current volume.
-- [ ] `save_bank_account` is revoked and has no callers; drop it in a later
-      migration.
+- [ ] `save_bank_account` has no callers and no grant to any role (the
+      service role's went in `20261113100600`); drop it in a later migration.
 - [ ] `record_card_payment` payloads are not scrubbed in SQL (the server
       trims them); revisit if bank-transfer or USSD channels are enabled.
 - [ ] The header comment of `20261113100200` still describes the old fault
