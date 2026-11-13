@@ -229,6 +229,11 @@ Design: `docs/superpowers/specs/2026-11-10-stage-5-applications-chat-design.md`.
 - [ ] Admins have no bell: they check `/admin`. Notify them of new
       verification requests, reports and first campaigns (Stage 8).
 
+## 12. From building Stage 6 (money)
+
+- [ ] `needs_review` and currency-mismatch card payments are only logged
+      (`src/lib/payments.ts`); add a durable admin alert (Stage 8).
+
 ## Done
 
 - [x] Database migrations for Stages 1–3 pushed to the live project

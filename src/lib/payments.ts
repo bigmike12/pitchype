@@ -48,9 +48,7 @@ export type CardDeps = {
 
 export type TransferDeps = {
   verifyTransfer: typeof verifyTransfer;
-  getPayoutByReference: (
-    reference: string,
-  ) => Promise<{
+  getPayoutByReference: (reference: string) => Promise<{
     id: string;
     status: string;
     approvedAt: string | null;
@@ -180,7 +178,9 @@ export async function confirmTransfer(
     eventKey = `transfer.${verified.status}:${reference}`;
   } else if (verified.status === "not_found") {
     // Paystack never received it (we stopped between approval and sending).
-    // Give an in-flight request time to land before re-crediting the wallet.
+    // Give an in-flight request time to land before re-crediting the wallet,
+    // and only ever for a payout we sent (finish_payout guards this too).
+    if (payout.status !== "processing") return "pending";
     const approvedAt =
       payout.approvedAt === null ? NaN : Date.parse(payout.approvedAt);
     const stuck = approvedAt < stuckPayoutCutoff(d.now()).getTime();
@@ -238,7 +238,8 @@ const TRANSFER_EVENTS = new Set([
  * are read, and the payment or transfer is verified with Paystack.
  *
  * 200 tells Paystack to stop; 5xx makes it retry. Retried: a Paystack or
- * database outage, and a charge Paystack still calls pending.
+ * database outage, any Paystack error but 400/404 (rate limits, key
+ * problems), and a charge Paystack still calls pending.
  */
 export async function handlePaystackWebhook(
   rawBody: string,
@@ -289,11 +290,12 @@ export async function handlePaystackWebhook(
   } catch (error) {
     if (
       error instanceof PaystackError &&
-      error.status >= 400 &&
-      error.status < 500
+      (error.status === 400 || error.status === 404)
     ) {
-      // Paystack refused the lookup itself (e.g. a test-mode reference sent to
-      // live keys); retrying would get the same answer.
+      // Paystack doesn't know the reference (e.g. a test-mode reference sent
+      // to live keys); retrying would get the same answer. Anything else (a
+      // rate limit, a key problem, an outage) is retried: nothing else polls
+      // card payments, so an acknowledged miss would never be recorded.
       console.error(
         "paystack webhook: verify refused",
         event,

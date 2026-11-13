@@ -1,4 +1,4 @@
-import { isRefusal, type Refusal } from "@/lib/refusals";
+import { isRefusal, type Refusal } from "../refusals.ts";
 
 export type Refused = { ok: false; reason: Refusal };
 

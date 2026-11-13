@@ -529,3 +529,46 @@ test("the same event twice calls through both times (idempotency lives in the da
   assert.equal(second.body.result, "duplicate");
   assert.equal(cardCalls.length, 2);
 });
+
+test("Paystack rate limits and key errors are retried; only an unknown reference is acknowledged", async () => {
+  const cases: [number, number][] = [
+    [429, 500],
+    [401, 500],
+    [403, 500],
+    [400, 200],
+    [404, 200],
+  ];
+  for (const [paystackStatus, expected] of cases) {
+    const fail = async (): Promise<never> => {
+      throw new PaystackError("Paystack said no", paystackStatus);
+    };
+    const charge = event("charge.success", REF);
+    const card = webhookDeps(fail);
+    const cardResponse = await handlePaystackWebhook(
+      charge,
+      sign(charge),
+      card.deps,
+    );
+    assert.equal(cardResponse.status, expected, `charge ${paystackStatus}`);
+
+    const transfer = event("transfer.reversed", PO_REF);
+    const payout = webhookDeps(undefined, fail);
+    const payoutResponse = await handlePaystackWebhook(
+      transfer,
+      sign(transfer),
+      payout.deps,
+    );
+    assert.equal(payoutResponse.status, expected, `transfer ${paystackStatus}`);
+  }
+});
+
+test("a not_found from Paystack never fails a payout that isn't processing", async () => {
+  for (const status of ["requested", "paid", "failed", "rejected"]) {
+    const { deps, finishes } = transferDeps(
+      { status: "not_found", raw: null },
+      { payout: { id: "p", status, approvedAt: minutesAgo(60) } },
+    );
+    assert.equal(await confirmTransfer(PO_REF, deps), "pending", status);
+    assert.equal(finishes.length, 0, status);
+  }
+});
