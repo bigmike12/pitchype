@@ -312,6 +312,21 @@ function Outcome({ application: a }: { application: CampaignApplication }) {
       </Link>
     );
   }
+  // Paid hires (and ones finished or cancelled after paying) have their own page.
+  if (
+    a.status === "approved" &&
+    e &&
+    (e.fundedAt || e.status !== "cancelled")
+  ) {
+    return (
+      <Link
+        href={`/business/engagements/${e.id}`}
+        className={buttonVariants({ variant: "secondary" })}
+      >
+        View hire · {formatNaira(e.agreedPriceKobo)}
+      </Link>
+    );
+  }
   const text =
     a.status === "approved" && e?.status === "cancelled"
       ? e.cancelReason === "payment_expired"
