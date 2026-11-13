@@ -13,7 +13,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(132);
+select plan(136);
 
 -- Ada is a business, Efe an admin. Chidi, Dayo and Funmi are creators paid
 -- ₦47,500 each for a ₦50,000 hire; Kemi is a creator with nothing earned.
@@ -331,6 +331,31 @@ select is((select payload from public.payment_events where event_key = 'evt-po-c
   'the stored payload has no full account number, and keeps everything else');
 select is((select count(*)::integer from public.payment_events where payload::text like '%0123456789%'), 0,
   'the full number is stored nowhere');
+
+-- Odd payload shapes are stored unchanged, never an error that would make
+-- Paystack retry the webhook forever. Chidi's payout is already paid, so each
+-- new event is stored and then reported as a duplicate.
+set local role service_role;
+create temporary table odd_payloads (n integer, payload jsonb) on commit drop;
+insert into odd_payloads values
+  (1, '"x"'), (2, '[]'), (3, 'null'), (4, '{"data": {"recipient": []}}'), (5, '{"data": []}'),
+  (6, '{"data": "x"}'), (7, '{"data": {"recipient": "x"}}'), (8, '{"data": {"recipient": {"details": [1]}}}');
+select is((select array_agg(public.finish_payout((select reference from public.payouts
+                                                   where user_id = '00000000-0000-0000-0000-0000000cc101'),
+                                                  'paid', 'evt-po-shape-' || n, payload) order by n)
+             from odd_payloads),
+  array['duplicate', 'duplicate', 'duplicate', 'duplicate', 'duplicate', 'duplicate', 'duplicate', 'duplicate'],
+  'a scalar, array, JSON null, or a data or recipient that isn''t an object is accepted');
+select is((select count(*)::integer from odd_payloads o
+             join public.payment_events e on e.event_key = 'evt-po-shape-' || o.n and e.payload = o.payload), 8,
+  'and stored exactly as received');
+select is(public.finish_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000cc101'),
+                               'paid', 'evt-po-shape-9',
+                               '{"data": {"recipient": {"account_number": "0123456789", "details": "x"}}}'),
+  'duplicate', 'a recipient whose details aren''t an object is accepted');
+select is((select payload from public.payment_events where event_key = 'evt-po-shape-9'),
+  '{"data": {"recipient": {"details": "x"}}}'::jsonb, 'and its account number is still removed');
+reset role;
 
 -- A transfer that fails re-credits the wallet exactly once.
 set local role authenticated;
