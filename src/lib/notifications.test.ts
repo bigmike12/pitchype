@@ -116,6 +116,13 @@ test("missing facts never show 'undefined'", () => {
     "profile_hidden",
     "profile_restored",
     "appeal_answered",
+    "hire_funded",
+    "work_started",
+    "funded_hire_cancelled",
+    "engagement_settled",
+    "payout_paid",
+    "payout_failed",
+    "payout_rejected",
   ]) {
     const d = describeNotification(row(kind));
     assert.ok(d, kind);
@@ -125,6 +132,121 @@ test("missing facts never show 'undefined'", () => {
       kind,
     );
   }
+});
+
+const hire = { ...campaign, engagement_id: "e1", name: "Ada Kitchen" };
+
+test("a funded hire tells the creator to start, and links to the job", () => {
+  const d = describeNotification(row("hire_funded", hire), "influencer");
+  assert.equal(d?.title, "Ada Kitchen paid for “Zobo week”");
+  assert.match(d?.body ?? "", /start work/i);
+  assert.equal(d?.href, "/jobs/e1");
+});
+
+test("starting work tells the business, and links to the hire", () => {
+  const d = describeNotification(
+    row("work_started", { ...hire, name: "Tolu" }),
+    "business",
+  );
+  assert.equal(d?.title, "Tolu started work on “Zobo week”");
+  assert.equal(d?.href, "/business/engagements/e1");
+});
+
+test("a cancelled paid hire reads differently for each side", () => {
+  const forCreator = describeNotification(
+    row("funded_hire_cancelled", hire),
+    "influencer",
+  );
+  const forBusiness = describeNotification(
+    row("funded_hire_cancelled", { ...hire, name: "Tolu" }),
+    "business",
+  );
+  assert.equal(forCreator?.title, "Ada Kitchen cancelled your paid hire for “Zobo week”");
+  assert.equal(forCreator?.href, "/jobs/e1");
+  assert.equal(forBusiness?.title, "Tolu withdrew from your paid hire for “Zobo week”");
+  assert.match(forBusiness?.body ?? "", /wallet/i);
+  assert.equal(forBusiness?.href, "/business/engagements/e1");
+});
+
+test("a settlement says how the money went, with a link for each side", () => {
+  const release = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      outcome: "release",
+      released_kobo: 5000000,
+      refunded_kobo: 0,
+    }),
+    "influencer",
+  );
+  assert.equal(release?.title, "“Zobo week” was settled");
+  assert.match(release?.body ?? "", /₦50,000/);
+  assert.match(release?.body ?? "", /released to your wallet/i);
+  assert.equal(release?.href, "/jobs/e1");
+
+  const refund = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      outcome: "refund",
+      released_kobo: 0,
+      refunded_kobo: 5000000,
+    }),
+    "business",
+  );
+  assert.match(refund?.body ?? "", /₦50,000/);
+  assert.match(refund?.body ?? "", /back to your wallet/i);
+  assert.equal(refund?.href, "/business/engagements/e1");
+
+  const split = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      outcome: "split",
+      released_kobo: 2000000,
+      refunded_kobo: 3000000,
+    }),
+    "business",
+  );
+  assert.match(split?.body ?? "", /₦20,000/);
+  assert.match(split?.body ?? "", /₦30,000/);
+
+  const fault = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      outcome: "refund_creator_fault",
+      released_kobo: 0,
+      refunded_kobo: 5154594,
+    }),
+    "business",
+  );
+  assert.match(fault?.body ?? "", /₦51,545\.94/);
+});
+
+test("payout notifications show the amount and link to the wallet", () => {
+  const paid = describeNotification(
+    row("payout_paid", { payout_id: "p1", amount_kobo: 4750000 }),
+    "influencer",
+  );
+  assert.equal(paid?.title, "Your ₦47,500 payout was sent");
+  assert.equal(paid?.href, "/wallet");
+
+  const failed = describeNotification(
+    row("payout_failed", { payout_id: "p1", amount_kobo: 4750000 }),
+    "influencer",
+  );
+  assert.equal(failed?.title, "Your ₦47,500 payout didn’t go through");
+  assert.match(failed?.body ?? "", /back in your wallet/i);
+  assert.equal(failed?.href, "/wallet");
+
+  const rejected = describeNotification(
+    row("payout_rejected", {
+      payout_id: "p1",
+      amount_kobo: 4750000,
+      decision_reason: "The account name does not match.",
+    }),
+    "influencer",
+  );
+  assert.equal(rejected?.title, "We couldn’t approve your ₦47,500 payout");
+  assert.equal(rejected?.body, "The account name does not match.");
+  assert.equal(rejected?.href, "/wallet");
 });
 
 test("unknown kinds are skipped, not shown blank", () => {

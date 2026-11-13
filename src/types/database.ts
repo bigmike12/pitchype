@@ -2000,6 +2000,13 @@ export type Database = {
         | "hire_lapsed"
         | "new_message"
         | "appeal_answered"
+        | "hire_funded"
+        | "work_started"
+        | "funded_hire_cancelled"
+        | "engagement_settled"
+        | "payout_paid"
+        | "payout_failed"
+        | "payout_rejected"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -2207,6 +2214,13 @@ export const Constants = {
         "hire_lapsed",
         "new_message",
         "appeal_answered",
+        "hire_funded",
+        "work_started",
+        "funded_hire_cancelled",
+        "engagement_settled",
+        "payout_paid",
+        "payout_failed",
+        "payout_rejected",
       ],
       payment_model: ["fixed", "per_click"],
       report_reason: [

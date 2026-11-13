@@ -3,6 +3,7 @@
 // turns that into what a person reads, so copy changes need no migration.
 
 import { PLATFORM_RULES, type Platform } from "./creator-profile.ts";
+import { formatNaira } from "./money.ts";
 
 export type NotificationRow = {
   id: string;
@@ -40,6 +41,13 @@ export function describeNotification(
   const theirs = title ? `“${title}”` : "a campaign";
   const campaignId = text(d.campaign_id);
   const note = text(d.note);
+  const engagementId = text(d.engagement_id);
+
+  // Where each side sees a hire; the business and creator pages differ.
+  const businessHire = engagementId
+    ? `/business/engagements/${engagementId}`
+    : "/business/campaigns";
+  const creatorJob = engagementId ? `/jobs/${engagementId}` : "/jobs";
 
   const applicants = campaignId
     ? `/business/campaigns/${campaignId}/applications`
@@ -95,7 +103,6 @@ export function describeNotification(
         href: creatorCampaign,
       };
     case "hire_lapsed": {
-      const engagementId = text(d.engagement_id);
       return role === "business"
         ? {
             title: `Your hire of ${name} for ${quoted} lapsed`,
@@ -110,6 +117,54 @@ export function describeNotification(
             href: creatorCampaign,
           };
     }
+    case "hire_funded":
+      return {
+        title: `${name} paid for ${theirs}`,
+        body: "The payment is held safely. You can start work now.",
+        href: creatorJob,
+      };
+    case "work_started":
+      return {
+        title: `${name} started work on ${quoted}`,
+        body: null,
+        href: businessHire,
+      };
+    case "funded_hire_cancelled":
+      return role === "business"
+        ? {
+            title: `${name} withdrew from your paid hire for ${quoted}`,
+            body: "The money went back to your wallet.",
+            href: businessHire,
+          }
+        : {
+            title: `${name} cancelled your paid hire for ${theirs}`,
+            body: "They cancelled before you started work, so nothing is due.",
+            href: creatorJob,
+          };
+    case "engagement_settled":
+      return {
+        title: title ? `“${title}” was settled` : "A hire was settled",
+        body: settlementBody(d, role),
+        href: role === "business" ? businessHire : creatorJob,
+      };
+    case "payout_paid":
+      return {
+        title: `Your ${payoutAmount(d)}payout was sent`,
+        body: "It’s on its way to your bank account.",
+        href: "/wallet",
+      };
+    case "payout_failed":
+      return {
+        title: `Your ${payoutAmount(d)}payout didn’t go through`,
+        body: "The money is back in your wallet. You can ask for it again.",
+        href: "/wallet",
+      };
+    case "payout_rejected":
+      return {
+        title: `We couldn’t approve your ${payoutAmount(d)}payout`,
+        body: text(d.decision_reason),
+        href: "/wallet",
+      };
     case "new_message": {
       const count = typeof d.count === "number" && d.count > 1 ? d.count : 1;
       const conversationId = text(d.conversation_id);
@@ -179,4 +234,35 @@ function platformLabel(value: unknown): string {
   return typeof value === "string" && value in PLATFORM_RULES
     ? PLATFORM_RULES[value as Platform].label
     : "social";
+}
+
+/** "₦47,500 " ready to sit before "payout", or "" if the amount is missing. */
+function payoutAmount(d: Record<string, unknown>): string {
+  const amount = kobo(d.amount_kobo);
+  return amount === null ? "" : `${formatNaira(amount)} `;
+}
+
+function kobo(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) ? value : null;
+}
+
+/** What an admin settlement did with the money, from one side's point of view. */
+function settlementBody(d: Record<string, unknown>, role: Role): string | null {
+  const released = kobo(d.released_kobo);
+  const refunded = kobo(d.refunded_kobo);
+  if (released === null || refunded === null) return null;
+
+  const business = role === "business";
+  const toCreator = business
+    ? `${formatNaira(released)} was released to the creator`
+    : `${formatNaira(released)} was released to your wallet, less our fee`;
+  const toBusiness = business
+    ? `${formatNaira(refunded)} went back to your wallet`
+    : `${formatNaira(refunded)} went back to the business`;
+
+  if (released > 0 && refunded > 0) return `${toCreator}, and ${toBusiness}.`;
+  if (released > 0) return `${toCreator}.`;
+  return business
+    ? `${toBusiness}.`
+    : `${toBusiness}. Nothing is due to you.`;
 }
