@@ -1,10 +1,10 @@
 import { CircleSlash, Clock, Lock } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { PageHeader } from "@/components/ui/page-header";
 import {
@@ -19,8 +19,9 @@ import { getWalletBalance } from "@/lib/db/money";
 import { feeExample } from "@/lib/fees";
 import { formatNaira } from "@/lib/money";
 
-import { cancelHireAction } from "./actions";
+import { CancelHireForm } from "./cancel-hire-form";
 import { PayForm } from "./pay-form";
+import { payView } from "./view";
 
 export const metadata: Metadata = { title: "Pay to start" };
 
@@ -52,15 +53,17 @@ async function Pay({ params }: { params: Params }) {
   const { id } = await params;
   const engagement = await getEngagementDetails(id);
   if (!engagement || engagement.business.id !== user.id) notFound();
+  const view = payView(engagement, new Date());
+  // A hire that was ever paid (Back from Paystack, a stale tab, an old
+  // notification) belongs on its hire page; this page would say "nothing was
+  // charged". redirect() throws, so it stays outside any try block.
+  if (view === "paid") redirect(`/business/engagements/${engagement.id}`);
 
   const fees = feeExample(engagement.agreedPriceKobo);
   const walletKobo = await getWalletBalance(user.id, "business_wallet");
   const walletAppliedKobo = Math.min(walletKobo, fees.businessPaysKobo);
   const cardAmountKobo = fees.businessPaysKobo - walletAppliedKobo;
-  const now = new Date();
-  const waiting =
-    engagement.status === "awaiting_payment" &&
-    Date.parse(engagement.payBy) > now.getTime();
+  const waiting = view === "waiting";
   const applicationsHref = `/business/campaigns/${engagement.campaign.id}/applications`;
 
   return (
@@ -140,31 +143,14 @@ async function Pay({ params }: { params: Params }) {
             cardAmountKobo={cardAmountKobo}
           />
 
-          <details className="mt-8 border-t border-hairline pt-5">
-            <summary className="cursor-pointer font-semibold text-ink">
-              Cancel this hire
-            </summary>
-            <p className="mt-3">
-              Nothing has been paid, so nothing is charged. The creator is told,
-              and the place goes back on offer.
-            </p>
-            <form action={cancelHireAction} className="mt-4">
-              <input type="hidden" name="engagementId" value={engagement.id} />
-              <Button type="submit" variant="secondary">
-                Cancel hire
-              </Button>
-            </form>
-          </details>
+          <CancelHireForm engagementId={engagement.id} />
         </>
       ) : (
         <Callout
           tone="info"
           icon={CircleSlash}
           title={
-            engagement.status === "cancelled" &&
-            engagement.cancelReason === "cancelled_by_business"
-              ? "You cancelled this hire"
-              : "This hire lapsed"
+            view === "cancelled" ? "You cancelled this hire" : "This hire lapsed"
           }
           action={
             <Link
@@ -175,9 +161,8 @@ async function Pay({ params }: { params: Params }) {
             </Link>
           }
         >
-          {engagement.status === "cancelled" &&
-          engagement.cancelReason === "cancelled_by_business"
-            ? "Nothing was charged, and the place went back on offer."
+          {view === "cancelled"
+            ? "You cancelled this hire before paying. Nothing was charged, and the place went back on offer."
             : "It wasn’t paid within 48 hours, so the place went back on offer. Nothing was charged."}
         </Callout>
       )}

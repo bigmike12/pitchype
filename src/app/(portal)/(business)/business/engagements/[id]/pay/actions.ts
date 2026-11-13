@@ -13,12 +13,30 @@ import { SITE_URL } from "@/lib/site";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-// Ends a hire before payment. The database checks it's this business's and
-// still waiting for payment; nothing was charged, so nothing is refunded.
-export async function cancelHireAction(form: FormData): Promise<void> {
+export type CancelHireState = FormState<never>;
+
+/**
+ * Ends a hire before payment. The database checks it's this business's and
+ * still waiting for payment, and refuses while a payment started in the last
+ * 30 minutes may still land; that refusal is shown, not swallowed. Nothing
+ * was charged, so nothing is refunded.
+ */
+export async function cancelHireAction(
+  _previous: CancelHireState,
+  form: FormData,
+): Promise<CancelHireState> {
   await requireRole("business");
-  await cancelEngagement(text(form, "engagementId"));
+  const engagementId = text(form, "engagementId");
+  if (!UUID.test(engagementId)) {
+    return { status: "error", message: refusalText("no_such_engagement") };
+  }
+  const result = await cancelEngagement(engagementId);
+  // Refreshed either way: a refusal can mean the hire moved on (paid, say).
   refresh();
+  if (!result.ok) {
+    return { status: "error", message: refusalText(result.reason) };
+  }
+  return { status: "success", message: "The hire is cancelled." };
 }
 
 export type PayState = FormState<never>;
