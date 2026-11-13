@@ -37,6 +37,16 @@ const REFUSAL_TEXT = {
   release_invalid:
     "Release a whole number of naira, from ₦0 up to the hire’s price.",
   settle_reason_required: "Write a reason of up to 500 characters.",
+  // Payouts
+  no_bank_account: "Add a bank account before asking for a payout.",
+  payout_too_small: "The smallest payout is ₦1,000.",
+  payout_fee_too_high:
+    "The transfer fee would take the whole payout. Ask for a larger amount.",
+  payout_not_enough_balance:
+    "Your wallet doesn’t hold that much. Ask for your balance or less.",
+  no_such_payout: "We couldn’t find that payout.",
+  payout_not_pending: "This payout has already been decided.",
+  payout_reason_required: "Write a reason of up to 500 characters.",
   // Shared
   not_allowed: "You can’t do this with this person.",
   activity_paused:

@@ -18,6 +18,18 @@ test("only known codes count as refusals", () => {
   assert.equal(isRefusal("wallet_covers_total"), true);
   assert.equal(isRefusal("release_invalid"), true);
   assert.equal(isRefusal("settle_reason_required"), true);
+  for (const code of [
+    "no_bank_account",
+    "payout_too_small",
+    "payout_fee_too_high",
+    "payout_not_enough_balance",
+    "no_such_payout",
+    "payout_not_pending",
+    "payout_reason_required",
+  ]) {
+    assert.equal(isRefusal(code), true, code);
+  }
+  assert.equal(isRefusal("invalid_bank_account"), false);
   assert.equal(isRefusal("invalid_outcome"), false);
   assert.equal(isRefusal("fee_notice_required"), false);
   assert.equal(isRefusal("duplicate key value"), false);

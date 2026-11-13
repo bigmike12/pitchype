@@ -85,6 +85,50 @@ export type Database = {
           },
         ]
       }
+      bank_accounts: {
+        Row: {
+          account_name: string
+          bank_code: string
+          bank_name: string
+          created_at: string
+          id: string
+          last4: string
+          recipient_code: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_name: string
+          bank_code: string
+          bank_name: string
+          created_at?: string
+          id?: string
+          last4: string
+          recipient_code: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_name?: string
+          bank_code?: string
+          bank_name?: string
+          created_at?: string
+          id?: string
+          last4?: string
+          recipient_code?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_profiles: {
         Row: {
           business_name: string
@@ -797,6 +841,13 @@ export type Database = {
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ledger_entries_payout_fk"
+            columns: ["payout_id"]
+            isOneToOne: false
+            referencedRelation: "payouts"
+            referencedColumns: ["id"]
+          },
         ]
       }
       messages: {
@@ -1086,6 +1137,88 @@ export type Database = {
             columns: ["fee_config_id"]
             isOneToOne: false
             referencedRelation: "fee_config"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payouts: {
+        Row: {
+          account_name: string
+          amount_kobo: number
+          approved_at: string | null
+          approved_by: string | null
+          bank_name: string
+          created_at: string
+          decision_reason: string | null
+          fee_config_id: string
+          id: string
+          last4: string
+          paid_at: string | null
+          recipient_code: string
+          reference: string | null
+          status: string
+          transfer_fee_kobo: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_name: string
+          amount_kobo: number
+          approved_at?: string | null
+          approved_by?: string | null
+          bank_name: string
+          created_at?: string
+          decision_reason?: string | null
+          fee_config_id: string
+          id?: string
+          last4: string
+          paid_at?: string | null
+          recipient_code: string
+          reference?: string | null
+          status?: string
+          transfer_fee_kobo: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_name?: string
+          amount_kobo?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          bank_name?: string
+          created_at?: string
+          decision_reason?: string | null
+          fee_config_id?: string
+          id?: string
+          last4?: string
+          paid_at?: string | null
+          recipient_code?: string
+          reference?: string | null
+          status?: string
+          transfer_fee_kobo?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payouts_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payouts_fee_config_id_fkey"
+            columns: ["fee_config_id"]
+            isOneToOne: false
+            referencedRelation: "fee_config"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payouts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -1416,6 +1549,7 @@ export type Database = {
         Args: { application: string; expected_price_kobo: number }
         Returns: string
       }
+      approve_payout: { Args: { payout: string }; Returns: Json }
       block_user: { Args: { other: string }; Returns: undefined }
       campaign_application_counts: {
         Args: never
@@ -1509,6 +1643,15 @@ export type Database = {
       fee_kobo: {
         Args: { amount: number; bps: number; min_fee: number }
         Returns: number
+      }
+      finish_payout: {
+        Args: {
+          event_key: string
+          outcome: string
+          payload: Json
+          reference: string
+        }
+        Returns: string
       }
       follower_range_for: {
         Args: { follower_count: number }
@@ -1619,6 +1762,10 @@ export type Database = {
         Args: { dedupe: string; detail: string; flag: string; person: string }
         Returns: Json
       }
+      reject_payout: {
+        Args: { payout: string; reason: string }
+        Returns: undefined
+      }
       relax_standing: { Args: { person: string }; Returns: undefined }
       report_campaign: {
         Args: {
@@ -1646,6 +1793,7 @@ export type Database = {
           id: string
         }[]
       }
+      request_payout: { Args: { amount_kobo: number }; Returns: string }
       require_admin: { Args: never; Returns: string }
       resolve_campaign_report: {
         Args: { report_id: string }
@@ -1657,6 +1805,16 @@ export type Database = {
       }
       review_handle_verification: {
         Args: { approve: boolean; follower_count?: number; request_id: string }
+        Returns: undefined
+      }
+      save_bank_account: {
+        Args: {
+          account_name: string
+          bank_code: string
+          bank_name: string
+          last4: string
+          recipient_code: string
+        }
         Returns: undefined
       }
       save_campaign_draft: {
@@ -1757,6 +1915,7 @@ export type Database = {
         Args: { request_id: string }
         Returns: undefined
       }
+      transfer_fee_for: { Args: { amount_kobo: number }; Returns: number }
       transition_campaign: {
         Args: { action: string; campaign_id: string; note?: string }
         Returns: Database["public"]["Enums"]["campaign_status"]
