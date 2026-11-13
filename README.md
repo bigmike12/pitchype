@@ -4,13 +4,15 @@ Pitchype is a marketplace that connects Nigerian businesses with micro and nano
 creators. Businesses post campaigns or hire creators directly; creators apply,
 do the work, and get paid through escrow once the work is approved.
 
-This repository is at **Stage 5**: the public landing page;
+This repository is at **Stage 6**: the public landing page;
 accounts (sign-up, login, password reset, onboarding, an account page);
 creator profiles with a public directory, handle verification and moderation;
-campaigns that businesses publish and creators browse; and applications,
-hiring up to the pay step, live chat, blocking and account standing.
-Payments and escrow come next (Stage 6). `CLAUDE.md` holds the product rules and
-engineering guidelines; `docs/BUILD_PROMPT.md` holds the stage plan.
+campaigns that businesses publish and creators browse; applications, hiring,
+live chat, blocking and account standing; and money: paying a hire into
+escrow through Paystack, wallets, admin settlement and admin-approved payouts
+(test mode only). Submissions, accept and deny, auto-release and disputes
+come next (Stage 7). `CLAUDE.md` holds the product rules and engineering
+guidelines; `docs/BUILD_PROMPT.md` holds the stage plan.
 
 ## Stack
 
@@ -35,19 +37,23 @@ Local development always points at the local Supabase, never the hosted one.
 
 ## Environment variables
 
-| Name                                   | What it is                                                                                                                                |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`             | Supabase project URL (local: `http://127.0.0.1:54321`)                                                                                    |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key (`sb_publishable_…`). Safe in the browser; RLS protects the data                                                 |
-| `NEXT_PUBLIC_APP_URL`                  | Public site URL for canonical links, sitemap and social cards, e.g. `https://pitchype.com`                                                |
-| `SUPABASE_SECRET_KEY`                  | **Server-only.** Supabase secret key (`sb_secret_…`), used for profile photos and the lapse job                                           |
-| `CRON_SECRET`                          | **Server-only.** Shared secret for `/api/cron/expire-engagements` (sent as `Authorization: Bearer …`; Vercel Cron sends it automatically) |
+| Name                                   | What it is                                                                                                                                       |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_SUPABASE_URL`             | Supabase project URL (local: `http://127.0.0.1:54321`)                                                                                           |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key (`sb_publishable_…`). Safe in the browser; RLS protects the data                                                        |
+| `NEXT_PUBLIC_APP_URL`                  | Public site URL for canonical links, sitemap and social cards, e.g. `https://pitchype.com`                                                       |
+| `SUPABASE_SECRET_KEY`                  | **Server-only.** Supabase secret key (`sb_secret_…`), used for profile photos and the lapse job                                                  |
+| `CRON_SECRET`                          | **Server-only.** Shared secret for the scheduled jobs under `/api/cron/` (sent as `Authorization: Bearer …`; Vercel Cron sends it automatically) |
+| `PAYSTACK_SECRET_KEY`                  | **Server-only.** Paystack secret key (a test-mode key while building). Checkout, verification, webhook signatures and payouts                    |
 
 The first three are safe to expose. A legacy anon key also works in
 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. The secret key bypasses row level
 security: it is read only by `src/lib/supabase/admin.ts`, must never get a
 `NEXT_PUBLIC_` name, and goes in Vercel's settings as a sensitive variable.
-Without it everything works except photo uploads.
+Without it everything works except photo uploads. `PAYSTACK_SECRET_KEY` is
+server-only in the same way: read only by `src/lib/paystack.ts`, never given a
+`NEXT_PUBLIC_` name, and set as a sensitive variable in Vercel. Without it
+nothing can be paid or paid out, and every webhook is refused.
 
 Two local env files, both git-ignored:
 
@@ -87,6 +93,9 @@ supabase test db               # run the pgTAP tests in supabase/tests/
 npm run db:types               # after any schema change
 ```
 
+`supabase test db` should report every file passing (14 files and 848 tests
+after Stage 6; the count grows as tests are added).
+
 `node scripts/money-race.mjs` races the money functions (payments, settlement,
 payouts) against each other in separate sessions on the local database and
 checks nothing moves twice and the ledger balances. It reads no env file. It
@@ -121,6 +130,12 @@ Rules:
   every table still has RLS on.
 - Take a backup first for anything that rewrites or drops data (Dashboard,
   Database, Backups).
+
+The Stage 6 migrations are the eight files from `20261113100000_create_ledger.sql`
+to `20261113100550_guard_payout_payload_scrub.sql`. They are **not on the live
+project yet** and must be pushed with the steps above (together with the Stage
+4 and 5 migrations, if those are still unpushed) before the live site can take
+a payment. They create the ledger, so read the dry-run list carefully.
 
 ### The waitlist table
 
@@ -288,7 +303,7 @@ Design: `docs/superpowers/specs/2026-11-10-stage-5-applications-chat-design.md`.
 - **Businesses** review applicants at `/business/campaigns/[id]/applications`:
   shortlist, pass (with an optional note) or hire. Hiring creates an
   engagement waiting for payment and opens the pay page. It lapses after
-  48 hours unpaid, and until Stage 6 it can't be paid. Two hires can never
+  48 hours unpaid (see Payments and payouts for paying it). Two hires can never
   over-fill a campaign, and a price the creator changed since the page
   loaded is refused.
 - **Chat** at `/inbox`: the business starts a thread; new messages arrive
@@ -307,6 +322,51 @@ Design: `docs/superpowers/specs/2026-11-10-stage-5-applications-chat-design.md`.
   `supabase/tests/applications_rls.test.sql`, `chat_rls.test.sql` and
   `moderation_rls.test.sql`.
 
+## Payments and payouts
+
+Rules: CLAUDE.md §6 (especially §6.6); design:
+`docs/superpowers/specs/2026-11-13-stage-6-money-design.md`. Everything runs
+in Paystack **test mode** until the legal question in CLAUDE.md §6 is settled.
+
+- **Businesses** pay a hire at `/business/engagements/[id]/pay` (price plus a
+  5% fee, wallet balance first, then Paystack's hosted checkout). The money
+  goes straight to escrow. They can cancel a paid hire before work starts
+  from `/business/engagements/[id]` (the fee is kept), and see their wallet
+  at `/business/wallet`.
+- **Creators** start work on a funded hire at `/jobs/[id]`, and save a bank
+  account and request payouts (minimum ₦1,000) at `/wallet`. The transfer cost
+  is shown before they confirm.
+- **Admins** settle escrow (release, refund, split, refund with fee) and
+  approve or reject every payout at `/admin/money`; the ledger and a per-hire
+  trail are under it. A payout is only sent after an admin approves it.
+- **Scheduled job:** `GET /api/cron/money-checks` runs daily (03:30 UTC) from
+  `vercel.json`, protected by `CRON_SECRET`. It settles payouts stuck in
+  `processing` and records a reconciliation run against Paystack's balance.
+
+**Trying a payment locally.** Put a Paystack test key in `.env.local` as
+`PAYSTACK_SECRET_KEY`. Hire a creator, open the pay page and pay with the test
+card `4084 0840 8408 4081`, any future expiry and CVV `408`. When Paystack
+sends the browser back, the callback page verifies the payment with Paystack
+and funds the hire, so no webhook is needed. Real webhooks cannot reach
+`localhost`; to exercise the webhook route, send a signed one yourself:
+
+```bash
+node --env-file=.env.local scripts/sign-webhook.mjs <event> <reference>
+# e.g. charge.success pit_<32 hex>, or transfer.success pit_po_<32 hex>
+```
+
+The handler still verifies the reference with Paystack, so this cannot fund
+anything Paystack doesn't know. `scripts/money-race.mjs` (see Database) covers
+the concurrent cases.
+
+**After deploying** (test mode first, live when the legal review is done): in
+the Paystack dashboard set the webhook URL to
+`https://www.pitchype.com/api/webhooks/paystack` and receive
+`charge.success`, `transfer.success`, `transfer.failed` and `transfer.reversed`.
+For live payouts, switch off OTP confirmation for transfers there. Set
+`PAYSTACK_SECRET_KEY` and `CRON_SECRET` in Vercel. Real webhook delivery is
+only testable once the site has a public URL.
+
 ## Deferred work
 
 Setup steps and polish parked for later (email, Vercel, launch switches,
@@ -322,5 +382,6 @@ tokens and utilities in `src/app/globals.css`, components in
 covers colours and their contrast rules, type, spacing, radii, components and
 the page patterns.
 
-Fees shown on the page come from `src/lib/fees.ts` (display only; the real fee
-rules will live in the database when payments are built).
+Fees shown on the page come from `src/lib/fees.ts` (display and previews; the
+fees actually charged come from the `fee_config` table, which a test keeps
+equal to `src/lib/fees.ts`).
