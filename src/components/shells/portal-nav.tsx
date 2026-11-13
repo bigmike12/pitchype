@@ -12,6 +12,7 @@ import {
   Search,
   ShieldCheck,
   UserRound,
+  Wallet,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -39,6 +40,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   applications: ClipboardList,
   profile: UserRound,
   inbox: Inbox,
+  wallet: Wallet,
   admin: ShieldCheck,
 };
 

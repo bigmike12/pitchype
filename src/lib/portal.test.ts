@@ -17,6 +17,7 @@ test("each role gets its own links", () => {
       ["/business/campaigns", "Campaigns"],
       ["/business/creators", "Find creators"],
       ["/inbox", "Inbox"],
+      ["/business/wallet", "Wallet"],
     ],
   );
   assert.deepEqual(
@@ -77,4 +78,15 @@ test("greets by first name", () => {
 test("a thread keeps Inbox active", () => {
   assert.equal(isNavActive("/inbox/9f1c", "/inbox"), true);
   assert.equal(sectionLabel("influencer", "/applications"), "Applications");
+});
+
+test("Wallet is a business link, active on its own page", () => {
+  assert.equal(isNavActive("/business/wallet", "/business/wallet"), true);
+  assert.equal(isNavActive("/business/wallet/x", "/business/wallet"), true);
+  assert.equal(isNavActive("/business/walletx", "/business/wallet"), false);
+  assert.equal(sectionLabel("business", "/business/wallet"), "Wallet");
+  assert.equal(
+    navFor("business").find((i) => i.href === "/business/wallet")?.icon,
+    "wallet",
+  );
 });

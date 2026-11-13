@@ -11,6 +11,7 @@ export type NavIcon =
   | "applications"
   | "profile"
   | "inbox"
+  | "wallet"
   | "admin";
 
 export type NavItem = {
@@ -40,6 +41,7 @@ const NAV: Record<PortalRole, NavItem[]> = {
     { href: "/business/campaigns", label: "Campaigns", icon: "campaigns" },
     { href: "/business/creators", label: "Find creators", icon: "creators" },
     { href: "/inbox", label: "Inbox", icon: "inbox" },
+    { href: "/business/wallet", label: "Wallet", icon: "wallet" },
   ],
   influencer: [
     { href: "/home", label: "Home", icon: "home" },
