@@ -68,7 +68,8 @@ Details: README, "Deploy to Vercel".
       (export from the `waitlist` table). Then decide whether to keep or
       delete the table.
 - [ ] **You:** legal structure for holding escrow funds in Nigeria (CLAUDE.md
-      §6 compliance flag). Needed before money goes live (Stage 6).
+      §6 compliance flag). Stage 6 is built and runs in test mode only; this
+      is needed before live money (see section 12).
 - [ ] **You:** Supabase Pro and Vercel Pro (backups, point-in-time recovery,
       no cold pauses). Planned for Stage 9.
 
@@ -123,8 +124,11 @@ Decisions: `docs/campaign-spec-decisions.md`.
 - [ ] **You:** decide the banned campaign types for the terms (gambling and
       betting are the open question) and the pay-per-click numbers
       (CLAUDE.md §12, open items 10 and 11).
-- [ ] Check Paystack's current transfer fees on small payouts before setting
-      the minimum payout and minimum cost per click.
+- [x] Check Paystack's current transfer fees on small payouts before setting
+      the minimum payout and minimum cost per click. Done 2026-11-13: tiers and
+      the ₦50 stamp duty are from Paystack's support article (`src/lib/fees.ts`);
+      the minimum payout is ₦1,000. Recheck the live rates before launch
+      (section 12); the pay-per-click minimum cost per click is still open.
 - [ ] Spot phone numbers and WhatsApp links in campaign briefs (same check
       as for bios above).
 
@@ -202,11 +206,13 @@ Design: `docs/superpowers/specs/2026-11-10-stage-5-applications-chat-design.md`.
       counting).
 - [ ] Blocking hides nothing in lists: a creator who blocked a business
       still sees its campaigns. Hide them if people ask.
-- [ ] Stage 6: a suspended account keeps what it's owed. Payouts carry on;
+- [x] Stage 6: a suspended account keeps what it's owed. Payouts carry on;
       any hold must be per payment, with a written reason (spec, "Money").
-- [ ] Stage 6: store that the business saw the non-refundable fee notice on
-      the pay page (CLAUDE.md §6.2). Today the page shows it but nothing
-      records it.
+      Done in Stage 6: payouts and running work are unaffected by suspension,
+      and there are no payment holds.
+- [x] Stage 6: store that the business saw the non-refundable fee notice on
+      the pay page (CLAUDE.md §6.2). Done in Stage 6: `payments.fee_notice_seen_at`
+      and, for cancels, `engagements.cancel_fee_notice_seen_at`.
 - [ ] A hire that lapsed or was cancelled can't be re-made for the same
       application; the creator would apply again (or, once Stage 6 exists,
       decide on a "hire again" button).
@@ -220,8 +226,9 @@ Design: `docs/superpowers/specs/2026-11-10-stage-5-applications-chat-design.md`.
 
 - [ ] Stage 8: email off the `notifications` table (Resend), with
       per-person preferences; money-critical ones always send (CLAUDE.md §8).
-- [ ] Stages 6–7: add kinds for payments, submissions, auto-release and
-      payouts (a trigger plus a case in `src/lib/notifications.ts`).
+- [ ] Stage 7: add kinds for submissions and auto-release (a trigger plus a
+      case in `src/lib/notifications.ts`). The payment, work started, paid
+      cancellation, settlement and payout kinds were added in Stage 6.
 - [ ] The bell shows the latest 20. Add a full `/notifications` page if
       people need older ones.
 - [ ] Notifications are never deleted. Prune read ones after a few months
@@ -231,8 +238,130 @@ Design: `docs/superpowers/specs/2026-11-10-stage-5-applications-chat-design.md`.
 
 ## 12. From building Stage 6 (money)
 
+Design: `docs/superpowers/specs/2026-11-13-stage-6-money-design.md` (§13 lists
+where the build differs). Stage 6 runs in Paystack test mode only.
+
+Before any real money (in this order):
+
+- [ ] **You:** set `PAYSTACK_SECRET_KEY` (the live key) and `CRON_SECRET` in
+      Vercel, as sensitive variables. Without `CRON_SECRET` neither daily job
+      runs; without the key nobody can pay or be paid.
+- [ ] **You:** push the Stage 6 migrations to the live project (eight files,
+      `20261113100000` to `20261113100550`, plus Stage 4 and 5's if still
+      unpushed). Steps and rules: README, "Pushing migrations to the live
+      database". Take a backup first and read the dry-run list.
+- [ ] **You:** in the Paystack dashboard set the webhook URL to
+      `https://www.pitchype.com/api/webhooks/paystack` with the events
+      `charge.success`, `transfer.success`, `transfer.failed` and
+      `transfer.reversed`, and switch OTP confirmation for transfers off
+      (live payouts cannot work with it on). Real webhook delivery has never
+      been exercised: it needs a public URL.
+- [ ] **You:** legal review of holding third-party funds and paying them out
+      (CLAUDE.md §6 compliance flag; same item as in section 3). Nothing here
+      should go live before it.
+- [ ] **You:** roll the Paystack TEST key that was shared in chat while this
+      stage was being built (Paystack dashboard, API keys), then update
+      `.env.local`.
+- [ ] **You:** click through every Stage 6 screen as a business, a creator and
+      an admin, on a phone and on a desktop, with the seeded
+      `@e2e.pitchype.test` users. **This has not been done.** The signed-in
+      browser run did not happen in the build (the Chrome extension was never
+      connected), so the pay, return, wallet, job, payout and admin money
+      screens are unverified in a real browser. Only signed-out routes, a
+      signed webhook, the unit and database tests and the race script were
+      run.
+- [ ] **You:** recheck Paystack's transfer fee tiers and the ₦50 stamp duty
+      against the live rates before launch (`src/lib/fees.ts`, the `fee_config`
+      seed). The stamp-duty source article was not independently verified.
+
+Product and code follow-ups:
+
+- [ ] Business wallet withdrawal to a bank (CLAUDE.md §12, open item 9).
+      Today an admin refunds by hand on request.
+- [ ] A "reversal after paid" admin correction tool. A `transfer.reversed`
+      that arrives after `paid` is ignored and logged, and the reconciliation
+      difference is what shows it.
 - [ ] `needs_review` and currency-mismatch card payments are only logged
-      (`src/lib/payments.ts`); add a durable admin alert (Stage 8).
+      (`src/lib/payments.ts`); add a durable admin alert (Stage 8). Same for a
+      non-zero reconciliation difference, which today is a callout on
+      `/admin/money`, and for payouts waiting for approval (admins have no
+      bell).
+- [ ] The `paid_out` engagement status is unused (payouts come from the
+      wallet). Decide in Stage 7 whether to drop it from the enum.
+- [ ] Cache `listBanks()`; it runs uncached, up to five pages, on every form
+      render, name check and save.
+- [ ] Rate limits (bank checks, payout requests) are in memory per instance,
+      like the others (section 5).
+- [ ] Stage 7 must call `settle_engagement_internal` for accept, auto-release
+      and disputes, skip the actor in `engagements_money_notify`, and widen
+      settlement to `submitted` and `disputed`.
+
+Deferred minors, database:
+
+- [ ] `settle_money` counts a missing funding payment as no Paystack charge
+      instead of raising (only hand-made data can reach it).
+- [ ] `reject_payout` records the reason but not who rejected or when.
+- [ ] `admin_ledger`'s date filter casts `created_at` per row, so it cannot
+      use an index; fine at current volume.
+- [ ] `save_bank_account` is revoked and has no callers; drop it in a later
+      migration.
+- [ ] `record_card_payment` payloads are not scrubbed in SQL (the server
+      trims them); revisit if bank-transfer or USSD channels are enabled.
+- [ ] The header comment of `20261113100200` still describes the old fault
+      refund charge sum; `20261113100250` replaces it (applied migrations are
+      not edited).
+- [ ] A payment started at the very instant of `pay_by` can be stranded into
+      the business wallet instead of funding (no money is lost).
+- [ ] A comment that the `engagement_settled` notification guard relies on
+      admin settlements having a null `cancel_reason`; the wallet-only
+      `hire_funded` notification path is untested; the split-outcome notice
+      wording is clumsy.
+
+Deferred minors, Paystack and the webhook:
+
+- [ ] `listBanks()` silently stops after five pages.
+- [ ] Test gaps in `paystack.test.ts`: a bad reference on `verifyTransfer` and
+      `initializeTransaction`, bad bank details on `createTransferRecipient`,
+      and the `Authorization` and `Content-Type` headers on POSTs.
+- [ ] The money-checks job logs only the error class and status, not the
+      database error code; its stuck-payout lookup is capped at 100 and the
+      response does not show that more remain; a very large backlog of
+      sequential Paystack calls could outlast the default function duration
+      (set `maxDuration` if that happens).
+- [ ] A revisit of the payment return page after a stranded payment, while
+      another payment funded the hire, says "Payment received" and is silent
+      about where this payment went.
+
+Deferred minors, screens:
+
+- [ ] The pay button's amount is computed when the page loads; the real
+      amount is confirmed at Paystack.
+- [ ] A failed `initializeTransaction` leaves an `initiated` payment that
+      blocks cancel and the lapse for 30 minutes (a retry supersedes it).
+- [ ] The Server Actions for money have no unit tests (they are thin; the
+      database enforces the rules).
+- [ ] A lapsed `awaiting_payment` hire's total row is still labelled "You pay".
+- [ ] The payout amount box and the admin amount parser accept loose comma
+      grouping (`10,00`, `1,2,3`).
+- [ ] The admin payouts list is not capped in code, but the API returns at most
+      1,000 rows, so past 1,000 waiting payouts the list and the exact count
+      disagree; "recently decided" is sorted by request time, not decision
+      time; a stale admin tab is not refreshed after an "already settled"
+      message.
+- [ ] Two admins settling the same way at once both see "Settled", and only
+      the first reason is kept.
+
+Deferred minors, scripts and tooling:
+
+- [ ] The race script's pair "flip" changes only the spawn order (a warning
+      covers one-sided results), and killing the `docker exec` client does not
+      kill the server session (the statement timeout bounds it).
+- [ ] The local ledger holds permanent rows from the race script (emails ending
+      `@race.pitchype.test`, about ₦11.5M in total); the ledger is append-only,
+      so they stay until the local database is reset. The admin reconciliation
+      screen shows a large difference locally because of them and of the
+      Paystack test balance.
+- [ ] Eight files already fail `prettier --check`, from before Stage 6.
 
 ## Done
 

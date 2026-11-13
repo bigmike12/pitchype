@@ -2,7 +2,7 @@
 
 Builds on Stage 5 (engagements exist, `awaiting_payment`, lapse after 48 hours).
 Money rules stay in CLAUDE.md §6; this document adds the decisions and the
-shape. Status: draft for approval, 2026-11-13.
+shape. Status: approved 2026-11-13; built on branch stage-6-money.
 
 ## 1. Intent
 
@@ -311,3 +311,103 @@ Platform revenue for this hire: ₦5,000 gross, less the ₦954 Paystack charge 
   creator fee + creator wallet credit; each payout closes its wallet debit.
 - After each integration flow, a reconciliation run shows zero difference.
 - Updating or deleting a ledger row fails.
+
+## 13. Built differently from this design (and why)
+
+Recorded while building, from the build ledger. Sections 1 to 12 above are the
+approved design; where they disagree with the code, the code and the entries
+below win. How it works now: CLAUDE.md §6.6.
+
+**Money maths and fees**
+- Ruling: the transfer cost is Paystack's tier fee **plus a flat ₦50 stamp
+  duty from ₦10,000**, paid by the creator (CLAUDE.md §6 rule 8 says the creator
+  pays at cost; the plan had the tier fee only). The §12 example is corrected to ₦75 (₦25 plus ₦50).
+- Ruling: the fault refund subtracts **only the Paystack charge of the payment
+  that funded the hire**, found through the escrow ledger line's payment, not
+  every succeeded payment. A stranded late payment's charge was already absorbed
+  (§11 call 1). §3 was edited to say so.
+- Ruling: Paystack's rate figure and the minimum payout in `fee_config` are asserted equal to
+  `src/lib/fees.ts`, as the transfer tiers are (the open-ended last tier is `null` in SQL and `Infinity` in TypeScript).
+- Ruling: SQL fee maths use integer arithmetic that rounds half up exactly like
+  `Math.round` in TypeScript, with half-kobo tests on both sides.
+
+**Where money goes**
+- Ruling: a card payment goes **straight to escrow** and never shows as a wallet
+  balance. A payment that cannot fund its hire is **stranded** into the business wallet
+  as a `payment_received` group. Cancellations and refunds use the event type `hire_settled`
+  (no new event type was needed). The user confirmed no direct top-ups on 2026-11-13.
+- Ruling: a hire whose wallet covers the whole total is paid with `pay_from_wallet()`;
+  `start_payment()` refuses it with `wallet_covers_total`.
+- Ruling: `fund_engagement()` and `settle_money()` are internal (granted to no
+  role). `settle_engagement()` is the admin-only wrapper over
+  `settle_engagement_internal()`, which Stage 7 calls for accept, auto-release
+  and disputes. `record_payment` became `record_card_payment`, and `start_payment`,
+  `pay_from_wallet`, `approve_payout`, `reject_payout`, `save_bank_account_for`,
+  `admin_engagement_trail`, `admin_ledger` and `record_reconciliation` were added.
+- Ruling: `settle_engagement` checks the release amount before the no-op for an
+  already settled hire (`release_invalid`) and requires a reason of 1 to 500 characters. Because a
+  repeat settle is a silent no-op, the admin screen compares the hire's stored
+  outcome with the request and says "already settled" instead of "Settled" when
+  they differ (`src/lib/settle-guard.ts`). Two admins settling the same way at once
+  both see "Settled", and only the first reason is kept.
+- Ruling: `paid_out` is not used; any release sets `accepted` (§11 call 6, as designed), and the
+  Stage 5 enum value stays.
+- Ruling: the ledger migration's integrity hardening (triggers that fire even in replica mode,
+  `post_ledger_group` refusing non-number amounts) went into the funding migration, because an applied
+  migration is never edited.
+
+**Payouts**
+- Ruling: the payout **destination (bank, last four digits, name, recipient code) is
+  snapshotted at request time**, together with the transfer cost, and approval returns those copies, so changing the bank
+  account later cannot redirect a payout already requested.
+- Ruling: `save_bank_account_for(person, ...)` is **server-only** (service role).
+  Signed-in people can no longer call `save_bank_account`, which would let a creator skip Paystack's name
+  resolution. The server saves an account in two steps: check the name, then save after
+  resolving it again.
+- Ruling: `finish_payout` removes the full account number from stored transfer payloads
+  (`data.recipient.details.account_number`), and only from payloads shaped like Paystack's,
+  because a malformed payload must not make the webhook fail forever (migration `20261113100550`).
+- Ruling: card payment payloads are **trimmed** by the server before storing
+  (reference, amounts, fees, currency, status, channel, paid time, ids), not scrubbed in SQL.
+- Ruling: `reject_payout` records the reason but no approver or time; `approve_payout` does.
+- Ruling: payout requests and bank checks are rate limited (5 payouts per 10 minutes, 10 checks
+  and saves per hour, per user, in memory per instance: `src/lib/money-limits.ts`), as CLAUDE.md §7 asks.
+
+**Webhook and Paystack**
+- Ruling: the decisions live in `handlePaystackWebhook` (`src/lib/payments.ts`) so they can be unit tested; the route is a
+  thin adapter. It accepts only references that are exactly `pit_` or `pit_po_` plus 32 hex characters.
+- Ruling: **retry semantics for Paystack errors.** Only 400 and 404 are acknowledged with 200; 429, 401, 403,
+  other 4xx and any 5xx return 500 so Paystack retries, because nothing else polls card payments and an
+  acknowledged miss would never be recorded. A charge still pending returns 503.
+- Ruling: **transfer event keys come from Paystack's verified status**
+  (`transfer.success:<ref>`, `transfer.failed:<ref>`, `transfer.reversed:<ref>`, `transfer.not_found:<ref>`), not from the webhook's event name,
+  so the stored key matches what Paystack reported when we asked. Card keys are `charge.success:<ref>`.
+- Ruling: a transfer Paystack cannot find (`not_found`) is treated as failed only after the
+  payout has been `processing` for over 15 minutes (`stuckPayoutCutoff`), and `verifyTransfer`
+  maps a "not found" message to `not_found` only for statuses below 500, so an outage never reads as "never sent".
+- Ruling: `verifyTransaction` throws if a success has no fees; amounts and fees must be whole numbers;
+  `src/lib/paystack.ts` validates input before any network call and its errors never carry the key or a full account number.
+- Ruling: non-NGN payments are refused before `record_card_payment`, which has no currency argument.
+- Ruling: a card payment that raises a money-state error (wrong total, not succeeded, invalid fee) is logged and left for an admin
+  (`needs_review`) with a 200, rather than retried forever; there is no durable alert yet.
+
+**Checks, alerts and screens**
+- Ruling: the money-checks job answers **500 when any step failed** (a failed stuck-payout lookup, a failed
+  reconciliation or any errored payout), with the same body, so the scheduler's log shows it. If Paystack's balance cannot
+  be read, no reconciliation row is written.
+- Ruling: **unbalanced-ledger detection goes through `note`**: `reconciliation_figures()` computes expected cash
+  from the other accounts and says in `note` when the accounts do not sum to zero or the balance differs, so a run checks the ledger as well as the bank.
+- Ruling: the "non-zero difference" alert is a callout on `/admin/money` from the latest run, not a notification; a durable
+  alert is Stage 8 (§12 said "in-app in Stage 6").
+- Ruling: creators' job page is `/jobs/[id]` and the wallets are `/wallet` and `/business/wallet`; the proxy treats `/jobs`, `/wallet` and the nested admin routes as signed-in.
+- Ruling: the wallet ledger labels an outgoing `payment_received` on a business wallet "Paid for a hire", and any
+  event and account pair whose sign contradicts its label falls back to "Wallet activity".
+- Ruling: no new Stage 6 migration beyond the eight files: ledger, funding, settlement, the fault-refund fix, payouts, notifications,
+  audit and the payload-scrub guard (the design expected one migration plus types).
+
+**Testing**
+- Ruling: the concurrency script uses separate `psql` sessions through `docker exec` (no new dependency), with
+  statement and lock timeouts. It leaves permanent rows (emails ending `@race.pitchype.test`) in the local ledger, which is append-only.
+- Not done: the signed-in browser run with Paystack test cards (§8). The Chrome extension was not connected,
+  so no one clicked through the Stage 6 screens signed in; only signed-out routes, a signed webhook
+  and the database and unit tests were exercised. Real webhooks need a public URL.
