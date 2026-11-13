@@ -42,6 +42,7 @@ export function CreatorCard({
         name={displayName}
         url={photoUrl}
         priority={priority}
+        className="aspect-[5/4]"
         sizes="(min-width: 1280px) 18rem, (min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
       />
       <div className="flex flex-1 flex-col px-1 pt-4 pb-1">
@@ -61,14 +62,14 @@ export function CreatorCard({
           <MapPin className="size-4 shrink-0" aria-hidden="true" />
           {city}, {stateLabel(state)}
         </p>
-        <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Niches">
+        <ul className="mt-3 mb-4 flex flex-wrap gap-1.5" aria-label="Niches">
           {nicheNames.map((name) => (
             <li key={name}>
               <Chip>{name}</Chip>
             </li>
           ))}
         </ul>
-        <div className="mt-auto pt-4">
+        <div className="mt-auto border-t border-hairline pt-4">
           <PlatformSummary platforms={platforms} />
           {rate !== undefined && (
             <p className="mt-3 text-sm font-semibold text-ink">

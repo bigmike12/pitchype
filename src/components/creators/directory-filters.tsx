@@ -1,13 +1,14 @@
-import Link from "next/link";
-
-import { Button } from "@/components/ui/button";
 import { SelectField } from "@/components/ui/field";
+import {
+  FilterBar,
+  filterHref,
+  type ActiveFilter,
+} from "@/components/ui/filter-bar";
 import {
   MAX_RATE_OPTIONS_NAIRA,
   MIN_FOLLOWER_LABELS,
   PLATFORM_RULES,
   PLATFORMS,
-  hasActiveFilters,
   type DirectoryFilters as Filters,
 } from "@/lib/creator-profile";
 import type { Niche } from "@/lib/db/creators";
@@ -32,86 +33,125 @@ export function DirectoryFilters({
   /** The public directory, or the one inside the business portal. */
   basePath: DirectoryBase;
 }) {
+  // Each chip links to this page without its own filter.
+  const params = {
+    niche: filters.niche,
+    platform: filters.platform,
+    followers: filters.minFollowers,
+    state: filters.state,
+    maxRate: filters.maxRateNaira ? String(filters.maxRateNaira) : undefined,
+  };
+  const without = (key: keyof typeof params) =>
+    filterHref(basePath, { ...params, [key]: undefined });
+
+  const active: ActiveFilter[] = [];
+  if (filters.niche) {
+    active.push({
+      label: "Niche",
+      value:
+        niches.find((n) => n.slug === filters.niche)?.name ?? filters.niche,
+      href: without("niche"),
+    });
+  }
+  if (filters.platform) {
+    active.push({
+      label: "Platform",
+      value: PLATFORM_RULES[filters.platform].label,
+      href: without("platform"),
+    });
+  }
+  if (filters.minFollowers) {
+    active.push({
+      label: "Followers",
+      value: MIN_FOLLOWER_LABELS[filters.minFollowers],
+      href: without("followers"),
+    });
+  }
+  if (filters.state) {
+    active.push({
+      label: "State",
+      value: stateLabel(filters.state),
+      href: without("state"),
+    });
+  }
+  if (showRateFilter && filters.maxRateNaira) {
+    active.push({
+      label: "Starting rate",
+      value: `Up to ${formatNaira(filters.maxRateNaira * KOBO_PER_NAIRA)}`,
+      href: without("maxRate"),
+    });
+  }
+
   return (
-    <form
-      method="get"
+    <FilterBar
       action={basePath}
-      aria-label="Filter creators"
-      // Inside the portal, panels are white and outlined.
-      className={
-        basePath === "/creators"
-          ? "rounded-panel bg-surface-soft p-4 sm:p-6"
-          : "rounded-card panel p-4 sm:p-5"
+      label="Filter creators"
+      submitLabel="Show creators"
+      active={active}
+      fieldsClassName={
+        showRateFilter
+          ? "grid grid-cols-2 lg:grid-cols-5"
+          : "grid grid-cols-2 lg:grid-cols-4"
       }
     >
-      <div
-        className={
-          showRateFilter
-            ? "grid grid-cols-2 gap-4 lg:grid-cols-5"
-            : "grid grid-cols-2 gap-4 lg:grid-cols-4"
-        }
-      >
+      <SelectField
+        compact
+        label="Niche"
+        name="niche"
+        placeholder="Any niche"
+        options={niches.map((n) => ({ value: n.slug, label: n.name }))}
+        defaultValue={filters.niche ?? ""}
+        className="col-span-2 sm:col-span-1"
+      />
+      <SelectField
+        compact
+        label="Platform"
+        name="platform"
+        placeholder="Any platform"
+        options={PLATFORMS.map((p) => ({
+          value: p,
+          label: PLATFORM_RULES[p].label,
+        }))}
+        defaultValue={filters.platform ?? ""}
+      />
+      <SelectField
+        compact
+        label="Followers"
+        name="followers"
+        placeholder="Any number"
+        options={Object.entries(MIN_FOLLOWER_LABELS).map(([value, label]) => ({
+          value,
+          label,
+        }))}
+        defaultValue={filters.minFollowers ?? ""}
+      />
+      <SelectField
+        compact
+        label="State"
+        name="state"
+        placeholder="Anywhere"
+        options={NIGERIAN_STATES.map((s) => ({
+          value: s,
+          label: stateLabel(s),
+        }))}
+        defaultValue={filters.state ?? ""}
+        className={showRateFilter ? undefined : "col-span-2 sm:col-span-1"}
+      />
+      {showRateFilter && (
         <SelectField
-          label="Niche"
-          name="niche"
-          placeholder="Any niche"
-          options={niches.map((n) => ({ value: n.slug, label: n.name }))}
-          defaultValue={filters.niche ?? ""}
-          className="col-span-2 sm:col-span-1"
-        />
-        <SelectField
-          label="Platform"
-          name="platform"
-          placeholder="Any platform"
-          options={PLATFORMS.map((p) => ({
-            value: p,
-            label: PLATFORM_RULES[p].label,
+          compact
+          label="Starting rate"
+          name="maxRate"
+          placeholder="Any rate"
+          options={MAX_RATE_OPTIONS_NAIRA.map((naira) => ({
+            value: String(naira),
+            label: `Up to ${formatNaira(naira * KOBO_PER_NAIRA)}`,
           }))}
-          defaultValue={filters.platform ?? ""}
+          defaultValue={
+            filters.maxRateNaira ? String(filters.maxRateNaira) : ""
+          }
         />
-        <SelectField
-          label="Followers"
-          name="followers"
-          placeholder="Any number"
-          options={Object.entries(MIN_FOLLOWER_LABELS).map(
-            ([value, label]) => ({ value, label }),
-          )}
-          defaultValue={filters.minFollowers ?? ""}
-        />
-        <SelectField
-          label="State"
-          name="state"
-          placeholder="Anywhere"
-          options={NIGERIAN_STATES.map((s) => ({
-            value: s,
-            label: stateLabel(s),
-          }))}
-          defaultValue={filters.state ?? ""}
-          className={showRateFilter ? undefined : "col-span-2 sm:col-span-1"}
-        />
-        {showRateFilter && (
-          <SelectField
-            label="Starting rate"
-            name="maxRate"
-            placeholder="Any rate"
-            options={MAX_RATE_OPTIONS_NAIRA.map((naira) => ({
-              value: String(naira),
-              label: `Up to ${formatNaira(naira * KOBO_PER_NAIRA)}`,
-            }))}
-            defaultValue={
-              filters.maxRateNaira ? String(filters.maxRateNaira) : ""
-            }
-          />
-        )}
-      </div>
-      <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
-        <Button type="submit">Show creators</Button>
-        {hasActiveFilters(filters) && (
-          <Link href={basePath} className="link text-sm font-medium">
-            Clear filters
-          </Link>
-        )}
-      </div>
-    </form>
+      )}
+    </FilterBar>
   );
 }

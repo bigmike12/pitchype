@@ -14,16 +14,20 @@ export function controlClasses({
   error,
   icon,
   trailing,
+  compact,
 }: {
   error?: string;
   icon?: boolean;
   trailing?: boolean;
+  /** 44px instead of 48px, for filter toolbars. */
+  compact?: boolean;
 }) {
   return cn(
     controlClass,
+    compact && "h-11 text-[0.9375rem]",
     error ? "border-danger" : "border-field",
     icon ? "pl-11" : "pl-4",
-    trailing ? "pr-14" : "pr-4",
+    trailing ? (compact ? "pr-10" : "pr-14") : "pr-4",
   );
 }
 
@@ -40,14 +44,21 @@ export function FieldLabel({
   htmlFor,
   children,
   aside,
+  compact,
 }: {
   htmlFor: string;
   children: ReactNode;
   aside?: ReactNode;
+  compact?: boolean;
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <label htmlFor={htmlFor} className="font-semibold text-ink">
+      <label
+        htmlFor={htmlFor}
+        className={
+          compact ? "text-sm font-medium text-ink" : "font-semibold text-ink"
+        }
+      >
         {children}
       </label>
       {aside && <span className="text-sm">{aside}</span>}
@@ -144,16 +155,21 @@ export function SelectField({
   hint,
   error,
   icon,
+  compact,
   className,
   ...select
 }: FieldProps & {
   options: { value: string; label: string }[];
   placeholder: string;
+  /** A smaller label and a 44px control, for filter toolbars. */
+  compact?: boolean;
 } & Omit<ComponentProps<"select">, "name" | "id" | "children">) {
   return (
     <div className={className}>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <div className="relative mt-2">
+      <FieldLabel htmlFor={id} compact={compact}>
+        {label}
+      </FieldLabel>
+      <div className={compact ? "relative mt-1.5" : "relative mt-2"}>
         {icon && <FieldIcon icon={icon} />}
         <select
           // React resets a form after its action succeeds, and a select
@@ -168,7 +184,12 @@ export function SelectField({
           aria-describedby={describedBy(id, hint, error)}
           // Our own chevron, so selects line up with text fields.
           className={cn(
-            controlClasses({ error, icon: Boolean(icon), trailing: true }),
+            controlClasses({
+              error,
+              icon: Boolean(icon),
+              trailing: true,
+              compact,
+            }),
             "appearance-none",
           )}
           {...select}
