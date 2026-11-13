@@ -4,6 +4,7 @@
 
 import { KOBO_PER_NAIRA, formatNaira } from "./money.ts";
 import { MIN_PAYOUT_KOBO, transferFee } from "./fees.ts";
+import type { TransferResult } from "./payments.ts";
 
 // Keeps the kobo total far inside what a number holds exactly.
 const MAX_DIGITS = 12;
@@ -110,5 +111,51 @@ export function adminPayoutStatus(status: string): string {
       return "Rejected, money returned to the wallet";
     default:
       return "Status unknown";
+  }
+}
+
+/**
+ * What an admin reads after asking Paystack about a payout. Fixed words for
+ * each outcome of confirmTransfer(); Paystack's own text is never shown.
+ * `changed` says the payout moved to paid or failed, so the page refreshes.
+ */
+export function payoutCheckOutcome(result: TransferResult): {
+  status: "success" | "error";
+  message: string;
+  changed: boolean;
+} {
+  switch (result) {
+    case "paid":
+      return {
+        status: "success",
+        message: "Paystack says it was sent. Marked paid.",
+        changed: true,
+      };
+    case "failed":
+      return {
+        status: "success",
+        message:
+          "Paystack says it did not go through. The money is back in the creator’s wallet.",
+        changed: true,
+      };
+    case "pending":
+      return {
+        status: "success",
+        message: "Paystack hasn’t finished it yet.",
+        changed: false,
+      };
+    case "duplicate":
+    case "ignored":
+      return {
+        status: "success",
+        message: "Already up to date.",
+        changed: false,
+      };
+    case "unknown":
+      return {
+        status: "error",
+        message: "Couldn’t find this transfer.",
+        changed: false,
+      };
   }
 }

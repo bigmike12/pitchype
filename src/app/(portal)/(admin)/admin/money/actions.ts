@@ -4,9 +4,15 @@ import { refresh } from "next/cache";
 
 import { requireRole } from "@/lib/auth";
 import { getSettlementState, settleEngagement } from "@/lib/db/money";
-import { approvePayout, rejectPayout } from "@/lib/db/payouts";
+import {
+  approvePayout,
+  getPayoutReference,
+  rejectPayout,
+} from "@/lib/db/payouts";
 import { isUuid, text, type FormState } from "@/lib/form-data";
+import { confirmTransfer } from "@/lib/payments";
 import { PaystackError, initiateTransfer } from "@/lib/paystack";
+import { payoutCheckOutcome } from "@/lib/payout-request";
 import { refusalText } from "@/lib/refusals";
 import {
   alreadySettledMessage,
@@ -230,4 +236,41 @@ export async function rejectPayoutAction(
     status: "success",
     message: "Rejected. The money is back in the creator’s wallet.",
   };
+}
+
+export type CheckPayoutState = FormState<never>;
+
+const PAYSTACK_UNREACHABLE =
+  "We couldn’t reach Paystack just now. Nothing changed. Try again in a few minutes.";
+
+/**
+ * Asks Paystack about a payout that is still processing, the same check the
+ * daily job and the transfer webhook run (confirmTransfer, idempotent in the
+ * database), and says what happened in fixed words. A payout Paystack calls
+ * paid is marked paid; one it calls failed puts the money back in the
+ * creator's wallet.
+ */
+export async function checkPayoutAction(
+  _previous: CheckPayoutState,
+  form: FormData,
+): Promise<CheckPayoutState> {
+  await requireRole("admin");
+  const payoutId = text(form, "payoutId");
+  if (!isUuid(payoutId)) {
+    return { status: "error", message: refusalText("no_such_payout") };
+  }
+  const reference = await getPayoutReference(payoutId);
+  if (!reference) {
+    return { status: "error", message: refusalText("no_such_payout") };
+  }
+
+  let outcome: ReturnType<typeof payoutCheckOutcome>;
+  try {
+    outcome = payoutCheckOutcome(await confirmTransfer(reference));
+  } catch (error) {
+    if (!(error instanceof PaystackError)) throw error;
+    return { status: "error", message: PAYSTACK_UNREACHABLE };
+  }
+  if (outcome.changed) refresh();
+  return { status: outcome.status, message: outcome.message };
 }

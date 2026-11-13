@@ -332,6 +332,20 @@ export async function getPayoutByReference(
   return { id: data.id, status: data.status, approvedAt: data.approved_at };
 }
 
+/** A payout's transfer reference, for admins (row level security); null if none is fixed yet or no such payout. */
+export async function getPayoutReference(
+  payoutId: string,
+): Promise<string | null> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("payouts")
+    .select("reference")
+    .eq("id", payoutId)
+    .maybeSingle();
+  if (error) throw new Error(`payout lookup failed (${error.code})`);
+  return data?.reference ?? null;
+}
+
 /** Payouts sent to Paystack before `cutoff` and still waiting for an answer. Secret-key client. */
 export async function listProcessingPayoutsOlderThan(
   cutoff: Date,

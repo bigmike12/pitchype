@@ -21,6 +21,7 @@ import {
 import { formatNaira } from "@/lib/money";
 import { adminPayoutStatus } from "@/lib/payout-request";
 
+import { CheckPayout } from "../check-payout";
 import { PayoutDecision } from "../payout-decision";
 
 export const metadata: Metadata = { title: "Payouts" };
@@ -85,7 +86,7 @@ async function Payouts() {
       <PageHeader
         title="Payouts"
         crumbs={[{ href: "/admin/money", label: "Money" }]}
-        lead="Check the bank account and the creator’s recent wallet activity, then approve or reject. Approving sends the money."
+        lead="Check the bank account and the creator’s recent wallet activity, then approve or reject. Approving sends the money. A payout still waiting for the bank can be checked with Paystack."
       />
 
       <section aria-labelledby="waiting-title">
@@ -186,6 +187,10 @@ async function Payouts() {
                     “{p.decisionReason}”
                   </p>
                 )}
+                <CheckPayout
+                  payoutId={p.id}
+                  processing={p.status === "processing"}
+                />
               </li>
             ))}
           </ul>

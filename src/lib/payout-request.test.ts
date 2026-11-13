@@ -6,6 +6,7 @@ import {
   adminPayoutStatus,
   describePayoutStatus,
   parsePayoutAmount,
+  payoutCheckOutcome,
   payoutPreview,
 } from "./payout-request.ts";
 
@@ -124,4 +125,35 @@ test("admins read each payout status in words about the payout, not the creator"
     "Rejected, money returned to the wallet",
   );
   assert.equal(adminPayoutStatus("something_new"), "Status unknown");
+});
+
+test("a live check with Paystack reads in calm words, never Paystack's", () => {
+  assert.deepEqual(payoutCheckOutcome("paid"), {
+    status: "success",
+    message: "Paystack says it was sent. Marked paid.",
+    changed: true,
+  });
+  assert.deepEqual(payoutCheckOutcome("failed"), {
+    status: "success",
+    message:
+      "Paystack says it did not go through. The money is back in the creator’s wallet.",
+    changed: true,
+  });
+  assert.deepEqual(payoutCheckOutcome("pending"), {
+    status: "success",
+    message: "Paystack hasn’t finished it yet.",
+    changed: false,
+  });
+  for (const result of ["duplicate", "ignored"] as const) {
+    assert.deepEqual(payoutCheckOutcome(result), {
+      status: "success",
+      message: "Already up to date.",
+      changed: false,
+    });
+  }
+  assert.deepEqual(payoutCheckOutcome("unknown"), {
+    status: "error",
+    message: "Couldn’t find this transfer.",
+    changed: false,
+  });
 });
