@@ -1,17 +1,19 @@
--- Proves the rules from the create_payouts migration: a creator saves a bank
--- account (last four digits only) and requests a payout, which moves wallet
--- money into payout_in_flight and is refused below the minimum, above the
--- balance or when the transfer fee eats it; only an admin approves or rejects,
--- once, from `requested`; approval fixes the transfer reference and returns the
--- destination saved at request time; finish_payout() settles a transfer once,
--- re-crediting the wallet on failure and ignoring a contradicting late event;
+-- Proves the rules from the create_payouts migration and its create_audit
+-- hardening: only the server saves a creator's bank account (last four digits
+-- only, after Paystack resolved the name); a creator requests a payout, which
+-- moves wallet money into payout_in_flight and is refused below the minimum,
+-- above the balance or when the transfer fee eats it; only an admin approves or
+-- rejects, once, from `requested`; approval fixes the transfer reference and
+-- returns the destination saved at request time; finish_payout() settles a
+-- transfer once, re-crediting the wallet on failure, ignoring a contradicting
+-- late event and storing the event without the full account number;
 -- suspension does not stop payouts; every group balances.
 -- Run with: supabase test db
 begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(124);
+select plan(132);
 
 -- Ada is a business, Efe an admin. Chidi, Dayo and Funmi are creators paid
 -- ₦47,500 each for a ₦50,000 hire; Kemi is a creator with nothing earned.
@@ -77,31 +79,53 @@ select is(public.transfer_fee_for(5000000), 7500::bigint, '₦50,000: ₦25 + �
 select is(public.transfer_fee_for(5000001), 10000::bigint, 'over ₦50,000: ₦50 + ₦50 stamp duty');
 
 -- Bank accounts -------------------------------------------------------------------------------------------
+-- The server saves the account after Paystack resolves the name, so a creator
+-- cannot write an unverified name: save_bank_account_for() is service_role only.
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "cdcdcdcd-0000-0000-0000-0000000cc101"}'; -- Chidi
 select throws_ok($$ select public.request_payout(100000) $$,
   'P0001', 'no_bank_account', 'no payout before a bank account is saved');
-select throws_ok($$ select public.save_bank_account('058', 'GTBank', '12345', 'CHIDI OKAFOR', 'RCP_chidi1') $$,
+select throws_ok($$ select public.save_bank_account('058', 'GTBank', '1234', 'CHIDI OKAFOR', 'RCP_chidi1') $$,
+  '42501', null, 'a creator cannot save his own account name unverified');
+select throws_ok($$ select public.save_bank_account_for('00000000-0000-0000-0000-0000000cc101', '058', 'GTBank', '1234',
+                                                         'CHIDI OKAFOR', 'RCP_chidi1') $$,
+  '42501', null, 'nor call the server''s function');
+reset role;
+set local role service_role;
+select throws_ok($$ select public.save_bank_account_for('00000000-0000-0000-0000-0000000cc101', '058', 'GTBank', '12345',
+                                                         'CHIDI OKAFOR', 'RCP_chidi1') $$,
   '22023', 'invalid_bank_account', 'five digits is not the last four');
-select throws_ok($$ select public.save_bank_account('058', 'GTBank', '12a4', 'CHIDI OKAFOR', 'RCP_chidi1') $$,
+select throws_ok($$ select public.save_bank_account_for('00000000-0000-0000-0000-0000000cc101', '058', 'GTBank', '12a4',
+                                                         'CHIDI OKAFOR', 'RCP_chidi1') $$,
   '22023', 'invalid_bank_account', 'the last four must be digits');
-select throws_ok($$ select public.save_bank_account('058', '   ', '1234', 'CHIDI OKAFOR', 'RCP_chidi1') $$,
+select throws_ok($$ select public.save_bank_account_for('00000000-0000-0000-0000-0000000cc101', '058', 'GTBank', null,
+                                                         'CHIDI OKAFOR', 'RCP_chidi1') $$,
+  '22023', 'invalid_bank_account', 'the last four are required');
+select throws_ok($$ select public.save_bank_account_for('00000000-0000-0000-0000-0000000cc101', '058', '   ', '1234',
+                                                         'CHIDI OKAFOR', 'RCP_chidi1') $$,
   '22023', 'invalid_bank_account', 'a blank bank name is refused');
-select throws_ok($$ select public.save_bank_account('058', 'GTBank', '1234', null, 'RCP_chidi1') $$,
+select throws_ok($$ select public.save_bank_account_for('00000000-0000-0000-0000-0000000cc101', '058', 'GTBank', '1234',
+                                                         null, 'RCP_chidi1') $$,
   '22023', 'invalid_bank_account', 'a missing account name is refused');
-select throws_ok($$ select public.save_bank_account('058', 'GTBank', '1234', repeat('x', 201), 'RCP_chidi1') $$,
+select throws_ok($$ select public.save_bank_account_for('00000000-0000-0000-0000-0000000cc101', '058', 'GTBank', '1234',
+                                                         repeat('x', 201), 'RCP_chidi1') $$,
   '22023', 'invalid_bank_account', 'an account name over 200 characters is refused');
-select lives_ok($$ select public.save_bank_account(' 058 ', ' GTBank ', '1234', ' CHIDI OKAFOR ', ' RCP_chidi1 ') $$,
-  'Chidi saves his bank account');
-set local request.jwt.claims = '{"sub": "cdcdcdcd-0000-0000-0000-0000000cc102"}'; -- Dayo
-select lives_ok($$ select public.save_bank_account('044', 'Access Bank', '5678', 'DAYO ADE', 'RCP_dayo1') $$,
-  'Dayo saves his bank account');
-set local request.jwt.claims = '{"sub": "cdcdcdcd-0000-0000-0000-0000000cc001"}'; -- Ada
-select throws_ok($$ select public.save_bank_account('044', 'Access Bank', '5678', 'ADA OBI', 'RCP_ada') $$,
-  '42501', null, 'a business cannot save a payout account');
-set local request.jwt.claims = '{"sub": "cdcdcdcd-0000-0000-0000-0000000cc002"}'; -- Efe
-select throws_ok($$ select public.save_bank_account('044', 'Access Bank', '5678', 'EFE', 'RCP_efe') $$,
-  '42501', null, 'an admin cannot save a payout account');
+select lives_ok($$ select public.save_bank_account_for('00000000-0000-0000-0000-0000000cc101', ' 058 ', ' GTBank ', '1234',
+                                                        ' CHIDI OKAFOR ', ' RCP_chidi1 ') $$,
+  'the server saves Chidi''s bank account');
+select lives_ok($$ select public.save_bank_account_for('00000000-0000-0000-0000-0000000cc102', '044', 'Access Bank', '5678',
+                                                        'DAYO ADE', 'RCP_dayo1') $$,
+  'and Dayo''s');
+select throws_ok($$ select public.save_bank_account_for('00000000-0000-0000-0000-0000000cc001', '044', 'Access Bank', '5678',
+                                                         'ADA OBI', 'RCP_ada') $$,
+  '42501', null, 'a business cannot have a payout account');
+select throws_ok($$ select public.save_bank_account_for('00000000-0000-0000-0000-0000000cc002', '044', 'Access Bank', '5678',
+                                                         'EFE', 'RCP_efe') $$,
+  '42501', null, 'nor can an admin');
+select throws_ok($$ select public.save_bank_account_for(gen_random_uuid(), '044', 'Access Bank', '5678', 'NOBODY', 'RCP_x') $$,
+  '42501', null, 'nor an unknown person');
+select throws_ok($$ select public.save_bank_account_for(null, '044', 'Access Bank', '5678', 'NOBODY', 'RCP_x') $$,
+  '42501', null, 'nor a missing person');
 reset role;
 
 select is((select array[bank_code, bank_name, last4, account_name, recipient_code] from public.bank_accounts
@@ -157,9 +181,9 @@ select is((select count(*)::integer from public.payouts where user_id = '0000000
   'and only one payout exists for him');
 
 -- The destination is fixed at request time.
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "cdcdcdcd-0000-0000-0000-0000000cc101"}'; -- Chidi
-select lives_ok($$ select public.save_bank_account('057', 'Zenith Bank', '9999', 'SOMEONE ELSE', 'RCP_other') $$,
+set local role service_role;
+select lives_ok($$ select public.save_bank_account_for('00000000-0000-0000-0000-0000000cc101', '057', 'Zenith Bank', '9999',
+                                                        'SOMEONE ELSE', 'RCP_other') $$,
   'Chidi changes his bank account while the payout waits');
 reset role;
 select is((select array[bank_name, last4, recipient_code] from public.bank_accounts
@@ -264,7 +288,13 @@ select throws_ok($$ select public.finish_payout((select reference from public.pa
                                                 'reversed', 'evt-po-bad', '{}') $$,
   '22023', 'invalid_outcome', 'only paid or failed');
 select is(public.finish_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000cc101'),
-                               'paid', 'evt-po-chidi-paid', '{"event": "transfer.success"}'),
+                               'paid', 'evt-po-chidi-paid',
+                               '{"event": "transfer.success",
+                                 "data": {"amount": 4742500, "account_number": "kept-not-a-recipient",
+                                          "recipient": {"account_number": "0123456789", "name": "CHIDI OKAFOR",
+                                                        "details": {"account_number": "0123456789",
+                                                                    "account_name": "CHIDI OKAFOR",
+                                                                    "bank_code": "058"}}}}'),
   'paid', 'transfer.success marks Chidi''s payout paid');
 select is(public.finish_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000cc101'),
                                'paid', 'evt-po-chidi-paid', '{"event": "transfer.success"}'),
@@ -293,6 +323,14 @@ select ok((select bool_and(actor_user_id is null and paystack_reference = (selec
   'by the system, with the transfer reference');
 select is((select count(*)::integer from public.payment_events where event_key like 'evt-po-chidi-%'), 3,
   'every distinct event is kept for audit');
+select is((select payload from public.payment_events where event_key = 'evt-po-chidi-paid'),
+  '{"event": "transfer.success",
+    "data": {"amount": 4742500, "account_number": "kept-not-a-recipient",
+             "recipient": {"name": "CHIDI OKAFOR",
+                           "details": {"account_name": "CHIDI OKAFOR", "bank_code": "058"}}}}'::jsonb,
+  'the stored payload has no full account number, and keeps everything else');
+select is((select count(*)::integer from public.payment_events where payload::text like '%0123456789%'), 0,
+  'the full number is stored nowhere');
 
 -- A transfer that fails re-credits the wallet exactly once.
 set local role authenticated;
@@ -341,10 +379,13 @@ select is((select count(*)::integer from public.ledger_entries
 
 -- A suspended creator keeps getting paid (CLAUDE.md §6.5) ----------------------------------------------------
 update public.users set suspended_at = now() where id = '00000000-0000-0000-0000-0000000cc103';
+set local role service_role;
+select lives_ok($$ select public.save_bank_account_for('00000000-0000-0000-0000-0000000cc103', '033', 'UBA', '4321',
+                                                        'FUNMI BELLO', 'RCP_funmi') $$,
+  'a suspended creator can save a bank account');
+reset role;
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "cdcdcdcd-0000-0000-0000-0000000cc103"}'; -- Funmi
-select lives_ok($$ select public.save_bank_account('033', 'UBA', '4321', 'FUNMI BELLO', 'RCP_funmi') $$,
-  'a suspended creator can save a bank account');
 select lives_ok($$ select public.request_payout(1000000) $$, 'and request a payout');
 set local request.jwt.claims = '{"sub": "cdcdcdcd-0000-0000-0000-0000000cc002"}'; -- Efe
 select is(public.approve_payout((select id from public.payouts where user_id = '00000000-0000-0000-0000-0000000cc103'))
@@ -402,6 +443,8 @@ select throws_ok($$ select count(*) from public.bank_accounts $$, '42501', null,
 select throws_ok($$ select public.request_payout(100000) $$, '42501', null, 'anon cannot request a payout');
 select throws_ok($$ select public.save_bank_account('058', 'GTBank', '1234', 'X', 'RCP_x') $$,
   '42501', null, 'anon cannot save a bank account');
+select throws_ok($$ select public.save_bank_account_for(gen_random_uuid(), '058', 'GTBank', '1234', 'X', 'RCP_x') $$,
+  '42501', null, 'nor through the server''s function');
 select throws_ok($$ select public.approve_payout(gen_random_uuid()) $$, '42501', null, 'anon cannot approve');
 select throws_ok($$ select public.reject_payout(gen_random_uuid(), 'no') $$, '42501', null, 'anon cannot reject');
 select throws_ok($$ select public.finish_payout('pit_po_x', 'paid', 'evt-y', '{}') $$,

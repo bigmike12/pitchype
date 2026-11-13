@@ -154,8 +154,25 @@ test("creatorFee: rejects negative or non-whole amounts", () => {
   assert.throws(() => creatorFee(10.5));
 });
 
+test("creatorFee: rejects a rate or minimum that isn't a non-negative whole number", () => {
+  assert.throws(() => creatorFee(5_000_000, -1));
+  assert.throws(() => creatorFee(5_000_000, 2.5));
+  assert.throws(() => creatorFee(5_000_000, Number.NaN));
+  assert.throws(() => creatorFee(5_000_000, 500, -1));
+  assert.throws(() => creatorFee(5_000_000, 500, 0.5));
+  assert.equal(creatorFee(5_000_000, 0, 0), 0);
+});
+
 test("faultRefund: price plus business fee minus Paystack's charge (CLAUDE.md §6.2)", () => {
   assert.equal(faultRefund(5_000_000, 250_000, 95_406), 5_154_594);
+});
+
+test("faultRefund: Paystack's charge is capped at the business fee, as in settle_money()", () => {
+  // A charge above the fee never takes from the price: the business gets at least the price back.
+  assert.equal(faultRefund(5_000_000, 250_000, 300_000), 5_000_000);
+  assert.equal(faultRefund(5_000_000, 250_000, 250_000), 5_000_000);
+  assert.equal(faultRefund(5_000_000, 0, 95_406), 5_000_000);
+  assert.equal(faultRefund(5_000_000, 250_000, 0), 5_250_000);
 });
 
 test("faultRefund: rejects invalid inputs", () => {

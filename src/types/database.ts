@@ -1285,6 +1285,33 @@ export type Database = {
           },
         ]
       }
+      reconciliation_runs: {
+        Row: {
+          difference_kobo: number
+          expected_cash_kobo: number
+          id: string
+          note: string | null
+          paystack_balance_kobo: number
+          ran_at: string
+        }
+        Insert: {
+          difference_kobo: number
+          expected_cash_kobo: number
+          id?: string
+          note?: string | null
+          paystack_balance_kobo: number
+          ran_at?: string
+        }
+        Update: {
+          difference_kobo?: number
+          expected_cash_kobo?: number
+          id?: string
+          note?: string | null
+          paystack_balance_kobo?: number
+          ran_at?: string
+        }
+        Relationships: []
+      }
       user_blocks: {
         Row: {
           blocked_id: string
@@ -1537,6 +1564,19 @@ export type Database = {
     }
     Functions: {
       active_strike_count: { Args: { person: string }; Returns: number }
+      admin_engagement_trail: { Args: { engagement: string }; Returns: Json }
+      admin_ledger: {
+        Args: {
+          engagement: string
+          event_type: string
+          from_date: string
+          person: string
+          row_limit: number
+          row_offset: number
+          to_date: string
+        }
+        Returns: Json
+      }
       answer_appeal: {
         Args: { answer: string; appeal: string; decline: boolean }
         Returns: undefined
@@ -1550,6 +1590,7 @@ export type Database = {
         Returns: string
       }
       approve_payout: { Args: { payout: string }; Returns: Json }
+      audit_name: { Args: { person: string }; Returns: string }
       block_user: { Args: { other: string }; Returns: undefined }
       campaign_application_counts: {
         Args: never
@@ -1692,6 +1733,7 @@ export type Database = {
       }
       is_suspended: { Args: { person: string }; Returns: boolean }
       lagos_today: { Args: never; Returns: string }
+      ledger_event_rank: { Args: { event_type: string }; Returns: number }
       ledger_totals: { Args: never; Returns: Json }
       lift_suspension: {
         Args: { person: string; reason: string }
@@ -1748,6 +1790,10 @@ export type Database = {
         }
         Returns: string
       }
+      reconciliation_figures: {
+        Args: { paystack_balance_kobo: number; totals: Json }
+        Returns: Json
+      }
       record_card_payment: {
         Args: {
           event_key: string
@@ -1757,6 +1803,10 @@ export type Database = {
           reference: string
         }
         Returns: string
+      }
+      record_reconciliation: {
+        Args: { paystack_balance_kobo: number }
+        Returns: Json
       }
       record_strike: {
         Args: { dedupe: string; detail: string; flag: string; person: string }
@@ -1813,6 +1863,17 @@ export type Database = {
           bank_code: string
           bank_name: string
           last4: string
+          recipient_code: string
+        }
+        Returns: undefined
+      }
+      save_bank_account_for: {
+        Args: {
+          account_name: string
+          bank_code: string
+          bank_name: string
+          last4: string
+          person: string
           recipient_code: string
         }
         Returns: undefined

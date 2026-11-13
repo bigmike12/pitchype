@@ -6,6 +6,12 @@ import {
   BUSINESS_FEE_BPS,
   INFLUENCER_FEE_BPS,
   MIN_FEE_KOBO,
+  MIN_PAYOUT_KOBO,
+  PAYSTACK_CAP_KOBO,
+  PAYSTACK_FLAT_KOBO,
+  PAYSTACK_FLAT_WAIVED_UNDER_KOBO,
+  PAYSTACK_RATE_BPS,
+  PAYSTACK_VAT_BPS,
   TRANSFER_FEE_TIERS,
   TRANSFER_STAMP_DUTY_FROM_KOBO,
   TRANSFER_STAMP_DUTY_KOBO,
@@ -30,7 +36,17 @@ test("seeded fee_config rates and minimum fee equal src/lib/fees.ts", () => {
   assert.equal(seed.business_fee_bps, BUSINESS_FEE_BPS);
   assert.equal(seed.creator_fee_bps, INFLUENCER_FEE_BPS);
   assert.equal(seed.min_fee_kobo, MIN_FEE_KOBO);
-  assert.equal(seed.min_payout_kobo, 100_000);
+  assert.equal(seed.min_payout_kobo, MIN_PAYOUT_KOBO);
+});
+
+test("seeded Paystack card rate equals src/lib/fees.ts", () => {
+  assert.deepEqual(seed.paystack_rate, {
+    rate_bps: PAYSTACK_RATE_BPS,
+    flat_kobo: PAYSTACK_FLAT_KOBO,
+    flat_waived_under_kobo: PAYSTACK_FLAT_WAIVED_UNDER_KOBO,
+    cap_kobo: PAYSTACK_CAP_KOBO,
+    vat_bps: PAYSTACK_VAT_BPS,
+  });
 });
 
 test("seeded transfer fee tiers and stamp duty equal src/lib/fees.ts", () => {

@@ -17,6 +17,9 @@ export const INFLUENCER_FEE_BPS = 500;
 /** Minimum fee per side per job: ₦500. */
 export const MIN_FEE_KOBO = 50_000;
 
+/** Smallest payout a creator can request: ₦1,000. Seeds fee_config.min_payout_kobo. */
+export const MIN_PAYOUT_KOBO = 100_000;
+
 /** The worked example shown on the pricing section: a ₦50,000 job. */
 export const EXAMPLE_PRICE_KOBO = 5_000_000;
 
@@ -110,11 +113,12 @@ function requireWholeKobo(label: string, kobo: number, min: 0 | 1): void {
 // Paystack's published local card pricing: 1.5% + ₦100 (the ₦100 is waived
 // under ₦2,500), the charge before VAT capped at ₦2,000, then 7.5% VAT.
 // Source: https://support.paystack.com/hc/en-us/articles/360009881920
-const PAYSTACK_RATE_BPS = 150;
-const PAYSTACK_FLAT_KOBO = 10_000;
-const PAYSTACK_FLAT_WAIVED_UNDER_KOBO = 250_000;
-const PAYSTACK_CAP_KOBO = 200_000;
-const PAYSTACK_VAT_BPS = 750;
+// Exported so a test can check they equal fee_config.paystack_rate.
+export const PAYSTACK_RATE_BPS = 150;
+export const PAYSTACK_FLAT_KOBO = 10_000;
+export const PAYSTACK_FLAT_WAIVED_UNDER_KOBO = 250_000;
+export const PAYSTACK_CAP_KOBO = 200_000;
+export const PAYSTACK_VAT_BPS = 750;
 
 /**
  * What Paystack takes (VAT included) when a business pays `chargedKobo`.
@@ -147,6 +151,8 @@ export function creatorFee(
   minKobo = MIN_FEE_KOBO,
 ): number {
   requireWholeKobo("Released amount", releasedKobo, 0);
+  requireWholeKobo("Creator fee rate (bps)", bps, 0);
+  requireWholeKobo("Creator minimum fee", minKobo, 0);
   if (releasedKobo === 0) return 0;
   const byRate = Math.round((releasedKobo * bps) / BPS_PER_WHOLE);
   return Math.min(releasedKobo, Math.max(minKobo, byRate));
@@ -155,6 +161,8 @@ export function creatorFee(
 /**
  * What the business gets back when the influencer is at fault: the price plus
  * the business fee, minus Paystack's non-refundable charge (CLAUDE.md §6.2).
+ * The charge is capped at the fee, as settle_money() does in the database, so
+ * the business always gets at least the price back.
  */
 export function faultRefund(
   priceKobo: number,
@@ -164,7 +172,7 @@ export function faultRefund(
   requireWholeKobo("Price", priceKobo, 1);
   requireWholeKobo("Business fee", businessFeeKobo, 0);
   requireWholeKobo("Paystack fees", paystackFeesKobo, 0);
-  return priceKobo + businessFeeKobo - paystackFeesKobo;
+  return priceKobo + businessFeeKobo - Math.min(paystackFeesKobo, businessFeeKobo);
 }
 
 // Paystack's Nigerian transfer fee by amount, paid by the influencer at cost.
