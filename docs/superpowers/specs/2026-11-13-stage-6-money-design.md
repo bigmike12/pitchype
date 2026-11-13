@@ -75,9 +75,9 @@ one transaction, locks the engagement, no-op if already settled):
   (5%, minimum ₦500, never more than the part itself; nothing if the part is 0).
   The rest of the escrow goes to the business wallet.
 - `refund_creator_fault` also returns the business fee minus the Paystack
-  charges actually paid on that engagement's own payments (the `fees` figure
-  from Paystack's verify response, summed over the engagement's `payments`
-  rows; wallet-funded money carries no charge) (§6.2), so the platform breaks even.
+  charge actually paid on the one payment that funded the hire (the `fees` figure
+  from Paystack's verify response on that `payments` row; wallet-only funding
+  carries no charge; a stranded late payment is not part of the hire) (§6.2), so the platform breaks even.
 - Writes ledger rows, sets status (`accepted` for any release, `refunded` for a
   full refund) and the settled amounts, then raises notifications.
 
