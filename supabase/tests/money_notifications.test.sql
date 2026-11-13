@@ -5,6 +5,10 @@
 -- rejected. Nobody is told about their own action, and a hire cancelled
 -- before payment still reads as it did in Stage 5.
 -- Run with: supabase test db
+--
+-- The notifications table can already hold rows from other runs (for example
+-- scripts/money-race.mjs on a local database), so nothing here counts the whole
+-- table: counts are limited to this file's own people or campaign.
 begin;
 
 create extension if not exists pgtap with schema extensions;
@@ -90,7 +94,8 @@ select ok((select data ->> 'campaign_title' = 'Money notify test'
 select is(pg_temp.count_of('00000000-0000-0000-0000-0000000ce001', 'hire_funded'), 0,
   'the business, who paid, is not told');
 select is(pg_temp.count_of(pg_temp.creator(4), 'hire_funded'), 0, 'an unpaid hire notifies nobody');
-select is((select count(*)::integer from public.notifications where kind::text = 'hire_funded'), 6,
+select is((select count(*)::integer from public.notifications
+            where kind::text = 'hire_funded' and data ->> 'campaign_id' = 'ce000000-0000-0000-0000-000000000001'), 6,
   'one per paid hire');
 
 -- Starting work ----------------------------------------------------------------------------------------
@@ -213,14 +218,16 @@ set local request.jwt.claims = '{"sub": "cecececc-0000-0000-0000-0000000ce106"}'
 select public.request_payout(1900000);
 reset role;
 
-select is((select count(*)::integer from public.notifications where kind::text like 'payout\_%'), 0,
+select is((select count(*)::integer from public.notifications
+            where kind::text like 'payout\_%' and user_id in (select id from public.users where email like '%.moneynotify@example.com')), 0,
   'asking for a payout notifies nobody');
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "cecececc-0000-0000-0000-0000000ce002"}'; -- Efe
 select public.approve_payout((select id from public.payouts where user_id = pg_temp.creator(1)));
 reset role;
-select is((select count(*)::integer from public.notifications where kind::text like 'payout\_%'), 0,
+select is((select count(*)::integer from public.notifications
+            where kind::text like 'payout\_%' and user_id in (select id from public.users where email like '%.moneynotify@example.com')), 0,
   'approving it (processing) notifies nobody yet');
 
 select is(public.finish_payout('pit_po_' || replace((select id::text from public.payouts

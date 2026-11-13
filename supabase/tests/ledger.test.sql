@@ -3,6 +3,11 @@
 -- be changed or removed, wallet balances come from the ledger, and people read
 -- only their own wallet rows and the escrow of their own hires.
 -- Run with: supabase test db
+--
+-- The ledger is append-only, so a local database that has run
+-- scripts/money-race.mjs keeps its rows for good. This file therefore never
+-- assumes an empty ledger: it counts only its own fixture rows (by engagement)
+-- and compares totals as changes from a baseline taken before it posts.
 begin;
 
 create extension if not exists pgtap with schema extensions;
@@ -31,6 +36,10 @@ insert into public.applications (id, campaign_id, creator_id, status) values
 insert into public.engagements (id, application_id, campaign_id, business_id, creator_id, agreed_price_kobo, pay_by) values
   ('c8000000-0000-0000-0000-0000000000e1', 'c8000000-0000-0000-0000-0000000000a1', 'c8000000-0000-0000-0000-000000000001',
    '00000000-0000-0000-0000-0000000c8001', '00000000-0000-0000-0000-0000000c8002', 5000000, now() + interval '48 hours');
+
+-- Taken before any posting below; every total is checked as a change from it.
+create temp table baseline as
+  select public.ledger_totals() as totals, (select count(*) from public.ledger_entries) as n;
 
 -- Fee config ----------------------------------------------------------------------------------
 select is((public.current_fee_config()).business_fee_bps, 500, 'business fee is 5%');
@@ -67,11 +76,16 @@ select isnt(public.post_ledger_group('payment_received', null, null, 'c8000000-0
     {"account": "escrow", "amount": -5000000},
     {"account": "platform_revenue", "amount": -250000}]'), null,
   'a balanced group is posted and returns its id');
-select is((select count(distinct group_id)::integer from public.ledger_entries), 1, 'as one group');
-select is((select count(*)::integer from public.ledger_entries), 3, 'of three rows');
-select is((select fee_config_id from public.ledger_entries limit 1), (public.current_fee_config()).id,
-  'with no config given, rows record the current fee_config');
-select is((select paystack_reference from public.ledger_entries limit 1), 'ref-ledger-1', 'and the Paystack reference');
+select is((select count(distinct group_id)::integer from public.ledger_entries
+            where engagement_id = 'c8000000-0000-0000-0000-0000000000e1'), 1, 'as one group');
+select is((select count(*)::integer from public.ledger_entries
+            where engagement_id = 'c8000000-0000-0000-0000-0000000000e1'), 3, 'of three rows');
+select is((select array_agg(distinct fee_config_id) from public.ledger_entries
+            where engagement_id = 'c8000000-0000-0000-0000-0000000000e1'), array[(public.current_fee_config()).id],
+  'with no config given, every row records the current fee_config');
+select is((select array_agg(distinct paystack_reference) from public.ledger_entries
+            where engagement_id = 'c8000000-0000-0000-0000-0000000000e1'), array['ref-ledger-1'],
+  'and the Paystack reference');
 
 -- The work is accepted: ₦47,500 to Chidi, ₦2,500 creator fee.
 select lives_ok($$ select public.post_ledger_group('hire_settled', '00000000-0000-0000-0000-0000000c8004', 'accepted',
@@ -106,7 +120,9 @@ select throws_ok($$ select public.post_ledger_group('payment_received', null, nu
 select throws_ok($$ select public.post_ledger_group('gift', null, null, null, null, null, null, null,
   '[{"account": "paystack", "amount": 100000}, {"account": "platform_revenue", "amount": -100000}]') $$,
   '23514', null, 'an unknown event type is refused');
-select is((select count(*)::integer from public.ledger_entries), 8, 'refused groups leave nothing behind');
+-- Three groups posted above (3 + 3 + 2 rows); the refused ones add nothing.
+select is((select count(*)::integer from public.ledger_entries) - (select n from baseline)::integer, 8,
+  'refused groups leave nothing behind');
 select is((select count(*)::integer from (
   select group_id from public.ledger_entries group by group_id having sum(amount_kobo) <> 0) g), 0,
   'every group sums to zero');
@@ -131,10 +147,17 @@ select throws_ok($$ select public.wallet_balance('00000000-0000-0000-0000-000000
 
 select is((select sum(value::bigint) from jsonb_each_text(public.ledger_totals())), 0::numeric,
   'ledger totals sum to zero across all accounts');
-select is((public.ledger_totals() ->> 'paystack')::bigint, 5350000::bigint, 'Paystack cash is ₦53,500');
-select is((public.ledger_totals() ->> 'escrow')::bigint, 0::bigint, 'escrow is empty after settlement');
+select is((public.ledger_totals() ->> 'paystack')::bigint - (select (totals ->> 'paystack')::bigint from baseline),
+  5350000::bigint, 'Paystack cash grew by ₦53,500');
+select is((public.ledger_totals() ->> 'escrow')::bigint - (select (totals ->> 'escrow')::bigint from baseline),
+  0::bigint, 'escrow is unchanged: this file''s hire was paid in and settled out');
 
 -- Who reads what ------------------------------------------------------------------------------
+-- The true row count, read as the owner before the role switch (people cannot
+-- see all rows), for the admin check below.
+create temp table all_rows as select count(*)::integer as n from public.ledger_entries;
+grant select on all_rows to authenticated;
+
 set local role authenticated;
 
 set local request.jwt.claims = '{"sub": "88888888-0000-0000-0000-0000000c8001"}'; -- Ada
@@ -158,7 +181,7 @@ set local request.jwt.claims = '{"sub": "88888888-0000-0000-0000-0000000c8003"}'
 select is((select count(*)::integer from public.ledger_entries), 0, 'an unrelated person reads nothing');
 
 set local request.jwt.claims = '{"sub": "88888888-0000-0000-0000-0000000c8004"}'; -- Efe
-select is((select count(*)::integer from public.ledger_entries), 8, 'an admin reads every row');
+select is((select count(*)::integer from public.ledger_entries), (select n from all_rows), 'an admin reads every row');
 
 reset role;
 set local role anon;

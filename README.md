@@ -94,11 +94,10 @@ npm run db:types               # after any schema change
 ```
 
 `supabase test db` should report every file passing (14 files and 848 tests
-after Stage 6; the count grows as tests are added) on a local database that
-has not run the race script below. `ledger.test.sql` and
-`money_notifications.test.sql` count whole tables, and the race script's rows
-are permanent, so after a race run they fail until the local database is
-rebuilt with `supabase db reset` (which wipes local data).
+after Stage 6; the count grows as tests are added). The money tests are
+written to pass on a database that already holds ledger rows (they count only
+their own fixtures or changes from a baseline), so the race script below does
+not break them.
 
 `node scripts/money-race.mjs` races the money functions (payments, settlement,
 payouts) against each other in separate sessions on the local database and

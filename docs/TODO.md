@@ -361,12 +361,6 @@ Deferred minors, scripts and tooling:
       so they stay until the local database is reset. The admin reconciliation
       screen shows a large difference locally because of them and of the
       Paystack test balance.
-- [ ] `supabase/tests/ledger.test.sql` and `money_notifications.test.sql` assume
-      an empty ledger and notifications table (they count whole tables), so
-      they fail on a local database that has run `scripts/money-race.mjs`
-      (found when the Stage 6 gate was run after the race script: 11 failed
-      tests in those two files; the other 12 files pass). Make them count only
-      their own fixtures, or run the race script against a separate database.
 - [ ] Eight files already fail `prettier --check`, from before Stage 6.
 
 ## Done
