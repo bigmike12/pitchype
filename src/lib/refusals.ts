@@ -33,6 +33,10 @@ const REFUSAL_TEXT = {
     "Your wallet doesn’t cover this hire. Pay the rest by card.",
   wallet_covers_total:
     "Your wallet covers this hire. Pay from your wallet instead.",
+  // Settling a hire (admins)
+  release_invalid:
+    "Release a whole number of naira, from ₦0 up to the hire’s price.",
+  settle_reason_required: "Write a reason of up to 500 characters.",
   // Shared
   not_allowed: "You can’t do this with this person.",
   activity_paused:

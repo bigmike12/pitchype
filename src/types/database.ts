@@ -460,6 +460,7 @@ export type Database = {
           business_fee_kobo: number | null
           business_id: string
           campaign_id: string
+          cancel_fee_notice_seen_at: string | null
           cancel_reason: string | null
           cancelled_at: string | null
           creator_fee_bps: number | null
@@ -484,6 +485,7 @@ export type Database = {
           business_fee_kobo?: number | null
           business_id: string
           campaign_id: string
+          cancel_fee_notice_seen_at?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
           creator_fee_bps?: number | null
@@ -508,6 +510,7 @@ export type Database = {
           business_fee_kobo?: number | null
           business_id?: string
           campaign_id?: string
+          cancel_fee_notice_seen_at?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
           creator_fee_bps?: number | null
@@ -1435,6 +1438,10 @@ export type Database = {
         Returns: Json
       }
       cancel_engagement: { Args: { engagement: string }; Returns: undefined }
+      cancel_funded_engagement: {
+        Args: { engagement: string; fee_notice_seen: boolean }
+        Returns: undefined
+      }
       check_standing: { Args: { person: string }; Returns: undefined }
       clean_note: { Args: { note: string }; Returns: string }
       clean_reason: { Args: { reason: string }; Returns: string }
@@ -1702,12 +1709,45 @@ export type Database = {
         Args: { creator: string; reason: string }
         Returns: undefined
       }
+      settle_engagement: {
+        Args: {
+          engagement: string
+          outcome: string
+          reason: string
+          release_kobo: number
+        }
+        Returns: undefined
+      }
+      settle_engagement_internal: {
+        Args: {
+          actor: string
+          engagement: string
+          outcome: string
+          reason: string
+          release_kobo: number
+        }
+        Returns: undefined
+      }
+      settle_money: {
+        Args: {
+          actor: string
+          cancel_reason: string
+          engagement: string
+          fault: boolean
+          new_status: Database["public"]["Enums"]["engagement_status"]
+          outcome: string
+          reason: string
+          released: number
+        }
+        Returns: undefined
+      }
       standing_problem: { Args: { person: string }; Returns: string }
       standing_review: { Args: never; Returns: Json }
       start_conversation: {
         Args: { application?: string; creator: string }
         Returns: string
       }
+      start_engagement: { Args: { engagement: string }; Returns: undefined }
       start_payment: {
         Args: { engagement: string; fee_notice_seen: boolean }
         Returns: Json

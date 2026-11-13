@@ -16,6 +16,9 @@ test("only known codes count as refusals", () => {
   assert.equal(isRefusal("payment_mismatch"), true);
   assert.equal(isRefusal("not_enough_balance"), true);
   assert.equal(isRefusal("wallet_covers_total"), true);
+  assert.equal(isRefusal("release_invalid"), true);
+  assert.equal(isRefusal("settle_reason_required"), true);
+  assert.equal(isRefusal("invalid_outcome"), false);
   assert.equal(isRefusal("fee_notice_required"), false);
   assert.equal(isRefusal("duplicate key value"), false);
 });
