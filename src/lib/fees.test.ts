@@ -6,9 +6,14 @@ import {
   EXAMPLE_PRICE_KOBO,
   INFLUENCER_FEE_BPS,
   MIN_FEE_KOBO,
+  TRANSFER_FEE_TIERS,
+  creatorFee,
+  faultRefund,
   feeExample,
   formatRate,
+  paystackCharge,
   pricePerCreatorWithin,
+  transferFee,
 } from "./fees.ts";
 import { formatNaira } from "./money.ts";
 
@@ -110,4 +115,92 @@ test("budget split: rejects non-integer or non-positive inputs", () => {
   assert.throws(() => pricePerCreatorWithin(0, 5));
   assert.throws(() => pricePerCreatorWithin(100_000, 0));
   assert.throws(() => pricePerCreatorWithin(100.5, 1));
+});
+
+test("paystackCharge: ₦52,500 payment costs ₦954.06 including VAT (CLAUDE.md §6.4)", () => {
+  // 1.5% of 5,250,000 = 78,750; + 10,000 flat = 88,750; x 1.075 = 95,406.25.
+  assert.equal(paystackCharge(5_250_000), 95_406);
+});
+
+test("paystackCharge: no ₦100 component under ₦2,500", () => {
+  // 1.5% of 200,000 = 3,000; x 1.075 = 3,225.
+  assert.equal(paystackCharge(200_000), 3_225);
+  // At exactly ₦2,500 the flat ₦100 applies: 3,750 + 10,000 = 13,750 x 1.075 = 14,781.25.
+  assert.equal(paystackCharge(250_000), 14_781);
+});
+
+test("paystackCharge: the charge before VAT is capped at ₦2,000", () => {
+  assert.equal(paystackCharge(1_000_000_000), 215_000);
+});
+
+test("paystackCharge: rejects amounts that aren't positive whole kobo", () => {
+  assert.throws(() => paystackCharge(0));
+  assert.throws(() => paystackCharge(-1));
+  assert.throws(() => paystackCharge(10.5));
+});
+
+test("creatorFee: 5% of what's released, with the ₦500 minimum", () => {
+  assert.equal(creatorFee(5_000_000), 250_000);
+  // 5% of ₦10,000 is ₦500 exactly; ₦5,000 would be ₦250, lifted to the minimum.
+  assert.equal(creatorFee(1_000_000), 50_000);
+  assert.equal(creatorFee(500_000), 50_000);
+});
+
+test("creatorFee: zero released costs nothing, and the fee never exceeds the amount", () => {
+  assert.equal(creatorFee(0), 0);
+  assert.equal(creatorFee(30_000), 30_000);
+});
+
+test("creatorFee: a split release pays the fee on the released share only", () => {
+  // Half of a ₦50,000 job released: 5% of ₦25,000.
+  assert.equal(creatorFee(2_500_000), 125_000);
+});
+
+test("creatorFee: rejects negative or non-whole amounts", () => {
+  assert.throws(() => creatorFee(-1));
+  assert.throws(() => creatorFee(10.5));
+});
+
+test("faultRefund: price plus business fee minus Paystack's charge (CLAUDE.md §6.2)", () => {
+  assert.equal(faultRefund(5_000_000, 250_000, 95_406), 5_154_594);
+});
+
+test("faultRefund: rejects invalid inputs", () => {
+  assert.throws(() => faultRefund(0, 250_000, 95_406));
+  assert.throws(() => faultRefund(5_000_000, -1, 95_406));
+  assert.throws(() => faultRefund(5_000_000, 250_000, 0.5));
+});
+
+test("transferFee: tiers change at ₦5,000 and ₦50,000", () => {
+  assert.equal(transferFee(1), 1_000);
+  assert.equal(transferFee(500_000), 1_000); // ₦5,000
+  assert.equal(transferFee(500_001), 2_500); // just over ₦5,000
+  assert.equal(transferFee(5_000_000), 2_500); // ₦50,000
+  assert.equal(transferFee(5_000_001), 5_000); // just over ₦50,000
+  assert.equal(transferFee(100_000_000), 5_000);
+});
+
+test("transferFee: rejects amounts that aren't positive whole kobo", () => {
+  assert.throws(() => transferFee(0));
+  assert.throws(() => transferFee(-5));
+  assert.throws(() => transferFee(10.5));
+});
+
+test("TRANSFER_FEE_TIERS is ordered, ends open-ended", () => {
+  assert.equal(TRANSFER_FEE_TIERS.at(-1)?.upToKobo, Infinity);
+  for (let i = 1; i < TRANSFER_FEE_TIERS.length; i++) {
+    assert.ok(TRANSFER_FEE_TIERS[i].upToKobo > TRANSFER_FEE_TIERS[i - 1].upToKobo);
+  }
+});
+
+test("business fee covers Paystack charge for every price", () => {
+  // ₦5,000 to ₦1m in ₦100 steps, against the real charge function.
+  for (let price = 500_000; price <= 100_000_000; price += 10_000) {
+    const { businessFeeKobo, businessPaysKobo } = feeExample(price);
+    const charge = paystackCharge(businessPaysKobo);
+    assert.ok(
+      businessFeeKobo >= charge,
+      `at ${formatNaira(price)} the fee ${formatNaira(businessFeeKobo)} must cover Paystack's ${formatNaira(charge)}`,
+    );
+  }
 });
