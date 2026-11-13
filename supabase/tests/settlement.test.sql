@@ -10,9 +10,9 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(110);
+select plan(120);
 
--- Ada and Bola are businesses, Efe is an admin, creators 5e101..5e114 are hired.
+-- Ada and Bola are businesses, Efe is an admin, creators 5e101..5e116 are hired.
 insert into public.users (id, auth_user_id, email, role) values
   ('00000000-0000-0000-0000-00000005e001', '5e5e5e5e-0000-0000-0000-00000005e001', 'ada.settle@example.com', 'business'),
   ('00000000-0000-0000-0000-00000005e002', '5e5e5e5e-0000-0000-0000-00000005e002', 'bola.settle@example.com', 'business'),
@@ -22,7 +22,7 @@ insert into public.users (id, auth_user_id, email, role)
 select ('00000000-0000-0000-0000-00000005e1' || lpad(n::text, 2, '0'))::uuid,
        ('5e5e5e5e-0000-0000-0000-00000005e1' || lpad(n::text, 2, '0'))::uuid,
        'c' || n || '.settle@example.com', 'influencer'
-  from generate_series(1, 14) n;
+  from generate_series(1, 16) n;
 
 insert into public.business_profiles (user_id, business_name, contact_name, state, city) values
   ('00000000-0000-0000-0000-00000005e001', 'Ada Settle Kitchen', 'Ada Obi', 'Lagos', 'Ikeja'),
@@ -40,7 +40,7 @@ insert into public.applications (id, campaign_id, creator_id, status)
 select ('5e000000-0000-0000-0000-0000000a00' || lpad(n::text, 2, '0'))::uuid,
        case when n = 10 then '5e000000-0000-0000-0000-000000000002' else '5e000000-0000-0000-0000-000000000001' end::uuid,
        ('00000000-0000-0000-0000-00000005e1' || lpad(n::text, 2, '0'))::uuid, 'approved'
-  from generate_series(1, 14) n;
+  from generate_series(1, 16) n;
 
 insert into public.engagements (id, application_id, campaign_id, business_id, creator_id, agreed_price_kobo, pay_by)
 select ('5e000000-0000-0000-0000-0000000e00' || lpad(n::text, 2, '0'))::uuid,
@@ -49,7 +49,7 @@ select ('5e000000-0000-0000-0000-0000000e00' || lpad(n::text, 2, '0'))::uuid,
        case when n = 10 then '00000000-0000-0000-0000-00000005e002' else '00000000-0000-0000-0000-00000005e001' end::uuid,
        ('00000000-0000-0000-0000-00000005e1' || lpad(n::text, 2, '0'))::uuid,
        5000000, now() + interval '48 hours'
-  from generate_series(1, 14) n;
+  from generate_series(1, 16) n;
 
 -- Bola has ₦26,250 in the wallet, so hire 10 is paid half from the wallet, half by card.
 select public.post_ledger_group('correction', null, 'test credit', null, null, null, null, null,
@@ -78,6 +78,30 @@ $$;
 select is((select count(*)::integer from public.engagements
             where id::text like '5e000000-0000-0000-0000-0000000e00%' and status = 'funded'), 13,
   'hires 1 to 13 are funded');
+
+-- Hire 15 is paid by payment A; an older payment B that A superseded succeeds
+-- late (charge ₦900) and is stranded into Ada's wallet. Hire 16 stays unpaid
+-- until Ada pays it from her wallet later.
+do $$
+declare
+  b jsonb;
+  a jsonb;
+begin
+  perform set_config('request.jwt.claims', '{"sub": "5e5e5e5e-0000-0000-0000-00000005e001"}', true);
+  b := public.start_payment('5e000000-0000-0000-0000-0000000e0015', true);
+  a := public.start_payment('5e000000-0000-0000-0000-0000000e0015', true);
+  perform set_config('request.jwt.claims', '', true);
+  if public.record_card_payment(a ->> 'reference', 5250000, 95406, 'evt-settle-15a', '{}') <> 'funded'
+     or public.record_card_payment(b ->> 'reference', 5250000, 90000, 'evt-settle-15b', '{}') <> 'stranded' then
+    raise exception 'hire 15 fixture did not fund and strand as expected';
+  end if;
+end;
+$$;
+select is((select array_agg(paystack_fee_kobo order by paystack_fee_kobo) from public.payments
+            where engagement_id = '5e000000-0000-0000-0000-0000000e0015' and status = 'succeeded'),
+  array[90000, 95406]::bigint[], 'hire 15 has two succeeded payments: the funding one and a stranded one');
+select is(public.wallet_balance('00000000-0000-0000-0000-00000005e001', 'business_wallet'), 5250000::bigint,
+  'the stranded payment sits in Ada''s wallet');
 select is((select array[card_amount_kobo, wallet_part_kobo] from public.payments
             where engagement_id = '5e000000-0000-0000-0000-0000000e0010'),
   array[2625000, 2625000]::bigint[], 'hire 10 is paid half from the wallet, half by card');
@@ -426,6 +450,38 @@ select ok(has_function_privilege('authenticated', 'public.start_engagement(uuid)
           and not has_function_privilege('anon', 'public.cancel_funded_engagement(uuid, boolean)', 'execute'),
   'the three entry points are for signed-in people only');
 
+-- The fault refund subtracts only the charge of the payment that funded the hire --------------------
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "5e5e5e5e-0000-0000-0000-00000005e115"}'; -- creator 15
+select lives_ok($$ select public.cancel_funded_engagement('5e000000-0000-0000-0000-0000000e0015', false) $$,
+  'creator 15 withdraws from hire 15');
+reset role;
+select is((select array_agg(account || ':' || amount_kobo order by account) from public.ledger_entries
+            where engagement_id = '5e000000-0000-0000-0000-0000000e0015' and event_type = 'hire_settled'),
+  '{business_wallet:-5154594,escrow:5000000,platform_revenue:154594}'::text[],
+  'only payment A''s ₦954.06 is subtracted, not the stranded payment''s ₦900');
+select is((select refunded_kobo from public.engagements where id = '5e000000-0000-0000-0000-0000000e0015'),
+  5154594::bigint, 'hire 15 records the refund');
+select is((select sum(amount_kobo) from public.ledger_entries
+            where engagement_id = '5e000000-0000-0000-0000-0000000e0015' and account = 'platform_revenue'),
+  -95406::numeric, 'revenue left on hire 15 is payment A''s charge only');
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "5e5e5e5e-0000-0000-0000-00000005e001"}'; -- Ada
+select lives_ok($$ select public.pay_from_wallet('5e000000-0000-0000-0000-0000000e0016', true) $$,
+  'Ada pays hire 16 wholly from her wallet');
+set local request.jwt.claims = '{"sub": "5e5e5e5e-0000-0000-0000-00000005e003"}'; -- Efe
+select lives_ok($$ select public.settle_engagement('5e000000-0000-0000-0000-0000000e0016', 'refund_creator_fault', null, 'Creator ghosted') $$,
+  'Efe refunds hire 16 with the fee');
+reset role;
+select is((select array_agg(account || ':' || amount_kobo order by account) from public.ledger_entries
+            where engagement_id = '5e000000-0000-0000-0000-0000000e0016' and event_type = 'hire_settled'),
+  '{business_wallet:-5500000,escrow:5000000,platform_revenue:500000}'::text[],
+  'wallet-only funding carries no charge: the business gets ₦55,000 back (paid under the 10% config)');
+select is((select coalesce(sum(amount_kobo), 0) from public.ledger_entries
+            where engagement_id = '5e000000-0000-0000-0000-0000000e0016' and account = 'platform_revenue'),
+  0::numeric, 'and the platform keeps nothing');
+
 -- Totals ---------------------------------------------------------------------------------------------------
 select is((select count(*)::integer from (
   select group_id from public.ledger_entries group by group_id having sum(amount_kobo) <> 0) g), 0,
@@ -449,15 +505,15 @@ select is((select count(*)::integer from public.engagements e
 select is((select sum(amount_kobo) from public.ledger_entries
             where engagement_id = '5e000000-0000-0000-0000-0000000e0007' and account = 'escrow'),
   -5000000::numeric, 'hire 7, still in progress, keeps its escrow');
-select is(public.wallet_balance('00000000-0000-0000-0000-00000005e001', 'business_wallet'), 38179088::bigint,
-  'Ada''s wallet holds every refund: 50,000 + 30,000 + 51,545.94 × 2 + 50,000 × 2 + 48,999 + 49,700 naira');
+select is(public.wallet_balance('00000000-0000-0000-0000-00000005e001', 'business_wallet'), 48583682::bigint,
+  'Ada''s wallet: refunds of 50,000 + 30,000 + 51,545.94 × 3 + 50,000 × 2 + 48,999 + 49,700 + 55,000 naira, plus the stranded 52,500, less 55,000 spent');
 select is((select count(*)::integer from public.ledger_entries
             where engagement_id::text like '5e000000-0000-0000-0000-0000000e00%' and event_type = 'hire_settled'
               and engagement_id in (select id from public.engagements where settled_at is null)), 0,
   'no unsettled hire has settlement rows');
 select is((select count(distinct engagement_id)::integer from public.ledger_entries
-            where engagement_id::text like '5e000000-0000-0000-0000-0000000e00%' and event_type = 'hire_settled'), 12,
-  'twelve hires were settled or cancelled, each once');
+            where engagement_id::text like '5e000000-0000-0000-0000-0000000e00%' and event_type = 'hire_settled'), 14,
+  'fourteen hires were settled or cancelled, each once');
 select is((select count(*)::integer from (
   select engagement_id from public.ledger_entries
    where engagement_id::text like '5e000000-0000-0000-0000-0000000e00%' and event_type = 'hire_settled'
