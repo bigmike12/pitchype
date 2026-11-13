@@ -164,8 +164,10 @@ select throws_ok($$ select public.engagement_details('c5000000-0000-0000-0000-00
 reset role;
 update public.engagements set pay_by = now() - interval '1 minute'
  where campaign_id = 'c5000000-0000-0000-0000-000000000001';
-select is(public.expire_unpaid_engagements(), 1, 'an unpaid approval lapses');
-select is(public.expire_unpaid_engagements(), 0, 'running it again changes nothing');
+-- Scoped to this file's campaign: the local database can hold other unpaid
+-- hires past their 48 hours, which a whole-database run would also count.
+select is(public.expire_unpaid_engagements('c5000000-0000-0000-0000-000000000001'), 1, 'an unpaid approval lapses');
+select is(public.expire_unpaid_engagements('c5000000-0000-0000-0000-000000000001'), 0, 'running it again changes nothing');
 select is((select cancel_reason from public.engagements where campaign_id = 'c5000000-0000-0000-0000-000000000001'),
   'payment_expired', 'with the reason recorded');
 select is(public.held_places('c5000000-0000-0000-0000-000000000001'), 0, 'and the place is free');

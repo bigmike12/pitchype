@@ -291,7 +291,9 @@ update public.engagements set pay_by = now() - interval '1 hour' where id = 'c90
 update public.payments set created_at = now() - interval '40 minutes'
  where engagement_id = 'c9000000-0000-0000-0000-0000000000e3';
 set local role service_role;
-select is(public.expire_unpaid_engagements(null), 1, 'a payment started 40 minutes ago no longer holds the lapse');
+-- Scoped to this file's campaign: other unpaid hires in the local database may be past their 48 hours too.
+select is(public.expire_unpaid_engagements('c9000000-0000-0000-0000-000000000001'), 1,
+  'a payment started 40 minutes ago no longer holds the lapse');
 reset role;
 select is((select status::text || ':' || cancel_reason from public.engagements where id = 'c9000000-0000-0000-0000-0000000000e3'),
   'cancelled:payment_expired', 'the hire lapsed');
