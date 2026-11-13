@@ -145,7 +145,7 @@ async function PaymentReturn({
             </Link>
           }
         >
-          The money is held in escrow until you accept the work.
+          The money is held safely by Pitchype until the job is done.
         </Callout>
       ) : view === "lapsed" || view === "stranded" ? (
         <Callout

@@ -5,7 +5,10 @@
 // writes the ledger. The secret-key client is used only where no signed-in
 // person acts (finishing a transfer Paystack confirmed, the stuck-payout poll)
 // or where the database must not trust the person (saving a bank account
-// whose name Paystack resolved). Recipient codes never leave the server.
+// whose name Paystack resolved). The app never selects or renders a
+// recipient code outside approval, which hands it straight to Paystack. A
+// creator can still read their own code through row level security; it is
+// only usable with our secret key (column-level restriction is in docs/TODO.md).
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createSessionClient } from "@/lib/supabase/server";
