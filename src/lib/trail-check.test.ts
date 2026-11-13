@@ -153,3 +153,173 @@ test("a paid hire with no payment lines is named", () => {
   assert.equal(result.ok, false);
   assert.match(result.problems.join("\n"), /no payment/);
 });
+
+// Shapes written by the database (20261113100100 funding, 100200 settlement,
+// 100250 fault refund). Wallets, escrow and revenue are negative; paystack
+// cash and expenses are positive.
+const funding = (
+  event: "payment_received" | "hire_funded" = "payment_received",
+) =>
+  event === "payment_received"
+    ? group(event, [
+        line("escrow", -5_000_000),
+        line("platform_revenue", -250_000),
+        line("paystack", 5_250_000),
+      ])
+    : group(event, [
+        line("escrow", -5_000_000),
+        line("platform_revenue", -250_000),
+        line("business_wallet", 5_250_000),
+      ]);
+
+const paystackFee = (kobo: number) =>
+  group("paystack_fee", [line("paystack", -kobo), line("paystack_fees", kobo)]);
+
+// A late card payment that could not fund the hire lands in the wallet.
+const stranded = () =>
+  group("payment_received", [
+    line("paystack", 5_250_000),
+    line("business_wallet", -5_250_000),
+  ]);
+
+const fundedNotSettled = (): EngagementTrail => {
+  const t = released();
+  t.engagement.status = "in_progress";
+  t.engagement.settledAt = null;
+  t.engagement.settleOutcome = null;
+  t.engagement.releasedKobo = null;
+  t.engagement.refundedKobo = null;
+  t.groups = [funding()];
+  return t;
+};
+
+test("shape: a lapsed unpaid hire has nothing to check", () => {
+  const t = fundedNotSettled();
+  t.engagement.status = "cancelled";
+  t.engagement.fundedAt = null;
+  t.engagement.businessFeeKobo = null;
+  t.groups = [];
+  assert.deepEqual(checkTrail(t), { ok: true, problems: [] });
+});
+
+test("shape: a stranded payment on a hire that was never funded adds up", () => {
+  const t = fundedNotSettled();
+  t.engagement.fundedAt = null;
+  t.engagement.businessFeeKobo = null;
+  t.groups = [stranded(), paystackFee(95_406)];
+  assert.deepEqual(checkTrail(t), { ok: true, problems: [] });
+});
+
+test("shape: a funded hire that has not been settled holds the price in escrow", () => {
+  assert.deepEqual(checkTrail(fundedNotSettled()), { ok: true, problems: [] });
+});
+
+test("shape: a funded hire with a late stranded payment adds up", () => {
+  const t = fundedNotSettled();
+  t.groups = [funding(), paystackFee(95_406), stranded(), paystackFee(95_406)];
+  assert.deepEqual(checkTrail(t), { ok: true, problems: [] });
+});
+
+test("shape: a hire paid wholly from the wallet (hire_funded) and released adds up", () => {
+  const t = released();
+  t.groups[0] = funding("hire_funded");
+  assert.deepEqual(checkTrail(t), { ok: true, problems: [] });
+});
+
+test("shape: a paid cancellation by the business adds up", () => {
+  const t = released();
+  t.engagement.status = "cancelled";
+  t.engagement.settleOutcome = "refund";
+  t.engagement.releasedKobo = 0;
+  t.engagement.refundedKobo = 5_000_000;
+  t.engagement.cancelledAt = "2026-11-13T10:00:00Z";
+  t.groups = [
+    funding(),
+    paystackFee(95_406),
+    group("hire_settled", [
+      line("escrow", 5_000_000),
+      line("business_wallet", -5_000_000),
+    ]),
+  ];
+  assert.deepEqual(checkTrail(t), { ok: true, problems: [] });
+});
+
+test("shape: a creator-fault refund (price + fee less the card charge) adds up", () => {
+  const t = released();
+  t.engagement.status = "refunded";
+  t.engagement.settleOutcome = "refund_creator_fault";
+  t.engagement.releasedKobo = 0;
+  t.engagement.refundedKobo = 5_154_594;
+  t.groups = [
+    funding(),
+    paystackFee(95_406),
+    group("hire_settled", [
+      line("escrow", 5_000_000),
+      line("platform_revenue", 154_594),
+      line("business_wallet", -5_154_594),
+    ]),
+  ];
+  assert.deepEqual(checkTrail(t), { ok: true, problems: [] });
+});
+
+test("a settled hire with no settlement lines is flagged", () => {
+  const t = released();
+  t.groups = [funding()];
+  const result = checkTrail(t);
+  assert.equal(result.ok, false);
+  assert.match(result.problems.join("\n"), /no settlement/);
+});
+
+test("two settlements on one hire are flagged", () => {
+  const t = released();
+  t.groups.push(
+    group("hire_settled", [
+      line("escrow", 100_000),
+      line("business_wallet", -100_000),
+    ]),
+  );
+  const result = checkTrail(t);
+  assert.equal(result.ok, false);
+  assert.match(result.problems.join("\n"), /more than one settlement/);
+});
+
+test("settlement lines on a hire not marked settled are flagged", () => {
+  const t = released();
+  t.engagement.settledAt = null;
+  const result = checkTrail(t);
+  assert.equal(result.ok, false);
+  assert.match(result.problems.join("\n"), /not marked settled/);
+});
+
+test("escrow drained by another kind of group is flagged on a funded hire", () => {
+  const t = fundedNotSettled();
+  t.groups.push(
+    group("correction", [
+      line("escrow", 1_000_000),
+      line("business_wallet", -1_000_000),
+    ]),
+  );
+  const result = checkTrail(t);
+  assert.equal(result.ok, false);
+  assert.match(result.problems.join("\n"), /Escrow holds/);
+});
+
+test("escrow left over after settlement by another kind of group is flagged", () => {
+  const t = released();
+  t.groups.push(
+    group("correction", [
+      line("escrow", 1_000_000),
+      line("business_wallet", -1_000_000),
+    ]),
+  );
+  const result = checkTrail(t);
+  assert.equal(result.ok, false);
+  assert.match(result.problems.join("\n"), /Escrow holds/);
+});
+
+test("escrow lines on a hire that was never paid for are flagged", () => {
+  const t = fundedNotSettled();
+  t.engagement.fundedAt = null;
+  const result = checkTrail(t);
+  assert.equal(result.ok, false);
+});

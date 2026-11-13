@@ -13,6 +13,7 @@ import { createSessionClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
 
 import { toEngagement, type EngagementSummary } from "./applications";
+import { fundingPaymentByHire } from "../funding-payment";
 import { isObject, list, num, obj, str } from "./json";
 import { MoneyStateError } from "./money-errors";
 import { refused, type Refused } from "./refusal";
@@ -504,8 +505,12 @@ export type EscrowEngagement = {
   businessFeeKobo: number | null;
   creatorFeeBps: number | null;
   creatorMinFeeKobo: number | null;
-  /** What Paystack charged for this hire's card payments (VAT included). */
-  paystackChargeKobo: number;
+  /**
+   * What Paystack charged for the payment that funded the hire, which is the
+   * only charge a creator-fault refund subtracts (0 for a wallet-paid hire).
+   * Null if that payment can't be found.
+   */
+  paystackChargeKobo: number | null;
   campaignTitle: string;
   businessName: string;
   creatorName: string;
@@ -513,30 +518,38 @@ export type EscrowEngagement = {
   startedAt: string | null;
 };
 
+export const ESCROW_LIST_CAP = 200;
+
 /**
  * Hires whose money is in escrow right now (funded or in progress), oldest
- * payment first, for admins. Row level security shows admins every hire,
- * campaign, profile and payment, so this uses the session client.
+ * payment first, for admins; at most ESCROW_LIST_CAP, with `more` set when
+ * there are others. Row level security shows admins every hire, campaign,
+ * profile, payment and ledger line, so this uses the session client.
  */
-export async function listEscrowEngagements(): Promise<EscrowEngagement[]> {
+export async function listEscrowEngagements(): Promise<{
+  hires: EscrowEngagement[];
+  more: boolean;
+}> {
   const supabase = await createSessionClient();
-  const { data, error } = await supabase
+  const { data: rows, error } = await supabase
     .from("engagements")
     .select(
       "id, status, agreed_price_kobo, business_fee_kobo, creator_fee_bps, creator_min_fee_kobo, campaign_id, business_id, creator_id, funded_at, started_at",
     )
     .in("status", ["funded", "in_progress"])
     .order("funded_at", { ascending: true })
-    .limit(200);
+    .limit(ESCROW_LIST_CAP + 1);
   if (error) throw new Error(`escrow lookup failed (${error.code})`);
-  if (data.length === 0) return [];
+  const more = rows.length > ESCROW_LIST_CAP;
+  const data = rows.slice(0, ESCROW_LIST_CAP);
+  if (data.length === 0) return { hires: [], more: false };
 
   const engagementIds = data.map((row) => row.id);
   const campaignIds = [...new Set(data.map((row) => row.campaign_id))];
   const businessIds = [...new Set(data.map((row) => row.business_id))];
   const creatorIds = [...new Set(data.map((row) => row.creator_id))];
 
-  const [campaigns, businesses, creators, payments] = await Promise.all([
+  const [campaigns, businesses, creators, funding] = await Promise.all([
     supabase.from("campaigns").select("id, title").in("id", campaignIds),
     supabase
       .from("business_profiles")
@@ -546,17 +559,56 @@ export async function listEscrowEngagements(): Promise<EscrowEngagement[]> {
       .from("influencer_profiles")
       .select("user_id, display_name")
       .in("user_id", creatorIds),
+    // The lines that put each hire's money into escrow; settle_money() reads
+    // the payment on the earliest one.
     supabase
-      .from("payments")
-      .select("engagement_id, paystack_fee_kobo")
-      .in("engagement_id", engagementIds)
-      .eq("status", "succeeded"),
+      .from("ledger_entries")
+      .select("id, engagement_id, payment_id, created_at")
+      .eq("account", "escrow")
+      .lt("amount_kobo", 0)
+      .in("event_type", ["payment_received", "hire_funded"])
+      .in("engagement_id", engagementIds),
   ]);
-  for (const result of [campaigns, businesses, creators, payments]) {
+  for (const result of [campaigns, businesses, creators, funding]) {
     if (result.error) {
       throw new Error(`escrow lookup failed (${result.error.code})`);
     }
   }
+
+  const fundingPayment = fundingPaymentByHire(
+    (funding.data ?? []).flatMap((l) =>
+      l.engagement_id
+        ? [
+            {
+              engagementId: l.engagement_id,
+              paymentId: l.payment_id,
+              createdAt: l.created_at,
+              id: l.id,
+            },
+          ]
+        : [],
+    ),
+  );
+  const paymentIds = [
+    ...new Set([...fundingPayment.values()].flatMap((id) => (id ? [id] : []))),
+  ];
+  const charges = new Map<string, number>();
+  if (paymentIds.length > 0) {
+    const payments = await supabase
+      .from("payments")
+      .select("id, paystack_fee_kobo")
+      .in("id", paymentIds);
+    if (payments.error) {
+      throw new Error(`escrow lookup failed (${payments.error.code})`);
+    }
+    // A wallet-only payment has no Paystack charge (null), counted as 0 as in
+    // settle_money().
+    for (const p of payments.data) charges.set(p.id, p.paystack_fee_kobo ?? 0);
+  }
+  const chargeFor = (engagementId: string): number | null => {
+    const paymentId = fundingPayment.get(engagementId);
+    return paymentId ? (charges.get(paymentId) ?? null) : null;
+  };
 
   const titles = new Map(campaigns.data?.map((c) => [c.id, c.title]));
   const businessNames = new Map(
@@ -565,15 +617,8 @@ export async function listEscrowEngagements(): Promise<EscrowEngagement[]> {
   const creatorNames = new Map(
     creators.data?.map((c) => [c.user_id, c.display_name]),
   );
-  const charges = new Map<string, number>();
-  for (const p of payments.data ?? []) {
-    charges.set(
-      p.engagement_id,
-      (charges.get(p.engagement_id) ?? 0) + (p.paystack_fee_kobo ?? 0),
-    );
-  }
 
-  return data.flatMap((row) =>
+  const hires = data.flatMap((row) =>
     row.status === "funded" || row.status === "in_progress"
       ? [
           {
@@ -583,7 +628,7 @@ export async function listEscrowEngagements(): Promise<EscrowEngagement[]> {
             businessFeeKobo: row.business_fee_kobo,
             creatorFeeBps: row.creator_fee_bps,
             creatorMinFeeKobo: row.creator_min_fee_kobo,
-            paystackChargeKobo: charges.get(row.id) ?? 0,
+            paystackChargeKobo: chargeFor(row.id),
             campaignTitle: titles.get(row.campaign_id) ?? "",
             businessName: businessNames.get(row.business_id) ?? "",
             creatorName: creatorNames.get(row.creator_id) ?? "",
@@ -593,6 +638,34 @@ export async function listEscrowEngagements(): Promise<EscrowEngagement[]> {
         ]
       : [],
   );
+  return { hires, more };
+}
+
+export type SettlementState = {
+  agreedPriceKobo: number;
+  settledAt: string | null;
+  settleOutcome: string | null;
+  releasedKobo: number | null;
+};
+
+/** Whether (and how) a hire is settled, for admins; null if there is no such hire. */
+export async function getSettlementState(
+  engagementId: string,
+): Promise<SettlementState | null> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("engagements")
+    .select("agreed_price_kobo, settled_at, settle_outcome, released_kobo")
+    .eq("id", engagementId)
+    .maybeSingle();
+  if (error) throw new Error(`settlement lookup failed (${error.code})`);
+  if (!data) return null;
+  return {
+    agreedPriceKobo: data.agreed_price_kobo,
+    settledAt: data.settled_at,
+    settleOutcome: data.settle_outcome,
+    releasedKobo: data.released_kobo,
+  };
 }
 
 // Reconciliation -----------------------------------------------------------------------------

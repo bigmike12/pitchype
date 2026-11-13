@@ -38,3 +38,8 @@ test("only known codes count as refusals", () => {
 test("the fee notice refusal tells the business what to tick", () => {
   assert.match(refusalText("fee_notice_required"), /fee/i);
 });
+
+test("an escrow that does not match the price points to the money trail", () => {
+  assert.equal(isRefusal("escrow_mismatch"), true);
+  assert.match(refusalText("escrow_mismatch"), /money trail/);
+});

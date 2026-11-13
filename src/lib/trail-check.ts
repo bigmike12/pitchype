@@ -69,6 +69,42 @@ export function checkTrail(trail: EngagementTrail): {
     }
   }
 
+  // Escrow in every group counts, whatever the group is called: a correction
+  // that moves escrow must not slip past. Escrow is stored negative, so a paid
+  // hire holds the negative of its price and a settled or unpaid one holds 0.
+  const escrowNet = trail.groups.reduce(
+    (total, g) =>
+      total +
+      g.lines.reduce(
+        (sum, l) => (l.account === "escrow" ? sum + l.amountKobo : sum),
+        0,
+      ),
+    0,
+  );
+  const settled = e.settledAt !== null;
+  const shouldHold = !settled && e.fundedAt !== null ? e.agreedPriceKobo : 0;
+  if (-escrowNet !== shouldHold) {
+    problems.push(
+      `Escrow holds ${formatNaira(-escrowNet)} for this hire, but it should hold ${formatNaira(shouldHold)}.`,
+    );
+  }
+
+  if (settled && settlement.length === 0) {
+    problems.push(
+      "This hire is marked settled but has no settlement in the ledger.",
+    );
+  }
+  if (!settled && settlement.length > 0) {
+    problems.push(
+      "The ledger has a settlement for this hire, but it is not marked settled.",
+    );
+  }
+  if (settlement.length > 1) {
+    problems.push(
+      `The ledger has more than one settlement for this hire (${settlement.length}).`,
+    );
+  }
+
   if (settlement.length > 0) {
     const escrowOut = sumOf(settlement, "escrow", 1);
     if (escrowOut !== escrowIn) {

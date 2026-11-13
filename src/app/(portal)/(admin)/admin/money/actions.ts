@@ -3,11 +3,15 @@
 import { refresh } from "next/cache";
 
 import { requireRole } from "@/lib/auth";
-import { settleEngagement } from "@/lib/db/money";
+import { getSettlementState, settleEngagement } from "@/lib/db/money";
 import { approvePayout, rejectPayout } from "@/lib/db/payouts";
 import { isUuid, text, type FormState } from "@/lib/form-data";
 import { PaystackError, initiateTransfer } from "@/lib/paystack";
 import { refusalText } from "@/lib/refusals";
+import {
+  alreadySettledMessage,
+  settlementMatchesRequest,
+} from "@/lib/settle-guard";
 import { isSettleOutcome, parseNairaAmount } from "@/lib/settle-preview";
 
 // Every action here: sign-in and the admin role first, then the inputs, then
@@ -35,20 +39,36 @@ export async function settleAction(
 ): Promise<SettleState> {
   await requireRole("admin");
 
+  // What was typed comes back with every refusal, so nothing has to be
+  // written again.
+  const values = {
+    outcome: text(form, "outcome"),
+    amount: text(form, "amount"),
+    reason: text(form, "reason"),
+  };
+
   const engagementId = text(form, "engagementId");
   if (!isUuid(engagementId)) {
-    return { status: "error", message: refusalText("no_such_engagement") };
+    return {
+      status: "error",
+      message: refusalText("no_such_engagement"),
+      values,
+    };
   }
-  const outcome = text(form, "outcome");
+  const outcome = values.outcome;
   if (!isSettleOutcome(outcome)) {
-    return { status: "error", errors: { outcome: "Choose what happens." } };
+    return {
+      status: "error",
+      errors: { outcome: "Choose what happens." },
+      values,
+    };
   }
-  const reason = text(form, "reason").trim();
+  const reason = values.reason.trim();
   if (reason === "" || reason.length > REASON_MAX) {
     return {
       status: "error",
       errors: { reason: refusalText("settle_reason_required") },
-      values: { reason: text(form, "reason") },
+      values,
     };
   }
 
@@ -56,13 +76,9 @@ export async function settleAction(
   // the whole price (release) or nothing (refund), so none is sent.
   let releaseKobo: number | null = null;
   if (outcome === "split") {
-    const amount = parseNairaAmount(text(form, "amount"));
+    const amount = parseNairaAmount(values.amount);
     if (!amount.ok) {
-      return {
-        status: "error",
-        errors: { amount: amount.error },
-        values: { amount: text(form, "amount"), reason },
-      };
+      return { status: "error", errors: { amount: amount.error }, values };
     }
     releaseKobo = amount.kobo;
   }
@@ -70,7 +86,26 @@ export async function settleAction(
     return {
       status: "error",
       errors: { confirm: "Tick the box to confirm you’ve checked this." },
-      values: { amount: text(form, "amount"), reason },
+      values,
+    };
+  }
+
+  // settle_engagement does nothing, without an error, on a hire that is
+  // already settled. Look first, and look again afterwards, so "Settled."
+  // is only ever said for the settlement that was asked for and recorded.
+  const before = await getSettlementState(engagementId);
+  if (!before) {
+    return {
+      status: "error",
+      message: refusalText("no_such_engagement"),
+      values,
+    };
+  }
+  if (before.settledAt !== null) {
+    return {
+      status: "error",
+      message: alreadySettledMessage(before.settleOutcome),
+      values,
     };
   }
 
@@ -81,7 +116,25 @@ export async function settleAction(
     reason,
   );
   if (!result.ok) {
-    return { status: "error", message: refusalText(result.reason) };
+    return { status: "error", message: refusalText(result.reason), values };
+  }
+
+  // Someone else may have settled it between the look and the call.
+  const after = await getSettlementState(engagementId);
+  if (
+    !after ||
+    after.settledAt === null ||
+    !settlementMatchesRequest(after, {
+      outcome,
+      releaseKobo,
+      agreedPriceKobo: before.agreedPriceKobo,
+    })
+  ) {
+    return {
+      status: "error",
+      message: alreadySettledMessage(after?.settleOutcome ?? null),
+      values,
+    };
   }
   refresh();
   return { status: "success", message: "Settled." };
@@ -113,6 +166,16 @@ export async function approvePayoutAction(
   const payoutId = text(form, "payoutId");
   if (!isUuid(payoutId)) {
     return { status: "error", message: refusalText("no_such_payout") };
+  }
+
+  // Sending money is not undone by a stray click: the box is required here,
+  // not only in the form.
+  if (form.get("confirm") !== "on") {
+    return {
+      status: "error",
+      message:
+        "Tick the box to confirm you’ve checked the bank details and the amount.",
+    };
   }
 
   const approved = await approvePayout(payoutId);
@@ -156,7 +219,11 @@ export async function rejectPayoutAction(
 
   const result = await rejectPayout(payoutId, reason);
   if (!result.ok) {
-    return { status: "error", message: refusalText(result.reason) };
+    return {
+      status: "error",
+      message: refusalText(result.reason),
+      values: { reason: text(form, "reason") },
+    };
   }
   refresh();
   return {

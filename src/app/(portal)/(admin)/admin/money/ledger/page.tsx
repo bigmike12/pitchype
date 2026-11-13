@@ -25,6 +25,8 @@ import {
 export const metadata: Metadata = { title: "Ledger" };
 
 const PAGE_SIZE = 50;
+// What the CSV export holds: 25 pages of 200.
+const EXPORT_LIMIT = 5000;
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -69,16 +71,23 @@ function without(
 async function Ledger({ searchParams }: { searchParams: SearchParams }) {
   await requireRole("admin");
   const filter = parseLedgerFilter(await searchParams);
-  const page = await listLedger({
-    person: filter.person,
-    engagement: filter.engagement,
-    eventType: filter.event,
-    fromDate: filter.from,
-    toDate: filter.to,
-    limit: PAGE_SIZE,
-    offset: (filter.page - 1) * PAGE_SIZE,
-  });
+  const fetchPage = (n: number) =>
+    listLedger({
+      person: filter.person,
+      engagement: filter.engagement,
+      eventType: filter.event,
+      fromDate: filter.from,
+      toDate: filter.to,
+      limit: PAGE_SIZE,
+      offset: (n - 1) * PAGE_SIZE,
+    });
+  let page = await fetchPage(filter.page);
   const pages = Math.max(1, Math.ceil(page.total / PAGE_SIZE));
+  // A link to a page past the end shows the last page, not an empty one.
+  if (filter.page > pages) {
+    filter.page = pages;
+    page = await fetchPage(pages);
+  }
 
   const active: ActiveFilter[] = [];
   if (filter.engagement) {
@@ -184,6 +193,13 @@ async function Ledger({ searchParams }: { searchParams: SearchParams }) {
         {page.total} {page.total === 1 ? "line" : "lines"}
         {page.total > 0 && `, page ${filter.page} of ${pages}`}
       </p>
+
+      {page.total > EXPORT_LIMIT && (
+        <p className="mb-3 text-sm text-ink">
+          The CSV export holds the newest {EXPORT_LIMIT.toLocaleString("en-NG")}{" "}
+          lines; narrow the dates to export older ones.
+        </p>
+      )}
 
       {page.rows.length === 0 ? (
         <p className="rounded-card panel p-5 text-ink">

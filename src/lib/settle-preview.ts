@@ -62,7 +62,10 @@ export function settlePreview(input: {
   businessFeeKobo: number;
   creatorFeeBps: number;
   creatorMinFeeKobo: number;
-  /** What Paystack charged for this hire's card payments; null when unknown. */
+  /**
+   * What Paystack charged for the payment that funded this hire (0 when it
+   * was paid from the wallet); null when that payment can't be found.
+   */
   paystackChargeKobo: number | null;
 }): SettlePreview {
   const price = input.agreedPriceKobo;
@@ -115,7 +118,7 @@ export function settlePreview(input: {
     warning = "The creator would receive nothing after the fee.";
   } else if (fault && input.paystackChargeKobo === null) {
     warning =
-      "The card charge isn’t known, so the refund shown leaves it out. The exact refund is worked out when you confirm.";
+      "The payment that funded this hire couldn’t be found, so its card charge is left out of the refund shown. The exact refund is worked out when you confirm.";
   }
 
   return {

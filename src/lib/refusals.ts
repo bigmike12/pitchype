@@ -39,6 +39,8 @@ const REFUSAL_TEXT = {
   release_invalid:
     "Release a whole number of naira, from ₦0 up to the hire’s price.",
   settle_reason_required: "Write a reason of up to 500 characters.",
+  escrow_mismatch:
+    "This hire’s escrow doesn’t match its price. Open its money trail to see why.",
   // Payouts
   no_bank_account: "Add a bank account before asking for a payout.",
   payout_too_small: "The smallest payout is ₦1,000.",

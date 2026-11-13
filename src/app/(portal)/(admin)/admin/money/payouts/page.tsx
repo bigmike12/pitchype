@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { LedgerTable } from "@/components/money/ledger-table";
+import { AdminLedgerTable } from "@/components/money/admin-ledger-table";
 import { PageHeader } from "@/components/ui/page-header";
 import {
   HeaderSkeleton,
@@ -13,7 +13,11 @@ import {
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
 import { listLedger } from "@/lib/db/money";
-import { listPayoutsForReview, type PayoutForReview } from "@/lib/db/payouts";
+import {
+  listPayoutsAwaitingApproval,
+  listRecentDecidedPayouts,
+  type PayoutForReview,
+} from "@/lib/db/payouts";
 import { formatNaira } from "@/lib/money";
 import { adminPayoutStatus } from "@/lib/payout-request";
 
@@ -50,19 +54,19 @@ export default function PayoutsPage() {
 // the rest link to the ledger, so one page never makes dozens of lookups.
 const WITH_HISTORY = 25;
 const RECENT_LINES = 5;
-const DECIDED_SHOWN = 30;
+const DECIDED_SHOWN = 100;
 
 const destination = (p: PayoutForReview) =>
   `${p.bankName} ••••${p.last4} · ${p.accountName}`;
 
 async function Payouts() {
   await requireRole("admin");
-  const all = await listPayoutsForReview();
-  // Oldest request first: the one that has waited longest is decided first.
-  const waiting = all.filter((p) => p.status === "requested").reverse();
-  const decided = all
-    .filter((p) => p.status !== "requested")
-    .slice(0, DECIDED_SHOWN);
+  // Two queries, so a long history can never push a waiting payout out of the
+  // queue: every waiting one is listed, oldest request first.
+  const [waiting, decided] = await Promise.all([
+    listPayoutsAwaitingApproval(),
+    listRecentDecidedPayouts(DECIDED_SHOWN),
+  ]);
 
   const history = await Promise.all(
     waiting.slice(0, WITH_HISTORY).map(async (p) => {
@@ -124,7 +128,7 @@ async function Payouts() {
                   </h3>
                   {index < WITH_HISTORY ? (
                     history[index] && history[index].length > 0 ? (
-                      <LedgerTable rows={history[index]} />
+                      <AdminLedgerTable rows={history[index]} />
                     ) : (
                       <p className="text-sm text-muted">No wallet activity.</p>
                     )

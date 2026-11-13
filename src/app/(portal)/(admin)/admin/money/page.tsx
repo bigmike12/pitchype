@@ -20,7 +20,7 @@ import {
   type EscrowEngagement,
   type ReconciliationRun,
 } from "@/lib/db/money";
-import { listPayoutsForReview } from "@/lib/db/payouts";
+import { countPayoutsAwaitingApproval } from "@/lib/db/payouts";
 import { formatNaira } from "@/lib/money";
 
 import { SettleForm } from "./settle-form";
@@ -53,12 +53,11 @@ export default function MoneyPage() {
 
 async function Money() {
   await requireRole("admin");
-  const [reconciliation, payouts, escrow] = await Promise.all([
+  const [reconciliation, waiting, escrow] = await Promise.all([
     getLatestReconciliation(),
-    listPayoutsForReview(),
+    countPayoutsAwaitingApproval(),
     listEscrowEngagements(),
   ]);
-  const waiting = payouts.filter((p) => p.status === "requested").length;
 
   return (
     <>
@@ -88,18 +87,19 @@ async function Money() {
 
       <section aria-labelledby="escrow-title" className="mt-10">
         <h2 id="escrow-title" className="text-display-md">
-          In escrow ({escrow.length})
+          In escrow ({escrow.hires.length}
+          {escrow.more && "+"})
         </h2>
         <p className="mt-2 max-w-xl">
           Hires that are paid for and not settled yet. Settle one only when the
           creator or business can’t finish it themselves; every settlement needs
           a written reason.
         </p>
-        {escrow.length === 0 ? (
+        {escrow.hires.length === 0 ? (
           <p className="mt-4 text-muted">Nothing is in escrow.</p>
         ) : (
           <ul className="mt-5 space-y-4">
-            {escrow.map((hire) => (
+            {escrow.hires.map((hire) => (
               <EscrowItem key={hire.id} hire={hire} />
             ))}
           </ul>

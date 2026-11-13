@@ -36,6 +36,17 @@ export function PayoutDecision({ payoutId }: { payoutId: string }) {
     <div className="space-y-4">
       <form action={approve} className="space-y-2">
         <input type="hidden" name="payoutId" value={payoutId} />
+        <label className="flex cursor-pointer items-start gap-3 rounded-card panel p-4">
+          <input
+            type="checkbox"
+            name="confirm"
+            required
+            className="mt-1 size-5 accent-ink"
+          />
+          <span className="text-ink">
+            I’ve checked the bank details and the amount.
+          </span>
+        </label>
         <FormMessage status={approval.status} message={approval.message} />
         <Button type="submit" disabled={approving || rejecting}>
           {approving ? "Approving…" : "Approve and send"}

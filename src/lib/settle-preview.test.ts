@@ -97,11 +97,12 @@ test("creator at fault: the card charge is capped at the business fee", () => {
   if (p.ok) assert.equal(p.businessGetsBackKobo, 5_000_000);
 });
 
-test("a charge that is not known counts as none, and the preview says so", () => {
+test("when the funding payment cannot be found the charge counts as none and the preview says so", () => {
   const p = settlePreview({ ...base, outcome: "refund_creator_fault" });
   assert.ok(p.ok);
   if (p.ok) {
     assert.equal(p.businessGetsBackKobo, 5_250_000);
+    assert.match(p.warning ?? "", /couldn’t be found/);
     assert.match(p.warning ?? "", /card charge/);
   }
 });
@@ -128,4 +129,31 @@ test("parseNairaAmount reads whole naira with or without commas and ₦", () => 
   assert.equal(parseNairaAmount("12.50").ok, false);
   assert.equal(parseNairaAmount("-5").ok, false);
   assert.equal(parseNairaAmount("1".repeat(13)).ok, false);
+});
+
+test("a hire with two succeeded payments refunds by the funding payment's charge only", () => {
+  // A late, stranded second payment (charge ₦1,000) went to the business
+  // wallet; settle_money subtracts only the funding payment's ₦954.06 charge.
+  // The caller passes that one charge, so the preview matches the database.
+  const p = settlePreview({
+    ...base,
+    outcome: "refund_creator_fault",
+    paystackChargeKobo: 95_406,
+  });
+  assert.ok(p.ok);
+  if (p.ok) assert.equal(p.businessGetsBackKobo, 5_154_594);
+});
+
+test("a wallet-only funding payment has no card charge, so the business gets price plus fee", () => {
+  const p = settlePreview({
+    ...base,
+    outcome: "refund_creator_fault",
+    paystackChargeKobo: 0,
+  });
+  assert.ok(p.ok);
+  if (p.ok) {
+    assert.equal(p.businessGetsBackKobo, 5_250_000);
+    assert.equal(p.platformKeepsKobo, 0);
+    assert.equal(p.warning, null);
+  }
 });

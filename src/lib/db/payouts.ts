@@ -132,25 +132,36 @@ export type PayoutForReview = {
   createdAt: string;
 };
 
-/**
- * Every payout, newest first (at most 200), for admins: row level security
- * shows admins all payouts and all creator profiles. The approver is an id:
- * admins have no profile, and signed-in people can't read other users' rows.
- */
-export async function listPayoutsForReview(): Promise<PayoutForReview[]> {
-  const supabase = await createSessionClient();
-  const { data, error } = await supabase
-    .from("payouts")
-    .select(
-      "id, user_id, amount_kobo, transfer_fee_kobo, status, bank_name, last4, account_name, reference, approved_by, approved_at, decision_reason, paid_at, created_at",
-    )
-    .order("created_at", { ascending: false })
-    .limit(200);
-  if (error) throw new Error(`payouts lookup failed (${error.code})`);
+type PayoutReviewRow = {
+  id: string;
+  user_id: string;
+  amount_kobo: number;
+  transfer_fee_kobo: number;
+  status: string;
+  bank_name: string;
+  last4: string;
+  account_name: string;
+  reference: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  decision_reason: string | null;
+  paid_at: string | null;
+  created_at: string;
+};
 
-  const creatorIds = [...new Set(data.map((row) => row.user_id))];
+const PAYOUT_REVIEW_COLUMNS =
+  "id, user_id, amount_kobo, transfer_fee_kobo, status, bank_name, last4, account_name, reference, approved_by, approved_at, decision_reason, paid_at, created_at";
+
+// Row level security shows admins all payouts and all creator profiles. The
+// approver stays an id: admins have no profile, and signed-in people can't
+// read other users' rows.
+async function withCreatorNames(
+  rows: PayoutReviewRow[],
+): Promise<PayoutForReview[]> {
+  const creatorIds = [...new Set(rows.map((row) => row.user_id))];
   const names = new Map<string, string>();
   if (creatorIds.length > 0) {
+    const supabase = await createSessionClient();
     const profiles = await supabase
       .from("influencer_profiles")
       .select("user_id, display_name")
@@ -160,8 +171,7 @@ export async function listPayoutsForReview(): Promise<PayoutForReview[]> {
     }
     for (const p of profiles.data) names.set(p.user_id, p.display_name);
   }
-
-  return data.map((row) => ({
+  return rows.map((row) => ({
     id: row.id,
     creatorId: row.user_id,
     creatorName: names.get(row.user_id) ?? "",
@@ -178,6 +188,46 @@ export async function listPayoutsForReview(): Promise<PayoutForReview[]> {
     paidAt: row.paid_at,
     createdAt: row.created_at,
   }));
+}
+
+/** Every payout waiting for approval, oldest first, for admins. Never capped: none may drop out of the queue. */
+export async function listPayoutsAwaitingApproval(): Promise<
+  PayoutForReview[]
+> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("payouts")
+    .select(PAYOUT_REVIEW_COLUMNS)
+    .eq("status", "requested")
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(`payouts lookup failed (${error.code})`);
+  return withCreatorNames(data);
+}
+
+/** How many payouts are waiting for approval, for admins. */
+export async function countPayoutsAwaitingApproval(): Promise<number> {
+  const supabase = await createSessionClient();
+  const { count, error } = await supabase
+    .from("payouts")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "requested");
+  if (error) throw new Error(`payouts count failed (${error.code})`);
+  return count ?? 0;
+}
+
+/** The most recently decided payouts (anything not waiting), newest first, for admins. */
+export async function listRecentDecidedPayouts(
+  limit = 100,
+): Promise<PayoutForReview[]> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("payouts")
+    .select(PAYOUT_REVIEW_COLUMNS)
+    .neq("status", "requested")
+    .order("created_at", { ascending: false })
+    .limit(Math.max(1, Math.min(limit, 200)));
+  if (error) throw new Error(`payouts lookup failed (${error.code})`);
+  return withCreatorNames(data);
 }
 
 /**

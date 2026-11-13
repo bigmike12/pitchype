@@ -20,7 +20,8 @@ type Facts = {
   businessFeeKobo: number;
   creatorFeeBps: number;
   creatorMinFeeKobo: number;
-  paystackChargeKobo: number;
+  /** The funding payment's charge; null if that payment can't be found. */
+  paystackChargeKobo: number | null;
 };
 
 /**
@@ -111,14 +112,13 @@ export function SettleForm({
           defaultValue={state.values?.reason}
           error={state.errors?.reason}
         />
-        {line && (
-          <p
-            className="rounded-card bg-surface-soft p-3 text-ink"
-            aria-live="polite"
-          >
-            {line}
-          </p>
-        )}
+        {/* Always on the page, so a screen reader hears the text change. */}
+        <p
+          aria-live="polite"
+          className="rounded-card bg-surface-soft p-3 text-ink empty:hidden"
+        >
+          {line}
+        </p>
         {warning && <p className="font-medium text-danger">{warning}</p>}
         <div>
           <label className="flex cursor-pointer items-start gap-3 rounded-card panel p-4">
