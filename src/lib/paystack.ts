@@ -183,12 +183,16 @@ export async function verifyTransaction(reference: string): Promise<{
   );
   const data = asObject(result.data);
 
+  // A reversed charge went back to the customer, so it is failed: nothing
+  // is recorded and the webhook is not asked to retry.
   const status =
     data.status === "success" ||
     data.status === "failed" ||
     data.status === "abandoned"
       ? data.status
-      : "pending";
+      : data.status === "reversed"
+        ? "failed"
+        : "pending";
   if (
     data.reference !== undefined &&
     data.reference !== null &&

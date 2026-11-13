@@ -154,8 +154,14 @@ test("verifyTransaction maps failed and abandoned", async () => {
   assert.equal((await verifyTransaction("re4lyvq3s3")).status, "abandoned");
 });
 
+test("verifyTransaction treats a reversed charge as failed", async () => {
+  // The money went back to the customer: nothing to record, nothing to retry.
+  stubFetch(ok({ ...verifyFixture, status: "reversed" }));
+  assert.equal((await verifyTransaction("re4lyvq3s3")).status, "failed");
+});
+
 test("verifyTransaction treats every other status as pending", async () => {
-  for (const status of ["ongoing", "pending", "processing", "queued", "reversed"]) {
+  for (const status of ["ongoing", "pending", "processing", "queued"]) {
     stubFetch(ok({ ...verifyFixture, status }));
     assert.equal((await verifyTransaction("re4lyvq3s3")).status, "pending", status);
   }
