@@ -87,6 +87,12 @@ supabase test db               # run the pgTAP tests in supabase/tests/
 npm run db:types               # after any schema change
 ```
 
+`node --env-file=.env.local scripts/money-race.mjs` races the money functions
+(payments, settlement, payouts) against each other in separate sessions on the
+local database and checks nothing moves twice and the ledger balances. Local
+only; its rows (people `@race.pitchype.test`) stay, as the ledger is
+append-only.
+
 ### Pushing migrations to the live database
 
 The repo is already linked to the live project (`supabase/.temp/project-ref`;
