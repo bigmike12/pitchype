@@ -7,6 +7,8 @@ import {
   INFLUENCER_FEE_BPS,
   MIN_FEE_KOBO,
   TRANSFER_FEE_TIERS,
+  TRANSFER_STAMP_DUTY_KOBO,
+  TRANSFER_STAMP_DUTY_FROM_KOBO,
   creatorFee,
   faultRefund,
   feeExample,
@@ -63,27 +65,18 @@ test("formatNaira shows kobo only when present", () => {
   assert.throws(() => formatNaira(1.5));
 });
 
-// Paystack's published local card fee: 1.5% + ₦100 (the ₦100 is waived under
-// ₦2,500), capped at ₦2,000, plus 7.5% VAT on the fee. Rounded up to the kobo.
-// Only for this check; the real figure comes from Paystack in Stage 6.
-function paystackChargeKobo(totalKobo: number): number {
-  const flat = totalKobo < 250_000 ? 0 : 10_000;
-  const fee = Math.min(Math.ceil((totalKobo * 150) / 10_000) + flat, 200_000);
-  return Math.ceil((fee * 10_750) / 10_000);
-}
-
 test("CLAUDE.md §6.1 invariant: the business fee always beats Paystack's charge", () => {
   // From the ₦5,000 campaign minimum up to ₦10m, in ₦250 steps.
   for (let price = 500_000; price <= 1_000_000_000; price += 25_000) {
     const { businessFeeKobo, businessPaysKobo } = feeExample(price);
-    const charge = paystackChargeKobo(businessPaysKobo);
+    const charge = paystackCharge(businessPaysKobo);
     assert.ok(
       businessFeeKobo > charge,
       `at ${formatNaira(price)} the fee ${formatNaira(businessFeeKobo)} must exceed Paystack's ${formatNaira(charge)}`,
     );
   }
   // The tightest case, spelled out: ₦5,000 + ₦500 fee; Paystack takes about ₦196.
-  assert.equal(paystackChargeKobo(550_000), 19_619);
+  assert.equal(paystackCharge(550_000), 19_619);
 });
 
 test("budget split: ₦1M across 20 creators is ₦47,600 each, within budget", () => {
@@ -171,13 +164,25 @@ test("faultRefund: rejects invalid inputs", () => {
   assert.throws(() => faultRefund(5_000_000, 250_000, 0.5));
 });
 
-test("transferFee: tiers change at ₦5,000 and ₦50,000", () => {
+test("transferFee: the tier fee changes at ₦5,000 and ₦50,000", () => {
   assert.equal(transferFee(1), 1_000);
   assert.equal(transferFee(500_000), 1_000); // ₦5,000
   assert.equal(transferFee(500_001), 2_500); // just over ₦5,000
-  assert.equal(transferFee(5_000_000), 2_500); // ₦50,000
-  assert.equal(transferFee(5_000_001), 5_000); // just over ₦50,000
-  assert.equal(transferFee(100_000_000), 5_000);
+  assert.equal(transferFee(5_000_000), 2_500 + TRANSFER_STAMP_DUTY_KOBO); // ₦50,000
+  assert.equal(transferFee(5_000_001), 5_000 + TRANSFER_STAMP_DUTY_KOBO); // just over ₦50,000
+  assert.equal(transferFee(100_000_000), 5_000 + TRANSFER_STAMP_DUTY_KOBO);
+});
+
+test("transferFee: ₦50 stamp duty starts at exactly ₦10,000", () => {
+  assert.equal(TRANSFER_STAMP_DUTY_KOBO, 5_000);
+  assert.equal(TRANSFER_STAMP_DUTY_FROM_KOBO, 1_000_000);
+  // Both sides of the threshold sit in the ₦25 tier.
+  assert.equal(transferFee(999_999), 2_500);
+  assert.equal(transferFee(1_000_000), 2_500 + 5_000);
+  // One case per tier, below and above the threshold.
+  assert.equal(transferFee(100_000), 1_000); // ₦1,000: ₦10 tier, no duty
+  assert.equal(transferFee(2_000_000), 7_500); // ₦20,000: ₦25 tier + duty
+  assert.equal(transferFee(10_000_000), 10_000); // ₦100,000: ₦50 tier + duty
 });
 
 test("transferFee: rejects amounts that aren't positive whole kobo", () => {

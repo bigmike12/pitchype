@@ -170,18 +170,30 @@ export function faultRefund(
 // Paystack's Nigerian transfer fee by amount, paid by the influencer at cost.
 // Source: https://support.paystack.com/hc/en-us/articles/360012276559-Transfers
 // (checked 2026-11-13): up to ₦5,000 ₦10; ₦5,001 to ₦50,000 ₦25; above ₦50,000
-// ₦50. Paystack also charges ₦50 stamp duty on transfers of ₦10,000 and over;
-// that is not in these tiers.
+// ₦50. The stamp duty below is separate and added on top.
 export const TRANSFER_FEE_TIERS: { upToKobo: number; feeKobo: number }[] = [
   { upToKobo: 500_000, feeKobo: 1_000 },
   { upToKobo: 5_000_000, feeKobo: 2_500 },
   { upToKobo: Infinity, feeKobo: 5_000 },
 ];
 
-/** Paystack's transfer fee for sending `amountKobo` to a bank account. */
+// Flat stamp duty on transfers of ₦10,000 and over (Nigeria Tax Act 2025), from
+// the same Paystack article: https://support.paystack.com/hc/en-us/articles/360012276559-Transfers
+// and https://support.paystack.com/en/articles/7573314. Paystack passes it on
+// and cannot refund it.
+export const TRANSFER_STAMP_DUTY_KOBO = 5_000;
+export const TRANSFER_STAMP_DUTY_FROM_KOBO = 1_000_000;
+
+/**
+ * The total the creator pays to send `amountKobo` to their bank: Paystack's
+ * tier fee plus the flat stamp duty on transfers of ₦10,000 and over. The
+ * payout screen shows this before they confirm (CLAUDE.md §6 rule 8).
+ */
 export function transferFee(amountKobo: number): number {
   requireWholeKobo("Transfer amount", amountKobo, 1);
   const tier = TRANSFER_FEE_TIERS.find((t) => amountKobo <= t.upToKobo);
   // The last tier is open-ended, so a tier always matches.
-  return tier!.feeKobo;
+  const stampDuty =
+    amountKobo >= TRANSFER_STAMP_DUTY_FROM_KOBO ? TRANSFER_STAMP_DUTY_KOBO : 0;
+  return tier!.feeKobo + stampDuty;
 }
