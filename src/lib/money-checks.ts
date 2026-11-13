@@ -35,6 +35,7 @@ export type MoneyChecksResult = {
   payoutsSettled: number;
   payoutsStillPending: number;
   payoutsErrored: number;
+  payoutsLookupError: boolean;
   reconciliation: {
     expectedCashKobo: number;
     differenceKobo: number;
@@ -65,6 +66,15 @@ function describeError(error: unknown): string {
   return typeof status === "number" ? `${name} ${status}` : name;
 }
 
+/** HTTP status for the cron response: 500 when any step failed, so the scheduler's log shows it. */
+export function cronStatus(result: MoneyChecksResult): 200 | 500 {
+  const failed =
+    result.payoutsLookupError ||
+    result.reconciliationError ||
+    result.payoutsErrored > 0;
+  return failed ? 500 : 200;
+}
+
 export async function runMoneyChecks(
   now: Date = new Date(),
   deps?: MoneyCheckDeps,
@@ -75,6 +85,7 @@ export async function runMoneyChecks(
     payoutsSettled: 0,
     payoutsStillPending: 0,
     payoutsErrored: 0,
+    payoutsLookupError: false,
     reconciliation: null,
     reconciliationError: false,
   };
@@ -103,6 +114,7 @@ export async function runMoneyChecks(
       }
     }
   } catch (error) {
+    result.payoutsLookupError = true;
     console.error("stuck payouts lookup failed", describeError(error));
   }
 

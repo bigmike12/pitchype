@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, test } from "node:test";
 
-import { runMoneyChecks, type MoneyCheckDeps } from "./money-checks.ts";
+import {
+  cronStatus,
+  runMoneyChecks,
+  type MoneyChecksResult,
+  type MoneyCheckDeps,
+} from "./money-checks.ts";
 import { stuckPayoutCutoff, type TransferResult } from "./payments.ts";
 import { PaystackError } from "./paystack.ts";
 
@@ -72,6 +77,7 @@ test("no stuck payouts: zero counts and the reconciliation is still recorded", a
     payoutsSettled: 0,
     payoutsStillPending: 0,
     payoutsErrored: 0,
+    payoutsLookupError: false,
     reconciliation: RECON,
     reconciliationError: false,
   });
@@ -109,8 +115,8 @@ test("a throwing confirmTransfer does not stop the others, which run one at a ti
     "start:c",
     "end:c",
   ]);
-  assert.equal(logged.filter((line) => line.includes("b")).length >= 1, true);
   assert.equal(logged.length, 1);
+  assert.match(logged[0], /stuck payout check failed b /);
 });
 
 test("duplicate, ignored and unknown count as still pending; ignored and errors log once each", async () => {
@@ -122,7 +128,7 @@ test("duplicate, ignored and unknown count as still pending; ignored and errors 
   assert.equal(result.payoutsStillPending, 3);
   assert.equal(result.payoutsSettled, 0);
   assert.equal(logged.length, 1);
-  assert.match(logged[0], /ign/);
+  assert.match(logged[0], /ignored ign$/);
 });
 
 test("getBalanceKobo failing records nothing, flags the error and payouts still run first", async () => {
@@ -162,16 +168,34 @@ test("the balance goes in and the difference comes out unchanged", async () => {
   assert.deepEqual(result.reconciliation, RECON);
 });
 
-test("a failure to list stuck payouts is reported as an error and reconciliation still runs", async () => {
+test("a failed stuck-payout lookup sets payoutsLookupError and reconciliation still runs", async () => {
   const { deps, state } = fakes();
   deps.listProcessingPayoutsOlderThan = async () => {
     throw new Error("stuck payouts lookup failed (XX000)");
   };
   const result = await runMoneyChecks(NOW, deps);
+  assert.equal(result.payoutsLookupError, true);
+  assert.equal(result.payoutsChecked, 0);
   assert.equal(result.payoutsErrored, 0);
   assert.deepEqual(result.reconciliation, RECON);
   assert.deepEqual(state.recorded, [5_000_250]);
   assert.equal(logged.length, 1);
+});
+
+test("cronStatus is 200 only when every step worked", () => {
+  const ok: MoneyChecksResult = {
+    payoutsChecked: 2,
+    payoutsSettled: 1,
+    payoutsStillPending: 1,
+    payoutsErrored: 0,
+    payoutsLookupError: false,
+    reconciliation: RECON,
+    reconciliationError: false,
+  };
+  assert.equal(cronStatus(ok), 200);
+  assert.equal(cronStatus({ ...ok, payoutsLookupError: true }), 500);
+  assert.equal(cronStatus({ ...ok, reconciliationError: true, reconciliation: null }), 500);
+  assert.equal(cronStatus({ ...ok, payoutsErrored: 1 }), 500);
 });
 
 test("logs carry references and error classes, never messages that may hold secrets", async () => {
