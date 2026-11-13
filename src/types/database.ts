@@ -526,6 +526,45 @@ export type Database = {
           },
         ]
       }
+      fee_config: {
+        Row: {
+          business_fee_bps: number
+          created_at: string
+          creator_fee_bps: number
+          id: string
+          min_fee_kobo: number
+          min_payout_kobo: number
+          paystack_rate: Json
+          transfer_fee_tiers: Json
+          transfer_stamp_duty_from_kobo: number
+          transfer_stamp_duty_kobo: number
+        }
+        Insert: {
+          business_fee_bps: number
+          created_at?: string
+          creator_fee_bps: number
+          id?: string
+          min_fee_kobo: number
+          min_payout_kobo: number
+          paystack_rate: Json
+          transfer_fee_tiers: Json
+          transfer_stamp_duty_from_kobo: number
+          transfer_stamp_duty_kobo: number
+        }
+        Update: {
+          business_fee_bps?: number
+          created_at?: string
+          creator_fee_bps?: number
+          id?: string
+          min_fee_kobo?: number
+          min_payout_kobo?: number
+          paystack_rate?: Json
+          transfer_fee_tiers?: Json
+          transfer_stamp_duty_from_kobo?: number
+          transfer_stamp_duty_kobo?: number
+        }
+        Relationships: []
+      }
       influencer_platforms: {
         Row: {
           created_at: string
@@ -628,6 +667,86 @@ export type Database = {
             foreignKeyName: "influencer_profiles_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ledger_entries: {
+        Row: {
+          account: string
+          actor_user_id: string | null
+          amount_kobo: number
+          created_at: string
+          engagement_id: string | null
+          event_type: string
+          fee_config_id: string
+          group_id: string
+          id: string
+          owner_user_id: string | null
+          payment_id: string | null
+          payout_id: string | null
+          paystack_reference: string | null
+          reason: string | null
+        }
+        Insert: {
+          account: string
+          actor_user_id?: string | null
+          amount_kobo: number
+          created_at?: string
+          engagement_id?: string | null
+          event_type: string
+          fee_config_id: string
+          group_id: string
+          id?: string
+          owner_user_id?: string | null
+          payment_id?: string | null
+          payout_id?: string | null
+          paystack_reference?: string | null
+          reason?: string | null
+        }
+        Update: {
+          account?: string
+          actor_user_id?: string | null
+          amount_kobo?: number
+          created_at?: string
+          engagement_id?: string | null
+          event_type?: string
+          fee_config_id?: string
+          group_id?: string
+          id?: string
+          owner_user_id?: string | null
+          payment_id?: string | null
+          payout_id?: string | null
+          paystack_reference?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_entries_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_fee_config_id_fkey"
+            columns: ["fee_config_id"]
+            isOneToOne: false
+            referencedRelation: "fee_config"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -1204,6 +1323,27 @@ export type Database = {
         Args: { creator: string; with_handles: boolean }
         Returns: Json
       }
+      current_fee_config: {
+        Args: never
+        Returns: {
+          business_fee_bps: number
+          created_at: string
+          creator_fee_bps: number
+          id: string
+          min_fee_kobo: number
+          min_payout_kobo: number
+          paystack_rate: Json
+          transfer_fee_tiers: Json
+          transfer_stamp_duty_from_kobo: number
+          transfer_stamp_duty_kobo: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "fee_config"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       current_user_id: { Args: never; Returns: string }
       current_user_role: {
         Args: never
@@ -1272,6 +1412,7 @@ export type Database = {
       }
       is_suspended: { Args: { person: string }; Returns: boolean }
       lagos_today: { Args: never; Returns: string }
+      ledger_totals: { Args: never; Returns: Json }
       lift_suspension: {
         Args: { person: string; reason: string }
         Returns: undefined
@@ -1308,6 +1449,20 @@ export type Database = {
         Returns: undefined
       }
       open_campaign_count: { Args: never; Returns: number }
+      post_ledger_group: {
+        Args: {
+          actor: string
+          config: string
+          engagement: string
+          event_type: string
+          lines: Json
+          payment: string
+          payout: string
+          reason: string
+          reference: string
+        }
+        Returns: string
+      }
       record_strike: {
         Args: { dedupe: string; detail: string; flag: string; person: string }
         Returns: Json
@@ -1428,6 +1583,10 @@ export type Database = {
       void_strike: {
         Args: { reason: string; strike: string }
         Returns: undefined
+      }
+      wallet_balance: {
+        Args: { kind: string; person: string }
+        Returns: number
       }
       withdraw_application: {
         Args: { application: string }
