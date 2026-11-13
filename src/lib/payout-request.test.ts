@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import { MIN_PAYOUT_KOBO, transferFee } from "./fees.ts";
 import {
+  adminPayoutStatus,
   describePayoutStatus,
   parsePayoutAmount,
   payoutPreview,
@@ -105,4 +106,22 @@ test("every payout status has plain words", () => {
   });
   assert.equal(words("rejected").detail, "The money is back in your wallet.");
   assert.equal(words("mystery").label, "Status unknown");
+});
+
+test("admins read each payout status in words about the payout, not the creator", () => {
+  assert.equal(adminPayoutStatus("requested"), "Waiting for approval");
+  assert.equal(
+    adminPayoutStatus("processing"),
+    "Sent to Paystack, waiting for the bank",
+  );
+  assert.equal(adminPayoutStatus("paid"), "Paid");
+  assert.equal(
+    adminPayoutStatus("failed"),
+    "Failed, money returned to the wallet",
+  );
+  assert.equal(
+    adminPayoutStatus("rejected"),
+    "Rejected, money returned to the wallet",
+  );
+  assert.equal(adminPayoutStatus("something_new"), "Status unknown");
 });

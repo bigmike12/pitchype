@@ -94,3 +94,21 @@ export function describePayoutStatus(p: {
       return { label: "Status unknown", tone: "info", detail: null };
   }
 }
+
+/** The same statuses for admins, who read about the payout rather than being addressed as the creator. */
+export function adminPayoutStatus(status: string): string {
+  switch (status) {
+    case "requested":
+      return "Waiting for approval";
+    case "processing":
+      return "Sent to Paystack, waiting for the bank";
+    case "paid":
+      return "Paid";
+    case "failed":
+      return "Failed, money returned to the wallet";
+    case "rejected":
+      return "Rejected, money returned to the wallet";
+    default:
+      return "Status unknown";
+  }
+}

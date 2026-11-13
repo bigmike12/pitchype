@@ -3,6 +3,7 @@
 // platform owes or has earned) and cash and expenses as positive. No framework
 // imports, so node tests cover it.
 
+import { formatDateTime } from "./creator-profile.ts";
 import type { EngagementTrail } from "./db/money.ts";
 import { formatNaira } from "./money.ts";
 
@@ -33,7 +34,7 @@ export function checkTrail(trail: EngagementTrail): {
     const sum = g.lines.reduce((total, l) => total + l.amountKobo, 0);
     if (sum !== 0) {
       problems.push(
-        `The lines for “${g.eventType}” at ${g.createdAt} do not add up to zero (they are out by ${formatNaira(Math.abs(sum))}).`,
+        `The lines for “${g.eventType}” at ${formatDateTime(g.createdAt)} do not add up to zero (they are out by ${formatNaira(Math.abs(sum))}).`,
       );
     }
   }
@@ -50,7 +51,9 @@ export function checkTrail(trail: EngagementTrail): {
   const escrowIn = sumOf(funding, "escrow", -1);
   if (funding.length === 0) {
     if (e.fundedAt !== null) {
-      problems.push("This hire is marked paid but has no payment in the ledger.");
+      problems.push(
+        "This hire is marked paid but has no payment in the ledger.",
+      );
     }
   } else {
     if (escrowIn !== e.agreedPriceKobo) {

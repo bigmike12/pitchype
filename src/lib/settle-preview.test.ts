@@ -38,7 +38,11 @@ test("refund in full: the price goes back and the business fee stays", () => {
 });
 
 test("split: the released part pays the creator fee, the rest goes back", () => {
-  const p = settlePreview({ ...base, outcome: "split", releaseKobo: 2_000_000 });
+  const p = settlePreview({
+    ...base,
+    outcome: "split",
+    releaseKobo: 2_000_000,
+  });
   assert.deepEqual(p, {
     ok: true,
     creatorGetsKobo: 1_900_000,
@@ -57,7 +61,11 @@ test("split needs an amount strictly between nothing and the price", () => {
 });
 
 test("split must be whole naira", () => {
-  const p = settlePreview({ ...base, outcome: "split", releaseKobo: 2_000_050 });
+  const p = settlePreview({
+    ...base,
+    outcome: "split",
+    releaseKobo: 2_000_050,
+  });
   assert.equal(p.ok, false);
   if (!p.ok) assert.match(p.error, /whole number of naira/);
 });

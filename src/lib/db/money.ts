@@ -149,18 +149,23 @@ export async function cancelFundedEngagement(
 export type SettleOutcome =
   "release" | "refund" | "split" | "refund_creator_fault";
 
-/** An admin settles a hire's escrow, with a written reason. */
+/**
+ * An admin settles a hire's escrow, with a written reason. `releaseKobo` is
+ * the amount to release for a split; for the other outcomes pass null (the
+ * database uses the whole price for a release and nothing for a refund, and
+ * refuses any other number).
+ */
 export async function settleEngagement(
   engagementId: string,
   outcome: SettleOutcome,
-  releaseKobo: number,
+  releaseKobo: number | null,
   reason: string,
 ): Promise<Result<null>> {
   const supabase = await createSessionClient();
   const { error } = await supabase.rpc("settle_engagement", {
     engagement: engagementId,
     outcome,
-    release_kobo: releaseKobo,
+    release_kobo: nullable<number>(releaseKobo),
     reason,
   });
   if (error) return refused(error, "settle");
@@ -490,6 +495,104 @@ export async function listLedger(
       ];
     }),
   };
+}
+
+export type EscrowEngagement = {
+  id: string;
+  status: "funded" | "in_progress";
+  agreedPriceKobo: number;
+  businessFeeKobo: number | null;
+  creatorFeeBps: number | null;
+  creatorMinFeeKobo: number | null;
+  /** What Paystack charged for this hire's card payments (VAT included). */
+  paystackChargeKobo: number;
+  campaignTitle: string;
+  businessName: string;
+  creatorName: string;
+  fundedAt: string | null;
+  startedAt: string | null;
+};
+
+/**
+ * Hires whose money is in escrow right now (funded or in progress), oldest
+ * payment first, for admins. Row level security shows admins every hire,
+ * campaign, profile and payment, so this uses the session client.
+ */
+export async function listEscrowEngagements(): Promise<EscrowEngagement[]> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("engagements")
+    .select(
+      "id, status, agreed_price_kobo, business_fee_kobo, creator_fee_bps, creator_min_fee_kobo, campaign_id, business_id, creator_id, funded_at, started_at",
+    )
+    .in("status", ["funded", "in_progress"])
+    .order("funded_at", { ascending: true })
+    .limit(200);
+  if (error) throw new Error(`escrow lookup failed (${error.code})`);
+  if (data.length === 0) return [];
+
+  const engagementIds = data.map((row) => row.id);
+  const campaignIds = [...new Set(data.map((row) => row.campaign_id))];
+  const businessIds = [...new Set(data.map((row) => row.business_id))];
+  const creatorIds = [...new Set(data.map((row) => row.creator_id))];
+
+  const [campaigns, businesses, creators, payments] = await Promise.all([
+    supabase.from("campaigns").select("id, title").in("id", campaignIds),
+    supabase
+      .from("business_profiles")
+      .select("user_id, business_name")
+      .in("user_id", businessIds),
+    supabase
+      .from("influencer_profiles")
+      .select("user_id, display_name")
+      .in("user_id", creatorIds),
+    supabase
+      .from("payments")
+      .select("engagement_id, paystack_fee_kobo")
+      .in("engagement_id", engagementIds)
+      .eq("status", "succeeded"),
+  ]);
+  for (const result of [campaigns, businesses, creators, payments]) {
+    if (result.error) {
+      throw new Error(`escrow lookup failed (${result.error.code})`);
+    }
+  }
+
+  const titles = new Map(campaigns.data?.map((c) => [c.id, c.title]));
+  const businessNames = new Map(
+    businesses.data?.map((b) => [b.user_id, b.business_name]),
+  );
+  const creatorNames = new Map(
+    creators.data?.map((c) => [c.user_id, c.display_name]),
+  );
+  const charges = new Map<string, number>();
+  for (const p of payments.data ?? []) {
+    charges.set(
+      p.engagement_id,
+      (charges.get(p.engagement_id) ?? 0) + (p.paystack_fee_kobo ?? 0),
+    );
+  }
+
+  return data.flatMap((row) =>
+    row.status === "funded" || row.status === "in_progress"
+      ? [
+          {
+            id: row.id,
+            status: row.status,
+            agreedPriceKobo: row.agreed_price_kobo,
+            businessFeeKobo: row.business_fee_kobo,
+            creatorFeeBps: row.creator_fee_bps,
+            creatorMinFeeKobo: row.creator_min_fee_kobo,
+            paystackChargeKobo: charges.get(row.id) ?? 0,
+            campaignTitle: titles.get(row.campaign_id) ?? "",
+            businessName: businessNames.get(row.business_id) ?? "",
+            creatorName: creatorNames.get(row.creator_id) ?? "",
+            fundedAt: row.funded_at,
+            startedAt: row.started_at,
+          },
+        ]
+      : [],
+  );
 }
 
 // Reconciliation -----------------------------------------------------------------------------
