@@ -51,7 +51,10 @@ const NAV: Record<PortalRole, NavItem[]> = {
     { href: "/inbox", label: "Inbox", icon: "inbox" },
     { href: "/wallet", label: "Wallet", icon: "wallet" },
   ],
-  admin: [{ href: "/admin", label: "Admin", icon: "admin" }],
+  admin: [
+    { href: "/admin", label: "Admin", icon: "admin" },
+    { href: "/admin/money", label: "Money", icon: "wallet" },
+  ],
 };
 
 const MAIN_ACTION: Record<PortalRole, { href: string; label: string } | null> =
@@ -71,9 +74,12 @@ export function mainActionFor(
   return MAIN_ACTION[role];
 }
 
-/** Active on its own path and everything under it; Home only on /home. */
+/**
+ * Active on its own path and everything under it; Home only on /home, and
+ * Admin only on /admin (Money lives under /admin/money and has its own link).
+ */
 export function isNavActive(pathname: string, href: string): boolean {
-  if (href === "/home") return pathname === "/home";
+  if (href === "/home" || href === "/admin") return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

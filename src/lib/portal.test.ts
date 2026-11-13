@@ -33,7 +33,10 @@ test("each role gets its own links", () => {
   );
   assert.deepEqual(
     navFor("admin").map((i) => [i.href, i.label]),
-    [["/admin", "Admin"]],
+    [
+      ["/admin", "Admin"],
+      ["/admin/money", "Money"],
+    ],
   );
 });
 
@@ -64,11 +67,22 @@ test("a link is active on its path and below it; Home only on /home", () => {
   assert.equal(isNavActive("/account", "/home"), false);
 });
 
+test("Admin and Money are never active together", () => {
+  assert.equal(isNavActive("/admin", "/admin"), true);
+  assert.equal(isNavActive("/admin/money", "/admin"), false);
+  assert.equal(isNavActive("/admin/money", "/admin/money"), true);
+  assert.equal(isNavActive("/admin/money/payouts", "/admin/money"), true);
+  assert.equal(isNavActive("/admin/money/payouts", "/admin"), false);
+  assert.equal(isNavActive("/admin/moneyx", "/admin/money"), false);
+});
+
 test("the top bar names the section", () => {
   assert.equal(
     sectionLabel("business", "/business/campaigns/9f1c"),
     "Campaigns",
   );
+  assert.equal(sectionLabel("admin", "/admin"), "Admin");
+  assert.equal(sectionLabel("admin", "/admin/money/ledger"), "Money");
   assert.equal(sectionLabel("influencer", "/account"), "Account");
   assert.equal(sectionLabel("influencer", "/somewhere-else"), null);
 });
