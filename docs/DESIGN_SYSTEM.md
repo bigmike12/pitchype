@@ -44,6 +44,8 @@ more places; otherwise style it locally.
 | `brand-violet` | #5B3DF5 | The one saturated accent: active nav icon, progress, live dot, glows, the end of `text-gradient`. Text-safe on white (6.1:1) |
 | `brand-green` | #0F3D2E | The escrow sticker and success text |
 | `brand-lilac`, `brand-sun`, `brand-peach`, `brand-mint`, `brand-sky`, `brand-rose` | see `globals.css` | Pastel fills: pills, tiles, avatars, aurora stops |
+| `attention`, `attention-ring` | #FFF1BF, #F3DC8C | The `attention` callout's tint and outline (warmer than `brand-sun`) |
+| `ink-hover` | #26262B | Hover of the primary (ink) button |
 
 Contrast rules (checked against WCAG AA):
 

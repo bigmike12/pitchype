@@ -13,7 +13,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         // Near-black primary with a lit top edge.
-        default: "bg-ink text-white shadow-button hover:bg-[#26262b]",
+        default: "bg-ink text-white shadow-button hover:bg-ink-hover",
         // White button with a firm outline, for the second choice. Buttons
         // are identified by their label, so the outline is decorative.
         secondary:
