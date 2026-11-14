@@ -213,9 +213,13 @@ Design: `docs/superpowers/specs/2026-11-10-stage-5-applications-chat-design.md`.
 - [x] Stage 6: store that the business saw the non-refundable fee notice on
       the pay page (CLAUDE.md §6.2). Done in Stage 6: `payments.fee_notice_seen_at`
       and, for cancels, `engagements.cancel_fee_notice_seen_at`.
-- [ ] A hire that lapsed or was cancelled can't be re-made for the same
-      application; the creator would apply again (or, once Stage 6 exists,
-      decide on a "hire again" button).
+- [x] A hire that lapsed or was cancelled before payment can't be re-made for
+      the same application. Fixed 2026-11-14: the lapse now shows everywhere the
+      moment the deadline passes, and the creator can apply again on the same
+      application (`20261114100000_lapse_and_reapply.sql`). The business can also
+      hire them again or pass, from the "To decide" tab, and a lapsed hire no
+      longer reads as a filled place under "Hired"
+      (`20261114100100_rehire_after_lapse.sql`).
 - [ ] Business home: show new applications waiting for a decision (today the
       campaign table shows the counts).
 - [ ] Admin decisions on standing show no confirmation when the row leaves
@@ -256,6 +260,22 @@ Before any real money (in this order):
       `transfer.reversed`, and switch OTP confirmation for transfers off
       (live payouts cannot work with it on). Real webhook delivery has never
       been exercised: it needs a public URL.
+      Seen on 2026-11-14: a ₦23,750 test payout was approved and Paystack
+      held the transfer at status `otp` (it waits for a code), so it stayed
+      `processing` and the money stayed in "payout in flight" while nothing
+      reached the bank. The app handled it correctly; the dashboard setting
+      is the only fix. In test mode, switch OTP off, or finish that transfer
+      in the dashboard, then press **Check with Paystack** on
+      `/admin/money/payouts`.
+- [ ] **Build (next build):** an admin "Confirm with OTP" button on
+      `/admin/money/payouts` for a payout Paystack holds at `otp`. The admin
+      types the code Paystack sent, and a server action calls Paystack's
+      `transfer/finalize_transfer` with the transfer code and the OTP. Needs:
+      the admin-only check, the OTP never stored or logged, a rate limit,
+      a test that a non-`processing` payout is refused, and a note in
+      PROVIDERS.md (it is a Paystack endpoint). Only needed if OTP stays on
+      for live transfers; if it is switched off in the dashboard, this can
+      wait.
 - [ ] **You:** legal review of holding third-party funds and paying them out
       (CLAUDE.md §6 compliance flag; same item as in section 3). Nothing here
       should go live before it.
@@ -270,6 +290,11 @@ Before any real money (in this order):
       screens are unverified in a real browser. Only signed-out routes, a
       signed webhook, the unit and database tests and the race script were
       run.
+      Since then (2026-11-14) you paid one hire by hand with the test card:
+      the lapse and hire-again path, the pay page, the return page, funding
+      and the creator's Start work all worked (checked in the database, see
+      the next item). Wallet, payout and admin money screens are still
+      unclicked.
 - [ ] **You:** recheck Paystack's transfer fee tiers and the ₦50 stamp duty
       against the live rates before launch (`src/lib/fees.ts`, the `fee_config`
       seed). The stamp-duty source article was not independently verified.
@@ -300,7 +325,10 @@ live key is set.
       (spec §12 lists this test; it never ran).
 - [ ] **You:** confirm what Paystack's `fees` field contains (is VAT
       included?) and that one real transfer costs exactly the tier fee plus
-      stamp duty. A transfer-fee difference is not booked to `paystack_fees`; it
+      stamp duty. One test-mode card payment so far: ₦26,250 charged, `fees`
+      49,375 kobo, which is exactly 1.5% + ₦100 with no VAT, so in test mode
+      the field excludes VAT. Confirm the live account reports the same.
+      The transfer part is still unchecked. A transfer-fee difference is not booked to `paystack_fees`; it
       shows only as a reconciliation difference.
 
 Parked from the final review (not release blockers on their own):
