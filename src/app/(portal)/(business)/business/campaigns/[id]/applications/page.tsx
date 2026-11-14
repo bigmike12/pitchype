@@ -26,6 +26,7 @@ import {
 } from "@/lib/db/applications";
 import { getOwnCampaign } from "@/lib/db/campaigns";
 import { listNiches } from "@/lib/db/creators";
+import { applicationBucket, hireEndedUnpaid } from "@/lib/applications";
 import { formatNaira } from "@/lib/money";
 import { stateLabel, type NigerianState } from "@/lib/profile";
 import { cn } from "@/lib/utils";
@@ -45,12 +46,10 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 
+// A hire that lapsed (or was cancelled before payment) is back under "To
+// decide": the place is open again, so it must not read as a filled one.
 const inTab = (a: CampaignApplication, tab: Tab) =>
-  tab === "waiting"
-    ? a.status === "submitted" || a.status === "shortlisted"
-    : tab === "hired"
-      ? a.status === "approved"
-      : a.status === "rejected" || a.status === "withdrawn";
+  applicationBucket(a) === tab;
 
 export default function ApplicationsPage({
   params,
@@ -178,7 +177,10 @@ function ApplicationCard({
 }) {
   const priceKobo = a.proposedPriceKobo ?? campaignPriceKobo;
   const open = a.status === "submitted" || a.status === "shortlisted";
-  const canHire = open && !a.creator.suspended && !a.creator.blocked;
+  // Hired before, but the hire ended without being paid for: hire again or pass.
+  const reopened = hireEndedUnpaid(a);
+  const decidable = open || reopened;
+  const canHire = decidable && !a.creator.suspended && !a.creator.blocked;
 
   return (
     <li className="rounded-card panel p-5 sm:p-6">
@@ -240,7 +242,7 @@ function ApplicationCard({
         </blockquote>
       )}
 
-      {a.creator.suspended && open && (
+      {a.creator.suspended && decidable && (
         <Callout
           tone="info"
           icon={CircleSlash}
@@ -250,7 +252,7 @@ function ApplicationCard({
           This creator’s account is under review.
         </Callout>
       )}
-      {a.creator.blocked && open && (
+      {a.creator.blocked && decidable && (
         <Callout
           tone="info"
           icon={CircleSlash}
@@ -267,6 +269,7 @@ function ApplicationCard({
             applicationId={a.id}
             creatorName={a.creator.displayName}
             priceKobo={priceKobo}
+            again={reopened}
           />
         )}
         {a.status === "submitted" && (
@@ -294,7 +297,7 @@ function ApplicationCard({
             blockedByMe={false}
           />
         )}
-        {open && <RejectForm applicationId={a.id} />}
+        {decidable && <RejectForm applicationId={a.id} />}
       </div>
     </li>
   );
@@ -330,8 +333,8 @@ function Outcome({ application: a }: { application: CampaignApplication }) {
   const text =
     a.status === "approved" && e?.status === "cancelled"
       ? e.cancelReason === "payment_expired"
-        ? "Hire lapsed: not paid within 48 hours."
-        : "You cancelled this hire before paying."
+        ? "Hire lapsed: not paid within 48 hours. The place is open again."
+        : "You cancelled this hire before paying. The place is open again."
       : a.status === "approved"
         ? `Hired at ${formatNaira(e?.agreedPriceKobo ?? 0)}.`
         : a.status === "rejected"

@@ -24,10 +24,13 @@ export function ApproveButton({
   applicationId,
   creatorName,
   priceKobo,
+  again = false,
 }: {
   applicationId: string;
   creatorName: string;
   priceKobo: number;
+  /** The creator's earlier hire ended without being paid for. */
+  again?: boolean;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [state, formAction, pending] = useActionState<ApproveState, FormData>(
@@ -39,7 +42,7 @@ export function ApproveButton({
   return (
     <>
       <Button type="button" onClick={() => dialogRef.current?.showModal()}>
-        Hire
+        {again ? "Hire again" : "Hire"}
       </Button>
       <dialog
         ref={dialogRef}
@@ -50,7 +53,8 @@ export function ApproveButton({
           <input type="hidden" name="applicationId" value={applicationId} />
           <input type="hidden" name="expectedPriceKobo" value={priceKobo} />
           <h2 id={`hire-${applicationId}`} className="text-display-md">
-            Hire {creatorName}?
+            Hire {creatorName}
+            {again ? " again" : ""}?
           </h2>
           <dl className="mt-5 space-y-2">
             <div className="flex justify-between gap-4">

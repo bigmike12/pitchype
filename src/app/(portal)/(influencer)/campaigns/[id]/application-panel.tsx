@@ -10,6 +10,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
+import { hireEndedUnpaid } from "@/lib/applications";
 import { formatDate } from "@/lib/creator-profile";
 import type { MyApplication } from "@/lib/db/applications";
 import { formatNaira } from "@/lib/money";
@@ -30,6 +31,7 @@ export function ApplicationPanel({
     application.proposedPriceKobo ?? campaign.priceKobo,
   );
   const open = status === "submitted" || status === "shortlisted";
+  const applyAgain = hireEndedUnpaid(application);
 
   let view: { tone: Tone; icon: LucideIcon; title: string; text: string };
   if (status === "approved" && engagement?.status === "awaiting_payment") {
@@ -49,7 +51,7 @@ export function ApplicationPanel({
           : "The business cancelled this hire",
       text:
         engagement.cancelReason === "payment_expired"
-          ? "The business didn’t pay within 48 hours, so the place was freed."
+          ? "The business didn’t pay within 48 hours, so the place was freed. Nothing was charged and no work is due."
           : "They cancelled before paying, so nothing was charged and no work is due.",
     };
   } else if (status === "approved") {
@@ -102,6 +104,20 @@ export function ApplicationPanel({
           The business edited it on {formatDate(application.briefEditedAt)},
           after you applied. Read it again below.
         </Callout>
+      )}
+
+      {applyAgain && (
+        <div className="rounded-card panel p-5 sm:p-6">
+          <h2 className="text-display-md">Apply again</h2>
+          <p className="mt-2 mb-5">
+            The place is open again. Apply and the business can hire you again,
+            at the price you choose.
+          </p>
+          <ApplyForm
+            campaignId={campaign.id}
+            campaignPriceKobo={campaign.priceKobo}
+          />
+        </div>
       )}
 
       {open && (
