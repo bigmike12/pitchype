@@ -279,16 +279,33 @@ function settlementBody(d: Record<string, unknown>, role: Role): string | null {
   if (released === null || refunded === null) return null;
 
   const business = role === "business";
-  const toCreator = business
-    ? `${formatNaira(released)} was released to the creator`
-    : `${formatNaira(released)} was released to your wallet, less our fee`;
   const toBusiness = business
     ? `${formatNaira(refunded)} went back to your wallet`
     : `${formatNaira(refunded)} went back to the business`;
 
-  if (released > 0 && refunded > 0) return `${toCreator}, and ${toBusiness}.`;
-  if (released > 0) return `${toCreator}.`;
-  return business
-    ? `${toBusiness}.`
-    : `${toBusiness}. Nothing is due to you.`;
+  if (business) {
+    if (released > 0 && refunded > 0) {
+      return `${formatNaira(released)} was released to the creator, and ${toBusiness}.`;
+    }
+    if (released > 0)
+      return `${formatNaira(released)} was released to the creator.`;
+    return `${toBusiness}.`;
+  }
+
+  // The creator is told what reached their wallet. `released_kobo` is the
+  // amount that left escrow, before our fee, so it is never shown as the
+  // wallet credit. Notices from before the net was recorded fall back to a
+  // line that does not claim an amount for the wallet.
+  if (released === 0) return `${toBusiness}. Nothing is due to you.`;
+  const net = kobo(d.creator_net_kobo);
+  const fee = kobo(d.creator_fee_kobo);
+  let line: string;
+  if (net === null || fee === null) {
+    line = `${formatNaira(released)} was released for you. Your wallet gets that less our fee: see the exact amount in your wallet.`;
+  } else if (refunded > 0) {
+    line = `${formatNaira(net)} was added to your wallet: ${formatNaira(released)} of the job price less our ${formatNaira(fee)} fee.`;
+  } else {
+    line = `${formatNaira(net)} was added to your wallet: the ${formatNaira(released)} job price less our ${formatNaira(fee)} fee.`;
+  }
+  return refunded > 0 ? `${line} ${toBusiness}.` : line;
 }

@@ -3,11 +3,18 @@
 // people see it the other way round. No framework imports, so node tests
 // cover it.
 
+import { formatNaira } from "./money.ts";
+
 export type LedgerWords = {
   label: string;
   direction: "in" | "out";
   /** Always zero or more; `direction` carries the sign. */
   walletAmountKobo: number;
+  /**
+   * For a creator's job payment: what the job earned before our fee and the
+   * fee taken, so the credit is never mistaken for the whole job price.
+   */
+  detail?: string;
 };
 
 // A label is only used when the sign agrees with it (the ledger stores money
@@ -51,11 +58,25 @@ export function describeLedgerRow(row: {
   eventType: string;
   account: string;
   amountKobo: number;
+  /** The hire's amount released from escrow, before our fee, when known. */
+  releasedKobo?: number | null;
 }): LedgerWords {
   const into = row.amountKobo < 0;
-  return {
+  const words: LedgerWords = {
     label: labelFor(row.eventType, row.account, row.amountKobo),
     direction: into ? "in" : "out",
     walletAmountKobo: Math.abs(row.amountKobo),
   };
+  if (
+    row.eventType === "hire_settled" &&
+    row.account === "creator_wallet" &&
+    into &&
+    typeof row.releasedKobo === "number"
+  ) {
+    const fee = row.releasedKobo - words.walletAmountKobo;
+    if (fee > 0) {
+      words.detail = `${formatNaira(row.releasedKobo)} earned, less our ${formatNaira(fee)} fee`;
+    }
+  }
+  return words;
 }

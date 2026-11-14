@@ -181,7 +181,6 @@ test("a settlement says how the money went, with a link for each side", () => {
   );
   assert.equal(release?.title, "“Zobo week” was settled");
   assert.match(release?.body ?? "", /₦50,000/);
-  assert.match(release?.body ?? "", /released to your wallet/i);
   assert.equal(release?.href, "/jobs/e1");
 
   const refund = describeNotification(
@@ -219,6 +218,69 @@ test("a settlement says how the money went, with a link for each side", () => {
     "business",
   );
   assert.match(fault?.body ?? "", /₦51,545\.94/);
+});
+
+test("a creator is told what their wallet got, not the gross release", () => {
+  const release = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      outcome: "release",
+      released_kobo: 2500000,
+      refunded_kobo: 0,
+      creator_net_kobo: 2375000,
+      creator_fee_kobo: 125000,
+    }),
+    "influencer",
+  );
+  assert.equal(
+    release?.body,
+    "₦23,750 was added to your wallet: the ₦25,000 job price less our ₦1,250 fee.",
+  );
+
+  const split = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      outcome: "split",
+      released_kobo: 2000000,
+      refunded_kobo: 3000000,
+      creator_net_kobo: 1900000,
+      creator_fee_kobo: 100000,
+    }),
+    "influencer",
+  );
+  assert.equal(
+    split?.body,
+    "₦19,000 was added to your wallet: ₦20,000 of the job price less our ₦1,000 fee. ₦30,000 went back to the business.",
+  );
+
+  // A notice sent before the net was recorded never claims the gross amount
+  // reached the wallet.
+  const old = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      outcome: "release",
+      released_kobo: 2500000,
+      refunded_kobo: 0,
+    }),
+    "influencer",
+  );
+  assert.equal(
+    old?.body,
+    "₦25,000 was released for you. Your wallet gets that less our fee: see the exact amount in your wallet.",
+  );
+
+  // The business still hears the gross release: that is what it paid for.
+  const business = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      outcome: "release",
+      released_kobo: 2500000,
+      refunded_kobo: 0,
+      creator_net_kobo: 2375000,
+    }),
+    "business",
+  );
+  assert.equal(business?.body, "₦25,000 was released to the creator.");
 });
 
 test("payout notifications show the amount and link to the wallet", () => {

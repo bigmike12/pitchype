@@ -13,7 +13,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(50);
+select plan(53);
 
 -- Ada is a business, Efe an admin, creators ce101..ce108 are hired for
 -- ₦50,000 each by Ada (hire n is creator n's).
@@ -175,8 +175,17 @@ select is(pg_temp.count_of('00000000-0000-0000-0000-0000000ce001', 'engagement_s
   'and the business, once per settled hire');
 select is((select data - 'name' - 'campaign_id' - 'campaign_title' - 'engagement_id' from public.notifications
             where user_id = pg_temp.creator(1) and kind = 'engagement_settled'),
-  '{"outcome": "release", "released_kobo": 5000000, "refunded_kobo": 0}'::jsonb,
-  'a release says the outcome and that all of it was released');
+  '{"outcome": "release", "released_kobo": 5000000, "refunded_kobo": 0, "creator_net_kobo": 4750000, "creator_fee_kobo": 250000}'::jsonb,
+  'a release says the outcome, what left escrow, the fee, and what the creator''s wallet got');
+select is((select array[data ->> 'creator_net_kobo', data ->> 'creator_fee_kobo']
+             from public.notifications where user_id = pg_temp.creator(6) and kind = 'engagement_settled'),
+  array['1900000', '100000'], 'a split tells the creator the net of the released part only');
+select is((select array[data ->> 'creator_net_kobo', data ->> 'creator_fee_kobo']
+             from public.notifications where user_id = pg_temp.creator(7) and kind = 'engagement_settled'),
+  array['0', '0'], 'a fault refund has no net and no fee for the creator');
+select is((select count(*)::integer from public.notifications
+            where user_id = '00000000-0000-0000-0000-0000000ce001' and kind = 'engagement_settled'
+              and data ? 'creator_net_kobo'), 0, 'and the business is not given the creator''s net');
 select is((select data ->> 'name' from public.notifications
             where user_id = pg_temp.creator(1) and kind = 'engagement_settled'), 'Ada Money Kitchen',
   'the creator is told the business''s name');

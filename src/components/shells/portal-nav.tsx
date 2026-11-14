@@ -211,12 +211,15 @@ export function TopBarContent({
   items,
   mainAction,
   signOutAction,
+  wallet,
   bell,
 }: {
   viewer: PortalViewer;
   items: NavItem[];
   mainAction: MainAction;
   signOutAction: SignOut;
+  /** The creator's balance, linking to their wallet (creators only). */
+  wallet?: ReactNode;
   /** The notifications bell (businesses and creators). */
   bell?: ReactNode;
 }) {
@@ -234,6 +237,7 @@ export function TopBarContent({
         {mainAction && (
           <MainActionLink action={mainAction} className="max-sm:hidden" />
         )}
+        {wallet}
         {bell}
         <a
           href={`mailto:${CONTACT_EMAIL}`}

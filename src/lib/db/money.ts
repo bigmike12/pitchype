@@ -200,6 +200,8 @@ export type LedgerRow = {
   amountKobo: number;
   engagementId: string | null;
   reference: string | null;
+  /** The hire's amount released from escrow, before our fee (null if unsettled). */
+  releasedKobo: number | null;
 };
 
 /**
@@ -213,7 +215,7 @@ export async function listMyLedger(limit = 50): Promise<LedgerRow[]> {
   const { data, error } = await supabase
     .from("ledger_entries")
     .select(
-      "id, created_at, event_type, account, amount_kobo, engagement_id, paystack_reference",
+      "id, created_at, event_type, account, amount_kobo, engagement_id, paystack_reference, engagement:engagements(released_kobo)",
     )
     .in("account", ["business_wallet", "creator_wallet"])
     .order("created_at", { ascending: false })
@@ -228,7 +230,41 @@ export async function listMyLedger(limit = 50): Promise<LedgerRow[]> {
     amountKobo: row.amount_kobo,
     engagementId: row.engagement_id,
     reference: row.paystack_reference,
+    releasedKobo: row.engagement?.released_kobo ?? null,
   }));
+}
+
+export type CreatorWalletSummary = {
+  /** Released from escrow for their hires, before our fee. */
+  earnedKobo: number;
+  /** Our fee on that. */
+  feeKobo: number;
+  /** Asked for and not returned: sent to the bank or on its way. */
+  payoutsKobo: number;
+  /** Anything else on the wallet (corrections). */
+  otherKobo: number;
+};
+
+/**
+ * A creator's wallet as earned before fees, fees, payouts and what is left;
+ * the parts add up to getWalletBalance(). Secret-key client, like
+ * getWalletBalance: pass the signed-in person's own id.
+ */
+export async function getCreatorWalletSummary(
+  personId: string,
+): Promise<CreatorWalletSummary> {
+  const { data, error } = await createAdminClient().rpc(
+    "creator_wallet_summary",
+    { person: personId },
+  );
+  if (error) throw new Error(`wallet summary failed (${error.code})`);
+  const row = data[0];
+  return {
+    earnedKobo: row?.earned_kobo ?? 0,
+    feeKobo: row?.fee_kobo ?? 0,
+    payoutsKobo: row?.payouts_kobo ?? 0,
+    otherKobo: row?.other_kobo ?? 0,
+  };
 }
 
 export type PaymentRow = {

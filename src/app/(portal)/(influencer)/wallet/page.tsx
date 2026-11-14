@@ -16,7 +16,11 @@ import {
 } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth";
 import { formatDate } from "@/lib/creator-profile";
-import { getWalletBalance, listMyLedger } from "@/lib/db/money";
+import {
+  getCreatorWalletSummary,
+  getWalletBalance,
+  listMyLedger,
+} from "@/lib/db/money";
 import { getMyBankAccount, listMyPayouts } from "@/lib/db/payouts";
 import { formatNaira } from "@/lib/money";
 import { PaystackError, listBanks } from "@/lib/paystack";
@@ -65,17 +69,44 @@ const PILL_TONES = {
   attention: "bg-brand-sun text-ink",
 } as const;
 
+function StatementRow({
+  label,
+  kobo,
+  total = false,
+}: {
+  label: string;
+  kobo: number;
+  total?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-baseline justify-between gap-4 py-2.5",
+        total && "font-semibold text-ink",
+      )}
+    >
+      <dt className={total ? undefined : "text-body"}>{label}</dt>
+      <dd className="tabular-nums">
+        {kobo < 0 ? "−" : ""}
+        {formatNaira(Math.abs(kobo))}
+      </dd>
+    </div>
+  );
+}
+
 async function WalletContent({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireRole("influencer");
   const { bank } = await searchParams;
   // The balance is read with the secret-key client, so the id is the signed-in
   // person's, never anything from the request.
-  const [balanceKobo, ledger, bankAccount, payouts] = await Promise.all([
-    getWalletBalance(user.id, "creator_wallet"),
-    listMyLedger(50),
-    getMyBankAccount(),
-    listMyPayouts(),
-  ]);
+  const [balanceKobo, summary, ledger, bankAccount, payouts] =
+    await Promise.all([
+      getWalletBalance(user.id, "creator_wallet"),
+      getCreatorWalletSummary(user.id),
+      listMyLedger(50),
+      getMyBankAccount(),
+      listMyPayouts(),
+    ]);
   const rows = ledger.filter((row) => row.account === "creator_wallet");
 
   // The bank list is only fetched when the form is shown.
@@ -105,9 +136,29 @@ async function WalletContent({ searchParams }: { searchParams: SearchParams }) {
         <p className="mt-1 text-display-md tabular-nums">
           {formatNaira(balanceKobo)}
         </p>
+        {summary.earnedKobo > 0 && (
+          <dl className="mt-4 divide-y divide-hairline border-t border-hairline text-sm">
+            <StatementRow
+              label="Earned from jobs, before our fee"
+              kobo={summary.earnedKobo}
+            />
+            <StatementRow label="Our fee" kobo={-summary.feeKobo} />
+            {summary.payoutsKobo !== 0 && (
+              <StatementRow
+                label="Sent to your bank, or on its way"
+                kobo={-summary.payoutsKobo}
+              />
+            )}
+            {summary.otherKobo !== 0 && (
+              <StatementRow label="Adjustments" kobo={summary.otherKobo} />
+            )}
+            <StatementRow label="In your wallet now" kobo={balanceKobo} total />
+          </dl>
+        )}
         <p className="mt-3">
-          Your earnings land here when a business accepts your work, or after 7
-          days if they don’t reply. Send them to your bank when you’re ready.
+          Your earnings land here, less our fee, when a business accepts your
+          work, or after 7 days if they don’t reply. Send them to your bank when
+          you’re ready.
         </p>
       </section>
 

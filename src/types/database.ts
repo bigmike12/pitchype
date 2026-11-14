@@ -576,7 +576,7 @@ export type Database = {
           {
             foreignKeyName: "engagements_application_id_fkey"
             columns: ["application_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "applications"
             referencedColumns: ["id"]
           },
@@ -1630,6 +1630,15 @@ export type Database = {
         Args: { creator: string; with_handles: boolean }
         Returns: Json
       }
+      creator_wallet_summary: {
+        Args: { person: string }
+        Returns: {
+          earned_kobo: number
+          fee_kobo: number
+          other_kobo: number
+          payouts_kobo: number
+        }[]
+      }
       current_fee_config: {
         Args: never
         Returns: {
@@ -1677,6 +1686,10 @@ export type Database = {
         Args: { e: Database["public"]["Tables"]["engagements"]["Row"] }
         Returns: Json
       }
+      engagement_lapsed: {
+        Args: { e: Database["public"]["Tables"]["engagements"]["Row"] }
+        Returns: boolean
+      }
       expire_unpaid_engagements: {
         Args: { campaign?: string }
         Returns: number
@@ -1719,6 +1732,7 @@ export type Database = {
         }[]
       }
       held_places: { Args: { campaign: string }; Returns: number }
+      hire_ended_unpaid: { Args: { application: string }; Returns: boolean }
       indexable_creators: {
         Args: never
         Returns: {

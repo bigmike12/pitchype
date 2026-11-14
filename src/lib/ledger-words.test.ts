@@ -134,3 +134,38 @@ test("a hire payment is a business wallet event only", () => {
     "Wallet activity",
   );
 });
+
+test("a creator's job payment shows what was earned and the fee taken", () => {
+  const line = describeLedgerRow({
+    eventType: "hire_settled",
+    account: "creator_wallet",
+    amountKobo: -2_375_000,
+    releasedKobo: 2_500_000,
+  });
+  assert.equal(line.walletAmountKobo, 2_375_000);
+  assert.equal(line.detail, "₦25,000 earned, less our ₦1,250 fee");
+});
+
+test("no detail without a release, or when nothing was taken", () => {
+  const plain = describeLedgerRow({
+    eventType: "hire_settled",
+    account: "creator_wallet",
+    amountKobo: -2_375_000,
+  });
+  assert.equal("detail" in plain, false);
+  const none = describeLedgerRow({
+    eventType: "hire_settled",
+    account: "creator_wallet",
+    amountKobo: -2_500_000,
+    releasedKobo: 2_500_000,
+  });
+  assert.equal("detail" in none, false);
+  // A business's refund and a payout never get one.
+  const refund = describeLedgerRow({
+    eventType: "hire_settled",
+    account: "business_wallet",
+    amountKobo: -5_000_000,
+    releasedKobo: 0,
+  });
+  assert.equal("detail" in refund, false);
+});

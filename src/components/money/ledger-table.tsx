@@ -9,6 +9,8 @@ export type WalletLine = {
   eventType: string;
   account: string;
   amountKobo: number;
+  /** A hire's amount released before our fee, so a job payment shows the fee. */
+  releasedKobo?: number | null;
 };
 
 const th = "px-5 py-3 text-[0.8125rem] font-medium text-muted";
@@ -47,6 +49,9 @@ export function LedgerTable({ rows }: { rows: WalletLine[] }) {
                 <p className="min-w-0 font-semibold text-ink">{words.label}</p>
                 <Amount line={words} />
               </div>
+              {words.detail && (
+                <p className="mt-0.5 text-sm text-body">{words.detail}</p>
+              )}
               <p className="mt-1 text-sm text-muted">
                 {formatDateTime(row.createdAt)}
               </p>
@@ -81,6 +86,11 @@ export function LedgerTable({ rows }: { rows: WalletLine[] }) {
                 </td>
                 <th scope="row" className="px-5 py-4 font-semibold">
                   {words.label}
+                  {words.detail && (
+                    <span className="mt-0.5 block text-sm font-normal text-body">
+                      {words.detail}
+                    </span>
+                  )}
                 </th>
                 <td className="px-5 py-4 text-right whitespace-nowrap">
                   <Amount line={words} />
