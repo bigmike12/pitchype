@@ -10,6 +10,7 @@ import {
   Menu,
   Plus,
   Search,
+  ChevronsUpDown,
   ShieldCheck,
   UserRound,
   Wallet,
@@ -23,6 +24,14 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { Wordmark } from "@/components/brand/wordmark";
 import { CreatorPhoto } from "@/components/creators/creator-photo";
 import { buttonVariants } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   isNavActive,
   sectionLabel,
@@ -160,7 +169,66 @@ function AccountBlock({
   );
 }
 
-/** The sidebar's links and account block (desktop). */
+/**
+ * The account menu in the desktop sidebar: the person's name opens a small
+ * menu with their account and sign-out. The phone drawer keeps the flat
+ * AccountBlock, because a portal menu inside its modal dialog would sit
+ * behind the dialog's inert layer.
+ */
+function AccountMenu({
+  viewer,
+  signOutAction,
+}: {
+  viewer: PortalViewer;
+  signOutAction: SignOut;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-card p-2 text-left panel outline-none hover:bg-surface-soft focus-visible:ring-2 focus-visible:ring-ink data-[state=open]:bg-surface-soft">
+        <CreatorPhoto
+          name={viewer.name}
+          url={viewer.photoUrl}
+          sizes="32px"
+          className="size-8 shrink-0 rounded-full"
+        />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-ink">
+            {viewer.name}
+          </span>
+          <span className="block text-xs text-muted">Account</span>
+        </span>
+        <ChevronsUpDown
+          className="size-4 shrink-0 text-muted"
+          aria-hidden="true"
+        />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        side="top"
+        align="start"
+        className="w-(--radix-dropdown-menu-trigger-width)"
+      >
+        <DropdownMenuLabel>{viewer.name}</DropdownMenuLabel>
+        <DropdownMenuItem asChild>
+          <Link href="/account">
+            <UserRound aria-hidden="true" />
+            Account settings
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <form action={signOutAction}>
+          <DropdownMenuItem asChild>
+            <button type="submit" className="w-full">
+              <LogOut aria-hidden="true" />
+              Sign out
+            </button>
+          </DropdownMenuItem>
+        </form>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** The sidebar's links and account menu (desktop). */
 export function SidebarNav({
   viewer,
   items,
@@ -175,7 +243,7 @@ export function SidebarNav({
       <nav aria-label="Main" className="flex-1">
         <NavLinks items={items} />
       </nav>
-      <AccountBlock viewer={viewer} signOutAction={signOutAction} />
+      <AccountMenu viewer={viewer} signOutAction={signOutAction} />
     </div>
   );
 }

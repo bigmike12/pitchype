@@ -11,6 +11,7 @@ import {
   CardGridSkeleton,
   HeaderSkeleton,
   PageLoading,
+  PanelSkeleton,
   SectionTitleSkeleton,
   TableSkeleton,
 } from "@/components/ui/skeleton";
@@ -24,6 +25,9 @@ export default function HomePage() {
         <PageLoading label="Loading your home…">
           <HeaderSkeleton />
           <CardGridSkeleton variant="action" count={3} />
+          <div className="mt-10">
+            <PanelSkeleton lines={3} />
+          </div>
           <div className="mt-12">
             <SectionTitleSkeleton />
             <TableSkeleton rows={3} />

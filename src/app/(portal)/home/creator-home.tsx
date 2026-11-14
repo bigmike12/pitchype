@@ -1,4 +1,12 @@
-import { BadgeCheck, Check, EyeOff, Globe, Megaphone } from "lucide-react";
+import {
+  BadgeCheck,
+  Check,
+  ClipboardList,
+  EyeOff,
+  Globe,
+  Megaphone,
+  Wallet,
+} from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -13,29 +21,76 @@ import {
   publishProblems,
   verificationView,
 } from "@/lib/creator-profile";
+import { listMyApplications } from "@/lib/db/applications";
 import { listOpenCampaigns } from "@/lib/db/campaigns";
 import {
   getOwnCreatorProfile,
   listNiches,
   type OwnCreatorProfile,
 } from "@/lib/db/creators";
+import { getCreatorWalletSummary, getWalletBalance } from "@/lib/db/money";
 import { listOwnVerificationRequests } from "@/lib/db/verification";
 import { creatorChecklist } from "@/lib/home";
+import { formatNaira } from "@/lib/money";
 import { greeting } from "@/lib/portal";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { cn } from "@/lib/utils";
+
+import { OverviewList, type OverviewRow } from "./overview-list";
 
 const SHOWN_CAMPAIGNS = 3;
 
 /** A creator's home: where their profile stands, and campaigns they fit. */
 export async function CreatorHome({ userId }: { userId: string }) {
-  const [profile, requests, niches, open] = await Promise.all([
-    getOwnCreatorProfile(userId),
-    listOwnVerificationRequests(userId),
-    listNiches(),
-    listOpenCampaigns({ qualifiedOnly: true, page: 1 }),
-  ]);
+  const [profile, requests, niches, open, applications, wallet, balanceKobo] =
+    await Promise.all([
+      getOwnCreatorProfile(userId),
+      listOwnVerificationRequests(userId),
+      listNiches(),
+      listOpenCampaigns({ qualifiedOnly: true, page: 1 }),
+      listMyApplications(),
+      getCreatorWalletSummary(userId),
+      getWalletBalance(userId, "creator_wallet"),
+    ]);
   if (!profile) redirect("/onboarding");
+
+  const waitingApplications = applications.filter(
+    (a) => a.status === "submitted" || a.status === "shortlisted",
+  ).length;
+  // Our fee comes off what they earn, so the credit they see is after it.
+  const earnedAfterFeeKobo = wallet.earnedKobo - wallet.feeKobo;
+  const overview: OverviewRow[] = [
+    {
+      key: "applications",
+      icon: ClipboardList,
+      tone: "lilac",
+      title: "Applications",
+      detail:
+        waitingApplications === 0
+          ? "Nothing is waiting for a decision"
+          : "Waiting for a business to decide",
+      value: String(waitingApplications),
+      href: "/applications",
+    },
+    {
+      key: "campaigns",
+      icon: Megaphone,
+      tone: "mint",
+      title: "Campaigns you qualify for",
+      detail: "Open now, and you meet their criteria",
+      value: String(open.total),
+      href: "/campaigns?qualified=1",
+    },
+    {
+      key: "wallet",
+      icon: Wallet,
+      tone: "sun",
+      title: "Wallet balance",
+      detail: `${formatNaira(earnedAfterFeeKobo)} earned after our fee, in total`,
+      value: formatNaira(balanceKobo),
+      href: "/wallet",
+    },
+  ];
 
   const problems = publishProblems({
     niches: profile.niches,
@@ -108,6 +163,10 @@ export async function CreatorHome({ userId }: { userId: string }) {
       ) : (
         <Checklist profile={profile} canPublish={problems.length === 0} />
       )}
+
+      <div className="mt-10">
+        <OverviewList title="Where things stand" rows={overview} />
+      </div>
 
       <section aria-labelledby="campaigns-title" className="mt-12">
         <div className="mb-4 flex items-baseline justify-between gap-4">
