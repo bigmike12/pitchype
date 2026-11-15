@@ -4,9 +4,10 @@ import { connection } from "next/server";
 import { listIndexableCreators } from "@/lib/db/creators";
 import { SITE_URL } from "@/lib/site";
 
-// The landing page, plus the creator directory once anyone is in it. Built
-// per request so a newly published profile shows up straight away. /privacy
-// and /terms are drafts marked noindex; add them once they're published.
+// The landing page, the creator directory, and each creator who may be indexed.
+// Built per request so a newly published profile shows up straight away.
+// /privacy and /terms are drafts marked noindex; add them once they're
+// published.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   await connection();
   const home = {
@@ -25,8 +26,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       error instanceof Error ? error.message : error,
     );
   }
-  if (creators.length === 0) return [home];
-
+  // The directory page is listed even while it's empty, so the search engines
+  // find it from the start (docs/TODO.md).
   return [
     home,
     { url: `${SITE_URL}/creators`, changeFrequency: "daily", priority: 0.8 },
