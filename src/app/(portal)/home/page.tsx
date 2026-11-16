@@ -8,11 +8,11 @@ import { getProfile } from "@/lib/db/profiles";
 import { BusinessHome } from "./business-home";
 import { CreatorHome } from "./creator-home";
 import {
-  CardGridSkeleton,
   HeaderSkeleton,
   PageLoading,
   PanelSkeleton,
   SectionTitleSkeleton,
+  Skeleton,
   TableSkeleton,
 } from "@/components/ui/skeleton";
 
@@ -23,14 +23,25 @@ export default function HomePage() {
     <Suspense
       fallback={
         <PageLoading label="Loading your home…">
-          <HeaderSkeleton />
-          <CardGridSkeleton variant="action" count={3} />
-          <div className="mt-10">
-            <PanelSkeleton lines={3} />
-          </div>
-          <div className="mt-12">
-            <SectionTitleSkeleton />
-            <TableSkeleton rows={3} />
+          <div className="space-y-6">
+            <HeaderSkeleton action />
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+              {[0, 1, 2, 3].map((card) => (
+                <div key={card} className="space-y-3 rounded-card p-4 panel">
+                  <Skeleton className="h-8 w-2/3" />
+                  <Skeleton className="h-7 w-1/2" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+              ))}
+            </div>
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+              <PanelSkeleton lines={3} />
+              <PanelSkeleton lines={3} />
+            </div>
+            <div>
+              <SectionTitleSkeleton />
+              <TableSkeleton rows={3} />
+            </div>
           </div>
         </PageLoading>
       }

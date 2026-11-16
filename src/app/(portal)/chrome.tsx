@@ -51,7 +51,7 @@ export async function PortalTopBar() {
       wallet={
         viewer.role === "influencer" ? (
           <Suspense
-            fallback={<Skeleton className="h-11 w-24 rounded-control" />}
+            fallback={<Skeleton className="h-11 w-24 rounded-control lg:h-9" />}
           >
             <WalletChip />
           </Suspense>
@@ -105,10 +105,10 @@ async function WalletChip() {
       href="/wallet"
       aria-label={`Wallet: ${balance} available`}
       title="Your wallet"
-      className="inline-flex min-h-11 max-w-[8rem] items-center gap-1.5 rounded-control px-2.5 text-sm font-semibold text-ink tabular-nums hover:bg-ink/[0.04] sm:max-w-none sm:gap-2 sm:px-3"
+      className="inline-flex min-h-11 max-w-[8rem] items-center gap-1.5 rounded-control border border-hairline-strong px-2.5 text-sm font-semibold text-ink tabular-nums hover:bg-surface-soft sm:max-w-none sm:gap-2 sm:px-3 lg:min-h-9"
     >
       <Wallet
-        className="size-[1.125rem] shrink-0 text-brand-violet"
+        className="size-[1.125rem] shrink-0 text-muted"
         aria-hidden="true"
       />
       <span className="truncate">{balance}</span>

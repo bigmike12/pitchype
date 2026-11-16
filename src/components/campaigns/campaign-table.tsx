@@ -1,5 +1,8 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
+
+import { TABLE } from "@/components/ui/table";
 
 import { formatDay } from "@/lib/campaign";
 import type { OwnCampaignSummary } from "@/lib/db/campaigns";
@@ -31,29 +34,23 @@ function ApplicationsLink({ id, counts }: { id: string; counts: Counts }) {
   );
 }
 
-const th = "px-5 py-3 text-[0.8125rem] font-medium text-muted";
+const th = TABLE.th;
 
 /**
  * A business's campaigns: a table from 640px, a stacked list on phones. The
  * title is the link to each campaign and the whole row follows it; with
- * `counts`, a column shows the applications to decide, and `showCount` adds
- * a footer with how many campaigns there are.
+ * `counts`, a column shows the applications to decide. `footer` sits at the
+ * foot of the frame (a `<Pagination framed />`).
  */
 export function CampaignTable({
   campaigns,
   counts,
-  showCount,
+  footer,
 }: {
   campaigns: OwnCampaignSummary[];
   counts?: Counts;
-  showCount?: boolean;
+  footer?: ReactNode;
 }) {
-  const footer = showCount && (
-    <p className="border-t border-hairline bg-surface-soft/60 px-5 py-3 text-sm text-muted">
-      {campaigns.length} {campaigns.length === 1 ? "campaign" : "campaigns"}
-    </p>
-  );
-
   return (
     <>
       <div className="overflow-hidden rounded-card panel sm:hidden">
@@ -128,7 +125,7 @@ export function CampaignTable({
               >
                 <th
                   scope="row"
-                  className="max-w-xs px-5 py-4 font-semibold break-words"
+                  className="max-w-xs px-4 py-3 font-semibold break-words first:pl-5"
                 >
                   <Link
                     href={`/business/campaigns/${c.id}`}
@@ -140,24 +137,24 @@ export function CampaignTable({
                     Applications close {formatDay(c.applicationsCloseOn)}
                   </span>
                 </th>
-                <td className="px-5 py-4">
+                <td className="px-4 py-3 first:pl-5">
                   <StatusPill
                     status={c.status}
                     takenDown={Boolean(c.removedReason)}
                   />
                 </td>
-                <td className="px-5 py-4 text-right whitespace-nowrap tabular-nums">
+                <td className="px-4 py-3 first:pl-5 text-right whitespace-nowrap tabular-nums">
                   {c.priceKobo !== null ? formatNaira(c.priceKobo) : "—"}
                 </td>
-                <td className="px-5 py-4 text-right tabular-nums">
+                <td className="px-4 py-3 first:pl-5 text-right tabular-nums">
                   {c.places}
                 </td>
                 {counts && (
-                  <td className="px-5 py-4 whitespace-nowrap">
+                  <td className="px-4 py-3 first:pl-5 whitespace-nowrap">
                     <ApplicationsLink id={c.id} counts={counts} />
                   </td>
                 )}
-                <td className="py-4 pr-4 text-muted">
+                <td className="py-3 pr-4 text-muted">
                   <ChevronRight
                     aria-hidden="true"
                     className="size-4 group-hover:translate-x-0.5 group-hover:text-ink motion-safe:transition-transform"

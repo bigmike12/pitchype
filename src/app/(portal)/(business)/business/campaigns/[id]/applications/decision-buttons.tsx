@@ -25,12 +25,17 @@ export function ApproveButton({
   creatorName,
   priceKobo,
   again = false,
+  size,
+  dropAction,
 }: {
   applicationId: string;
   creatorName: string;
   priceKobo: number;
   /** The creator's earlier hire ended without being paid for. */
   again?: boolean;
+  size?: "sm";
+  /** On the hiring board: the column a dropped card opens this dialog for. */
+  dropAction?: string;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [state, formAction, pending] = useActionState<ApproveState, FormData>(
@@ -41,7 +46,12 @@ export function ApproveButton({
 
   return (
     <>
-      <Button type="button" onClick={() => dialogRef.current?.showModal()}>
+      <Button
+        type="button"
+        size={size}
+        data-drop-action={dropAction}
+        onClick={() => dialogRef.current?.showModal()}
+      >
         {again ? "Hire again" : "Hire"}
       </Button>
       <dialog

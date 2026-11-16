@@ -119,7 +119,7 @@ src/
       home/, account/      role home page, settings (any role)
       (business)/          campaigns, find creators, applications, hires, payments, inbox
       (influencer)/        browse campaigns, profile, applications, jobs, wallet, inbox
-      (admin)/             reviews, disputes, payouts, moderation
+      (admin)/             one page per job: standing, campaign review, verification, reports, hidden profiles; money (escrow, payouts, ledger, reconciliation)
     auth/                  route handlers for emailed links
     api/webhooks/paystack/ webhook endpoint (thin adapter; the decisions are in lib/payments.ts)
     api/cron/              scheduled jobs: expire-engagements, money-checks (bearer CRON_SECRET)
@@ -155,7 +155,7 @@ All pages use the one design system in `docs/DESIGN_SYSTEM.md`: build from its t
 
 ### 4a. Design direction and UI rules
 
-The look is **"porcelain and aurora"** (since 2026-11-10): futuristic but calm, clean and sophisticated. References: Passionfroot (split onboarding with a gradient panel and a "why we ask" card) and Clay (sidebar app shell, quick-action cards with 3D-style icons). Borrow structure and feel only: never their names, logos, copy, illustrations or typefaces.
+The look is **"porcelain and aurora"** (since 2026-11-10): futuristic but calm, clean and sophisticated. References: Passionfroot (split onboarding with a gradient panel and a "why we ask" card) and Clay (sidebar app shell, quick-action cards with 3D-style icons). Since 2026-11-16 the signed-in portal also takes its structure from HeroUI Pro's dashboards (grouped sidebar, stat cards, titled cards, a "Needs you" list, compact desktop density), built on our own stack and tokens: HeroUI itself is not installed. Borrow structure and feel only: never their names, logos, copy, illustrations or typefaces.
 
 - **Type stays:** Bricolage Grotesque 600 for display, Inter for text. Don't add or swap fonts without the user's say-so.
 - **Tokens only.** Colours, radii, shadows and motion come from `src/app/globals.css`. No new hex values in components unless documented as a one-off.
@@ -317,7 +317,7 @@ Design and reasons: `docs/superpowers/specs/2026-11-13-stage-6-money-design.md`,
 
 **Reconciliation and the admin audit tools** (`20261113100500`)
 - `/api/cron/money-checks` runs daily. It settles payouts stuck in `processing`, then records a `reconciliation_runs` row (append-only) from Paystack's balance. Expected cash is `−(escrow + business_wallet + creator_wallet + payout_in_flight + platform_revenue) − paystack_fees` using the stored signs. A non-zero difference, or a ledger whose accounts do not sum to zero, shows in `note` and as a callout on `/admin/money`. If the balance cannot be read, no row is written. The response is 500 if any step failed.
-- Admin tools: `/admin/money` (payouts awaiting approval, hires in escrow with settle actions, the latest reconciliation and the last 30 runs), `/admin/money/payouts` (with **Check with Paystack** on a payout still `processing`, which runs the same `confirmTransfer()`), `/admin/money/ledger` (filters, CSV export), and `/admin/money/engagements/[id]`, a per-hire trail that must add up. Businesses and creators see their own wallet and trail without the internal accounts.
+- Admin tools, one page per job: `/admin/money` (the latest reconciliation and links to the rest), `/admin/money/escrow` (hires in escrow with settle actions), `/admin/money/reconciliation` (every run, paged), `/admin/money/payouts` (waiting and decided, with **Check with Paystack** on a payout still `processing`, which runs the same `confirmTransfer()`), `/admin/money/ledger` (filters, CSV export), and `/admin/money/engagements/[id]`, a per-hire trail that must add up. Businesses and creators see their own wallet and trail without the internal accounts.
 
 **Tests that protect these rules:** `supabase/tests/{ledger,funding,settlement,payouts,money_notifications,stranded_notification,audit}.test.sql` (append-only, balanced groups, funding and settling twice, wallets never negative, grants and RLS, payout state rules, the reconciliation arithmetic); `src/lib/*.test.ts` (fee maths, including the business fee being larger than Paystack's charge for every allowed price, and that the `fee_config` seed equals `src/lib/fees.ts`; the webhook decisions; the cron); and `scripts/money-race.mjs`, which races the money functions from separate Postgres sessions on the local database. Add a test there, not only in pgTAP, for any new money function that two callers could reach at once.
 

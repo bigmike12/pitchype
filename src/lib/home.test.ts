@@ -6,6 +6,8 @@ import {
   campaignAlerts,
   campaignCountsText,
   creatorChecklist,
+  hirePipeline,
+  jobsToStart,
 } from "./home.ts";
 
 const empty = {
@@ -103,4 +105,63 @@ test("counts read naturally and skip zeros", () => {
   );
   assert.equal(campaignCountsText([{ status: "closed" }]), "None live");
   assert.equal(campaignCountsText([]), "None yet");
+});
+
+const hire = (status: string, payBy = "2026-11-20T12:00:00Z", id = status) => ({
+  id,
+  status,
+  agreedPriceKobo: 2_500_000,
+  payBy,
+  campaignTitle: "Tea launch",
+});
+
+test("the pipeline counts paid hires, their escrow and finished ones", () => {
+  const now = new Date("2026-11-18T12:00:00Z");
+  const pipeline = hirePipeline(
+    [
+      hire("funded"),
+      hire("in_progress"),
+      hire("submitted"),
+      hire("accepted"),
+      hire("auto_released"),
+      hire("refunded"),
+      hire("cancelled"),
+    ],
+    now,
+  );
+  assert.equal(pipeline.inProgress, 3);
+  assert.equal(pipeline.escrowKobo, 7_500_000);
+  assert.equal(pipeline.completed, 2);
+  assert.deepEqual(pipeline.toPay, []);
+});
+
+test("to pay: only unpaid hires inside their deadline, most urgent first", () => {
+  const now = new Date("2026-11-18T12:00:00Z");
+  const pipeline = hirePipeline(
+    [
+      hire("awaiting_payment", "2026-11-20T12:00:00Z", "later"),
+      hire("awaiting_payment", "2026-11-18T11:59:00Z", "lapsed"),
+      hire("awaiting_payment", "2026-11-19T12:00:00Z", "sooner"),
+    ],
+    now,
+  );
+  assert.deepEqual(
+    pipeline.toPay.map((h) => h.id),
+    ["sooner", "later"],
+  );
+  assert.equal(pipeline.inProgress, 0);
+  assert.equal(pipeline.escrowKobo, 0);
+});
+
+test("jobs to start are the paid ones not yet started", () => {
+  const apps = [
+    { id: "a", engagement: { status: "funded" } },
+    { id: "b", engagement: { status: "in_progress" } },
+    { id: "c", engagement: { status: "awaiting_payment" } },
+    { id: "d", engagement: null },
+  ];
+  assert.deepEqual(
+    jobsToStart(apps).map((a) => a.id),
+    ["a"],
+  );
 });

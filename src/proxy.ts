@@ -29,7 +29,11 @@ export async function proxy(request: NextRequest) {
   if (!signedIn && SIGNED_IN_ONLY.some((page) => isUnder(path, page))) {
     return redirectKeepingCookies(request, "/login", response);
   }
-  if (signedIn && SIGNED_OUT_ONLY.includes(path)) {
+  // Only for page loads. A server action posted from a stale login form (a
+  // second tab, a cached page) would get this redirect instead of the RSC
+  // answer the browser expects, and fail with "An unexpected response was
+  // received from the server".
+  if (signedIn && request.method === "GET" && SIGNED_OUT_ONLY.includes(path)) {
     return redirectKeepingCookies(request, "/home", response);
   }
   return response;

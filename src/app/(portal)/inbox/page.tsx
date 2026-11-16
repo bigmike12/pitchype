@@ -7,6 +7,7 @@ import { CreatorPhoto } from "@/components/creators/creator-photo";
 import { Callout } from "@/components/ui/callout";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { Pagination } from "@/components/ui/pagination";
 import {
   HeaderSkeleton,
   PageLoading,
@@ -15,10 +16,13 @@ import {
 import { requireUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
 import { listMyConversations } from "@/lib/db/chat";
+import { pageOf, pagedHref, parsePage } from "@/lib/paging";
 import { isRefusal, refusalText } from "@/lib/refusals";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Inbox" };
+
+const PAGE_SIZE = 20;
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -50,6 +54,7 @@ async function Inbox({ searchParams }: { searchParams: SearchParams }) {
     searchParams,
   ]);
   const notice = Array.isArray(query.notice) ? query.notice[0] : query.notice;
+  const paged = pageOf(conversations, parsePage(query.page), PAGE_SIZE);
 
   return (
     <>
@@ -84,56 +89,64 @@ async function Inbox({ searchParams }: { searchParams: SearchParams }) {
             : "When a business messages you about a campaign or your profile, it shows here."}
         </EmptyState>
       ) : (
-        <ul className="divide-y divide-hairline rounded-card panel">
-          {conversations.map((c) => (
-            <li key={c.id} className="relative flex gap-3 p-4 sm:p-5">
-              <CreatorPhoto
-                name={c.other.name}
-                url={c.other.photoUrl}
-                sizes="44px"
-                className="size-11 shrink-0 rounded-full"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h2
-                    className={cn(
-                      "truncate text-ink",
-                      c.unread > 0 ? "font-bold" : "font-semibold",
+        <div className="overflow-hidden rounded-card panel">
+          <ul className="divide-y divide-hairline">
+            {paged.items.map((c) => (
+              <li key={c.id} className="relative flex gap-3 p-4 sm:p-5">
+                <CreatorPhoto
+                  name={c.other.name}
+                  url={c.other.photoUrl}
+                  sizes="44px"
+                  className="size-11 shrink-0 rounded-full"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h2
+                      className={cn(
+                        "truncate text-ink",
+                        c.unread > 0 ? "font-bold" : "font-semibold",
+                      )}
+                    >
+                      <Link
+                        href={`/inbox/${c.id}`}
+                        className="after:absolute after:inset-0"
+                      >
+                        {c.other.name}
+                      </Link>
+                    </h2>
+                    {c.lastMessage && (
+                      <time
+                        dateTime={c.lastMessage.createdAt}
+                        className="shrink-0 text-xs text-muted"
+                      >
+                        {formatDateTime(c.lastMessage.createdAt)}
+                      </time>
                     )}
-                  >
-                    <Link
-                      href={`/inbox/${c.id}`}
-                      className="after:absolute after:inset-0"
-                    >
-                      {c.other.name}
-                    </Link>
-                  </h2>
-                  {c.lastMessage && (
-                    <time
-                      dateTime={c.lastMessage.createdAt}
-                      className="shrink-0 text-xs text-muted"
-                    >
-                      {formatDateTime(c.lastMessage.createdAt)}
-                    </time>
-                  )}
+                  </div>
+                  <p className="mt-0.5 truncate text-sm">
+                    {c.blocked
+                      ? "Messaging isn’t available."
+                      : c.lastMessage
+                        ? `${c.lastMessage.mine ? "You: " : ""}${c.lastMessage.body}`
+                        : "No messages yet."}
+                  </p>
                 </div>
-                <p className="mt-0.5 truncate text-sm">
-                  {c.blocked
-                    ? "Messaging isn’t available."
-                    : c.lastMessage
-                      ? `${c.lastMessage.mine ? "You: " : ""}${c.lastMessage.body}`
-                      : "No messages yet."}
-                </p>
-              </div>
-              {c.unread > 0 && (
-                <span className="self-center rounded-full bg-ink px-2 py-0.5 text-xs font-semibold text-white">
-                  {c.unread}
-                  <span className="sr-only"> unread</span>
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
+                {c.unread > 0 && (
+                  <span className="self-center rounded-full bg-ink px-2 py-0.5 text-xs font-semibold text-white">
+                    {c.unread}
+                    <span className="sr-only"> unread</span>
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+          <Pagination
+            framed
+            {...paged}
+            noun={["conversation", "conversations"]}
+            hrefFor={(page) => pagedHref("/inbox", {}, page)}
+          />
+        </div>
       )}
     </>
   );

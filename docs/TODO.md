@@ -22,7 +22,7 @@ sign-up email. Details: README, "Auth email setup".
       `supabase/templates/confirmation.html` ("Confirm your Pitchype account")
       and `recovery.html` ("Reset your Pitchype password").
 - [x] **You:** Supabase → URL configuration: Site URL
-      `https://www.pitchype.com`; add every other address the app runs on
+      `https://pitchype.com`; add every other address the app runs on
       (Vercel previews, `http://localhost:3000` for local production builds)
       to Redirect URLs.
 - [x] **You:** Supabase → Sign in / Providers → Email: "Confirm email" on,
@@ -41,7 +41,7 @@ Details: README, "Deploy to Vercel".
       `NEXT_PUBLIC_APP_URL`, and `SUPABASE_SECRET_KEY` (Supabase → API keys;
       mark it sensitive). Without the secret key, everything but photo
       uploads works.
-- [ ] **You:** domain `www.pitchype.com` (apex redirects to www), matching
+- [ ] **You:** domain `pitchype.com` (apex redirects to www), matching
       `NEXT_PUBLIC_APP_URL`.
 - [ ] After the first deploy, check `/robots.txt`, `/sitemap.xml`, the
       waitlist, a sign-up, and a photo upload.
@@ -255,7 +255,7 @@ Before any real money (in this order):
       unpushed). Steps and rules: README, "Pushing migrations to the live
       database". Take a backup first and read the dry-run list.
 - [ ] **You:** in the Paystack dashboard set the webhook URL to
-      `https://www.pitchype.com/api/webhooks/paystack` with the events
+      `https://pitchype.com/api/webhooks/paystack` with the events
       `charge.success`, `transfer.success`, `transfer.failed` and
       `transfer.reversed`, and switch OTP confirmation for transfers off
       (live payouts cannot work with it on). Real webhook delivery has never
@@ -428,6 +428,69 @@ Deferred minors, scripts and tooling:
       screen shows a large difference locally because of them and of the
       Paystack test balance.
 - [ ] Eight files already fail `prettier --check`, from before Stage 6.
+
+Portal rebuild (2026-11-16, the dashboard-kit look):
+
+- [x] Rendered against the local database on 2026-11-16 (read-only page
+      loads as existing local accounts, headless Chrome screenshots): both
+      home pages at 1440px, the creator home and work board at 390px, both
+      boards, the creator wallet. `listMyHires` returns a business's hires
+      under RLS. Not exercised: the phone drawer, anything that needs a click.
+- [x] Deeper pass on the remaining pages (2026-11-16): both campaign detail
+      pages, the hire and job pages (two columns), the campaign form (titled
+      cards), the applicants page (spacing, breadcrumb). Seen in headless
+      Chrome at 1440px, and the creator's campaign page at 390px. The pay page
+      was deliberately left as a narrow checkout.
+- [x] Lists, filters, tables and the admin split (2026-11-16): one pager
+      (`Pagination`, `lib/paging.ts`) on every list, a slimmer `FilterBar`,
+      `FilterTabs`, one table look (`TABLE`), tabs on a business's campaign
+      list, and the admin area as one page per job (see the design system,
+      "Admin pages"). Seen in headless Chrome at 1440px, and the campaign
+      list and directory at 390px.
+- [ ] Paging is done in the app for lists the data layer returns whole
+      (a business's campaigns, inbox, applicants, wallet history, payouts,
+      admin queues, escrow, reconciliation runs); those reads are capped at
+      100–200 rows, so anything older than the cap is not reachable yet.
+      Move each to a paged query (limit and offset with a count) when a real
+      account gets near its cap; the creator campaign list, the directory and
+      the admin ledger already page in the database.
+- [ ] The admin overview and `/admin/money` read whole queues only to count
+      them. Replace with count queries if the admin pages get slow.
+- [ ] The public `/creators` page shares `FilterBar`, so its filters changed
+      look too. Checked only inside the portal; look at the public page.
+- [x] The pages not looked at before (2026-11-16): the live-campaign edit
+      form, account standing, the inbox thread (one card: messages over the
+      composer), the admin page (queue counts, one titled card per queue) and
+      the admin money overview (two figures at the top). The business's
+      campaign list lost its second "New campaign" button, and the top bar
+      now names the section on hire, pay, job and account-standing pages.
+      Seen in headless Chrome at 1440px; the thread and the admin page also
+      at 390px. Looked at and left as they are: the inbox list, both creator
+      directory pages, the creator's campaign list, pay-return (breadcrumb
+      only), and the admin payouts, ledger and money-trail pages.
+- [ ] Not seen with data: a draft campaign's edit page, the pay-return
+      page (it needs a real payment reference), and the admin queues with
+      anything in them (every local queue was empty).
+- [ ] The admin money-trail page (`/admin/money/engagements/[id]`) still
+      uses plain section headings, not titled cards.
+- [ ] The boards (`/business/board`, `/applications`) render correctly, but
+      no card has been dragged or clicked in a browser, and no local account
+      had a card in Applied, Shortlisted, To pay or Ready to start. Check
+      dragging in Chrome, Safari and Firefox (Applied →
+      Shortlisted, a drop on To pay opening the Hire dialog, a creator's
+      Ready to start → In progress), the phone tabs, and a keyboard-only
+      pass.
+- [ ] The hiring board's "All campaigns" view calls `campaign_applications`
+      once per campaign (capped at 12). Replace with one database function
+      returning a business's applications across campaigns, with a pgTAP
+      test, when the local database is running.
+- [ ] Board columns for submitted work and review, with Stage 7.
+- [ ] Sidebar count next to "Campaigns" (creators: open campaigns they
+      qualify for; businesses: applications to decide) and tabs (All, Live,
+      Drafts) on the home page's campaigns table: both were in the mockup and
+      left out, because each needs data in the shell or client state.
+- [ ] A business's home has no list page behind "In progress" and
+      "Completed" yet, so those two pipeline stages are not links.
 
 ## Done
 

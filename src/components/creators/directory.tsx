@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
 import {
   DIRECTORY_PAGE_SIZE,
   directoryQuery,
@@ -11,6 +12,9 @@ import {
 } from "@/lib/creator-profile";
 import { listNiches, searchCreators } from "@/lib/db/creators";
 import type { AppUser } from "@/lib/db/users";
+import { pageCount } from "@/lib/paging";
+
+import { cn } from "@/lib/utils";
 
 import { CreatorCard } from "./creator-card";
 import { DirectoryFilters, type DirectoryBase } from "./directory-filters";
@@ -41,13 +45,13 @@ export async function Directory({
   );
   const { creators, total } = await searchCreators(filters);
   const nicheName = new Map(niches.map((n) => [n.slug, n.name]));
-  const pages = Math.max(1, Math.ceil(total / DIRECTORY_PAGE_SIZE));
+  const pages = pageCount(total, DIRECTORY_PAGE_SIZE);
   const filtered = hasActiveFilters(filters);
   const inPortal = basePath !== "/creators";
 
   return (
     <>
-      <div className="mt-8">
+      <div className={inPortal ? undefined : "mt-8"}>
         <DirectoryFilters
           niches={niches}
           filters={filters}
@@ -56,7 +60,10 @@ export async function Directory({
         />
       </div>
 
-      <section aria-labelledby="results-title" className="mt-10">
+      <section
+        aria-labelledby="results-title"
+        className={inPortal ? "mt-6" : "mt-10"}
+      >
         <h2 id="results-title" className="sr-only">
           Results
         </h2>
@@ -64,7 +71,11 @@ export async function Directory({
           role="status"
           // In the portal the empty state says it; keep this for screen readers.
           className={
-            total === 0 && inPortal ? "sr-only" : "font-semibold text-ink"
+            total === 0 && inPortal
+              ? "sr-only"
+              : inPortal
+                ? "text-sm font-semibold text-ink"
+                : "font-semibold text-ink"
           }
         >
           {total === 0
@@ -117,7 +128,12 @@ export async function Directory({
             </p>
           )
         ) : (
-          <ul className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <ul
+            className={cn(
+              "grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+              inPortal ? "mt-3 gap-3" : "mt-5 gap-5",
+            )}
+          >
             {creators.map((creator, index) => (
               <li key={creator.slug} className="grid">
                 <CreatorCard
@@ -138,34 +154,16 @@ export async function Directory({
           </ul>
         )}
 
-        {pages > 1 && (
-          <nav
-            aria-label="Pages"
-            className="mt-10 flex flex-wrap items-center gap-4"
-          >
-            {filters.page > 1 && (
-              <Link
-                href={`${basePath}${directoryQuery({ ...filters, page: filters.page - 1 })}`}
-                className={buttonVariants({ variant: "secondary" })}
-                rel="prev"
-              >
-                Previous
-              </Link>
-            )}
-            <p className="text-sm text-muted">
-              Page {filters.page} of {pages}
-            </p>
-            {filters.page < pages && (
-              <Link
-                href={`${basePath}${directoryQuery({ ...filters, page: filters.page + 1 })}`}
-                className={buttonVariants({ variant: "secondary" })}
-                rel="next"
-              >
-                Next
-              </Link>
-            )}
-          </nav>
-        )}
+        <Pagination
+          page={filters.page}
+          pages={pages}
+          total={total}
+          pageSize={DIRECTORY_PAGE_SIZE}
+          noun={["creator", "creators"]}
+          hrefFor={(page) =>
+            `${basePath}${directoryQuery({ ...filters, page })}`
+          }
+        />
       </section>
     </>
   );

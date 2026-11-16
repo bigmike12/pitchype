@@ -1,10 +1,13 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
+
+import { TABLE } from "@/components/ui/table";
 
 import { formatDateTime } from "@/lib/creator-profile";
 import type { AdminLedgerRow } from "@/lib/db/money";
 import { formatNaira } from "@/lib/money";
 
-const th = "px-4 py-3 text-[0.8125rem] font-medium text-muted";
+const th = TABLE.th;
 
 const words = (value: string) => value.replaceAll("_", " ");
 
@@ -34,7 +37,14 @@ function Hire({ id }: { id: string | null }) {
  * (the same pattern as `LedgerTable`, which words the same rows for the person
  * who owns the wallet).
  */
-export function AdminLedgerTable({ rows }: { rows: AdminLedgerRow[] }) {
+export function AdminLedgerTable({
+  rows,
+  footer,
+}: {
+  rows: AdminLedgerRow[];
+  /** Sits at the foot of the frame (a `<Pagination framed />`). */
+  footer?: ReactNode;
+}) {
   return (
     <>
       <div className="overflow-hidden rounded-card panel sm:hidden">
@@ -65,62 +75,71 @@ export function AdminLedgerTable({ rows }: { rows: AdminLedgerRow[] }) {
             </li>
           ))}
         </ul>
+        {footer}
       </div>
 
-      <div className="hidden overflow-x-auto rounded-card panel sm:block">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-hairline bg-surface-soft/60">
-            <tr>
-              <th scope="col" className={th}>
-                Time
-              </th>
-              <th scope="col" className={th}>
-                Event
-              </th>
-              <th scope="col" className={th}>
-                Account
-              </th>
-              <th scope="col" className={th}>
-                Owner
-              </th>
-              <th scope="col" className={th}>
-                Hire
-              </th>
-              <th scope="col" className={`${th} text-right`}>
-                Amount
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-hairline text-ink">
-            {rows.map((row) => (
-              <tr
-                key={row.id}
-                className="align-top hover:bg-surface-soft/60 motion-safe:transition-colors"
-              >
-                <td className="px-4 py-3 whitespace-nowrap text-muted">
-                  {formatDateTime(row.createdAt)}
-                </td>
-                <th scope="row" className="px-4 py-3 font-semibold">
-                  {words(row.eventType)}
-                  <span className="block text-[0.8125rem] font-normal text-muted">
-                    {row.actorName}
-                    {row.reason && `: “${row.reason}”`}
-                  </span>
+      <div className="hidden overflow-hidden rounded-card panel sm:block">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-hairline bg-surface-soft/60">
+              <tr>
+                <th scope="col" className={th}>
+                  Time
                 </th>
-                <td className="px-4 py-3">{words(row.account)}</td>
-                <td className="px-4 py-3">
-                  {row.ownerName ?? <span className="text-muted">None</span>}
-                </td>
-                <td className="px-4 py-3">
-                  <Hire id={row.engagementId} />
-                </td>
-                <td className="px-4 py-3 text-right whitespace-nowrap">
-                  <Amount kobo={row.amountKobo} />
-                </td>
+                <th scope="col" className={th}>
+                  Event
+                </th>
+                <th scope="col" className={th}>
+                  Account
+                </th>
+                <th scope="col" className={th}>
+                  Owner
+                </th>
+                <th scope="col" className={th}>
+                  Hire
+                </th>
+                <th scope="col" className={`${th} text-right`}>
+                  Amount
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-hairline text-ink">
+              {rows.map((row) => (
+                <tr
+                  key={row.id}
+                  className="align-top hover:bg-surface-soft/60 motion-safe:transition-colors"
+                >
+                  <td className="px-4 py-3 first:pl-5 last:pr-5 whitespace-nowrap text-muted">
+                    {formatDateTime(row.createdAt)}
+                  </td>
+                  <th
+                    scope="row"
+                    className="px-4 py-3 first:pl-5 last:pr-5 font-semibold"
+                  >
+                    {words(row.eventType)}
+                    <span className="block text-[0.8125rem] font-normal text-muted">
+                      {row.actorName}
+                      {row.reason && `: “${row.reason}”`}
+                    </span>
+                  </th>
+                  <td className="px-4 py-3 first:pl-5 last:pr-5">
+                    {words(row.account)}
+                  </td>
+                  <td className="px-4 py-3 first:pl-5 last:pr-5">
+                    {row.ownerName ?? <span className="text-muted">None</span>}
+                  </td>
+                  <td className="px-4 py-3 first:pl-5 last:pr-5">
+                    <Hire id={row.engagementId} />
+                  </td>
+                  <td className="px-4 py-3 first:pl-5 last:pr-5 text-right whitespace-nowrap">
+                    <Amount kobo={row.amountKobo} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {footer}
       </div>
     </>
   );

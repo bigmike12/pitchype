@@ -1,3 +1,6 @@
+import type { ReactNode } from "react";
+
+import { TABLE } from "@/components/ui/table";
 import { formatDateTime } from "@/lib/creator-profile";
 import { describeLedgerRow } from "@/lib/ledger-words";
 import { formatNaira } from "@/lib/money";
@@ -13,7 +16,7 @@ export type WalletLine = {
   releasedKobo?: number | null;
 };
 
-const th = "px-5 py-3 text-[0.8125rem] font-medium text-muted";
+const th = TABLE.th;
 
 function Amount({ line }: { line: ReturnType<typeof describeLedgerRow> }) {
   const into = line.direction === "in";
@@ -34,9 +37,16 @@ function Amount({ line }: { line: ReturnType<typeof describeLedgerRow> }) {
 /**
  * A person's wallet history: a table from 640px, a stacked list on phones
  * (same pattern as `CampaignTable`). Takes ledger rows as stored and turns
- * them into words and signs with `describeLedgerRow`.
+ * them into words and signs with `describeLedgerRow`. `footer` sits at the
+ * foot of the frame (a `<Pagination framed />`).
  */
-export function LedgerTable({ rows }: { rows: WalletLine[] }) {
+export function LedgerTable({
+  rows,
+  footer,
+}: {
+  rows: WalletLine[];
+  footer?: ReactNode;
+}) {
   const lines = rows.map((row) => ({ row, words: describeLedgerRow(row) }));
 
   return (
@@ -58,6 +68,7 @@ export function LedgerTable({ rows }: { rows: WalletLine[] }) {
             </li>
           ))}
         </ul>
+        {footer}
       </div>
 
       <div className="hidden overflow-hidden rounded-card panel sm:block">
@@ -81,10 +92,13 @@ export function LedgerTable({ rows }: { rows: WalletLine[] }) {
                 key={row.id}
                 className="hover:bg-surface-soft/60 motion-safe:transition-colors"
               >
-                <td className="px-5 py-4 whitespace-nowrap text-muted">
+                <td className="px-4 py-3 first:pl-5 last:pr-5 whitespace-nowrap text-muted">
                   {formatDateTime(row.createdAt)}
                 </td>
-                <th scope="row" className="px-5 py-4 font-semibold">
+                <th
+                  scope="row"
+                  className="px-4 py-3 first:pl-5 last:pr-5 font-semibold"
+                >
                   {words.label}
                   {words.detail && (
                     <span className="mt-0.5 block text-sm font-normal text-body">
@@ -92,13 +106,14 @@ export function LedgerTable({ rows }: { rows: WalletLine[] }) {
                     </span>
                   )}
                 </th>
-                <td className="px-5 py-4 text-right whitespace-nowrap">
+                <td className="px-4 py-3 first:pl-5 last:pr-5 text-right whitespace-nowrap">
                   <Amount line={words} />
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {footer}
       </div>
     </>
   );

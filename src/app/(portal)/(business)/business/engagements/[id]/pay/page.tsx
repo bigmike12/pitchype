@@ -71,7 +71,7 @@ async function Pay({ params }: { params: Params }) {
       <PageHeader
         title={waiting ? "Pay to start the job" : "This hire has ended"}
         crumbs={[
-          { href: "/business/campaigns", label: "Campaigns" },
+          { href: "/business/board", label: "Hiring board" },
           {
             href: `/business/campaigns/${engagement.campaign.id}`,
             label: engagement.campaign.title,

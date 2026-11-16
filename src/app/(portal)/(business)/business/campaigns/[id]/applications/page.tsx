@@ -12,7 +12,9 @@ import { PlatformSummary } from "@/components/creators/platform-list";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { PageHeader } from "@/components/ui/page-header";
+import { Pagination } from "@/components/ui/pagination";
 import {
   HeaderSkeleton,
   PageLoading,
@@ -28,8 +30,8 @@ import { getOwnCampaign } from "@/lib/db/campaigns";
 import { listNiches } from "@/lib/db/creators";
 import { applicationBucket, hireEndedUnpaid } from "@/lib/applications";
 import { formatNaira } from "@/lib/money";
+import { pageOf, pagedHref, parsePage } from "@/lib/paging";
 import { stateLabel, type NigerianState } from "@/lib/profile";
-import { cn } from "@/lib/utils";
 
 import { shortlistAction } from "./actions";
 import { ApproveButton, RejectForm } from "./decision-buttons";
@@ -45,6 +47,8 @@ const TABS = [
   { key: "closed", label: "Passed or withdrawn" },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
+
+const PAGE_SIZE = 10;
 
 // A hire that lapsed (or was cancelled before payment) is back under "To
 // decide": the place is open again, so it must not read as a filled one.
@@ -99,44 +103,37 @@ async function Applications({
   const tab: Tab = TABS.some((t) => t.key === requested)
     ? (requested as Tab)
     : "waiting";
-  const shown = applications.filter((a) => inTab(a, tab));
+  const shown = pageOf(
+    applications.filter((a) => inTab(a, tab)),
+    parsePage(query.page),
+    PAGE_SIZE,
+  );
+  const base = `/business/campaigns/${campaign.id}/applications`;
 
   return (
     <>
       <PageHeader
         title="Applications"
         crumbs={[
-          { href: "/business/campaigns", label: "Campaigns" },
+          { href: "/business/board", label: "Hiring board" },
           { href: `/business/campaigns/${campaign.id}`, label: campaign.title },
         ]}
         lead={`${campaign.places} ${campaign.places === 1 ? "place" : "places"} at ${formatNaira(campaign.priceKobo)} per creator.`}
       />
 
-      <nav
-        aria-label="Filter applications"
-        className="mb-6 flex flex-wrap gap-2"
-      >
-        {TABS.map((t) => {
-          const count = applications.filter((a) => inTab(a, t.key)).length;
-          return (
-            <Link
-              key={t.key}
-              href={`?tab=${t.key}`}
-              aria-current={t.key === tab ? "page" : undefined}
-              className={cn(
-                "inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold ring-1 ring-hairline",
-                t.key === tab
-                  ? "bg-ink text-white ring-ink"
-                  : "bg-white text-ink",
-              )}
-            >
-              {t.label} ({count})
-            </Link>
-          );
-        })}
-      </nav>
+      <FilterTabs
+        label="Filter applications"
+        current={tab}
+        className="mb-3"
+        tabs={TABS.map((t) => ({
+          key: t.key,
+          label: t.label,
+          count: applications.filter((a) => inTab(a, t.key)).length,
+          href: pagedHref(base, { tab: t.key }, 1),
+        }))}
+      />
 
-      {shown.length === 0 ? (
+      {shown.total === 0 ? (
         <EmptyState
           icon={ClipboardList}
           tone="lilac"
@@ -149,8 +146,8 @@ async function Applications({
             : "Try another tab."}
         </EmptyState>
       ) : (
-        <ul className="space-y-4">
-          {shown.map((a) => (
+        <ul className="space-y-3">
+          {shown.items.map((a) => (
             <ApplicationCard
               key={a.id}
               application={a}
@@ -162,6 +159,11 @@ async function Applications({
           ))}
         </ul>
       )}
+      <Pagination
+        {...shown}
+        noun={["application", "applications"]}
+        hrefFor={(page) => pagedHref(base, { tab }, page)}
+      />
     </>
   );
 }
@@ -183,7 +185,7 @@ function ApplicationCard({
   const canHire = decidable && !a.creator.suspended && !a.creator.blocked;
 
   return (
-    <li className="rounded-card panel p-5 sm:p-6">
+    <li className="rounded-card p-4 panel sm:p-5">
       <div className="flex gap-4">
         <CreatorPhoto
           name={a.creator.displayName}

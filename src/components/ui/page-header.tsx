@@ -20,7 +20,7 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="mb-8">
+    <header className="mb-6">
       {crumbs && crumbs.length > 0 && (
         <nav aria-label="Breadcrumb" className="mb-3 text-sm">
           <ol className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-muted">
@@ -46,7 +46,11 @@ export function PageHeader({
             <h1 className="min-w-0 text-display-page break-words">{title}</h1>
             {badge}
           </div>
-          {lead && <p className="mt-2 max-w-2xl text-lg">{lead}</p>}
+          {lead && (
+            <p className="mt-1.5 max-w-2xl text-[0.9375rem] text-muted">
+              {lead}
+            </p>
+          )}
         </div>
         {actions && (
           <div className="flex shrink-0 flex-wrap items-center gap-3">

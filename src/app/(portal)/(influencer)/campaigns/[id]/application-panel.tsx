@@ -94,7 +94,7 @@ export function ApplicationPanel({
   }
 
   return (
-    <section aria-label="Your application" className="mt-6 space-y-3">
+    <section aria-label="Your application" className="space-y-3">
       <Callout tone={view.tone} icon={view.icon} title={view.title}>
         {view.text}
       </Callout>

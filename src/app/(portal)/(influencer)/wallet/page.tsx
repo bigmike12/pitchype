@@ -6,6 +6,9 @@ import { Suspense } from "react";
 import { LedgerTable } from "@/components/money/ledger-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { Pagination } from "@/components/ui/pagination";
+import { SectionCard } from "@/components/ui/section-card";
+import { StatCard } from "@/components/ui/stat-card";
 import {
   FormSkeleton,
   HeaderSkeleton,
@@ -23,6 +26,7 @@ import {
 } from "@/lib/db/money";
 import { getMyBankAccount, listMyPayouts } from "@/lib/db/payouts";
 import { formatNaira } from "@/lib/money";
+import { pageOf, pagedHref, parsePage } from "@/lib/paging";
 import { PaystackError, listBanks } from "@/lib/paystack";
 import { describePayoutStatus } from "@/lib/payout-request";
 import { cn } from "@/lib/utils";
@@ -32,7 +36,16 @@ import { PayoutForm } from "./payout-form";
 
 export const metadata: Metadata = { title: "Wallet" };
 
-type SearchParams = Promise<{ bank?: string | string[] }>;
+type SearchParams = Promise<{
+  bank?: string | string[];
+  page?: string | string[];
+  payouts?: string | string[];
+}>;
+
+const HISTORY_PAGE_SIZE = 15;
+const PAYOUTS_PAGE_SIZE = 5;
+// The newest lines the history can page through.
+const HISTORY_ROWS = 200;
 
 export default function WalletPage({
   searchParams,
@@ -46,10 +59,7 @@ export default function WalletPage({
           <PageLoading label="Loading your wallet…">
             <HeaderSkeleton />
             <PanelSkeleton lines={2} />
-            <div className="mt-8">
-              <SectionTitleSkeleton />
-              <FormSkeleton fields={2} />
-            </div>
+            <FormSkeleton fields={2} className="mt-3" />
             <div className="mt-8">
               <SectionTitleSkeleton />
               <TableSkeleton rows={4} />
@@ -96,18 +106,31 @@ function StatementRow({
 
 async function WalletContent({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireRole("influencer");
-  const { bank } = await searchParams;
+  const { bank, page, payouts: payoutsPage } = await searchParams;
   // The balance is read with the secret-key client, so the id is the signed-in
   // person's, never anything from the request.
   const [balanceKobo, summary, ledger, bankAccount, payouts] =
     await Promise.all([
       getWalletBalance(user.id, "creator_wallet"),
       getCreatorWalletSummary(user.id),
-      listMyLedger(50),
+      listMyLedger(HISTORY_ROWS),
       getMyBankAccount(),
       listMyPayouts(),
     ]);
   const rows = ledger.filter((row) => row.account === "creator_wallet");
+  // Two lists page on their own: `page` is the history, `payouts` the payouts.
+  const history = pageOf(rows, parsePage(page), HISTORY_PAGE_SIZE);
+  const shownPayouts = pageOf(
+    payouts,
+    parsePage(payoutsPage),
+    PAYOUTS_PAGE_SIZE,
+  );
+  const walletHref = (historyPage: number, payoutPage: number) =>
+    pagedHref(
+      "/wallet",
+      { payouts: payoutPage > 1 ? String(payoutPage) : undefined },
+      historyPage,
+    );
 
   // The bank list is only fetched when the form is shown.
   const showBankForm = bankAccount === null || bank === "change";
@@ -126,47 +149,48 @@ async function WalletContent({ searchParams }: { searchParams: SearchParams }) {
     <>
       <PageHeader title="Wallet" />
 
-      <section
-        aria-labelledby="balance"
-        className="rounded-card panel p-5 sm:p-6"
-      >
-        <h2 id="balance" className="text-sm font-medium text-muted">
-          Your balance
-        </h2>
-        <p className="mt-1 text-display-md tabular-nums">
-          {formatNaira(balanceKobo)}
-        </p>
+      <div className="space-y-3">
+        <StatCard
+          emphasis
+          label="Your balance"
+          value={formatNaira(balanceKobo)}
+          detail="Ready to send to your bank"
+          icon={Wallet}
+          tone="lilac"
+        />
+
         {summary.earnedKobo > 0 && (
-          <dl className="mt-4 divide-y divide-hairline border-t border-hairline text-sm">
-            <StatementRow
-              label="Earned from jobs, before our fee"
-              kobo={summary.earnedKobo}
-            />
-            <StatementRow label="Our fee" kobo={-summary.feeKobo} />
-            {summary.payoutsKobo !== 0 && (
+          <SectionCard id="statement" title="How it adds up">
+            <dl className="divide-y divide-hairline px-4 text-sm sm:px-5">
               <StatementRow
-                label="Sent to your bank, or on its way"
-                kobo={-summary.payoutsKobo}
+                label="Earned from jobs, before our fee"
+                kobo={summary.earnedKobo}
               />
-            )}
-            {summary.otherKobo !== 0 && (
-              <StatementRow label="Adjustments" kobo={summary.otherKobo} />
-            )}
-            <StatementRow label="In your wallet now" kobo={balanceKobo} total />
-          </dl>
+              <StatementRow label="Our fee" kobo={-summary.feeKobo} />
+              {summary.payoutsKobo !== 0 && (
+                <StatementRow
+                  label="Sent to your bank, or on its way"
+                  kobo={-summary.payoutsKobo}
+                />
+              )}
+              {summary.otherKobo !== 0 && (
+                <StatementRow label="Adjustments" kobo={summary.otherKobo} />
+              )}
+              <StatementRow
+                label="In your wallet now"
+                kobo={balanceKobo}
+                total
+              />
+            </dl>
+          </SectionCard>
         )}
-        <p className="mt-3">
+        <p className="text-sm text-muted">
           Your earnings land here, less our fee, when a business accepts your
           work, or after 7 days if they don’t reply. Send them to your bank when
           you’re ready.
         </p>
-      </section>
 
-      <section aria-labelledby="bank" className="mt-8">
-        <h2 id="bank" className="mb-3 text-display-md">
-          Bank account
-        </h2>
-        <div className="rounded-card panel p-5 sm:p-6">
+        <SectionCard id="bank" title="Bank account" padded>
           {showBankForm ? (
             banksUnavailable ? (
               <div className="space-y-3">
@@ -203,59 +227,57 @@ async function WalletContent({ searchParams }: { searchParams: SearchParams }) {
               </Link>
             </div>
           )}
-        </div>
-      </section>
+        </SectionCard>
 
-      <section aria-labelledby="payout" className="mt-8">
-        <h2 id="payout" className="mb-3 text-display-md">
-          Ask for a payout
-        </h2>
-        <div className="rounded-card panel p-5 sm:p-6">
+        <SectionCard id="payout" title="Ask for a payout" padded>
           <PayoutForm
             balanceKobo={balanceKobo}
             hasBankAccount={bankAccount !== null}
           />
-        </div>
-      </section>
+        </SectionCard>
 
-      {payouts.length > 0 && (
-        <section aria-labelledby="payouts" className="mt-8">
-          <h2 id="payouts" className="mb-3 text-display-md">
-            Your payouts
-          </h2>
-          <ul className="divide-y divide-hairline rounded-card panel">
-            {payouts.map((payout) => {
-              const status = describePayoutStatus(payout);
-              return (
-                <li key={payout.id} className="p-4 sm:p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-ink tabular-nums">
-                        {formatNaira(payout.amountKobo)}
-                      </p>
-                      <p className="mt-0.5 text-sm text-muted">
-                        Transfer cost {formatNaira(payout.transferFeeKobo)} ·
-                        asked {formatDate(payout.createdAt)}
-                      </p>
+        {payouts.length > 0 && (
+          <SectionCard id="payouts" title="Your payouts">
+            <ul className="divide-y divide-hairline">
+              {shownPayouts.items.map((payout) => {
+                const status = describePayoutStatus(payout);
+                return (
+                  <li key={payout.id} className="px-4 py-3.5 sm:px-5">
+                    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-ink tabular-nums">
+                          {formatNaira(payout.amountKobo)}
+                        </p>
+                        <p className="mt-0.5 text-sm text-muted">
+                          Transfer cost {formatNaira(payout.transferFeeKobo)} ·
+                          asked {formatDate(payout.createdAt)}
+                        </p>
+                      </div>
+                      <span
+                        className={cn(
+                          "inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold",
+                          PILL_TONES[status.tone],
+                        )}
+                      >
+                        {status.label}
+                      </span>
                     </div>
-                    <span
-                      className={cn(
-                        "inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold",
-                        PILL_TONES[status.tone],
-                      )}
-                    >
-                      {status.label}
-                    </span>
-                  </div>
-                  {status.detail && (
-                    <p className="mt-2 text-sm">{status.detail}</p>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
+                    {status.detail && (
+                      <p className="mt-2 text-sm">{status.detail}</p>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <Pagination
+              framed
+              {...shownPayouts}
+              noun={["payout", "payouts"]}
+              hrefFor={(to) => `${walletHref(history.page, to)}#payouts`}
+            />
+          </SectionCard>
+        )}
+      </div>
 
       <h2 className="mt-8 mb-3 text-display-md">History</h2>
       {rows.length === 0 ? (
@@ -263,7 +285,17 @@ async function WalletContent({ searchParams }: { searchParams: SearchParams }) {
           Payments for your jobs and payouts will show up here.
         </EmptyState>
       ) : (
-        <LedgerTable rows={rows} />
+        <LedgerTable
+          rows={history.items}
+          footer={
+            <Pagination
+              framed
+              {...history}
+              noun={["line", "lines"]}
+              hrefFor={(to) => walletHref(to, shownPayouts.page)}
+            />
+          }
+        />
       )}
     </>
   );

@@ -10,6 +10,7 @@ import {
   parseCampaignForm,
   parseLiveEditForm,
   problemText,
+  campaignGroup,
 } from "./campaign.ts";
 
 const NICHES = [
@@ -275,4 +276,15 @@ test("dates in Lagos", () => {
   // 23:30 UTC on the 9th is already the 10th in Lagos (UTC+1).
   assert.equal(lagosToday(new Date("2026-11-09T23:30:00Z")), "2026-11-10");
   assert.equal(addDays("2026-12-30", 3), "2027-01-02");
+});
+
+test("every campaign status sits in one tab of the business's list", () => {
+  assert.equal(campaignGroup("draft"), "drafts");
+  assert.equal(campaignGroup("pending_review"), "drafts");
+  assert.equal(campaignGroup("open"), "live");
+  assert.equal(campaignGroup("paused"), "live");
+  assert.equal(campaignGroup("in_progress"), "live");
+  assert.equal(campaignGroup("closed"), "ended");
+  assert.equal(campaignGroup("completed"), "ended");
+  assert.equal(campaignGroup("cancelled"), "ended");
 });

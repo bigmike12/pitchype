@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 
 import { AdminLedgerTable } from "@/components/money/admin-ledger-table";
@@ -7,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { SelectField, TextField } from "@/components/ui/field";
 import { FilterBar, type ActiveFilter } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
+import { Pagination } from "@/components/ui/pagination";
 import {
   FiltersSkeleton,
   HeaderSkeleton,
@@ -14,6 +14,7 @@ import {
   TableSkeleton,
 } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth";
+import { pageCount } from "@/lib/paging";
 import { listLedger } from "@/lib/db/money";
 import {
   LEDGER_EVENTS,
@@ -82,7 +83,7 @@ async function Ledger({ searchParams }: { searchParams: SearchParams }) {
       offset: (n - 1) * PAGE_SIZE,
     });
   let page = await fetchPage(filter.page);
-  const pages = Math.max(1, Math.ceil(page.total / PAGE_SIZE));
+  const pages = pageCount(page.total, PAGE_SIZE);
   // A link to a page past the end shows the last page, not an empty one.
   if (filter.page > pages) {
     filter.page = pages;
@@ -154,21 +155,24 @@ async function Ledger({ searchParams }: { searchParams: SearchParams }) {
         label="Filter the ledger"
         submitLabel="Apply filters"
         active={active}
-        fieldsClassName="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+        fieldsClassName="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5"
       >
         <TextField
+          compact
           label="Hire (id)"
           name="engagement"
           autoComplete="off"
           defaultValue={filter.engagement ?? ""}
         />
         <TextField
+          compact
           label="Person (id)"
           name="person"
           autoComplete="off"
           defaultValue={filter.person ?? ""}
         />
         <SelectField
+          compact
           label="Event"
           name="event"
           placeholder="Any event"
@@ -176,12 +180,14 @@ async function Ledger({ searchParams }: { searchParams: SearchParams }) {
           defaultValue={filter.event ?? ""}
         />
         <TextField
+          compact
           label="From (Lagos day)"
           name="from"
           type="date"
           defaultValue={filter.from ?? ""}
         />
         <TextField
+          compact
           label="To (Lagos day)"
           name="to"
           type="date"
@@ -189,11 +195,7 @@ async function Ledger({ searchParams }: { searchParams: SearchParams }) {
         />
       </FilterBar>
 
-      <p className="mt-6 mb-3 text-sm text-muted" aria-live="polite">
-        {page.total} {page.total === 1 ? "line" : "lines"}
-        {page.total > 0 && `, page ${filter.page} of ${pages}`}
-      </p>
-
+      <div className="mt-6" />
       {page.total > EXPORT_LIMIT && (
         <p className="mb-3 text-sm text-ink">
           The CSV export holds the newest {EXPORT_LIMIT.toLocaleString("en-NG")}{" "}
@@ -206,27 +208,20 @@ async function Ledger({ searchParams }: { searchParams: SearchParams }) {
           No ledger lines match these filters.
         </p>
       ) : (
-        <AdminLedgerTable rows={page.rows} />
-      )}
-
-      {pages > 1 && (
-        <nav
-          aria-label="Ledger pages"
-          className="mt-6 flex items-center justify-between gap-3"
-        >
-          {filter.page > 1 ? (
-            <Button asChild variant="secondary">
-              <Link href={pageHref(filter.page - 1)}>Newer</Link>
-            </Button>
-          ) : (
-            <span />
-          )}
-          {filter.page < pages && (
-            <Button asChild variant="secondary">
-              <Link href={pageHref(filter.page + 1)}>Older</Link>
-            </Button>
-          )}
-        </nav>
+        <AdminLedgerTable
+          rows={page.rows}
+          footer={
+            <Pagination
+              framed
+              page={filter.page}
+              pages={pages}
+              total={page.total}
+              pageSize={PAGE_SIZE}
+              noun={["line", "lines"]}
+              hrefFor={pageHref}
+            />
+          }
+        />
       )}
     </>
   );

@@ -120,3 +120,63 @@ export function campaignCountsText(
     .join(" · ");
   return text || "None live";
 }
+
+/** One of a business's hires, as the home page needs it. */
+export type HireRow = {
+  id: string;
+  status: string;
+  agreedPriceKobo: number;
+  payBy: string;
+  campaignTitle: string;
+};
+
+export type HirePipeline = {
+  /** Unpaid and still inside their 48 hours, the most urgent first. */
+  toPay: HireRow[];
+  /** Paid for and not yet settled. */
+  inProgress: number;
+  /** What those hires hold in escrow: their agreed prices. */
+  escrowKobo: number;
+  /** Settled with a release to the creator. */
+  completed: number;
+};
+
+const HELD_IN_ESCROW = new Set([
+  "funded",
+  "in_progress",
+  "submitted",
+  "denied",
+  "disputed",
+]);
+const RELEASED = new Set(["accepted", "auto_released", "paid_out"]);
+
+/**
+ * Where a business's hires stand. The stored status of an unpaid hire can lag
+ * its deadline (CLAUDE.md §5), so one past `payBy` is left out of "to pay"
+ * here rather than shown as payable.
+ */
+export function hirePipeline(
+  hires: readonly HireRow[],
+  now: Date,
+): HirePipeline {
+  const toPay = hires
+    .filter(
+      (h) =>
+        h.status === "awaiting_payment" && Date.parse(h.payBy) > now.getTime(),
+    )
+    .sort((a, b) => Date.parse(a.payBy) - Date.parse(b.payBy));
+  const held = hires.filter((h) => HELD_IN_ESCROW.has(h.status));
+  return {
+    toPay,
+    inProgress: held.length,
+    escrowKobo: held.reduce((sum, h) => sum + h.agreedPriceKobo, 0),
+    completed: hires.filter((h) => RELEASED.has(h.status)).length,
+  };
+}
+
+/** A creator's paid jobs that are waiting for them to click "Start work". */
+export function jobsToStart<
+  T extends { engagement: { status: string } | null },
+>(applications: readonly T[]): T[] {
+  return applications.filter((a) => a.engagement?.status === "funded");
+}

@@ -13,10 +13,12 @@ import {
   type ActiveFilter,
 } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
+import { Pagination } from "@/components/ui/pagination";
 import { requireUser } from "@/lib/auth";
 import { PLATFORM_RULES, PLATFORMS, isPlatform } from "@/lib/creator-profile";
 import { CAMPAIGNS_PAGE_SIZE, listOpenCampaigns } from "@/lib/db/campaigns";
 import { listNiches } from "@/lib/db/creators";
+import { pageCount, pagedHref, parsePage } from "@/lib/paging";
 
 import { CampaignCard } from "./campaign-card";
 import {
@@ -66,11 +68,7 @@ async function Campaigns({ searchParams }: { searchParams: SearchParams }) {
   const platformParam = first(params.platform);
   const platform = isPlatform(platformParam) ? platformParam : undefined;
   const qualifiedOnly = first(params.qualified) === "1";
-  const pageParam = Number(first(params.page));
-  const page =
-    Number.isInteger(pageParam) && pageParam >= 1 && pageParam <= 1000
-      ? pageParam
-      : 1;
+  const page = parsePage(params.page);
 
   const { campaigns, total } = await listOpenCampaigns({
     niche,
@@ -79,16 +77,7 @@ async function Campaigns({ searchParams }: { searchParams: SearchParams }) {
     page,
   });
   const nicheName = new Map(niches.map((n) => [n.slug, n.name]));
-  const pages = Math.max(1, Math.ceil(total / CAMPAIGNS_PAGE_SIZE));
-  const query = (to: number) => {
-    const q = new URLSearchParams();
-    if (niche) q.set("niche", niche);
-    if (platform) q.set("platform", platform);
-    if (qualifiedOnly) q.set("qualified", "1");
-    if (to > 1) q.set("page", String(to));
-    const s = q.toString();
-    return s ? `/campaigns?${s}` : "/campaigns";
-  };
+  const pages = pageCount(total, CAMPAIGNS_PAGE_SIZE);
 
   const current = {
     niche,
@@ -132,7 +121,7 @@ async function Campaigns({ searchParams }: { searchParams: SearchParams }) {
         label="Filter campaigns"
         submitLabel="Show campaigns"
         active={active}
-        fieldsClassName="grid sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+        fieldsClassName="grid sm:grid-cols-2 lg:grid-cols-[minmax(0,14rem)_minmax(0,14rem)_auto] lg:justify-start"
       >
         <SelectField
           compact
@@ -154,27 +143,27 @@ async function Campaigns({ searchParams }: { searchParams: SearchParams }) {
           defaultValue={platform ?? ""}
         />
         {user.role === "influencer" && (
-          <label className="flex h-11 cursor-pointer items-center gap-2.5 self-end rounded-control border border-field bg-surface px-3.5 text-[0.9375rem] text-ink shadow-[0_1px_2px_rgb(14_14_16/0.04)] has-[:checked]:border-ink has-[:checked]:bg-surface-soft sm:col-span-2 lg:col-span-1">
+          <label className="flex h-11 cursor-pointer items-center gap-2.5 self-end rounded-control border border-field bg-surface px-3.5 text-base text-ink shadow-[0_1px_2px_rgb(14_14_16/0.04)] has-[:checked]:border-ink has-[:checked]:bg-surface-soft sm:col-span-2 lg:col-span-1 lg:h-9 lg:text-sm">
             <input
               type="checkbox"
               name="qualified"
               value="1"
               defaultChecked={qualifiedOnly}
-              className="size-4.5 accent-ink"
+              className="size-4 accent-ink"
             />
             Only campaigns I qualify for
           </label>
         )}
       </FilterBar>
 
-      <section aria-labelledby="results-title" className="mt-10">
+      <section aria-labelledby="results-title" className="mt-6">
         <h2 id="results-title" className="sr-only">
           Results
         </h2>
         <p
           role="status"
           // With no results the empty state says it; keep this for screen readers.
-          className={total === 0 ? "sr-only" : "font-semibold text-ink"}
+          className={total === 0 ? "sr-only" : "text-sm font-semibold text-ink"}
         >
           {total === 0
             ? "No open campaigns match."
@@ -202,7 +191,7 @@ async function Campaigns({ searchParams }: { searchParams: SearchParams }) {
             </EmptyState>
           </div>
         ) : (
-          <ul className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {campaigns.map((campaign) => (
               <li key={campaign.id} className="grid">
                 <CampaignCard
@@ -215,34 +204,14 @@ async function Campaigns({ searchParams }: { searchParams: SearchParams }) {
             ))}
           </ul>
         )}
-        {pages > 1 && (
-          <nav
-            aria-label="Pages"
-            className="mt-10 flex flex-wrap items-center gap-4"
-          >
-            {page > 1 && (
-              <Link
-                href={query(page - 1)}
-                rel="prev"
-                className={buttonVariants({ variant: "secondary" })}
-              >
-                Previous
-              </Link>
-            )}
-            <p className="text-sm text-muted">
-              Page {page} of {pages}
-            </p>
-            {page < pages && (
-              <Link
-                href={query(page + 1)}
-                rel="next"
-                className={buttonVariants({ variant: "secondary" })}
-              >
-                Next
-              </Link>
-            )}
-          </nav>
-        )}
+        <Pagination
+          page={page}
+          pages={pages}
+          total={total}
+          pageSize={CAMPAIGNS_PAGE_SIZE}
+          noun={["campaign", "campaigns"]}
+          hrefFor={(to) => pagedHref("/campaigns", current, to)}
+        />
       </section>
     </>
   );

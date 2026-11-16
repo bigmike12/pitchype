@@ -125,7 +125,7 @@ async function PaymentReturn({
       <PageHeader
         title="Payment"
         crumbs={[
-          { href: "/business/campaigns", label: "Campaigns" },
+          { href: "/business/board", label: "Hiring board" },
           {
             href: `/business/campaigns/${engagement.campaign.id}`,
             label: engagement.campaign.title,

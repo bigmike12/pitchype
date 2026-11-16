@@ -28,11 +28,12 @@ export function filterHref(
 }
 
 /**
- * The toolbar above a list of campaigns or creators. A plain GET form, so it
- * works without JavaScript and every filtered view is a URL people can
- * share. Under the fields, a footer holds the active filters as chips (each
- * one a link that drops just that filter) and the submit button.
- * `fieldsClassName` is the grid the fields sit in.
+ * The toolbar above a list: one slim white card with the fields in a row and
+ * the submit button at its end; filters that are on show underneath as chips
+ * (each one a link that drops just that filter) beside "Clear all". A plain
+ * GET form, so it works without JavaScript and every filtered view is a URL
+ * people can share. Give the fields `compact`. `fieldsClassName` is the grid
+ * the fields sit in.
  */
 export function FilterBar({
   action,
@@ -55,44 +56,26 @@ export function FilterBar({
       method="get"
       action={action}
       aria-label={label}
-      className="overflow-hidden rounded-card panel"
+      className="rounded-card p-3 panel sm:p-4"
     >
-      <div className="flex min-h-12 items-center justify-between gap-3 border-b border-hairline px-4 sm:px-5">
-        <p className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <SlidersHorizontal
-            aria-hidden="true"
-            className="size-4 text-brand-violet"
-          />
-          Filters
-          {active.length > 0 && (
-            <span className="rounded-full bg-brand-lilac px-2 py-0.5 text-xs font-semibold">
-              {active.length}
-              <span className="sr-only"> on</span>
-            </span>
-          )}
-        </p>
-        {active.length > 0 && (
-          <Link
-            href={action}
-            className="link inline-flex min-h-11 items-center text-sm font-medium"
-          >
-            Clear all
-          </Link>
-        )}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+        <div className={cn("min-w-0 flex-1 gap-3", fieldsClassName)}>
+          {children}
+        </div>
+        <Button type="submit" size="sm" className="w-full shrink-0 lg:w-auto">
+          <SlidersHorizontal aria-hidden="true" />
+          {submitLabel}
+        </Button>
       </div>
 
-      <div className={cn("gap-x-4 gap-y-4 p-4 sm:p-5", fieldsClassName)}>
-        {children}
-      </div>
-
-      <div className="flex flex-col gap-3 border-t border-hairline bg-surface-soft/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-        {active.length > 0 && (
-          <ul aria-label="Active filters" className="flex flex-wrap gap-2">
+      {active.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-hairline pt-3">
+          <ul aria-label="Active filters" className="contents">
             {active.map((filter) => (
               <li key={filter.label}>
                 <Link
                   href={filter.href}
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-white px-3.5 text-sm shadow-card ring-1 ring-hairline-strong hover:ring-ink sm:min-h-9 motion-safe:transition-shadow"
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-surface-soft px-3 text-[0.8125rem] ring-1 ring-hairline hover:ring-ink lg:min-h-8 motion-safe:transition-shadow"
                 >
                   <span className="text-muted">{filter.label}</span>
                   <span className="font-medium text-ink">{filter.value}</span>
@@ -102,11 +85,14 @@ export function FilterBar({
               </li>
             ))}
           </ul>
-        )}
-        <Button type="submit" className="w-full sm:ml-auto sm:w-auto">
-          {submitLabel}
-        </Button>
-      </div>
+          <Link
+            href={action}
+            className="link ml-auto inline-flex min-h-11 items-center text-[0.8125rem] font-medium lg:min-h-8"
+          >
+            Clear all
+          </Link>
+        </div>
+      )}
     </form>
   );
 }

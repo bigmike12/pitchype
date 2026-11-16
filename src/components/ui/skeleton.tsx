@@ -62,7 +62,7 @@ export function HeaderSkeleton({
   lead?: boolean;
 }) {
   return (
-    <div className="mb-8">
+    <div className="mb-6">
       {crumbs && <Skeleton className="mb-4 h-4 w-40" />}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
@@ -127,15 +127,12 @@ export function FormSkeleton({
 /** The filters toolbar above a directory or campaign list. */
 export function FiltersSkeleton() {
   return (
-    <div className="overflow-hidden rounded-card panel">
-      <div className="flex min-h-12 items-center border-b border-hairline px-4 sm:px-5">
-        <Skeleton className="h-4 w-20" />
-      </div>
-      <div className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4 sm:p-5">
+    <div className="rounded-card p-3 panel sm:p-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {Array.from({ length: 4 }, (_, field) => (
           <div key={field}>
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="mt-1.5 h-11 w-full rounded-control" />
+            <Skeleton className="h-3.5 w-16" />
+            <Skeleton className="mt-1.5 h-11 w-full rounded-control lg:h-9" />
           </div>
         ))}
       </div>
@@ -252,5 +249,35 @@ export function TableSkeleton({ rows = 4 }: { rows?: number }) {
         </div>
       </div>
     </>
+  );
+}
+
+/** Stands in for a board: five columns from 1024px, one on phones. */
+export function BoardSkeleton() {
+  return (
+    <div className="grid gap-3 lg:grid-cols-5">
+      {[2, 1, 1, 2, 1].map((cards, column) => (
+        <div
+          key={column}
+          className={
+            column === 0
+              ? "space-y-2 rounded-card bg-canvas p-2.5"
+              : "space-y-2 rounded-card bg-canvas p-2.5 max-lg:hidden"
+          }
+        >
+          <Skeleton className="mb-3 h-4 w-24" />
+          {Array.from({ length: cards }, (_, card) => (
+            <div key={card} className="space-y-2 rounded-xl p-3 panel">
+              <div className="flex items-center gap-2.5">
+                <Skeleton className="size-9 rounded-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-9 w-full rounded-control" />
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
   );
 }

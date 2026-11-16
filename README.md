@@ -256,7 +256,7 @@ users need Resend before sign-up works for them.
    - "Reset password": subject `Reset your Pitchype password`, body =
      `supabase/templates/recovery.html`.
 5. **Supabase → Authentication → URL configuration:** Site URL
-   `https://www.pitchype.com`. Under Redirect URLs, add any other address the
+   `https://pitchype.com`. Under Redirect URLs, add any other address the
    app runs on (for example a Vercel preview domain); email links only point
    at addresses listed here.
 6. **Supabase → Authentication → Sign in / Providers → Email:** "Confirm email"
@@ -364,7 +364,7 @@ the concurrent cases.
 
 **After deploying** (test mode first, live when the legal review is done): in
 the Paystack dashboard set the webhook URL to
-`https://www.pitchype.com/api/webhooks/paystack` and receive
+`https://pitchype.com/api/webhooks/paystack` and receive
 `charge.success`, `transfer.success`, `transfer.failed` and `transfer.reversed`.
 For live payouts, switch off OTP confirmation for transfers there. Set
 `PAYSTACK_SECRET_KEY` and `CRON_SECRET` in Vercel. Real webhook delivery is

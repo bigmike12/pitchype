@@ -3,7 +3,10 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { AdminLedgerTable } from "@/components/money/admin-ledger-table";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { PageHeader } from "@/components/ui/page-header";
+import { Pagination } from "@/components/ui/pagination";
+import { SectionCard } from "@/components/ui/section-card";
 import {
   HeaderSkeleton,
   PageLoading,
@@ -19,6 +22,7 @@ import {
   type PayoutForReview,
 } from "@/lib/db/payouts";
 import { formatNaira } from "@/lib/money";
+import { pageOf, pagedHref, parsePage } from "@/lib/paging";
 import { adminPayoutStatus } from "@/lib/payout-request";
 
 import { CheckPayout } from "../check-payout";
@@ -26,7 +30,13 @@ import { PayoutDecision } from "../payout-decision";
 
 export const metadata: Metadata = { title: "Payouts" };
 
-export default function PayoutsPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default function PayoutsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   return (
     <div className="max-w-4xl">
       <Suspense
@@ -45,41 +55,53 @@ export default function PayoutsPage() {
           </PageLoading>
         }
       >
-        <Payouts />
+        <Payouts searchParams={searchParams} />
       </Suspense>
     </div>
   );
 }
 
-// How many waiting payouts also get the creator's recent wallet lines inline;
-// the rest link to the ledger, so one page never makes dozens of lookups.
-const WITH_HISTORY = 25;
 const RECENT_LINES = 5;
-const DECIDED_SHOWN = 100;
+// The most decided payouts the data layer returns at once.
+const DECIDED_KEPT = 200;
+const WAITING_PAGE_SIZE = 5;
+const DECIDED_PAGE_SIZE = 15;
 
 const destination = (p: PayoutForReview) =>
   `${p.bankName} ••••${p.last4} · ${p.accountName}`;
 
-async function Payouts() {
+async function Payouts({ searchParams }: { searchParams: SearchParams }) {
   await requireRole("admin");
   // Two queries, so a long history can never push a waiting payout out of the
   // queue: every waiting one is listed, oldest request first.
-  const [waiting, decided] = await Promise.all([
+  const [allWaiting, allDecided, query] = await Promise.all([
     listPayoutsAwaitingApproval(),
-    listRecentDecidedPayouts(DECIDED_SHOWN),
+    listRecentDecidedPayouts(DECIDED_KEPT),
+    searchParams,
   ]);
+  const requested = Array.isArray(query.show) ? query.show[0] : query.show;
+  const show = requested === "decided" ? "decided" : "waiting";
+  const page = parsePage(query.page);
+  const waiting = pageOf(allWaiting, page, WAITING_PAGE_SIZE);
+  const decided = pageOf(allDecided, page, DECIDED_PAGE_SIZE);
 
-  const history = await Promise.all(
-    waiting.slice(0, WITH_HISTORY).map(async (p) => {
-      const page = await listLedger({ person: p.creatorId, limit: 30 });
-      return page.rows
-        .filter(
-          (r) =>
-            r.account === "creator_wallet" && r.ownerUserId === p.creatorId,
+  // Recent wallet lines for the waiting payouts on this page only, so one
+  // page never makes dozens of lookups.
+  const history =
+    show === "waiting"
+      ? await Promise.all(
+          waiting.items.map(async (p) => {
+            const lines = await listLedger({ person: p.creatorId, limit: 30 });
+            return lines.rows
+              .filter(
+                (r) =>
+                  r.account === "creator_wallet" &&
+                  r.ownerUserId === p.creatorId,
+              )
+              .slice(0, RECENT_LINES);
+          }),
         )
-        .slice(0, RECENT_LINES);
-    }),
-  );
+      : [];
 
   return (
     <>
@@ -89,113 +111,146 @@ async function Payouts() {
         lead="Check the bank account and the creator’s recent wallet activity, then approve or reject. Approving sends the money. A payout still waiting for the bank can be checked with Paystack."
       />
 
-      <section aria-labelledby="waiting-title">
-        <h2 id="waiting-title" className="text-display-md">
-          Waiting for approval ({waiting.length})
-        </h2>
-        {waiting.length === 0 ? (
-          <p className="mt-4 text-muted">Nothing waiting.</p>
-        ) : (
-          <ul className="mt-5 space-y-4">
-            {waiting.map((p, index) => (
-              <li key={p.id} className="rounded-card panel p-4 sm:p-5">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                  <div className="min-w-0">
-                    <p className="font-semibold break-words text-ink">
-                      {p.creatorName || "Creator"}
-                    </p>
-                    <p className="text-sm break-words text-muted">
-                      {destination(p)}
+      <FilterTabs
+        label="Which payouts"
+        current={show}
+        className="mb-3"
+        tabs={[
+          {
+            key: "waiting",
+            label: "Waiting for approval",
+            count: allWaiting.length,
+            href: "/admin/money/payouts",
+          },
+          {
+            key: "decided",
+            label: "Decided",
+            count: allDecided.length,
+            href: "/admin/money/payouts?show=decided",
+          },
+        ]}
+      />
+
+      {show === "waiting" ? (
+        <section aria-label="Waiting for approval">
+          {waiting.total === 0 ? (
+            <p className="rounded-card p-4 text-sm text-muted panel sm:px-5">
+              Nothing waiting.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {waiting.items.map((p, index) => (
+                <li key={p.id} className="rounded-card panel p-4 sm:p-5">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                    <div className="min-w-0">
+                      <p className="font-semibold break-words text-ink">
+                        {p.creatorName || "Creator"}
+                      </p>
+                      <p className="text-sm break-words text-muted">
+                        {destination(p)}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-sm text-muted">
+                      Asked {formatDateTime(p.createdAt)}
                     </p>
                   </div>
-                  <p className="shrink-0 text-sm text-muted">
-                    Asked {formatDateTime(p.createdAt)}
-                  </p>
-                </div>
 
-                <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <Figure label="Taken from wallet" kobo={p.amountKobo} />
-                  <Figure label="Transfer cost" kobo={p.transferFeeKobo} />
-                  <Figure
-                    label="Amount sent"
-                    kobo={p.amountKobo - p.transferFeeKobo}
-                    strong
-                  />
-                </dl>
+                  <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <Figure label="Taken from wallet" kobo={p.amountKobo} />
+                    <Figure label="Transfer cost" kobo={p.transferFeeKobo} />
+                    <Figure
+                      label="Amount sent"
+                      kobo={p.amountKobo - p.transferFeeKobo}
+                      strong
+                    />
+                  </dl>
 
-                <div className="mt-5">
-                  <h3 className="mb-2 text-sm font-semibold text-ink">
-                    Recent wallet activity
-                  </h3>
-                  {index < WITH_HISTORY ? (
-                    history[index] && history[index].length > 0 ? (
+                  <div className="mt-5">
+                    <h3 className="mb-2 text-sm font-semibold text-ink">
+                      Recent wallet activity
+                    </h3>
+                    {history[index] && history[index].length > 0 ? (
                       <AdminLedgerTable rows={history[index]} />
                     ) : (
                       <p className="text-sm text-muted">No wallet activity.</p>
-                    )
-                  ) : null}
-                  <Link
-                    href={`/admin/money/ledger?person=${p.creatorId}`}
-                    className="link mt-2 inline-flex min-h-11 items-center text-sm font-semibold"
-                  >
-                    Everything for this creator in the ledger
-                  </Link>
-                </div>
+                    )}
+                    <Link
+                      href={`/admin/money/ledger?person=${p.creatorId}`}
+                      className="link mt-2 inline-flex min-h-11 items-center text-sm font-semibold"
+                    >
+                      Everything for this creator in the ledger
+                    </Link>
+                  </div>
 
-                <div className="mt-4 border-t border-hairline pt-4">
-                  <PayoutDecision payoutId={p.id} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section aria-labelledby="decided-title" className="mt-12">
-        <h2 id="decided-title" className="text-display-md">
-          Decided
-        </h2>
-        {decided.length === 0 ? (
-          <p className="mt-4 text-muted">No payouts decided yet.</p>
-        ) : (
-          <ul className="mt-5 divide-y divide-hairline rounded-card panel">
-            {decided.map((p) => (
-              <li key={p.id} className="p-4 sm:p-5">
-                <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:gap-4">
-                  <p className="font-semibold break-words text-ink">
-                    {p.creatorName || "Creator"}
-                    <span className="font-normal text-muted">
-                      {" "}
-                      · {formatNaira(p.amountKobo - p.transferFeeKobo)} sent
-                    </span>
+                  <div className="mt-4 border-t border-hairline pt-4">
+                    <PayoutDecision payoutId={p.id} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Pagination
+            {...waiting}
+            noun={["payout", "payouts"]}
+            hrefFor={(to) => pagedHref("/admin/money/payouts", {}, to)}
+          />
+        </section>
+      ) : (
+        <SectionCard id="decided-title" title="Decided payouts">
+          {decided.total === 0 ? (
+            <p className="px-4 py-4 text-sm text-muted sm:px-5">
+              No payouts decided yet.
+            </p>
+          ) : (
+            <ul className="divide-y divide-hairline">
+              {decided.items.map((p) => (
+                <li key={p.id} className="p-4 sm:p-5">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:gap-4">
+                    <p className="font-semibold break-words text-ink">
+                      {p.creatorName || "Creator"}
+                      <span className="font-normal text-muted">
+                        {" "}
+                        · {formatNaira(p.amountKobo - p.transferFeeKobo)} sent
+                      </span>
+                    </p>
+                    <p className="shrink-0 font-medium text-ink">
+                      {adminPayoutStatus(p.status)}
+                    </p>
+                  </div>
+                  <p className="text-sm break-words text-muted">
+                    {destination(p)}
                   </p>
-                  <p className="shrink-0 font-medium text-ink">
-                    {adminPayoutStatus(p.status)}
+                  <p className="mt-1 text-sm text-muted">
+                    Asked {formatDateTime(p.createdAt)}
+                    {p.approvedAt &&
+                      `, decided ${formatDateTime(p.approvedAt)}`}
+                    {p.approvedById &&
+                      ` by admin ${p.approvedById.slice(0, 8)}`}
+                    {p.paidAt && `, paid ${formatDateTime(p.paidAt)}`}
                   </p>
-                </div>
-                <p className="text-sm break-words text-muted">
-                  {destination(p)}
-                </p>
-                <p className="mt-1 text-sm text-muted">
-                  Asked {formatDateTime(p.createdAt)}
-                  {p.approvedAt && `, decided ${formatDateTime(p.approvedAt)}`}
-                  {p.approvedById && ` by admin ${p.approvedById.slice(0, 8)}`}
-                  {p.paidAt && `, paid ${formatDateTime(p.paidAt)}`}
-                </p>
-                {p.decisionReason && (
-                  <p className="mt-1 text-sm break-words text-ink">
-                    “{p.decisionReason}”
-                  </p>
-                )}
-                <CheckPayout
-                  payoutId={p.id}
-                  processing={p.status === "processing"}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+                  {p.decisionReason && (
+                    <p className="mt-1 text-sm break-words text-ink">
+                      “{p.decisionReason}”
+                    </p>
+                  )}
+                  <CheckPayout
+                    payoutId={p.id}
+                    processing={p.status === "processing"}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+          <Pagination
+            framed
+            {...decided}
+            noun={["payout", "payouts"]}
+            hrefFor={(to) =>
+              pagedHref("/admin/money/payouts", { show: "decided" }, to)
+            }
+          />
+        </SectionCard>
+      )}
     </>
   );
 }
