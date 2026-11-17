@@ -132,7 +132,7 @@ notes). `[Stage 7: the exact proof rules will be added once built.]`
 6.3 The business then has **7 days** to review. It can:
 - **accept**, which releases escrow to the creator (less the creator fee); or
 - **deny**, which needs one or more written reasons the creator can see. The
-  creator can resubmit `[maximum rounds: to be decided]` or ask us to resolve
+  creator can resubmit at most 3 times or ask us to resolve
   the matter.
 
 6.4 **Automatic release.** If the business does not accept or deny within 7
@@ -169,8 +169,11 @@ confirm]`.
 7.4 **Disputes.** Either person can ask us to resolve a disagreement about an
 engagement. Both must give us what we ask for, and we may talk to both. Our
 decision is one of: release in full, refund in full, or a split by amount,
-with the reason given in writing to both. `[Who decides, timelines, evidence
-rules, appeal: to be decided in Stage 7.]` Our decision is final on how the
+with the reason given in writing to both. An admin decides. We ask the other
+person to respond within 3 days of a dispute being opened, and aim to decide
+within 5 working days of it opening; these are targets, not guarantees, and
+nothing is released or refunded by itself while a dispute is open. `[Counsel:
+evidence rules and appeal.]` Our decision is final on how the
 escrowed money is paid out, and does not stop either person going to court
 over the underlying contract.
 
