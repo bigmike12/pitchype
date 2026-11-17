@@ -387,6 +387,8 @@ Deferred from Stage 7:
       (the denial time is lost). Keep the denial time if it ever matters.
 - [ ] A dispute can be opened, withdrawn and reopened repeatedly; this is
       only rate-limited (5 opens a day), not capped per hire.
+- [ ] The business hire page lists the pending round twice (under "Work to
+      review" and "All rounds of work") when there is more than one round.
 - [ ] `/admin/money/escrow` shows an exact count of hires holding escrow but
       no total held across them.
 - [ ] A proof object can be orphaned for good if its storage delete fails

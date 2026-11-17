@@ -126,8 +126,8 @@ business's wallet or future payments `[counsel to confirm]`.
 “started” when the creator presses **Start work** on a paid engagement, after
 a confirmation.
 
-6.2 When finished, the creator submits proof (links, screenshots, files,
-notes). `[Stage 7: the exact proof rules will be added once built.]`
+6.2 When finished, the creator submits proof: 1 to 10 links, up to 5
+screenshots and a short note, with at least one link or one screenshot.
 
 6.3 The business then has **7 days** to review. It can:
 - **accept**, which releases escrow to the creator (less the creator fee); or
@@ -173,7 +173,10 @@ with the reason given in writing to both. An admin decides. We ask the other
 person to respond within 3 days of a dispute being opened, and aim to decide
 within 5 working days of it opening; these are targets, not guarantees, and
 nothing is released or refunded by itself while a dispute is open. `[Counsel:
-evidence rules and appeal.]` Our decision is final on how the
+evidence rules and appeal. A dispute can be opened only after the business has denied
+the work, or by the business when the creator has not delivered, which is
+allowed once a week has passed since the start and the campaign's deliver-by
+date has gone.]` Our decision is final on how the
 escrowed money is paid out, and does not stop either person going to court
 over the underlying contract.
 
