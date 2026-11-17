@@ -23,14 +23,21 @@ export function DisputeForm({ engagementId }: { engagementId: string }) {
     { status: "idle" },
   );
   const [preparing, setPreparing] = useState(false);
+  // Pictures too big to send in one request: caught here, before any upload.
+  const [pictureError, setPictureError] = useState<string>();
 
   async function send(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
+    setPictureError(undefined);
     setPreparing(true);
-    const data = await formDataWithShrunkScreenshots(form);
+    const prepared = await formDataWithShrunkScreenshots(form);
     setPreparing(false);
-    startTransition(() => formAction(data));
+    if (!prepared.ok) {
+      setPictureError(prepared.message);
+      return;
+    }
+    startTransition(() => formAction(prepared.data));
   }
 
   return (
@@ -60,7 +67,14 @@ export function DisputeForm({ engagementId }: { engagementId: string }) {
           hint={`${MIN_DISPUTE_REASON_LENGTH} to ${MAX_DISPUTE_REASON_LENGTH.toLocaleString("en-NG")} characters.`}
           error={state.errors?.reason}
         />
-        <ProofFields idPrefix="dispute" linksOptional errors={state.errors} />
+        <ProofFields
+          idPrefix="dispute"
+          linksOptional
+          errors={{
+            ...state.errors,
+            screenshots: pictureError ?? state.errors?.screenshots,
+          }}
+        />
         <FormMessage status={state.status} message={state.message} />
         <Button type="submit" disabled={pending || preparing}>
           {preparing ? "Preparing…" : pending ? "Opening…" : "Open a dispute"}

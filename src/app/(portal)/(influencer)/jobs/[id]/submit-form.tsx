@@ -38,14 +38,21 @@ export function SubmitForm({
     { status: "idle" },
   );
   const [preparing, setPreparing] = useState(false);
+  // Pictures too big to send in one request: caught here, before any upload.
+  const [pictureError, setPictureError] = useState<string>();
 
   async function send(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
+    setPictureError(undefined);
     setPreparing(true);
-    const data = await formDataWithShrunkScreenshots(form);
+    const prepared = await formDataWithShrunkScreenshots(form);
     setPreparing(false);
-    startTransition(() => formAction(data));
+    if (!prepared.ok) {
+      setPictureError(prepared.message);
+      return;
+    }
+    startTransition(() => formAction(prepared.data));
   }
 
   return (
@@ -75,7 +82,13 @@ export function SubmitForm({
         />
       </div>
 
-      <ProofFields idPrefix="submit" errors={state.errors} />
+      <ProofFields
+        idPrefix="submit"
+        errors={{
+          ...state.errors,
+          screenshots: pictureError ?? state.errors?.screenshots,
+        }}
+      />
       <TextAreaField
         id="submit-note"
         name="note"

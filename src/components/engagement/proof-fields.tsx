@@ -12,17 +12,27 @@ import {
   TextAreaField,
 } from "@/components/ui/field";
 import { MAX_PROOF_FILES, MAX_PROOF_LINKS } from "@/lib/proof";
+import {
+  fitsRequestBudget,
+  TOO_BIG_TOGETHER_MESSAGE,
+} from "@/lib/proof-budget";
 
-// Big enough to read a post's caption in a screenshot, small enough that five
-// of them stay well under the host's request limit.
-const MAX_EDGE = 2000;
-const JPEG_QUALITY = 0.8;
+// First pass: big enough to read a post's caption in a screenshot. If the
+// pictures together are still over the request budget (busy photographs),
+// one more pass at a smaller size and quality; then give up with a message.
+const PASSES = [
+  { maxEdge: 2000, quality: 0.8 },
+  { maxEdge: 1400, quality: 0.7 },
+];
 
 /** Shrinks one picture; a file the browser can't decode goes up unchanged. */
-async function shrinkScreenshot(file: File): Promise<Blob> {
+async function shrinkScreenshot(
+  file: File,
+  { maxEdge, quality }: { maxEdge: number; quality: number },
+): Promise<Blob> {
   try {
     const bitmap = await createImageBitmap(file); // applies EXIF rotation
-    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(bitmap.width * scale);
     canvas.height = Math.round(bitmap.height * scale);
@@ -37,7 +47,7 @@ async function shrinkScreenshot(file: File): Promise<Blob> {
       canvas.toBlob(
         (blob) => (blob ? resolve(blob) : reject(new Error("no blob"))),
         "image/jpeg",
-        JPEG_QUALITY,
+        quality,
       ),
     );
   } catch {
@@ -46,27 +56,38 @@ async function shrinkScreenshot(file: File): Promise<Blob> {
 }
 
 /**
- * The form's data with every `screenshot` file shrunk, in the order chosen.
- * Forms call this from their submit handler and pass the result to their
- * action.
+ * The form's data with every `screenshot` file shrunk, in the order chosen,
+ * or a message when the pictures can't be made to fit in one request (the
+ * form is then left as it is). Forms call this from their submit handler and
+ * pass the data to their action.
  */
 export async function formDataWithShrunkScreenshots(
   form: HTMLFormElement,
-): Promise<FormData> {
+): Promise<{ ok: true; data: FormData } | { ok: false; message: string }> {
   const data = new FormData(form);
   const files = data
     .getAll("screenshot")
     .filter((entry): entry is File => entry instanceof File && entry.size > 0);
-  data.delete("screenshot");
-  for (const [index, file] of files.entries()) {
-    const shrunk = await shrinkScreenshot(file);
-    data.append(
-      "screenshot",
-      shrunk,
-      shrunk === file ? file.name : `screenshot-${index + 1}.jpg`,
-    );
+  if (files.length === 0) return { ok: true, data };
+
+  for (const pass of PASSES) {
+    const shrunk: Blob[] = [];
+    for (const file of files) shrunk.push(await shrinkScreenshot(file, pass));
+    // An undecodable file went through unchanged and counts at full size.
+    if (!fitsRequestBudget(shrunk.map((blob) => blob.size))) continue;
+
+    data.delete("screenshot");
+    for (const [index, blob] of shrunk.entries()) {
+      const file = files[index];
+      data.append(
+        "screenshot",
+        blob,
+        blob === file ? file.name : `screenshot-${index + 1}.jpg`,
+      );
+    }
+    return { ok: true, data };
   }
-  return data;
+  return { ok: false, message: TOO_BIG_TOGETHER_MESSAGE };
 }
 
 export function ProofFields({
@@ -114,7 +135,7 @@ export function ProofFields({
         />
         <FieldMessages
           id={shotsId}
-          hint={`Up to ${MAX_PROOF_FILES} pictures: JPEG, PNG or WebP. We shrink them and remove location data.`}
+          hint={`Choose all your screenshots at once, up to ${MAX_PROOF_FILES}: JPEG, PNG or WebP. We shrink them and remove location data.`}
           error={errors?.screenshots}
         />
       </div>
