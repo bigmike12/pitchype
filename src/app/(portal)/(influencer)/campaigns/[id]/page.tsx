@@ -19,7 +19,12 @@ import { Callout } from "@/components/ui/callout";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
 import { requireUser } from "@/lib/auth";
-import { creatorReceivesKobo, formatDay, problemText } from "@/lib/campaign";
+import {
+  creatorReceivesKobo,
+  formatDay,
+  placesStatus,
+  problemText,
+} from "@/lib/campaign";
 import { formatDate } from "@/lib/creator-profile";
 import { listMyApplications } from "@/lib/db/applications";
 import { getCampaign } from "@/lib/db/campaigns";
@@ -77,6 +82,11 @@ async function Campaign({ params }: { params: Params }) {
   const nicheName = new Map(niches.map((n) => [n.slug, n.name]));
   const nicheNames = campaign.niches.flatMap((s) => nicheName.get(s) ?? []);
   const qualifies = campaign.problems.length === 0;
+  // Only once somebody has been hired; before that it is just the number wanted.
+  const places =
+    campaign.placesTaken !== null && campaign.placesTaken > 0
+      ? placesStatus(campaign.places, campaign.placesTaken)
+      : null;
 
   return (
     <>
@@ -123,11 +133,16 @@ async function Campaign({ params }: { params: Params }) {
             <div>
               <dt className="flex items-center gap-1.5 text-sm text-muted">
                 <Users className="size-4" aria-hidden="true" />
-                Creators
+                {places ? "Places left" : "Creators"}
               </dt>
               <dd className="mt-1 font-display text-[1.75rem] leading-none font-semibold tracking-[-0.03em] text-ink tabular-nums">
-                {campaign.places}
+                {places ? places.left : campaign.places}
               </dd>
+              {places && (
+                <dd className="mt-1.5 text-[0.8125rem] text-muted">
+                  of {campaign.places}
+                </dd>
+              )}
             </div>
             <div>
               <dt className="flex items-center gap-1.5 text-sm text-muted">
@@ -143,6 +158,15 @@ async function Campaign({ params }: { params: Params }) {
           {isCreator &&
             (application ? (
               <ApplicationPanel application={application} />
+            ) : places?.left === 0 ? (
+              <Callout
+                tone="info"
+                icon={CircleAlert}
+                title="All places are filled"
+              >
+                The business has hired every creator it needed for this
+                campaign, so it isn’t taking more applications.
+              </Callout>
             ) : qualifies && campaign.priceKobo !== null ? (
               <section
                 aria-labelledby="apply-title"

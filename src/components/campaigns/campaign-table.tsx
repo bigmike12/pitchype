@@ -4,20 +4,32 @@ import type { ReactNode } from "react";
 
 import { TABLE } from "@/components/ui/table";
 
-import { formatDay } from "@/lib/campaign";
+import { formatDay, placesStatus } from "@/lib/campaign";
+import type { CampaignCounts } from "@/lib/db/applications";
 import type { OwnCampaignSummary } from "@/lib/db/campaigns";
 import { formatNaira } from "@/lib/money";
 
 import { StatusPill } from "./campaign-facts";
 
-type Counts = Map<string, { total: number; waiting: number }>;
+type Counts = Map<string, CampaignCounts>;
+
+/**
+ * "1 of 3 filled" with what is still needed, once a campaign can have hires.
+ * Without counts, or before it is live, it is just the number of places.
+ */
+function placesFor(c: OwnCampaignSummary, counts?: Counts) {
+  if (!counts || c.status === "draft" || c.status === "pending_review") {
+    return null;
+  }
+  return placesStatus(c.places, counts.get(c.id)?.taken ?? 0);
+}
 
 /**
  * "3 to decide" (a pill) and "5 total", linking to the campaign's
  * applications. Sits above the row's own link so it stays clickable.
  */
 function ApplicationsLink({ id, counts }: { id: string; counts: Counts }) {
-  const count = counts.get(id) ?? { total: 0, waiting: 0 };
+  const count = counts.get(id) ?? { total: 0, waiting: 0, taken: 0 };
   if (count.total === 0) return <span className="text-muted">None yet</span>;
   return (
     <Link
@@ -77,8 +89,9 @@ export function CampaignTable({
               <p className="mt-1 text-sm text-muted">
                 {c.priceKobo !== null &&
                   `${formatNaira(c.priceKobo)} per creator · `}
-                {c.places} {c.places === 1 ? "place" : "places"} · closes{" "}
-                {formatDay(c.applicationsCloseOn)}
+                {placesFor(c, counts)?.filled ??
+                  `${c.places} ${c.places === 1 ? "place" : "places"}`}{" "}
+                · closes {formatDay(c.applicationsCloseOn)}
               </p>
               {counts && (
                 <p className="mt-2 text-sm">
@@ -146,8 +159,17 @@ export function CampaignTable({
                 <td className="px-4 py-3 first:pl-5 text-right whitespace-nowrap tabular-nums">
                   {c.priceKobo !== null ? formatNaira(c.priceKobo) : "—"}
                 </td>
-                <td className="px-4 py-3 first:pl-5 text-right tabular-nums">
-                  {c.places}
+                <td className="px-4 py-3 first:pl-5 text-right whitespace-nowrap tabular-nums">
+                  {placesFor(c, counts) ? (
+                    <>
+                      {placesFor(c, counts)?.filled}
+                      <span className="block text-xs text-muted">
+                        {placesFor(c, counts)?.needed}
+                      </span>
+                    </>
+                  ) : (
+                    c.places
+                  )}
                 </td>
                 {counts && (
                   <td className="px-4 py-3 first:pl-5 whitespace-nowrap">

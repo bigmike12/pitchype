@@ -5,7 +5,11 @@
 // create_applications migration). Reads come from functions too, because
 // they join profiles the caller can't read directly.
 
-import type { ApplicationInput, ApplicationStatus } from "@/lib/applications";
+import {
+  holdsPlace,
+  type ApplicationInput,
+  type ApplicationStatus,
+} from "@/lib/applications";
 import type { Deliverable, DeliverableKind } from "@/lib/campaign";
 import { isPlatform, type PlatformListing } from "@/lib/creator-profile";
 import { profilePhotoUrl } from "@/lib/storage";
@@ -293,17 +297,49 @@ export async function listMyApplications(): Promise<MyApplication[]> {
   });
 }
 
-/** Application counts for the signed-in business's campaigns. */
+export type CampaignCounts = {
+  total: number;
+  waiting: number;
+  /** Places held by hires (see `holdsPlace`). */
+  taken: number;
+};
+
+/**
+ * Application counts and places taken for the signed-in business's
+ * campaigns. Places come from its hires, read under RLS (a business sees only
+ * its own).
+ */
 export async function getApplicationCounts(): Promise<
-  Map<string, { total: number; waiting: number }>
+  Map<string, CampaignCounts>
 > {
   const supabase = await createSessionClient();
-  const { data, error } = await supabase.rpc("campaign_application_counts");
-  if (error) throw new Error(`application counts failed (${error.code})`);
+  const [counts, hires] = await Promise.all([
+    supabase.rpc("campaign_application_counts"),
+    supabase
+      .from("engagements")
+      .select("campaign_id, status, pay_by")
+      .not("status", "in", "(cancelled,refunded)"),
+  ]);
+  if (counts.error) {
+    throw new Error(`application counts failed (${counts.error.code})`);
+  }
+  if (hires.error)
+    throw new Error(`places lookup failed (${hires.error.code})`);
+
+  const now = Date.now();
+  const taken = new Map<string, number>();
+  for (const hire of hires.data) {
+    if (!holdsPlace({ status: hire.status, payBy: hire.pay_by }, now)) continue;
+    taken.set(hire.campaign_id, (taken.get(hire.campaign_id) ?? 0) + 1);
+  }
   return new Map(
-    data.map((row) => [
+    counts.data.map((row) => [
       row.campaign_id,
-      { total: row.total, waiting: row.waiting },
+      {
+        total: row.total,
+        waiting: row.waiting,
+        taken: taken.get(row.campaign_id) ?? 0,
+      },
     ]),
   );
 }

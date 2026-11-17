@@ -5,6 +5,12 @@
 // unit-tested.
 
 import { hireEndedUnpaid } from "./applications.ts";
+import {
+  FOLLOWER_RANGE_LABELS,
+  PLATFORM_RULES,
+  type FollowerRange,
+  type PlatformListing,
+} from "./creator-profile.ts";
 
 type BoardApplication = {
   status: string;
@@ -149,4 +155,49 @@ export function matchesBoardFilter(
 /** One entry per person, in the order each first appears on the board. */
 export function uniquePeople<T extends { id: string }>(people: T[]): T[] {
   return [...new Map(people.map((person) => [person.id, person])).values()];
+}
+
+// The bottom of each self-reported range, to tell which platform is biggest.
+const RANGE_FLOOR: Record<FollowerRange, number> = {
+  "1k_5k": 1_000,
+  "5k_10k": 5_000,
+  "10k_50k": 10_000,
+  "50k_100k": 50_000,
+  "100k_plus": 100_000,
+};
+
+const size = (p: PlatformListing) =>
+  p.verifiedFollowerCount ??
+  (p.followerRange ? RANGE_FLOOR[p.followerRange] : 0);
+
+/** 12400 → "12.4K", for the tight space on cards. */
+const compact = (count: number) =>
+  new Intl.NumberFormat("en-NG", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(count);
+
+/**
+ * The one line under a creator's name on a hiring card, like the landing
+ * page's: "Food and drinks · Instagram · 5K–10K". It names their first niche
+ * and their biggest platform, with its verified count or self-reported range.
+ */
+export function creatorDetailLine(
+  platforms: PlatformListing[],
+  nicheNames: string[],
+): string {
+  const top = platforms.reduce<PlatformListing | null>(
+    (best, p) => (best === null || size(p) > size(best) ? p : best),
+    null,
+  );
+  const followers = !top
+    ? null
+    : top.verified && top.verifiedFollowerCount !== null
+      ? compact(top.verifiedFollowerCount)
+      : top.followerRange
+        ? FOLLOWER_RANGE_LABELS[top.followerRange]
+        : null;
+  return [nicheNames[0], top && PLATFORM_RULES[top.platform].label, followers]
+    .filter(Boolean)
+    .join(" · ");
 }

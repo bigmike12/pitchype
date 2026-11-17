@@ -23,12 +23,14 @@ import {
 import { requireRole } from "@/lib/auth";
 import { formatDate } from "@/lib/creator-profile";
 import {
+  getApplicationCounts,
   listCampaignApplications,
   type CampaignApplication,
 } from "@/lib/db/applications";
 import { getOwnCampaign } from "@/lib/db/campaigns";
 import { listNiches } from "@/lib/db/creators";
 import { applicationBucket, hireEndedUnpaid } from "@/lib/applications";
+import { placesStatus } from "@/lib/campaign";
 import { formatNaira } from "@/lib/money";
 import { pageOf, pagedHref, parsePage } from "@/lib/paging";
 import { stateLabel, type NigerianState } from "@/lib/profile";
@@ -92,11 +94,16 @@ async function Applications({
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const campaign = await getOwnCampaign(user.id, id);
   if (!campaign) notFound();
-  const [applications, niches] = await Promise.all([
+  const [applications, niches, counts] = await Promise.all([
     listCampaignApplications(campaign.id),
     listNiches(),
+    getApplicationCounts(),
   ]);
   if (!applications) notFound();
+  const places = placesStatus(
+    campaign.places,
+    counts.get(campaign.id)?.taken ?? 0,
+  );
 
   const nicheName = new Map(niches.map((n) => [n.slug, n.name]));
   const requested = Array.isArray(query.tab) ? query.tab[0] : query.tab;
@@ -118,7 +125,7 @@ async function Applications({
           { href: "/business/board", label: "Hiring board" },
           { href: `/business/campaigns/${campaign.id}`, label: campaign.title },
         ]}
-        lead={`${campaign.places} ${campaign.places === 1 ? "place" : "places"} at ${formatNaira(campaign.priceKobo)} per creator.`}
+        lead={`${campaign.places} ${campaign.places === 1 ? "place" : "places"} at ${formatNaira(campaign.priceKobo)} per creator. ${places.filled}${places.left > 0 ? `, ${places.needed}` : ""}.`}
       />
 
       <FilterTabs

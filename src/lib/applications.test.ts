@@ -5,6 +5,7 @@ import {
   applicationBucket,
   hireEndedUnpaid,
   parseApplicationForm,
+  holdsPlace,
 } from "./applications.ts";
 
 function form(fields: Record<string, string>): FormData {
@@ -109,4 +110,31 @@ test("a hire that ended unpaid goes back to the business's to-decide list, not u
   // Passed over or withdrawn.
   assert.equal(applicationBucket({ status: "rejected", engagement: null }), "closed");
   assert.equal(applicationBucket({ status: "withdrawn", engagement: null }), "closed");
+});
+
+test("a hire holds a place unless it was cancelled, refunded or has lapsed unpaid", () => {
+  const now = Date.parse("2026-11-17T12:00:00Z");
+  const later = "2026-11-18T12:00:00Z";
+  const earlier = "2026-11-17T11:00:00Z";
+  for (const status of [
+    "funded",
+    "in_progress",
+    "submitted",
+    "denied",
+    "disputed",
+    "accepted",
+  ]) {
+    assert.equal(holdsPlace({ status, payBy: earlier }, now), true, status);
+  }
+  assert.equal(
+    holdsPlace({ status: "awaiting_payment", payBy: later }, now),
+    true,
+  );
+  // Past its pay-by time, the place is free even if the database hasn't said so yet.
+  assert.equal(
+    holdsPlace({ status: "awaiting_payment", payBy: earlier }, now),
+    false,
+  );
+  assert.equal(holdsPlace({ status: "cancelled", payBy: later }, now), false);
+  assert.equal(holdsPlace({ status: "refunded", payBy: later }, now), false);
 });

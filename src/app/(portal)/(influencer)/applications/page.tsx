@@ -4,11 +4,15 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { BoardToolbar } from "@/components/board/board-toolbar";
+import { CreatorPhoto } from "@/components/creators/creator-photo";
 import {
   Board,
   BoardCard,
+  BoardCardAmount,
+  BoardCardHeader,
   BoardColumn,
   BoardTabs,
+  type PillTone,
 } from "@/components/ui/board";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -36,7 +40,6 @@ import { listMyApplications, type MyApplication } from "@/lib/db/applications";
 import { INFLUENCER_FEE_BPS, MIN_FEE_KOBO, creatorFee } from "@/lib/fees";
 import { formatNaira } from "@/lib/money";
 import { parseSearch } from "@/lib/search";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Your work" };
 
@@ -265,6 +268,27 @@ function closedLabel(a: MyApplication): string {
   return APPLICATION_STATUS_LABELS[a.status];
 }
 
+// The pill on each card, except "applied", which shows the application's own
+// status. Everything paid for is held by Pitchype until it is released.
+const STAGES: Record<
+  Exclude<CreatorColumn, "closed" | "applied">,
+  { pill: string; tone: PillTone }
+> = {
+  hired: { pill: "Awaiting payment", tone: "sun" },
+  ready: { pill: "Held by Pitchype", tone: "mint" },
+  in_progress: { pill: "Held by Pitchype", tone: "mint" },
+  to_review: { pill: "Held by Pitchype", tone: "mint" },
+  changes: { pill: "Held by Pitchype", tone: "mint" },
+  disputed: { pill: "Held by Pitchype", tone: "mint" },
+  paid: { pill: "Paid", tone: "mint" },
+};
+
+/**
+ * One application on "Your work", laid out like the landing page's card: the
+ * business's initial, the campaign title and who is hiring, then the pay with
+ * a pill for where it stands, then what matters in this column and its
+ * button.
+ */
 function WorkCard({
   application: a,
   column,
@@ -278,14 +302,32 @@ function WorkCard({
   const priceKobo =
     e?.agreedPriceKobo ?? a.proposedPriceKobo ?? a.campaign.priceKobo;
   const jobHref = e ? `/jobs/${e.id}` : null;
+  const stage =
+    column === "applied"
+      ? {
+          pill: APPLICATION_STATUS_LABELS[a.status],
+          tone:
+            a.status === "shortlisted"
+              ? ("lilac" as const)
+              : ("neutral" as const),
+        }
+      : STAGES[column];
 
   return (
     // Only a paid job can be dragged: dropping it on "In progress" opens the
     // job, where starting work is confirmed.
     <BoardCard draggable={column === "ready"}>
-      <div className="pr-5">
-        <h3 className="font-semibold text-ink">
-          {column === "applied" && viewable ? (
+      <BoardCardHeader
+        avatar={
+          <CreatorPhoto
+            name={a.campaign.businessName}
+            url={null}
+            sizes="36px"
+            className="size-9 shrink-0 rounded-full"
+          />
+        }
+        title={
+          column === "applied" && viewable ? (
             <Link
               href={`/campaigns/${a.campaign.id}`}
               className="underline-offset-4 hover:underline"
@@ -294,31 +336,16 @@ function WorkCard({
             </Link>
           ) : (
             a.campaign.title
-          )}
-        </h3>
-        <p className="truncate text-xs text-muted">{a.campaign.businessName}</p>
-      </div>
+          )
+        }
+        detail={a.campaign.businessName}
+      />
 
-      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
-        <span className="font-semibold text-ink tabular-nums">
-          {formatNaira(column === "paid" && e ? netKobo(e) : priceKobo)}
-        </span>
-        {column === "applied" && (
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-xs font-semibold text-ink",
-              a.status === "shortlisted" ? "bg-brand-lilac" : "bg-surface-card",
-            )}
-          >
-            {APPLICATION_STATUS_LABELS[a.status]}
-          </span>
-        )}
-        {column !== "applied" && column !== "hired" && column !== "paid" && (
-          <span className="rounded-full bg-brand-mint px-2 py-0.5 text-xs font-semibold whitespace-nowrap text-ink">
-            Held by Pitchype
-          </span>
-        )}
-      </div>
+      <BoardCardAmount
+        amount={formatNaira(column === "paid" && e ? netKobo(e) : priceKobo)}
+        pill={stage.pill}
+        tone={stage.tone}
+      />
 
       <p className="text-xs text-muted">{detail(a, column)}</p>
       {column === "applied" && a.briefEditedAt && (

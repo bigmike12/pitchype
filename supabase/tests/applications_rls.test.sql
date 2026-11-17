@@ -6,7 +6,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(54);
+select plan(55);
 
 -- Ada and Bola are businesses; Chidi, Dayo and Gbenga are listed creators;
 -- Femi is a creator with an unpublished profile; Efe is an admin.
@@ -145,6 +145,9 @@ select throws_ok($$ select public.apply_to_campaign('c5000000-0000-0000-0000-000
 select is((select count(*)::integer from public.list_open_campaigns()
             where campaign ->> 'id' = 'c5000000-0000-0000-0000-000000000001'), 0,
   'and it is no longer listed');
+select is((public.get_campaign('c5000000-0000-0000-0000-000000000001') ->> 'places_taken')::integer,
+          (public.get_campaign('c5000000-0000-0000-0000-000000000001') ->> 'places')::integer,
+  'but its page tells creators every place is taken');
 
 set local request.jwt.claims = '{"sub": "eeeeeeee-0000-0000-0000-000000000003"}'; -- Chidi
 select throws_ok($$
