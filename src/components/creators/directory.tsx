@@ -107,9 +107,11 @@ export async function Directory({
                   )
                 }
               >
-                {filtered
-                  ? "Try fewer filters: a wider follower range or any state."
-                  : "The first creators are setting up their profiles. Check back soon."}
+                {filters.search
+                  ? "Try other words, or fewer filters."
+                  : filtered
+                    ? "Try fewer filters: a wider follower range or any state."
+                    : "The first creators are setting up their profiles. Check back soon."}
               </EmptyState>
             </div>
           ) : (

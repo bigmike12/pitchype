@@ -123,7 +123,7 @@ async function Campaign({ params }: { params: Params }) {
             <div>
               <dt className="flex items-center gap-1.5 text-sm text-muted">
                 <Users className="size-4" aria-hidden="true" />
-                Places
+                Creators
               </dt>
               <dd className="mt-1 font-display text-[1.75rem] leading-none font-semibold tracking-[-0.03em] text-ink tabular-nums">
                 {campaign.places}

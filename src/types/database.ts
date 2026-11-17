@@ -1760,6 +1760,7 @@ export type Database = {
           page_offset?: number
           page_size?: number
           qualified_only?: boolean
+          search?: string
         }
         Returns: {
           campaign: Json
@@ -1920,6 +1921,7 @@ export type Database = {
           on_platform?: Database["public"]["Enums"]["social_platform"]
           page_offset?: number
           page_size?: number
+          search?: string
         }
         Returns: {
           city: string
@@ -1934,6 +1936,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      search_pattern: { Args: { words: string }; Returns: string }
       send_message: {
         Args: { body: string; conversation: string; dedupe: string }
         Returns: Json

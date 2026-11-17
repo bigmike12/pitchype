@@ -1,4 +1,6 @@
-import { SelectField } from "@/components/ui/field";
+import { Search } from "lucide-react";
+
+import { SelectField, TextField } from "@/components/ui/field";
 import {
   FilterBar,
   filterHref,
@@ -14,6 +16,7 @@ import {
 import type { Niche } from "@/lib/db/creators";
 import { formatNaira, KOBO_PER_NAIRA } from "@/lib/money";
 import { NIGERIAN_STATES, stateLabel } from "@/lib/profile";
+import { SEARCH_MAX } from "@/lib/search";
 
 /**
  * A plain GET form: works without JavaScript, and every filtered view has a
@@ -35,6 +38,7 @@ export function DirectoryFilters({
 }) {
   // Each chip links to this page without its own filter.
   const params = {
+    q: filters.search,
     niche: filters.niche,
     platform: filters.platform,
     followers: filters.minFollowers,
@@ -45,6 +49,13 @@ export function DirectoryFilters({
     filterHref(basePath, { ...params, [key]: undefined });
 
   const active: ActiveFilter[] = [];
+  if (filters.search) {
+    active.push({
+      label: "Search",
+      value: `“${filters.search}”`,
+      href: without("q"),
+    });
+  }
   if (filters.niche) {
     active.push({
       label: "Niche",
@@ -90,10 +101,21 @@ export function DirectoryFilters({
       active={active}
       fieldsClassName={
         showRateFilter
-          ? "grid grid-cols-2 lg:grid-cols-5"
-          : "grid grid-cols-2 lg:grid-cols-4"
+          ? "grid grid-cols-2 lg:grid-cols-[minmax(0,1.5fr)_repeat(5,minmax(0,1fr))]"
+          : "grid grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_repeat(4,minmax(0,1fr))]"
       }
     >
+      <TextField
+        compact
+        type="search"
+        label="Search"
+        name="q"
+        icon={Search}
+        placeholder="Name, place or niche"
+        maxLength={SEARCH_MAX}
+        defaultValue={filters.search ?? ""}
+        className="col-span-2 lg:col-span-1"
+      />
       <SelectField
         compact
         label="Niche"
@@ -101,7 +123,6 @@ export function DirectoryFilters({
         placeholder="Any niche"
         options={niches.map((n) => ({ value: n.slug, label: n.name }))}
         defaultValue={filters.niche ?? ""}
-        className="col-span-2 sm:col-span-1"
       />
       <SelectField
         compact
@@ -135,7 +156,7 @@ export function DirectoryFilters({
           label: stateLabel(s),
         }))}
         defaultValue={filters.state ?? ""}
-        className={showRateFilter ? undefined : "col-span-2 sm:col-span-1"}
+        className={showRateFilter ? undefined : "max-lg:col-span-2"}
       />
       {showRateFilter && (
         <SelectField

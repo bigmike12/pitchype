@@ -5,7 +5,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(55);
+select plan(59);
 
 -- Setup, as the database owner ----------------------------------------------------
 -- Ada and Bola are businesses; Chidi and Dayo are listed creators; Efe is an admin.
@@ -208,6 +208,21 @@ select is(
   (select count(*)::int from public.list_open_campaigns(qualified_only => true, page_size => 50)
     where campaign ->> 'business_name' = 'Brightside Juice Test'),
   1, 'creators can list only the campaigns they qualify for');
+select is(
+  (select array_agg(campaign ->> 'title') from public.list_open_campaigns(search => 'zobo LAUNCH', page_size => 50)
+    where campaign ->> 'business_name' = 'Brightside Juice Test'),
+  array['Zobo launch reels'], 'creators can search campaigns by title');
+select ok(
+  (select count(*) from public.list_open_campaigns(search => 'brightside juice test', page_size => 50)
+    where campaign ->> 'business_name' = 'Brightside Juice Test') >= 2,
+  'creators can search campaigns by business name');
+select is(
+  (select count(*)::int from public.list_open_campaigns(search => 'no such campaign words', page_size => 50)),
+  0, 'a search that matches nothing lists nothing');
+select is(
+  (select count(*)::int from public.list_open_campaigns(search => '_', page_size => 50)
+    where campaign ->> 'business_name' = 'Brightside Juice Test'),
+  0, 'a typed _ is a character, not a wildcard');
 select ok(
   (public.get_campaign((select (campaign ->> 'id')::uuid from public.list_open_campaigns(page_size => 50)
                           where campaign ->> 'title' = 'Zobo launch reels')) ->> 'revised_at') is not null,

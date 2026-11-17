@@ -83,6 +83,7 @@ export async function searchCreators(
       : undefined,
     page_size: DIRECTORY_PAGE_SIZE,
     page_offset: (filters.page - 1) * DIRECTORY_PAGE_SIZE,
+    search: filters.search,
   });
   if (error) throw new Error(`creator search failed (${error.code})`);
 

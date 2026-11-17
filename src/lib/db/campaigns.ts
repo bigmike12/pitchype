@@ -289,6 +289,8 @@ export type CampaignDetail = CampaignListing & {
 export const CAMPAIGNS_PAGE_SIZE = 24;
 
 export async function listOpenCampaigns(filters: {
+  /** Words to find in the title, the brief or the business's name. */
+  search?: string;
   niche?: string;
   platform?: Platform;
   qualifiedOnly: boolean;
@@ -301,6 +303,7 @@ export async function listOpenCampaigns(filters: {
     qualified_only: filters.qualifiedOnly,
     page_size: CAMPAIGNS_PAGE_SIZE,
     page_offset: (filters.page - 1) * CAMPAIGNS_PAGE_SIZE,
+    search: filters.search,
   });
   if (error) throw new Error(`campaign list failed (${error.code})`);
   return {

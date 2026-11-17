@@ -26,8 +26,8 @@ export function controlClasses({
     controlClass,
     compact && "h-11 lg:h-9 lg:text-sm",
     error ? "border-danger" : "border-field",
-    icon ? "pl-11" : compact ? "pl-3.5" : "pl-4",
-    trailing ? (compact ? "pr-9" : "pr-14") : compact ? "pr-3.5" : "pr-4",
+    icon ? (compact ? "pl-9" : "pl-11") : compact ? "pl-3" : "pl-4",
+    trailing ? (compact ? "pr-8" : "pr-14") : compact ? "pr-3.5" : "pr-4",
   );
 }
 
@@ -68,11 +68,20 @@ export function FieldLabel({
   );
 }
 
-export function FieldIcon({ icon: Icon }: { icon: LucideIcon }) {
+export function FieldIcon({
+  icon: Icon,
+  compact,
+}: {
+  icon: LucideIcon;
+  compact?: boolean;
+}) {
   return (
     <Icon
       aria-hidden="true"
-      className="pointer-events-none absolute top-1/2 left-4 size-[1.125rem] -translate-y-1/2 text-muted"
+      className={cn(
+        "pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted",
+        compact ? "left-3 size-4" : "left-4 size-[1.125rem]",
+      )}
     />
   );
 }
@@ -137,7 +146,7 @@ export function TextField({
         {label}
       </FieldLabel>
       <div className={compact ? "relative mt-1.5" : "relative mt-2"}>
-        {icon && <FieldIcon icon={icon} />}
+        {icon && <FieldIcon icon={icon} compact={compact} />}
         <input
           id={id}
           name={name}
@@ -211,7 +220,7 @@ export function SelectField({
           aria-hidden="true"
           className={cn(
             "pointer-events-none absolute top-1/2 -translate-y-1/2",
-            compact ? "right-3 size-4 text-muted" : "right-4 size-5 text-ink",
+            compact ? "right-2.5 size-4 text-muted" : "right-4 size-5 text-ink",
           )}
         />
       </div>

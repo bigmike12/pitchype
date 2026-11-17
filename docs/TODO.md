@@ -456,8 +456,23 @@ Portal rebuild (2026-11-16, the dashboard-kit look):
       the admin ledger already page in the database.
 - [ ] The admin overview and `/admin/money` read whole queues only to count
       them. Replace with count queries if the admin pages get slow.
-- [ ] The public `/creators` page shares `FilterBar`, so its filters changed
-      look too. Checked only inside the portal; look at the public page.
+- [x] Search and new cards (2026-11-16): a search box on Find creators
+      (name, city, state, niche) and on a creator's campaign list (title, brief,
+      business), and redesigned creator and campaign cards. Migration
+      `20261116100000_search_text.sql` is applied locally only; pgTAP tests
+      added to `creator_directory_rls` and `campaigns_rls`.
+- [ ] Push `20261116100000_search_text.sql` to the hosted project with the
+      other unpushed migrations. Until then the hosted app's creator and
+      campaign lists fail, because the app now passes `search`.
+- [ ] Search is a plain substring match (`ILIKE`) with no index. Fine for
+      hundreds of rows; add a trigram index (`pg_trgm`) if the lists get slow.
+- [x] Landing page (2026-11-16): the hero illustration now draws the
+      rebuilt portal (grouped sidebar, figures, the hiring board) instead of
+      the old campaign screen. Seen at 1440px, 820px and 390px. The public
+      `/creators` page's new filter toolbar was seen at 1440px too.
+- [ ] The landing page's other sections still describe the product without
+      the hiring board (How it works, the feature tiles). Decide whether the
+      board deserves its own tile or step.
 - [x] The pages not looked at before (2026-11-16): the live-campaign edit
       form, account standing, the inbox thread (one card: messages over the
       composer), the admin page (queue counts, one titled card per queue) and

@@ -11,6 +11,7 @@ import {
   parseProfileForm,
   type NigerianState,
 } from "./profile.ts";
+import { parseSearch } from "./search.ts";
 
 // Platforms --------------------------------------------------------------------
 
@@ -457,6 +458,8 @@ export function publishProblems(profile: {
 export const DIRECTORY_PAGE_SIZE = 24;
 
 export type DirectoryFilters = {
+  /** Words to find in a creator's name, city or niches. */
+  search?: string;
   niche?: string;
   platform?: Platform;
   minFollowers?: FollowerRange;
@@ -488,6 +491,7 @@ export function parseDirectoryFilters(
   const page = Number(first(params.page));
 
   return {
+    search: parseSearch(params.q),
     niche: nicheSlugs.includes(niche) ? niche : undefined,
     platform: isPlatform(platform) ? platform : undefined,
     minFollowers: isFollowerRange(minFollowers) ? minFollowers : undefined,
@@ -504,6 +508,7 @@ export function parseDirectoryFilters(
 /** The URL query for a set of filters, e.g. for the next page's link. */
 export function directoryQuery(filters: DirectoryFilters): string {
   const query = new URLSearchParams();
+  if (filters.search) query.set("q", filters.search);
   if (filters.niche) query.set("niche", filters.niche);
   if (filters.platform) query.set("platform", filters.platform);
   if (filters.minFollowers) query.set("followers", filters.minFollowers);
@@ -516,6 +521,7 @@ export function directoryQuery(filters: DirectoryFilters): string {
 
 export function hasActiveFilters(filters: DirectoryFilters): boolean {
   return Boolean(
+    filters.search ||
     filters.niche ||
     filters.platform ||
     filters.minFollowers ||

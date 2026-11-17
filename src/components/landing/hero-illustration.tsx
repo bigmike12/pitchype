@@ -1,10 +1,12 @@
 import {
   Bell,
-  Briefcase,
+  GripVertical,
   House,
   Inbox,
+  Megaphone,
   Search,
   Sparkles,
+  SquareKanban,
   Wallet,
 } from "lucide-react";
 
@@ -16,53 +18,112 @@ import { formatNaira } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 // The product, drawn in HTML/CSS with fictional sample data: a business's
-// campaign with its applicants, money held in escrow, and a new application
-// arriving. Self-contained so it can be swapped for a real screenshot later.
-// One labelled image for assistive tech; everything inside is decorative.
+// hiring board, with creators moving from applied to paid work, money held
+// in escrow, and a new application arriving. It mirrors the real portal
+// (grouped sidebar, figures, board columns), so update it when that changes.
+// Self-contained so it can be swapped for a real screenshot later. One
+// labelled image for assistive tech; everything inside is decorative.
 const job = feeExample(EXAMPLE_PRICE_KOBO);
 const price = formatNaira(job.agreedPriceKobo);
-const HIRED = 3;
+const IN_PROGRESS = 3;
 
 const NAV = [
-  { icon: House, label: "Home" },
-  { icon: Briefcase, label: "Campaigns", active: true },
-  { icon: Search, label: "Find creators" },
-  { icon: Wallet, label: "Payments" },
-  { icon: Inbox, label: "Inbox" },
+  {
+    group: "Hiring",
+    items: [
+      { icon: House, label: "Home" },
+      { icon: SquareKanban, label: "Hiring board", active: true },
+      { icon: Megaphone, label: "Campaigns" },
+      { icon: Search, label: "Find creators" },
+      { icon: Inbox, label: "Inbox" },
+    ],
+  },
+  { group: "Money", items: [{ icon: Wallet, label: "Wallet" }] },
 ];
 
-const APPLICANTS = [
+type Person = {
+  initials: string;
+  colour: "coral" | "lilac" | "sun" | "sky" | "mint" | "peach";
+  name: string;
+  detail: string;
+};
+
+// The last two columns only show from 640px: four don't fit a phone.
+const COLUMNS: {
+  label: string;
+  dot: string;
+  wide?: boolean;
+  people: Person[];
+}[] = [
   {
-    initials: "ZB",
-    colour: "coral",
-    name: "Zainab B.",
-    detail: "Food · Instagram · 18k",
-    status: "Hired",
-    pill: "bg-brand-mint",
+    label: "Applied",
+    dot: "bg-brand-sky",
+    people: [
+      {
+        initials: "AO",
+        colour: "sun",
+        name: "Amaka O.",
+        detail: "Food · Instagram · 31k",
+      },
+      {
+        initials: "DE",
+        colour: "peach",
+        name: "Dayo E.",
+        detail: "Lifestyle · TikTok · 9k",
+      },
+    ],
   },
   {
-    initials: "TA",
-    colour: "lilac",
-    name: "Tunde A.",
-    detail: "Lifestyle · TikTok · 9k",
-    status: "Shortlisted",
-    pill: "bg-brand-lilac",
+    label: "Shortlisted",
+    dot: "bg-brand-lilac",
+    people: [
+      {
+        initials: "TA",
+        colour: "lilac",
+        name: "Tunde A.",
+        detail: "Lifestyle · TikTok · 12k",
+      },
+    ],
   },
   {
-    initials: "AO",
-    colour: "sun",
-    name: "Amaka O.",
-    detail: "Food · Instagram · 31k",
-    status: "New",
-    pill: "bg-surface-card",
+    label: "To pay",
+    dot: "bg-brand-sun",
+    wide: true,
+    people: [
+      {
+        initials: "NU",
+        colour: "sky",
+        name: "Ngozi U.",
+        detail: "Food · Instagram · 6k",
+      },
+    ],
   },
-] as const;
+  {
+    label: "In progress",
+    dot: "bg-brand-mint",
+    wide: true,
+    people: [
+      {
+        initials: "ZB",
+        colour: "coral",
+        name: "Zainab B.",
+        detail: "Food · Instagram · 18k",
+      },
+      {
+        initials: "IK",
+        colour: "mint",
+        name: "Ife K.",
+        detail: "Food · TikTok · 22k",
+      },
+    ],
+  },
+];
 
 export function HeroIllustration() {
   return (
     <div
       role="img"
-      aria-label={`Illustration: a business's campaign on Pitchype for a fictional juice brand, paying ${price} per creator. Three applicants are listed, ${HIRED} creators are hired, and ${formatNaira(job.agreedPriceKobo * HIRED)} is held in escrow until the work is approved.`}
+      aria-label={`Illustration: a business's hiring board on Pitchype for a fictional juice brand, paying ${price} per creator. Creators sit in columns from applied and shortlisted to waiting for payment and in progress, and ${formatNaira(job.agreedPriceKobo * IN_PROGRESS)} is held in escrow until the work is approved.`}
       className="relative mx-auto max-w-[68rem]"
     >
       {/* Soft glow behind the window. */}
@@ -83,117 +144,142 @@ export function HeroIllustration() {
             </span>
             <SampleTag />
             <span className="mx-auto hidden -translate-x-6 rounded-md bg-surface-soft px-12 py-1 text-[0.7rem] text-muted sm:block">
-              pitchype.com/business/campaigns
+              pitchype.com/business/board
             </span>
           </div>
 
           <div className="flex text-left text-ink">
             {/* Sidebar */}
-            <div className="hidden w-48 shrink-0 flex-col gap-0.5 border-r border-hairline p-3 md:flex">
-              <div className="mb-3 flex items-center gap-2 px-2 pt-1">
+            <div className="hidden w-44 shrink-0 flex-col border-r border-hairline p-3 md:flex">
+              <div className="mb-2 flex items-center gap-2 px-2 pt-1">
                 <PitchypeMark className="size-5" />
                 <span className="font-display text-sm">pitchype</span>
               </div>
-              {NAV.map(({ icon: Icon, label, active }) => (
-                <span
-                  key={label}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs",
-                    active
-                      ? "bg-white font-semibold shadow-card ring-1 ring-hairline"
-                      : "text-body",
-                  )}
-                >
-                  <Icon className="size-3.5" />
-                  {label}
-                </span>
+              {NAV.map(({ group, items }) => (
+                <div key={group} className="mt-2.5 flex flex-col gap-0.5">
+                  <span className="px-2.5 pb-1 text-[0.65rem] font-semibold tracking-[0.08em] text-muted uppercase">
+                    {group}
+                  </span>
+                  {items.map(({ icon: Icon, label, ...item }) => {
+                    const active = "active" in item;
+                    return (
+                      <span
+                        key={label}
+                        className={cn(
+                          "flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs",
+                          active
+                            ? "bg-white font-semibold shadow-card ring-1 ring-hairline"
+                            : "text-body",
+                        )}
+                      >
+                        <Icon
+                          className={cn(
+                            "size-3.5",
+                            active && "text-brand-violet",
+                          )}
+                        />
+                        {label}
+                      </span>
+                    );
+                  })}
+                </div>
               ))}
             </div>
 
-            {/* Work area */}
+            {/* Work area: the white panel inset beside the sidebar. */}
             {/* Extra room at the bottom on phones for the escrow sticker. */}
-            <div className="min-w-0 flex-1 p-4 pb-16 sm:p-6">
+            <div className="min-w-0 flex-1 bg-white p-4 pb-16 sm:p-5 md:my-2 md:mr-2 md:rounded-xl md:ring-1 md:ring-hairline">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[0.7rem] text-muted">
-                    Campaigns / Brightside Juice
+                  <p className="font-display text-lg leading-tight sm:text-2xl">
+                    Hiring board
                   </p>
-                  <p className="mt-1 font-display text-lg leading-tight sm:text-2xl">
-                    Launch our new zobo flavour
+                  <p className="mt-1 truncate text-[0.7rem] text-muted sm:text-xs">
+                    Launch our new zobo flavour · {price} per creator
                   </p>
                 </div>
                 <span className="flex shrink-0 items-center gap-2">
                   <span className="hidden size-8 place-items-center rounded-lg bg-white ring-1 ring-hairline sm:grid">
                     <Bell className="size-3.5" />
                   </span>
-                  <span className="rounded-full bg-brand-mint px-2.5 py-1 text-[0.7rem] font-semibold">
-                    Open
+                  <span className="rounded-lg bg-ink px-2.5 py-1.5 text-[0.7rem] font-semibold text-white">
+                    New campaign
                   </span>
                 </span>
               </div>
 
               {/* Figures */}
-              <div className="mt-4 grid grid-cols-3 gap-2 sm:mt-5 sm:gap-3">
+              <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
                 {[
-                  { label: "Per creator", value: price },
-                  { label: "Hired", value: `${HIRED} of 5` },
+                  { label: "To review", value: "3", tone: "bg-brand-lilac" },
+                  { label: "To pay", value: "1", tone: "bg-brand-sun" },
                   {
                     label: "In escrow",
-                    value: formatNaira(job.agreedPriceKobo * HIRED),
+                    value: formatNaira(job.agreedPriceKobo * IN_PROGRESS),
+                    tone: "bg-brand-mint",
                   },
                 ].map((stat) => (
                   <div
                     key={stat.label}
-                    className="rounded-xl bg-white p-2.5 shadow-card ring-1 ring-hairline sm:p-3.5"
+                    className="rounded-xl bg-white p-2.5 shadow-card ring-1 ring-hairline sm:p-3"
                   >
-                    <p className="text-[0.65rem] text-muted sm:text-xs">
+                    <p className="flex items-center gap-1.5 text-[0.65rem] text-muted sm:text-xs">
+                      <span className={cn("size-2 rounded-[3px]", stat.tone)} />
                       {stat.label}
                     </p>
-                    <p className="mt-0.5 text-sm font-semibold tabular-nums sm:text-lg">
+                    <p className="mt-1 font-display text-sm tabular-nums sm:text-xl">
                       {stat.value}
                     </p>
                   </div>
                 ))}
               </div>
 
-              {/* Applicants */}
-              <div className="mt-4 rounded-xl bg-white shadow-card ring-1 ring-hairline sm:mt-5">
-                <div className="flex items-center justify-between border-b border-hairline px-3 py-2.5 sm:px-4">
-                  <p className="text-xs font-semibold">Applications</p>
-                  <p className="text-[0.7rem] text-muted">12 received</p>
-                </div>
-                <ul className="divide-y divide-hairline">
-                  {APPLICANTS.map((person) => (
-                    <li
-                      key={person.name}
-                      className="flex items-center gap-3 px-3 py-2.5 sm:px-4"
-                    >
-                      <Avatar
-                        initials={person.initials}
-                        colour={person.colour}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-xs font-semibold sm:text-sm">
-                          {person.name}
-                        </span>
-                        <span className="block truncate text-[0.65rem] text-muted sm:text-xs">
-                          {person.detail}
-                        </span>
+              {/* The board */}
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:grid-cols-4 sm:gap-2.5">
+                {COLUMNS.map((column) => (
+                  <div
+                    key={column.label}
+                    className={cn(
+                      "rounded-xl bg-canvas p-1.5 ring-1 ring-hairline sm:p-2",
+                      column.wide && "hidden sm:block",
+                    )}
+                  >
+                    <p className="flex items-center gap-1.5 px-1 py-1 text-[0.65rem] font-semibold sm:text-xs">
+                      <span className={cn("size-2 rounded-full", column.dot)} />
+                      {column.label}
+                      <span className="ml-auto font-normal text-muted tabular-nums">
+                        {column.people.length}
                       </span>
-                      <span className="hidden text-sm font-semibold tabular-nums sm:block">
-                        {price}
-                      </span>
-                      <span
-                        className={cn(
-                          "w-[5.5rem] shrink-0 rounded-full py-1 text-center text-[0.65rem] font-semibold sm:text-xs",
-                          person.pill,
-                        )}
-                      >
-                        {person.status}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                    </p>
+                    <div className="mt-1 space-y-1.5">
+                      {column.people.map((person) => (
+                        <div
+                          key={person.name}
+                          className="rounded-lg bg-white p-2 shadow-card ring-1 ring-hairline"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <Avatar
+                              initials={person.initials}
+                              colour={person.colour}
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[0.7rem] font-semibold sm:text-xs">
+                                {person.name}
+                              </span>
+                              <span className="block truncate text-[0.65rem] text-muted sm:text-[0.65rem]">
+                                {person.detail}
+                              </span>
+                            </span>
+                            <GripVertical className="hidden size-3 shrink-0 text-muted lg:block" />
+                          </div>
+                          <p className="mt-1.5 text-[0.65rem] font-semibold tabular-nums sm:text-xs">
+                            {price}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -208,7 +294,7 @@ export function HeroIllustration() {
       />
 
       {/* A new application arriving (wide screens). */}
-      <div className="absolute top-[38%] -right-6 hidden w-64 rounded-card bg-white/85 p-3 text-left text-ink shadow-pop ring-1 ring-ink/[0.07] glass lg:block xl:-right-14 motion-safe:animate-[fade-up_0.8s_var(--ease-out-expo)_1.2s_both]">
+      <div className="absolute -right-6 -bottom-11 hidden w-64 rounded-card bg-white/85 p-3 text-left text-ink shadow-pop ring-1 ring-ink/[0.07] glass lg:block xl:-right-14 motion-safe:animate-[fade-up_0.8s_var(--ease-out-expo)_1.2s_both]">
         <p className="flex items-center gap-1.5 text-[0.7rem] font-semibold text-brand-violet">
           <Sparkles className="size-3.5" /> New application
         </p>

@@ -1,4 +1,4 @@
-import { Megaphone } from "lucide-react";
+import { Megaphone, Search } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -6,7 +6,7 @@ import { Suspense } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { SelectField } from "@/components/ui/field";
+import { SelectField, TextField } from "@/components/ui/field";
 import {
   FilterBar,
   filterHref,
@@ -19,6 +19,7 @@ import { PLATFORM_RULES, PLATFORMS, isPlatform } from "@/lib/creator-profile";
 import { CAMPAIGNS_PAGE_SIZE, listOpenCampaigns } from "@/lib/db/campaigns";
 import { listNiches } from "@/lib/db/creators";
 import { pageCount, pagedHref, parsePage } from "@/lib/paging";
+import { SEARCH_MAX, parseSearch } from "@/lib/search";
 
 import { CampaignCard } from "./campaign-card";
 import {
@@ -68,9 +69,11 @@ async function Campaigns({ searchParams }: { searchParams: SearchParams }) {
   const platformParam = first(params.platform);
   const platform = isPlatform(platformParam) ? platformParam : undefined;
   const qualifiedOnly = first(params.qualified) === "1";
+  const search = parseSearch(params.q);
   const page = parsePage(params.page);
 
   const { campaigns, total } = await listOpenCampaigns({
+    search,
     niche,
     platform,
     qualifiedOnly,
@@ -80,6 +83,7 @@ async function Campaigns({ searchParams }: { searchParams: SearchParams }) {
   const pages = pageCount(total, CAMPAIGNS_PAGE_SIZE);
 
   const current = {
+    q: search,
     niche,
     platform,
     qualified: qualifiedOnly ? "1" : undefined,
@@ -87,6 +91,13 @@ async function Campaigns({ searchParams }: { searchParams: SearchParams }) {
   const without = (key: keyof typeof current) =>
     filterHref("/campaigns", { ...current, [key]: undefined });
   const active: ActiveFilter[] = [];
+  if (search) {
+    active.push({
+      label: "Search",
+      value: `“${search}”`,
+      href: without("q"),
+    });
+  }
   if (niche) {
     active.push({
       label: "Niche",
@@ -121,8 +132,19 @@ async function Campaigns({ searchParams }: { searchParams: SearchParams }) {
         label="Filter campaigns"
         submitLabel="Show campaigns"
         active={active}
-        fieldsClassName="grid sm:grid-cols-2 lg:grid-cols-[minmax(0,14rem)_minmax(0,14rem)_auto] lg:justify-start"
+        fieldsClassName="grid sm:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
       >
+        <TextField
+          compact
+          type="search"
+          label="Search"
+          name="q"
+          icon={Search}
+          placeholder="Campaign, brief or business"
+          maxLength={SEARCH_MAX}
+          defaultValue={search ?? ""}
+          className="sm:col-span-2 lg:col-span-1"
+        />
         <SelectField
           compact
           label="Niche"

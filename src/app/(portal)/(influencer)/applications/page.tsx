@@ -243,7 +243,7 @@ function WorkCard({
         <p className="truncate text-xs text-muted">{a.campaign.businessName}</p>
       </div>
 
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
         <span className="font-semibold text-ink tabular-nums">
           {formatNaira(column === "paid" && e ? netKobo(e) : priceKobo)}
         </span>
@@ -258,7 +258,7 @@ function WorkCard({
           </span>
         )}
         {(column === "ready" || column === "in_progress") && (
-          <span className="rounded-full bg-brand-mint px-2 py-0.5 text-xs font-semibold text-ink">
+          <span className="rounded-full bg-brand-mint px-2 py-0.5 text-xs font-semibold whitespace-nowrap text-ink">
             Held by Pitchype
           </span>
         )}

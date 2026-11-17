@@ -212,6 +212,7 @@ test("publishing needs a niche and a platform", () => {
 test("directory filters: known values kept, the rest ignored", () => {
   const filters = parseDirectoryFilters(
     {
+      q: "  lagos   food ",
       niche: "fashion",
       platform: "tiktok",
       followers: "10k_50k",
@@ -223,6 +224,7 @@ test("directory filters: known values kept, the rest ignored", () => {
     { canFilterByRate: true },
   );
   assert.deepEqual(filters, {
+    search: "lagos food",
     niche: "fashion",
     platform: "tiktok",
     minFollowers: "10k_50k",
@@ -232,7 +234,7 @@ test("directory filters: known values kept, the rest ignored", () => {
   });
   assert.equal(
     directoryQuery(filters),
-    "?niche=fashion&platform=tiktok&followers=10k_50k&state=Lagos&maxRate=50000&page=2",
+    "?q=lagos+food&niche=fashion&platform=tiktok&followers=10k_50k&state=Lagos&maxRate=50000&page=2",
   );
 
   const junk = parseDirectoryFilters(
@@ -241,6 +243,7 @@ test("directory filters: known values kept, the rest ignored", () => {
     { canFilterByRate: true },
   );
   assert.deepEqual(junk, {
+    search: undefined,
     niche: undefined,
     platform: undefined,
     minFollowers: undefined,
