@@ -13,7 +13,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(86);
+select plan(90);
 
 -- Ada is a business, Efe an admin, creators ce101..ce108 are hired for
 -- ₦50,000 each by Ada (hire n is creator n's).
@@ -175,7 +175,7 @@ select is(pg_temp.count_of('00000000-0000-0000-0000-0000000ce001', 'engagement_s
   'and the business, once per settled hire');
 select is((select data - 'name' - 'campaign_id' - 'campaign_title' - 'engagement_id' from public.notifications
             where user_id = pg_temp.creator(1) and kind = 'engagement_settled'),
-  '{"outcome": "release", "status": "accepted", "released_kobo": 5000000, "refunded_kobo": 0, "creator_net_kobo": 4750000, "creator_fee_kobo": 250000}'::jsonb,
+  '{"outcome": "release", "status": "accepted", "settled_by": "admin", "released_kobo": 5000000, "refunded_kobo": 0, "creator_net_kobo": 4750000, "creator_fee_kobo": 250000}'::jsonb,
   'a release says the outcome, the status, what left escrow, the fee, and what the creator''s wallet got');
 select is((select array[data ->> 'creator_net_kobo', data ->> 'creator_fee_kobo']
              from public.notifications where user_id = pg_temp.creator(6) and kind = 'engagement_settled'),
@@ -389,6 +389,9 @@ select is(pg_temp.about(pg_temp.bo(), 'engagement_settled', pg_temp.job(2))
 select is((select array_agg(data ->> 'status') from public.notifications
             where kind = 'engagement_settled' and data ->> 'engagement_id' = pg_temp.job(2)::text),
   array['auto_released', 'auto_released'], 'and says it was released automatically');
+select is((select count(*)::integer from public.notifications
+            where kind = 'engagement_settled' and data ->> 'engagement_id' = pg_temp.job(2)::text
+              and data -> 'settled_by' = 'null'::jsonb), 2, 'with nobody as the one who settled it');
 
 -- The creator withdrawing: the creator acted, so only the business hears.
 set local role authenticated;
@@ -402,6 +405,9 @@ select is(pg_temp.about(pg_temp.reviewer(3), 'engagement_settled', pg_temp.job(3
 select is((select data ->> 'status' from public.notifications
             where user_id = pg_temp.bo() and kind = 'engagement_settled' and data ->> 'engagement_id' = pg_temp.job(3)::text),
   'refunded', 'and the notice says refunded');
+select is((select data ->> 'settled_by' from public.notifications
+            where user_id = pg_temp.bo() and kind = 'engagement_settled' and data ->> 'engagement_id' = pg_temp.job(3)::text),
+  'influencer', 'and that the creator was the one who settled it');
 
 -- Denial: the business acted, so only the creator hears.
 set local role authenticated;
@@ -495,6 +501,12 @@ select is(pg_temp.about(pg_temp.bo(), 'engagement_settled', pg_temp.job(4))
   'an admin''s decision tells both people');
 select is((select data ->> 'status' from public.notifications
             where user_id = pg_temp.reviewer(4) and kind = 'engagement_settled'), 'accepted', 'with the status the hire ended in');
+select is((select array_agg(data ->> 'settled_by') from public.notifications
+            where kind = 'engagement_settled' and data ->> 'engagement_id' = pg_temp.job(4)::text),
+  array['admin', 'admin'], 'and that an admin decided it');
+select is((select data ->> 'settled_by' from public.notifications
+            where user_id = pg_temp.reviewer(1) and kind = 'engagement_settled'), 'business',
+  'a business accepting is recorded as the business');
 
 select * from finish();
 rollback;

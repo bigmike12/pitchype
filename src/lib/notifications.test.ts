@@ -468,6 +468,7 @@ test("a creator withdrawing after starting reads as a withdrawal for the busines
       name: "Tolu",
       status: "refunded",
       outcome: "refund_creator_fault",
+      settled_by: "influencer",
       released_kobo: 0,
       refunded_kobo: 5154594,
     }),
@@ -476,6 +477,22 @@ test("a creator withdrawing after starting reads as a withdrawal for the busines
   assert.equal(withdrew?.title, "Tolu withdrew from “Zobo week”");
   assert.match(withdrew?.body ?? "", /₦51,545\.94/);
   assert.equal(withdrew?.href, "/business/engagements/e1");
+
+  // An admin refunding at the creator's fault is not a withdrawal.
+  const adminFault = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      name: "Tolu",
+      status: "refunded",
+      outcome: "refund_creator_fault",
+      settled_by: "admin",
+      released_kobo: 0,
+      refunded_kobo: 5154594,
+    }),
+    "business",
+  );
+  assert.equal(adminFault?.title, "“Zobo week” was settled");
+  assert.match(adminFault?.body ?? "", /₦51,545\.94/);
 
   // Any other settlement keeps the settled wording.
   const refund = describeNotification(

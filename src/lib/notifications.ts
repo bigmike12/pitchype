@@ -201,12 +201,13 @@ export function describeNotification(
     case "engagement_settled":
       // A creator who withdraws after starting settles the hire as a refund
       // at their fault. Only the business hears it (the creator was the
-      // actor), so it reads as a withdrawal, not a settlement.
+      // actor), so it reads as a withdrawal, not a settlement. An admin's
+      // fault refund has the same outcome, so only settled_by tells them apart.
       if (
         role === "business" &&
         d.status === "refunded" &&
         d.outcome === "refund_creator_fault" &&
-        text(d.cancel_reason) === null
+        d.settled_by === "influencer"
       ) {
         return {
           title: `${name} withdrew from ${quoted}`,
