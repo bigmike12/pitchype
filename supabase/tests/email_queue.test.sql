@@ -7,7 +7,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(31);
+select plan(35);
 
 -- Pia is a creator, Quin a business, Remi a second creator who never saves
 -- preferences.
@@ -78,6 +78,23 @@ select is((select emailed_at from public.notifications where group_key = 'k1'), 
 select is((select email_attempts from public.notifications where group_key = 'k1'), 0, 'with no attempts used');
 select is((select email_due_at from public.notifications where group_key = 'k1'), now() + interval '15 minutes',
   'and due 15 minutes out');
+
+-- Out of attempts and never emailed (say Resend was down): a new event starts
+-- the row afresh instead of leaving it silent for good.
+select public.notify('00000000-0000-0000-0000-0000000e8001', 'new_message', '{"count": 1}', 'k4');
+update public.notifications
+   set email_attempts = 5, email_due_at = now() - interval '1 minute'
+ where group_key = 'k4';
+select is((select count(*)::integer from public.claim_due_emails(50) where id = (select id from public.notifications where group_key = 'k4')), 0,
+  'a row with all 5 attempts used is not claimed');
+select public.notify('00000000-0000-0000-0000-0000000e8001', 'new_message', '{"count": 2}', 'k4');
+select is((select email_attempts from public.notifications where group_key = 'k4'), 0,
+  'a bump of a never-emailed row out of attempts gives it 5 more');
+select is((select email_due_at from public.notifications where group_key = 'k4'), now() + interval '15 minutes',
+  'and a fresh due time 15 minutes out');
+update public.notifications set email_due_at = now() - interval '1 minute' where group_key = 'k4';
+select ok((select count(*) = 1 from public.claim_due_emails(50) where id = (select id from public.notifications where group_key = 'k4')),
+  'and it is claimed once due');
 
 -- Claiming --------------------------------------------------------------------------------------------------
 -- Start from a clean slate for these people, then set up one row in each state.

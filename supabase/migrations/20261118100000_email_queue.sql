@@ -12,8 +12,10 @@
 --     It locks with skip locked and, in the same statement, counts the
 --     attempt and pushes the row 5 minutes out, so two callers never get the
 --     same row and a failed send is retried later without anyone resetting it.
---   * At most 5 attempts per row. A row emailed less than an hour ago is not
---     queued again by a bump, so a busy thread costs one email an hour.
+--   * At most 5 attempts per event: a bump that finds a row out of attempts
+--     and never emailed starts it afresh. A row emailed less than an hour
+--     ago is not queued again by a bump, so a busy thread costs one email
+--     an hour.
 --   * Chat email is due 15 minutes after the message, and a bump of a
 --     thread that is still waiting keeps its due time, so constant messages
 --     cannot push the email back forever.
@@ -94,14 +96,19 @@ as $$
         read_at = null,
         -- Not emailed yet: keep a due time already set (so a busy thread does
         -- not push its own email back), or take the new one if there is none.
+        -- Not emailed and all 5 attempts used (say Resend was down): a new
+        -- event starts afresh with a new due time and 5 more tries, so an
+        -- outage cannot silence a thread for good.
         -- Emailed an hour or more ago: due again. Emailed less than an hour
         -- ago: leave it, which is the one-email-per-thread-per-hour cap.
         email_due_at = case
+          when n.emailed_at is null and n.email_attempts >= 5 then excluded.email_due_at
           when n.emailed_at is null then coalesce(n.email_due_at, excluded.email_due_at)
           when n.emailed_at <= now() - interval '1 hour' then excluded.email_due_at
           else n.email_due_at
         end,
         email_attempts = case
+          when n.emailed_at is null and n.email_attempts >= 5 then 0
           when n.emailed_at <= now() - interval '1 hour' then 0
           else n.email_attempts
         end,
