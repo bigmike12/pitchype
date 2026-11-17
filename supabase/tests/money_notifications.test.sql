@@ -13,7 +13,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(53);
+select plan(86);
 
 -- Ada is a business, Efe an admin, creators ce101..ce108 are hired for
 -- ₦50,000 each by Ada (hire n is creator n's).
@@ -175,8 +175,8 @@ select is(pg_temp.count_of('00000000-0000-0000-0000-0000000ce001', 'engagement_s
   'and the business, once per settled hire');
 select is((select data - 'name' - 'campaign_id' - 'campaign_title' - 'engagement_id' from public.notifications
             where user_id = pg_temp.creator(1) and kind = 'engagement_settled'),
-  '{"outcome": "release", "released_kobo": 5000000, "refunded_kobo": 0, "creator_net_kobo": 4750000, "creator_fee_kobo": 250000}'::jsonb,
-  'a release says the outcome, what left escrow, the fee, and what the creator''s wallet got');
+  '{"outcome": "release", "status": "accepted", "released_kobo": 5000000, "refunded_kobo": 0, "creator_net_kobo": 4750000, "creator_fee_kobo": 250000}'::jsonb,
+  'a release says the outcome, the status, what left escrow, the fee, and what the creator''s wallet got');
 select is((select array[data ->> 'creator_net_kobo', data ->> 'creator_fee_kobo']
              from public.notifications where user_id = pg_temp.creator(6) and kind = 'engagement_settled'),
   array['1900000', '100000'], 'a split tells the creator the net of the released part only');
@@ -284,6 +284,217 @@ select is((select count(*)::integer from public.notifications
             where kind::text like 'payout\_%' and user_id in ('00000000-0000-0000-0000-0000000ce001',
                                                               '00000000-0000-0000-0000-0000000ce002')), 0,
   'the business and the admin are never sent payout notifications');
+
+-- Stage 7: submissions, reviews and disputes ----------------------------------------------------------------------
+-- Bo is a second business with four creators (ce201..ce204), so the counts above stay as they were.
+--   hire 1  submitted, accepted by Bo           hire 2  submitted, auto-released
+--   hire 3  started, then the creator withdraws hire 4  submitted, denied, then two disputes
+insert into public.users (id, auth_user_id, email, role) values
+  ('00000000-0000-0000-0000-0000000ce003', 'cecececc-0000-0000-0000-0000000ce003', 'bo.moneynotify@example.com', 'business');
+insert into public.users (id, auth_user_id, email, role)
+select ('00000000-0000-0000-0000-0000000ce2' || lpad(n::text, 2, '0'))::uuid,
+       ('cecececc-0000-0000-0000-0000000ce2' || lpad(n::text, 2, '0'))::uuid,
+       'c2' || n || '.moneynotify@example.com', 'influencer'
+  from generate_series(1, 4) n;
+insert into public.business_profiles (user_id, business_name, contact_name, state, city) values
+  ('00000000-0000-0000-0000-0000000ce003', 'Bo Review Bakery', 'Bo Eze', 'Lagos', 'Ikeja');
+insert into public.influencer_profiles (user_id, display_name, state, city, niches, published)
+select ('00000000-0000-0000-0000-0000000ce2' || lpad(n::text, 2, '0'))::uuid,
+       'Reviewer ' || n, 'Lagos', 'Yaba', '{fashion}', true
+  from generate_series(1, 4) n;
+insert into public.campaigns (id, business_id, status, title, brief, price_kobo, places,
+                              applications_close_on, deliver_by, published_at, submitted_at) values
+  ('ce000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000ce003', 'open', 'Review notify test',
+   'A brief that is long enough for the checks.', 5000000, 20, public.lagos_today() + 10, public.lagos_today() + 20, now(), now());
+insert into public.applications (id, campaign_id, creator_id, status)
+select ('ce000000-0000-0000-0000-0000000a02' || lpad(n::text, 2, '0'))::uuid,
+       'ce000000-0000-0000-0000-000000000002',
+       ('00000000-0000-0000-0000-0000000ce2' || lpad(n::text, 2, '0'))::uuid, 'approved'
+  from generate_series(1, 4) n;
+insert into public.engagements (id, application_id, campaign_id, business_id, creator_id, agreed_price_kobo, pay_by)
+select ('ce000000-0000-0000-0000-0000000e02' || lpad(n::text, 2, '0'))::uuid,
+       ('ce000000-0000-0000-0000-0000000a02' || lpad(n::text, 2, '0'))::uuid,
+       'ce000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000ce003',
+       ('00000000-0000-0000-0000-0000000ce2' || lpad(n::text, 2, '0'))::uuid,
+       5000000, now() + interval '48 hours'
+  from generate_series(1, 4) n;
+
+create function pg_temp.bo() returns uuid
+language sql as $$ select '00000000-0000-0000-0000-0000000ce003'::uuid $$;
+create function pg_temp.reviewer(n integer) returns uuid
+language sql as $$ select ('00000000-0000-0000-0000-0000000ce2' || lpad(n::text, 2, '0'))::uuid $$;
+create function pg_temp.job(n integer) returns uuid
+language sql as $$ select ('ce000000-0000-0000-0000-0000000e02' || lpad(n::text, 2, '0'))::uuid $$;
+-- Notifications of one kind for one person about one hire.
+create function pg_temp.about(person uuid, what text, hire uuid) returns integer
+language sql as $$
+  select count(*)::integer from public.notifications n
+   where n.user_id = person and n.kind::text = what and n.data ->> 'engagement_id' = hire::text
+$$;
+
+-- Pay, start and submit hires 1, 2 and 4; hire 3 starts only.
+do $$
+declare
+  n integer;
+  started jsonb;
+begin
+  for n in 1..4 loop
+    perform set_config('request.jwt.claims', '{"sub": "cecececc-0000-0000-0000-0000000ce003"}', true);
+    started := public.start_payment(pg_temp.job(n), true);
+    perform public.record_card_payment(started ->> 'reference', (started ->> 'card_amount_kobo')::bigint,
+      95406, 'evt-reviewnotify-' || n, '{}');
+    perform set_config('request.jwt.claims', json_build_object('sub',
+      'cecececc-0000-0000-0000-0000000ce2' || lpad(n::text, 2, '0'))::text, true);
+    perform public.start_engagement(pg_temp.job(n));
+    if n <> 3 then
+      perform public.submit_work(pg_temp.job(n), null, array['https://x.com/p/' || n], null);
+    end if;
+  end loop;
+  perform set_config('request.jwt.claims', '', true);
+end;
+$$;
+
+select is(pg_temp.about(pg_temp.bo(), 'work_submitted', pg_temp.job(1)), 1, 'a submission notifies the business');
+select is((select data ->> 'name' from public.notifications
+            where user_id = pg_temp.bo() and kind = 'work_submitted' and data ->> 'engagement_id' = pg_temp.job(1)::text),
+  'Reviewer 1', 'naming the creator');
+select is(pg_temp.about(pg_temp.reviewer(1), 'work_submitted', pg_temp.job(1)), 0, 'the creator who submitted is not told');
+select is(pg_temp.about(pg_temp.bo(), 'work_submitted', pg_temp.job(3)), 0, 'a hire that was only started is not a submission');
+
+-- Accepting: the business acted, so only the creator hears.
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "cecececc-0000-0000-0000-0000000ce003"}'; -- Bo
+select public.accept_submission(pg_temp.job(1));
+reset role;
+select is(pg_temp.about(pg_temp.reviewer(1), 'engagement_settled', pg_temp.job(1)), 1,
+  'the creator is told when the business accepts');
+select is(pg_temp.about(pg_temp.bo(), 'engagement_settled', pg_temp.job(1)), 0,
+  'the business, who accepted, is not told');
+select is((select data ->> 'status' from public.notifications
+            where user_id = pg_temp.reviewer(1) and kind = 'engagement_settled'), 'accepted',
+  'the notice says the hire was accepted');
+select is((select data ->> 'creator_net_kobo' from public.notifications
+            where user_id = pg_temp.reviewer(1) and kind = 'engagement_settled'), '4750000',
+  'and still carries the net the creator''s wallet got');
+
+-- Auto-release: nobody acted, so both hear.
+update public.submissions set review_deadline_at = now() - interval '1 minute'
+ where engagement_id = pg_temp.job(2);
+set local role service_role;
+select release_overdue_submissions();
+reset role;
+select is(pg_temp.about(pg_temp.bo(), 'engagement_settled', pg_temp.job(2))
+        + pg_temp.about(pg_temp.reviewer(2), 'engagement_settled', pg_temp.job(2)), 2,
+  'an auto-release tells both people');
+select is((select array_agg(data ->> 'status') from public.notifications
+            where kind = 'engagement_settled' and data ->> 'engagement_id' = pg_temp.job(2)::text),
+  array['auto_released', 'auto_released'], 'and says it was released automatically');
+
+-- The creator withdrawing: the creator acted, so only the business hears.
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "cecececc-0000-0000-0000-0000000ce203"}'; -- reviewer 3
+select public.withdraw_from_engagement(pg_temp.job(3));
+reset role;
+select is(pg_temp.about(pg_temp.bo(), 'engagement_settled', pg_temp.job(3)), 1,
+  'the business is told when the creator withdraws');
+select is(pg_temp.about(pg_temp.reviewer(3), 'engagement_settled', pg_temp.job(3)), 0,
+  'the creator, who withdrew, is not told');
+select is((select data ->> 'status' from public.notifications
+            where user_id = pg_temp.bo() and kind = 'engagement_settled' and data ->> 'engagement_id' = pg_temp.job(3)::text),
+  'refunded', 'and the notice says refunded');
+
+-- Denial: the business acted, so only the creator hears.
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "cecececc-0000-0000-0000-0000000ce003"}'; -- Bo
+select public.deny_submission(pg_temp.job(4), array['Wrong hashtag', 'Post is too short']);
+reset role;
+select is(pg_temp.about(pg_temp.reviewer(4), 'submission_denied', pg_temp.job(4)), 1, 'a denial notifies the creator');
+select is((select data from public.notifications
+            where user_id = pg_temp.reviewer(4) and kind = 'submission_denied') - 'campaign_id',
+  jsonb_build_object('campaign_title', 'Review notify test', 'engagement_id', pg_temp.job(4),
+                     'name', 'Bo Review Bakery', 'reasons', jsonb_build_array('Wrong hashtag', 'Post is too short'),
+                     'rounds_left', 3),
+  'with the reasons, the business and the rounds left');
+select is(pg_temp.about(pg_temp.bo(), 'submission_denied', pg_temp.job(4)), 0, 'the business, who denied, is not told');
+
+-- A dispute opened by the creator, and what is said in it.
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "cecececc-0000-0000-0000-0000000ce204"}'; -- reviewer 4
+select public.open_dispute(pg_temp.job(4), 'The posts match the brief exactly.', null, null);
+reset role;
+select is(pg_temp.about(pg_temp.bo(), 'dispute_opened', pg_temp.job(4)), 1, 'a dispute notifies the other person');
+select is(pg_temp.about(pg_temp.reviewer(4), 'dispute_opened', pg_temp.job(4)), 0, 'not the person who opened it');
+select ok((select data ->> 'dispute_id' = (select id::text from public.disputes where engagement_id = pg_temp.job(4)
+                                             and opened_by = pg_temp.reviewer(4))
+                  and data ->> 'name' = 'Reviewer 4' and data ->> 'campaign_title' = 'Review notify test'
+             from public.notifications where user_id = pg_temp.bo() and kind = 'dispute_opened'),
+  'carrying the dispute, the opener and the campaign');
+select is(pg_temp.about(pg_temp.bo(), 'dispute_statement', pg_temp.job(4))
+        + pg_temp.about(pg_temp.reviewer(4), 'dispute_statement', pg_temp.job(4)), 0,
+  'the opening statement is not announced as a statement');
+
+-- A whole test file is one transaction, so every now() is the same instant.
+-- Move the dispute's opening back so later statements by its opener aren't
+-- mistaken for the opening one; in the app each call is its own transaction.
+update public.disputes set opened_at = opened_at - interval '1 hour'
+ where engagement_id = pg_temp.job(4);
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "cecececc-0000-0000-0000-0000000ce003"}'; -- Bo replies
+select public.add_dispute_statement((select id from public.disputes where engagement_id = pg_temp.job(4)),
+  'The hashtag is missing from the second post.', null, null);
+reset role;
+select is(pg_temp.about(pg_temp.reviewer(4), 'dispute_statement', pg_temp.job(4)), 1, 'a statement notifies the other person');
+select is(pg_temp.about(pg_temp.bo(), 'dispute_statement', pg_temp.job(4)), 0, 'not its author');
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "cecececc-0000-0000-0000-0000000ce204"}'; -- reviewer 4 answers
+select public.add_dispute_statement((select id from public.disputes where engagement_id = pg_temp.job(4)),
+  'It is in the caption, as the brief says.', null, null);
+reset role;
+select is(pg_temp.about(pg_temp.bo(), 'dispute_statement', pg_temp.job(4)), 1, 'the business is told of the creator''s statement');
+select is(pg_temp.about(pg_temp.reviewer(4), 'dispute_statement', pg_temp.job(4)), 1, 'and the creator is still told of the business''s only');
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "cecececc-0000-0000-0000-0000000ce002"}'; -- Efe, an admin
+select public.add_dispute_statement((select id from public.disputes where engagement_id = pg_temp.job(4)),
+  'Please send a screenshot of the caption.', null, null);
+reset role;
+select is(pg_temp.about(pg_temp.bo(), 'dispute_statement', pg_temp.job(4))
+        + pg_temp.about(pg_temp.reviewer(4), 'dispute_statement', pg_temp.job(4)), 4,
+  'an admin''s statement goes to both people');
+select is(pg_temp.count_of('00000000-0000-0000-0000-0000000ce002', 'dispute_statement')
+        + pg_temp.count_of('00000000-0000-0000-0000-0000000ce002', 'dispute_opened'), 0,
+  'and the admin is told nothing');
+
+-- The opener withdraws: the other person hears.
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "cecececc-0000-0000-0000-0000000ce204"}'; -- reviewer 4
+select public.withdraw_dispute((select id from public.disputes where engagement_id = pg_temp.job(4)));
+reset role;
+select is(pg_temp.about(pg_temp.bo(), 'dispute_withdrawn', pg_temp.job(4)), 1, 'withdrawing a dispute notifies the other person');
+select is(pg_temp.about(pg_temp.reviewer(4), 'dispute_withdrawn', pg_temp.job(4)), 0, 'not the one who withdrew');
+
+-- The business opens one in turn, and an admin decides it.
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "cecececc-0000-0000-0000-0000000ce003"}'; -- Bo
+select public.open_dispute(pg_temp.job(4), 'The creator never fixed the hashtag.', null, null);
+reset role;
+select is(pg_temp.about(pg_temp.reviewer(4), 'dispute_opened', pg_temp.job(4)), 1, 'a dispute opened by the business notifies the creator');
+select is(pg_temp.about(pg_temp.bo(), 'dispute_opened', pg_temp.job(4)), 1, 'and the business is not told of its own');
+select is(pg_temp.about(pg_temp.reviewer(4), 'dispute_statement', pg_temp.job(4)), 2,
+  'the business''s opening statement is not announced either');
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "cecececc-0000-0000-0000-0000000ce002"}'; -- Efe
+select public.decide_dispute((select id from public.disputes where engagement_id = pg_temp.job(4) and status = 'open'),
+  'release', null, 'The posts followed the brief.');
+reset role;
+select is(pg_temp.about(pg_temp.bo(), 'engagement_settled', pg_temp.job(4))
+        + pg_temp.about(pg_temp.reviewer(4), 'engagement_settled', pg_temp.job(4)), 2,
+  'an admin''s decision tells both people');
+select is((select data ->> 'status' from public.notifications
+            where user_id = pg_temp.reviewer(4) and kind = 'engagement_settled'), 'accepted', 'with the status the hire ended in');
 
 select * from finish();
 rollback;

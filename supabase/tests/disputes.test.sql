@@ -12,7 +12,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(116);
+select plan(119);
 
 -- Ada and Bola are businesses, Efe is an admin, creators d1101..d1108; Ada
 -- hires creators 1 to 7.
@@ -509,6 +509,19 @@ select ok(not has_function_privilege('authenticated', 'public.write_dispute_stat
           and not has_function_privilege('authenticated', 'public.non_delivery_dispute_at(public.engagements)', 'execute')
           and not has_function_privilege('service_role', 'public.non_delivery_dispute_at(public.engagements)', 'execute'),
   'the helpers are internal');
+
+-- Submission rows keep their denial reasons straight (the constraint this
+-- migration rewrote), tried as the table owner on hire 2, which has no submissions.
+reset role;
+select throws_ok($$ insert into public.submissions (engagement_id, round, status, decided_at, denial_reasons, review_deadline_at)
+                    values ('d1000000-0000-0000-0000-0000000e0002', 1, 'denied', now(), null, now() + interval '7 days') $$,
+  '23514', null, 'a denied submission without reasons is refused');
+select throws_ok($$ insert into public.submissions (engagement_id, round, status, decided_at, denial_reasons, review_deadline_at)
+                    values ('d1000000-0000-0000-0000-0000000e0002', 2, 'denied', now(), '{}', now() + interval '7 days') $$,
+  '23514', null, 'so is one with an empty list of reasons');
+select throws_ok($$ insert into public.submissions (engagement_id, round, status, decided_at, denial_reasons, review_deadline_at)
+                    values ('d1000000-0000-0000-0000-0000000e0002', 3, 'auto_accepted', now(), array['Wrong hashtag'], now() + interval '7 days') $$,
+  '23514', null, 'and so is an auto-accepted one that carries reasons');
 
 -- Totals ---------------------------------------------------------------------------------------------------------
 select is((select count(*)::integer from (

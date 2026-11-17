@@ -2,7 +2,11 @@
 // (a kind and the facts, see the create_notifications migration); this file
 // turns that into what a person reads, so copy changes need no migration.
 
-import { PLATFORM_RULES, type Platform } from "./creator-profile.ts";
+import {
+  formatDateTime,
+  PLATFORM_RULES,
+  type Platform,
+} from "./creator-profile.ts";
 import { transferFee } from "./fees.ts";
 import { formatNaira } from "./money.ts";
 
@@ -50,6 +54,14 @@ export function describeNotification(
     : "/business/campaigns";
   // There is no list of jobs yet; a creator's applications list their hires.
   const creatorJob = engagementId ? `/jobs/${engagementId}` : "/applications";
+  // Each side's page for a dispute about a hire.
+  const disputePage = engagementId
+    ? role === "business"
+      ? `/business/engagements/${engagementId}/dispute`
+      : `/jobs/${engagementId}/dispute`
+    : role === "business"
+      ? "/business/campaigns"
+      : "/applications";
 
   const applicants = campaignId
     ? `/business/campaigns/${campaignId}/applications`
@@ -143,9 +155,56 @@ export function describeNotification(
             body: "They cancelled before you started work, so nothing is due.",
             href: creatorJob,
           };
+    case "work_submitted":
+      return {
+        title: `${name} submitted work for ${quoted}`,
+        body: reviewBody(d.review_deadline_at),
+        href: businessHire,
+      };
+    case "submission_denied":
+      return {
+        title: `${name} sent back your work for ${theirs}`,
+        body: denialBody(d),
+        href: creatorJob,
+      };
+    case "review_reminder": {
+      const left =
+        d.days_left === 1
+          ? "About a day left"
+          : typeof d.days_left === "number"
+            ? `${d.days_left} days left`
+            : "Time is running out";
+      return {
+        title: `${left} to review ${name}’s work for ${quoted}`,
+        body: reviewBody(d.review_deadline_at),
+        href: businessHire,
+      };
+    }
+    case "dispute_opened":
+      return {
+        title: `${name} opened a dispute about ${role === "business" ? quoted : theirs}`,
+        body: null,
+        href: disputePage,
+      };
+    case "dispute_statement":
+      return {
+        title: `${name} added to the dispute about ${role === "business" ? quoted : theirs}`,
+        body: null,
+        href: disputePage,
+      };
+    case "dispute_withdrawn":
+      return {
+        title: `${name} withdrew their dispute about ${role === "business" ? quoted : theirs}`,
+        body: "The hire is back where it was.",
+        href: disputePage,
+      };
     case "engagement_settled":
       return {
-        title: title ? `“${title}” was settled` : "A hire was settled",
+        title: title
+          ? `“${title}” was ${d.status === "auto_released" ? "released automatically" : "settled"}`
+          : d.status === "auto_released"
+            ? "A hire was released automatically"
+            : "A hire was settled",
         body: settlementBody(d, role),
         href: role === "business" ? businessHire : creatorJob,
       };
@@ -238,6 +297,30 @@ export function describeNotification(
     default:
       return null;
   }
+}
+
+/** What the business is asked to do with a new submission, and by when. */
+function reviewBody(deadline: unknown): string {
+  const when = text(deadline);
+  return when
+    ? `Review it by ${formatDateTime(when)}. After that it’s released to them automatically.`
+    : "If you don’t respond within 7 days, it’s released to them automatically.";
+}
+
+/** The reasons for a denial, then what the creator can do next. */
+function denialBody(d: Record<string, unknown>): string | null {
+  const reasons = Array.isArray(d.reasons)
+    ? d.reasons.filter((r): r is string => typeof r === "string")
+    : [];
+  const left = typeof d.rounds_left === "number" ? d.rounds_left : null;
+  const next =
+    left === null
+      ? null
+      : left > 0
+        ? `You can resubmit (${left} ${left === 1 ? "time" : "times"} left) or open a dispute.`
+        : "You can’t resubmit again, but you can open a dispute.";
+  const line = [reasons.join(" · "), next].filter(Boolean).join(" ");
+  return line === "" ? null : line;
 }
 
 function platformLabel(value: unknown): string {

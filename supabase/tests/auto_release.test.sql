@@ -4,7 +4,7 @@
 -- not), once, and a hire that can't settle neither stops the others nor is
 -- half-released; a business acting after the deadline gets the release instead;
 -- send_review_reminders() tells the business once at 3 days and once at 1 day
--- left (only the 1-day one when both are due); delete_orphan_proof_files()
+-- left, the latter from 2 days out (only the 1-day one when both are due); delete_orphan_proof_files()
 -- removes unattached files older than a day and nothing else; only the server
 -- may run the three; register_proof_file() keeps each file under its owner's
 -- folder.
@@ -83,14 +83,14 @@ update public.submissions set review_deadline_at = now() + interval '30 days'
  where engagement_id::text not like '7a000000-%' and status = 'pending_review';
 
 -- Deadlines, as the test owner: hire 1 overdue, hire 2 due in 2.5 days, hire 3
--- denied with a past deadline, hire 8 due in 20 hours; the rest keep 7 days.
+-- denied with a past deadline, hire 8 due in 1.5 days; the rest keep 7 days.
 update public.submissions set review_deadline_at = now() - interval '1 hour'
  where engagement_id = '7a000000-0000-0000-0000-0000000e0001';
 update public.submissions set review_deadline_at = now() + interval '2 days 12 hours'
  where engagement_id = '7a000000-0000-0000-0000-0000000e0002';
 update public.submissions set review_deadline_at = now() - interval '1 day'
  where engagement_id = '7a000000-0000-0000-0000-0000000e0003';
-update public.submissions set review_deadline_at = now() + interval '20 hours'
+update public.submissions set review_deadline_at = now() + interval '1 day 12 hours'
  where engagement_id = '7a000000-0000-0000-0000-0000000e0008';
 
 select is((select array_agg(status::text order by id) from public.engagements
@@ -163,7 +163,7 @@ select is((select data ->> 'days_left' from public.notifications
   '3', 'deadline in 2.5 days: one reminder saying 3 days left');
 select is((select data ->> 'days_left' from public.notifications
             where kind = 'review_reminder' and data ->> 'engagement_id' = '7a000000-0000-0000-0000-0000000e0008'),
-  '1', 'deadline in 20 hours: one reminder saying 1 day left, not two');
+  '1', 'deadline in 1.5 days: one reminder saying 1 day left, not two');
 select is((select count(*)::integer from public.notifications
             where kind = 'review_reminder' and data ->> 'engagement_id' like '7a000000-%'), 2,
   'one reminder per hire');
@@ -177,7 +177,7 @@ select is((select data from public.notifications
                      'campaign_title', 'Auto-release test',
                      'engagement_id', '7a000000-0000-0000-0000-0000000e0008',
                      'name', 'Creator 8 Release',
-                     'review_deadline_at', now() + interval '20 hours',
+                     'review_deadline_at', now() + interval '1 day 12 hours',
                      'days_left', 1),
   'the reminder carries the campaign, the hire, the creator and the deadline');
 select ok((select reminded_3d_at = now() and reminded_1d_at is null from public.submissions
@@ -246,8 +246,11 @@ select public.post_ledger_group('correction', null, 'test: break hire 2''s escro
 update public.submissions set review_deadline_at = now() - interval '1 minute'
  where engagement_id in ('7a000000-0000-0000-0000-0000000e0002', '7a000000-0000-0000-0000-0000000e0005');
 set local role service_role;
+-- The failing hire is logged as a warning on purpose; keep the test output clean.
+set local client_min_messages = error;
 select is((select array[released, failed] from public.release_overdue_submissions()), array[1, 1],
   'one hire released, one failed, in the same run');
+set local client_min_messages = notice;
 reset role;
 select is((select status::text from public.engagements where id = '7a000000-0000-0000-0000-0000000e0005'),
   'auto_released', 'hire 5 is released despite hire 2');
