@@ -34,6 +34,11 @@ test("only known codes count as refusals", () => {
     "reasons_required",
     "dispute_open",
     "not_your_file",
+    "dispute_not_allowed_yet",
+    "dispute_reason_invalid",
+    "statement_invalid",
+    "no_such_dispute",
+    "dispute_closed",
   ]) {
     assert.equal(isRefusal(code), true, code);
   }

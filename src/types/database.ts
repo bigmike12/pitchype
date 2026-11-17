@@ -496,6 +496,112 @@ export type Database = {
           },
         ]
       }
+      dispute_statements: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          dispute_id: string
+          id: string
+          links: string[]
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          dispute_id: string
+          id?: string
+          links?: string[]
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          dispute_id?: string
+          id?: string
+          links?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispute_statements_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispute_statements_dispute_id_fkey"
+            columns: ["dispute_id"]
+            isOneToOne: false
+            referencedRelation: "disputes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      disputes: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          decision_reason: string | null
+          engagement_id: string
+          id: string
+          opened_at: string
+          opened_by: string
+          opened_from: Database["public"]["Enums"]["engagement_status"]
+          outcome: string | null
+          reason: string
+          status: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          decision_reason?: string | null
+          engagement_id: string
+          id?: string
+          opened_at?: string
+          opened_by: string
+          opened_from: Database["public"]["Enums"]["engagement_status"]
+          outcome?: string | null
+          reason: string
+          status?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          decision_reason?: string | null
+          engagement_id?: string
+          id?: string
+          opened_at?: string
+          opened_by?: string
+          opened_from?: Database["public"]["Enums"]["engagement_status"]
+          outcome?: string | null
+          reason?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disputes_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disputes_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disputes_opened_by_fkey"
+            columns: ["opened_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       engagements: {
         Row: {
           agreed_price_kobo: number
@@ -1318,6 +1424,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "proof_files_dispute_statement_id_fkey"
+            columns: ["dispute_statement_id"]
+            isOneToOne: false
+            referencedRelation: "dispute_statements"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "proof_files_owner_id_fkey"
             columns: ["owner_id"]
             isOneToOne: false
@@ -1676,6 +1789,15 @@ export type Database = {
     Functions: {
       accept_submission: { Args: { engagement: string }; Returns: string }
       active_strike_count: { Args: { person: string }; Returns: number }
+      add_dispute_statement: {
+        Args: {
+          body: string
+          dispute: string
+          file_ids: string[]
+          links: string[]
+        }
+        Returns: string
+      }
       admin_engagement_trail: { Args: { engagement: string }; Returns: Json }
       admin_ledger: {
         Args: {
@@ -1779,6 +1901,15 @@ export type Database = {
       }
       decide_application: {
         Args: { application: string; decision: string; note: string }
+        Returns: undefined
+      }
+      decide_dispute: {
+        Args: {
+          dispute: string
+          outcome: string
+          reason: string
+          release_kobo: number
+        }
         Returns: undefined
       }
       delete_orphan_proof_files: { Args: never; Returns: string[] }
@@ -1893,6 +2024,10 @@ export type Database = {
       my_blocks: { Args: never; Returns: Json }
       my_conversations: { Args: never; Returns: Json }
       new_verification_code: { Args: never; Returns: string }
+      non_delivery_dispute_at: {
+        Args: { e: Database["public"]["Tables"]["engagements"]["Row"] }
+        Returns: string
+      }
       notify: {
         Args: {
           facts: Json
@@ -1903,6 +2038,15 @@ export type Database = {
         Returns: undefined
       }
       open_campaign_count: { Args: never; Returns: number }
+      open_dispute: {
+        Args: {
+          engagement: string
+          file_ids: string[]
+          links: string[]
+          reason: string
+        }
+        Returns: string
+      }
       pay_from_wallet: {
         Args: { engagement: string; fee_notice_seen: boolean }
         Returns: undefined
@@ -2166,9 +2310,20 @@ export type Database = {
         Args: { application: string }
         Returns: undefined
       }
+      withdraw_dispute: { Args: { dispute: string }; Returns: undefined }
       withdraw_from_engagement: {
         Args: { engagement: string }
         Returns: undefined
+      }
+      write_dispute_statement: {
+        Args: {
+          author: string
+          body: string
+          dispute: string
+          file_ids: string[]
+          links: string[]
+        }
+        Returns: string
       }
     }
     Enums: {
