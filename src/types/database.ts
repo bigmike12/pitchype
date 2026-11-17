@@ -85,6 +85,50 @@ export type Database = {
           },
         ]
       }
+      bank_accounts: {
+        Row: {
+          account_name: string
+          bank_code: string
+          bank_name: string
+          created_at: string
+          id: string
+          last4: string
+          recipient_code: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_name: string
+          bank_code: string
+          bank_name: string
+          created_at?: string
+          id?: string
+          last4: string
+          recipient_code: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_name?: string
+          bank_code?: string
+          bank_name?: string
+          created_at?: string
+          id?: string
+          last4?: string
+          recipient_code?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_profiles: {
         Row: {
           business_name: string
@@ -457,13 +501,24 @@ export type Database = {
           agreed_price_kobo: number
           application_id: string
           approved_at: string
+          business_fee_kobo: number | null
           business_id: string
           campaign_id: string
+          cancel_fee_notice_seen_at: string | null
           cancel_reason: string | null
           cancelled_at: string | null
+          creator_fee_bps: number | null
           creator_id: string
+          creator_min_fee_kobo: number | null
+          fee_config_id: string | null
+          funded_at: string | null
           id: string
           pay_by: string
+          refunded_kobo: number | null
+          released_kobo: number | null
+          settle_outcome: string | null
+          settled_at: string | null
+          started_at: string | null
           status: Database["public"]["Enums"]["engagement_status"]
           updated_at: string
         }
@@ -471,13 +526,24 @@ export type Database = {
           agreed_price_kobo: number
           application_id: string
           approved_at?: string
+          business_fee_kobo?: number | null
           business_id: string
           campaign_id: string
+          cancel_fee_notice_seen_at?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
+          creator_fee_bps?: number | null
           creator_id: string
+          creator_min_fee_kobo?: number | null
+          fee_config_id?: string | null
+          funded_at?: string | null
           id?: string
           pay_by: string
+          refunded_kobo?: number | null
+          released_kobo?: number | null
+          settle_outcome?: string | null
+          settled_at?: string | null
+          started_at?: string | null
           status?: Database["public"]["Enums"]["engagement_status"]
           updated_at?: string
         }
@@ -485,13 +551,24 @@ export type Database = {
           agreed_price_kobo?: number
           application_id?: string
           approved_at?: string
+          business_fee_kobo?: number | null
           business_id?: string
           campaign_id?: string
+          cancel_fee_notice_seen_at?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
+          creator_fee_bps?: number | null
           creator_id?: string
+          creator_min_fee_kobo?: number | null
+          fee_config_id?: string | null
+          funded_at?: string | null
           id?: string
           pay_by?: string
+          refunded_kobo?: number | null
+          released_kobo?: number | null
+          settle_outcome?: string | null
+          settled_at?: string | null
+          started_at?: string | null
           status?: Database["public"]["Enums"]["engagement_status"]
           updated_at?: string
         }
@@ -499,7 +576,7 @@ export type Database = {
           {
             foreignKeyName: "engagements_application_id_fkey"
             columns: ["application_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "applications"
             referencedColumns: ["id"]
           },
@@ -524,7 +601,53 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "engagements_fee_config_id_fkey"
+            columns: ["fee_config_id"]
+            isOneToOne: false
+            referencedRelation: "fee_config"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      fee_config: {
+        Row: {
+          business_fee_bps: number
+          created_at: string
+          creator_fee_bps: number
+          id: string
+          min_fee_kobo: number
+          min_payout_kobo: number
+          paystack_rate: Json
+          transfer_fee_tiers: Json
+          transfer_stamp_duty_from_kobo: number
+          transfer_stamp_duty_kobo: number
+        }
+        Insert: {
+          business_fee_bps: number
+          created_at?: string
+          creator_fee_bps: number
+          id?: string
+          min_fee_kobo: number
+          min_payout_kobo: number
+          paystack_rate: Json
+          transfer_fee_tiers: Json
+          transfer_stamp_duty_from_kobo: number
+          transfer_stamp_duty_kobo: number
+        }
+        Update: {
+          business_fee_bps?: number
+          created_at?: string
+          creator_fee_bps?: number
+          id?: string
+          min_fee_kobo?: number
+          min_payout_kobo?: number
+          paystack_rate?: Json
+          transfer_fee_tiers?: Json
+          transfer_stamp_duty_from_kobo?: number
+          transfer_stamp_duty_kobo?: number
+        }
+        Relationships: []
       }
       influencer_platforms: {
         Row: {
@@ -629,6 +752,100 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ledger_entries: {
+        Row: {
+          account: string
+          actor_user_id: string | null
+          amount_kobo: number
+          created_at: string
+          engagement_id: string | null
+          event_type: string
+          fee_config_id: string
+          group_id: string
+          id: string
+          owner_user_id: string | null
+          payment_id: string | null
+          payout_id: string | null
+          paystack_reference: string | null
+          reason: string | null
+        }
+        Insert: {
+          account: string
+          actor_user_id?: string | null
+          amount_kobo: number
+          created_at?: string
+          engagement_id?: string | null
+          event_type: string
+          fee_config_id: string
+          group_id: string
+          id?: string
+          owner_user_id?: string | null
+          payment_id?: string | null
+          payout_id?: string | null
+          paystack_reference?: string | null
+          reason?: string | null
+        }
+        Update: {
+          account?: string
+          actor_user_id?: string | null
+          amount_kobo?: number
+          created_at?: string
+          engagement_id?: string | null
+          event_type?: string
+          fee_config_id?: string
+          group_id?: string
+          id?: string
+          owner_user_id?: string | null
+          payment_id?: string | null
+          payout_id?: string | null
+          paystack_reference?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_entries_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_fee_config_id_fkey"
+            columns: ["fee_config_id"]
+            isOneToOne: false
+            referencedRelation: "fee_config"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_payment_fk"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_payout_fk"
+            columns: ["payout_id"]
+            isOneToOne: false
+            referencedRelation: "payouts"
             referencedColumns: ["id"]
           },
         ]
@@ -843,6 +1060,169 @@ export type Database = {
           },
         ]
       }
+      payment_events: {
+        Row: {
+          event_key: string
+          payload: Json
+          received_at: string
+        }
+        Insert: {
+          event_key: string
+          payload: Json
+          received_at?: string
+        }
+        Update: {
+          event_key?: string
+          payload?: Json
+          received_at?: string
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          business_fee_kobo: number
+          card_amount_kobo: number
+          created_at: string
+          engagement_id: string
+          fee_config_id: string
+          fee_notice_seen_at: string
+          id: string
+          paystack_fee_kobo: number | null
+          reference: string
+          status: string
+          total_kobo: number
+          updated_at: string
+          wallet_part_kobo: number
+        }
+        Insert: {
+          business_fee_kobo: number
+          card_amount_kobo: number
+          created_at?: string
+          engagement_id: string
+          fee_config_id: string
+          fee_notice_seen_at: string
+          id?: string
+          paystack_fee_kobo?: number | null
+          reference: string
+          status?: string
+          total_kobo: number
+          updated_at?: string
+          wallet_part_kobo: number
+        }
+        Update: {
+          business_fee_kobo?: number
+          card_amount_kobo?: number
+          created_at?: string
+          engagement_id?: string
+          fee_config_id?: string
+          fee_notice_seen_at?: string
+          id?: string
+          paystack_fee_kobo?: number | null
+          reference?: string
+          status?: string
+          total_kobo?: number
+          updated_at?: string
+          wallet_part_kobo?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_fee_config_id_fkey"
+            columns: ["fee_config_id"]
+            isOneToOne: false
+            referencedRelation: "fee_config"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payouts: {
+        Row: {
+          account_name: string
+          amount_kobo: number
+          approved_at: string | null
+          approved_by: string | null
+          bank_name: string
+          created_at: string
+          decision_reason: string | null
+          fee_config_id: string
+          id: string
+          last4: string
+          paid_at: string | null
+          recipient_code: string
+          reference: string | null
+          status: string
+          transfer_fee_kobo: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_name: string
+          amount_kobo: number
+          approved_at?: string | null
+          approved_by?: string | null
+          bank_name: string
+          created_at?: string
+          decision_reason?: string | null
+          fee_config_id: string
+          id?: string
+          last4: string
+          paid_at?: string | null
+          recipient_code: string
+          reference?: string | null
+          status?: string
+          transfer_fee_kobo: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_name?: string
+          amount_kobo?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          bank_name?: string
+          created_at?: string
+          decision_reason?: string | null
+          fee_config_id?: string
+          id?: string
+          last4?: string
+          paid_at?: string | null
+          recipient_code?: string
+          reference?: string | null
+          status?: string
+          transfer_fee_kobo?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payouts_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payouts_fee_config_id_fkey"
+            columns: ["fee_config_id"]
+            isOneToOne: false
+            referencedRelation: "fee_config"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payouts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profile_reports: {
         Row: {
           created_at: string
@@ -904,6 +1284,33 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      reconciliation_runs: {
+        Row: {
+          difference_kobo: number
+          expected_cash_kobo: number
+          id: string
+          note: string | null
+          paystack_balance_kobo: number
+          ran_at: string
+        }
+        Insert: {
+          difference_kobo: number
+          expected_cash_kobo: number
+          id?: string
+          note?: string | null
+          paystack_balance_kobo: number
+          ran_at?: string
+        }
+        Update: {
+          difference_kobo?: number
+          expected_cash_kobo?: number
+          id?: string
+          note?: string | null
+          paystack_balance_kobo?: number
+          ran_at?: string
+        }
+        Relationships: []
       }
       user_blocks: {
         Row: {
@@ -1157,6 +1564,19 @@ export type Database = {
     }
     Functions: {
       active_strike_count: { Args: { person: string }; Returns: number }
+      admin_engagement_trail: { Args: { engagement: string }; Returns: Json }
+      admin_ledger: {
+        Args: {
+          engagement: string
+          event_type: string
+          from_date: string
+          person: string
+          row_limit: number
+          row_offset: number
+          to_date: string
+        }
+        Returns: Json
+      }
       answer_appeal: {
         Args: { answer: string; appeal: string; decline: boolean }
         Returns: undefined
@@ -1169,6 +1589,8 @@ export type Database = {
         Args: { application: string; expected_price_kobo: number }
         Returns: string
       }
+      approve_payout: { Args: { payout: string }; Returns: Json }
+      audit_name: { Args: { person: string }; Returns: string }
       block_user: { Args: { other: string }; Returns: undefined }
       campaign_application_counts: {
         Args: never
@@ -1191,6 +1613,10 @@ export type Database = {
         Returns: Json
       }
       cancel_engagement: { Args: { engagement: string }; Returns: undefined }
+      cancel_funded_engagement: {
+        Args: { engagement: string; fee_notice_seen: boolean }
+        Returns: undefined
+      }
       check_standing: { Args: { person: string }; Returns: undefined }
       clean_note: { Args: { note: string }; Returns: string }
       clean_reason: { Args: { reason: string }; Returns: string }
@@ -1203,6 +1629,36 @@ export type Database = {
       creator_platforms_json: {
         Args: { creator: string; with_handles: boolean }
         Returns: Json
+      }
+      creator_wallet_summary: {
+        Args: { person: string }
+        Returns: {
+          earned_kobo: number
+          fee_kobo: number
+          other_kobo: number
+          payouts_kobo: number
+        }[]
+      }
+      current_fee_config: {
+        Args: never
+        Returns: {
+          business_fee_bps: number
+          created_at: string
+          creator_fee_bps: number
+          id: string
+          min_fee_kobo: number
+          min_payout_kobo: number
+          paystack_rate: Json
+          transfer_fee_tiers: Json
+          transfer_stamp_duty_from_kobo: number
+          transfer_stamp_duty_kobo: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "fee_config"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       current_user_id: { Args: never; Returns: string }
       current_user_role: {
@@ -1230,14 +1686,32 @@ export type Database = {
         Args: { e: Database["public"]["Tables"]["engagements"]["Row"] }
         Returns: Json
       }
+      engagement_lapsed: {
+        Args: { e: Database["public"]["Tables"]["engagements"]["Row"] }
+        Returns: boolean
+      }
       expire_unpaid_engagements: {
         Args: { campaign?: string }
         Returns: number
+      }
+      fee_kobo: {
+        Args: { amount: number; bps: number; min_fee: number }
+        Returns: number
+      }
+      finish_payout: {
+        Args: {
+          event_key: string
+          outcome: string
+          payload: Json
+          reference: string
+        }
+        Returns: string
       }
       follower_range_for: {
         Args: { follower_count: number }
         Returns: Database["public"]["Enums"]["follower_range"]
       }
+      fund_engagement: { Args: { payment: string }; Returns: boolean }
       get_campaign: { Args: { campaign: string }; Returns: Json }
       get_listed_creator: {
         Args: { creator_slug: string }
@@ -1258,6 +1732,7 @@ export type Database = {
         }[]
       }
       held_places: { Args: { campaign: string }; Returns: number }
+      hire_ended_unpaid: { Args: { application: string }; Returns: boolean }
       indexable_creators: {
         Args: never
         Returns: {
@@ -1272,6 +1747,8 @@ export type Database = {
       }
       is_suspended: { Args: { person: string }; Returns: boolean }
       lagos_today: { Args: never; Returns: string }
+      ledger_event_rank: { Args: { event_type: string }; Returns: number }
+      ledger_totals: { Args: never; Returns: Json }
       lift_suspension: {
         Args: { person: string; reason: string }
         Returns: undefined
@@ -1283,6 +1760,7 @@ export type Database = {
           page_offset?: number
           page_size?: number
           qualified_only?: boolean
+          search?: string
         }
         Returns: {
           campaign: Json
@@ -1308,9 +1786,50 @@ export type Database = {
         Returns: undefined
       }
       open_campaign_count: { Args: never; Returns: number }
+      pay_from_wallet: {
+        Args: { engagement: string; fee_notice_seen: boolean }
+        Returns: undefined
+      }
+      payment_in_flight: { Args: { engagement: string }; Returns: boolean }
+      post_ledger_group: {
+        Args: {
+          actor: string
+          config: string
+          engagement: string
+          event_type: string
+          lines: Json
+          payment: string
+          payout: string
+          reason: string
+          reference: string
+        }
+        Returns: string
+      }
+      reconciliation_figures: {
+        Args: { paystack_balance_kobo: number; totals: Json }
+        Returns: Json
+      }
+      record_card_payment: {
+        Args: {
+          event_key: string
+          paid_kobo: number
+          payload: Json
+          paystack_fee_kobo: number
+          reference: string
+        }
+        Returns: string
+      }
+      record_reconciliation: {
+        Args: { paystack_balance_kobo: number }
+        Returns: Json
+      }
       record_strike: {
         Args: { dedupe: string; detail: string; flag: string; person: string }
         Returns: Json
+      }
+      reject_payout: {
+        Args: { payout: string; reason: string }
+        Returns: undefined
       }
       relax_standing: { Args: { person: string }; Returns: undefined }
       report_campaign: {
@@ -1339,6 +1858,7 @@ export type Database = {
           id: string
         }[]
       }
+      request_payout: { Args: { amount_kobo: number }; Returns: string }
       require_admin: { Args: never; Returns: string }
       resolve_campaign_report: {
         Args: { report_id: string }
@@ -1350,6 +1870,27 @@ export type Database = {
       }
       review_handle_verification: {
         Args: { approve: boolean; follower_count?: number; request_id: string }
+        Returns: undefined
+      }
+      save_bank_account: {
+        Args: {
+          account_name: string
+          bank_code: string
+          bank_name: string
+          last4: string
+          recipient_code: string
+        }
+        Returns: undefined
+      }
+      save_bank_account_for: {
+        Args: {
+          account_name: string
+          bank_code: string
+          bank_name: string
+          last4: string
+          person: string
+          recipient_code: string
+        }
         Returns: undefined
       }
       save_campaign_draft: {
@@ -1380,6 +1921,7 @@ export type Database = {
           on_platform?: Database["public"]["Enums"]["social_platform"]
           page_offset?: number
           page_size?: number
+          search?: string
         }
         Returns: {
           city: string
@@ -1394,6 +1936,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      search_pattern: { Args: { words: string }; Returns: string }
       send_message: {
         Args: { body: string; conversation: string; dedupe: string }
         Returns: Json
@@ -1402,17 +1945,55 @@ export type Database = {
         Args: { creator: string; reason: string }
         Returns: undefined
       }
+      settle_engagement: {
+        Args: {
+          engagement: string
+          outcome: string
+          reason: string
+          release_kobo: number
+        }
+        Returns: undefined
+      }
+      settle_engagement_internal: {
+        Args: {
+          actor: string
+          engagement: string
+          outcome: string
+          reason: string
+          release_kobo: number
+        }
+        Returns: undefined
+      }
+      settle_money: {
+        Args: {
+          actor: string
+          cancel_reason: string
+          engagement: string
+          fault: boolean
+          new_status: Database["public"]["Enums"]["engagement_status"]
+          outcome: string
+          reason: string
+          released: number
+        }
+        Returns: undefined
+      }
       standing_problem: { Args: { person: string }; Returns: string }
       standing_review: { Args: never; Returns: Json }
       start_conversation: {
         Args: { application?: string; creator: string }
         Returns: string
       }
+      start_engagement: { Args: { engagement: string }; Returns: undefined }
+      start_payment: {
+        Args: { engagement: string; fee_notice_seen: boolean }
+        Returns: Json
+      }
       submit_appeal: { Args: { message: string }; Returns: string }
       submit_handle_verification: {
         Args: { request_id: string }
         Returns: undefined
       }
+      transfer_fee_for: { Args: { amount_kobo: number }; Returns: number }
       transition_campaign: {
         Args: { action: string; campaign_id: string; note?: string }
         Returns: Database["public"]["Enums"]["campaign_status"]
@@ -1428,6 +2009,10 @@ export type Database = {
       void_strike: {
         Args: { reason: string; strike: string }
         Returns: undefined
+      }
+      wallet_balance: {
+        Args: { kind: string; person: string }
+        Returns: number
       }
       withdraw_application: {
         Args: { application: string }
@@ -1493,6 +2078,14 @@ export type Database = {
         | "hire_lapsed"
         | "new_message"
         | "appeal_answered"
+        | "hire_funded"
+        | "work_started"
+        | "funded_hire_cancelled"
+        | "engagement_settled"
+        | "payout_paid"
+        | "payout_failed"
+        | "payout_rejected"
+        | "payment_stranded"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -1700,6 +2293,14 @@ export const Constants = {
         "hire_lapsed",
         "new_message",
         "appeal_answered",
+        "hire_funded",
+        "work_started",
+        "funded_hire_cancelled",
+        "engagement_settled",
+        "payout_paid",
+        "payout_failed",
+        "payout_rejected",
+        "payment_stranded",
       ],
       payment_model: ["fixed", "per_click"],
       report_reason: [

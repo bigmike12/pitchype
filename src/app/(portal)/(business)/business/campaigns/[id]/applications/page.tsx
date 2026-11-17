@@ -12,7 +12,9 @@ import { PlatformSummary } from "@/components/creators/platform-list";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterTabs } from "@/components/ui/filter-tabs";
 import { PageHeader } from "@/components/ui/page-header";
+import { Pagination } from "@/components/ui/pagination";
 import {
   HeaderSkeleton,
   PageLoading,
@@ -26,9 +28,10 @@ import {
 } from "@/lib/db/applications";
 import { getOwnCampaign } from "@/lib/db/campaigns";
 import { listNiches } from "@/lib/db/creators";
+import { applicationBucket, hireEndedUnpaid } from "@/lib/applications";
 import { formatNaira } from "@/lib/money";
+import { pageOf, pagedHref, parsePage } from "@/lib/paging";
 import { stateLabel, type NigerianState } from "@/lib/profile";
-import { cn } from "@/lib/utils";
 
 import { shortlistAction } from "./actions";
 import { ApproveButton, RejectForm } from "./decision-buttons";
@@ -45,12 +48,12 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 
+const PAGE_SIZE = 10;
+
+// A hire that lapsed (or was cancelled before payment) is back under "To
+// decide": the place is open again, so it must not read as a filled one.
 const inTab = (a: CampaignApplication, tab: Tab) =>
-  tab === "waiting"
-    ? a.status === "submitted" || a.status === "shortlisted"
-    : tab === "hired"
-      ? a.status === "approved"
-      : a.status === "rejected" || a.status === "withdrawn";
+  applicationBucket(a) === tab;
 
 export default function ApplicationsPage({
   params,
@@ -100,44 +103,37 @@ async function Applications({
   const tab: Tab = TABS.some((t) => t.key === requested)
     ? (requested as Tab)
     : "waiting";
-  const shown = applications.filter((a) => inTab(a, tab));
+  const shown = pageOf(
+    applications.filter((a) => inTab(a, tab)),
+    parsePage(query.page),
+    PAGE_SIZE,
+  );
+  const base = `/business/campaigns/${campaign.id}/applications`;
 
   return (
     <>
       <PageHeader
         title="Applications"
         crumbs={[
-          { href: "/business/campaigns", label: "Campaigns" },
+          { href: "/business/board", label: "Hiring board" },
           { href: `/business/campaigns/${campaign.id}`, label: campaign.title },
         ]}
         lead={`${campaign.places} ${campaign.places === 1 ? "place" : "places"} at ${formatNaira(campaign.priceKobo)} per creator.`}
       />
 
-      <nav
-        aria-label="Filter applications"
-        className="mb-6 flex flex-wrap gap-2"
-      >
-        {TABS.map((t) => {
-          const count = applications.filter((a) => inTab(a, t.key)).length;
-          return (
-            <Link
-              key={t.key}
-              href={`?tab=${t.key}`}
-              aria-current={t.key === tab ? "page" : undefined}
-              className={cn(
-                "inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold ring-1 ring-hairline",
-                t.key === tab
-                  ? "bg-ink text-white ring-ink"
-                  : "bg-white text-ink",
-              )}
-            >
-              {t.label} ({count})
-            </Link>
-          );
-        })}
-      </nav>
+      <FilterTabs
+        label="Filter applications"
+        current={tab}
+        className="mb-3"
+        tabs={TABS.map((t) => ({
+          key: t.key,
+          label: t.label,
+          count: applications.filter((a) => inTab(a, t.key)).length,
+          href: pagedHref(base, { tab: t.key }, 1),
+        }))}
+      />
 
-      {shown.length === 0 ? (
+      {shown.total === 0 ? (
         <EmptyState
           icon={ClipboardList}
           tone="lilac"
@@ -150,8 +146,8 @@ async function Applications({
             : "Try another tab."}
         </EmptyState>
       ) : (
-        <ul className="space-y-4">
-          {shown.map((a) => (
+        <ul className="space-y-3">
+          {shown.items.map((a) => (
             <ApplicationCard
               key={a.id}
               application={a}
@@ -163,6 +159,11 @@ async function Applications({
           ))}
         </ul>
       )}
+      <Pagination
+        {...shown}
+        noun={["application", "applications"]}
+        hrefFor={(page) => pagedHref(base, { tab }, page)}
+      />
     </>
   );
 }
@@ -178,10 +179,13 @@ function ApplicationCard({
 }) {
   const priceKobo = a.proposedPriceKobo ?? campaignPriceKobo;
   const open = a.status === "submitted" || a.status === "shortlisted";
-  const canHire = open && !a.creator.suspended && !a.creator.blocked;
+  // Hired before, but the hire ended without being paid for: hire again or pass.
+  const reopened = hireEndedUnpaid(a);
+  const decidable = open || reopened;
+  const canHire = decidable && !a.creator.suspended && !a.creator.blocked;
 
   return (
-    <li className="rounded-card panel p-5 sm:p-6">
+    <li className="rounded-card p-4 panel sm:p-5">
       <div className="flex gap-4">
         <CreatorPhoto
           name={a.creator.displayName}
@@ -240,7 +244,7 @@ function ApplicationCard({
         </blockquote>
       )}
 
-      {a.creator.suspended && open && (
+      {a.creator.suspended && decidable && (
         <Callout
           tone="info"
           icon={CircleSlash}
@@ -250,7 +254,7 @@ function ApplicationCard({
           This creator’s account is under review.
         </Callout>
       )}
-      {a.creator.blocked && open && (
+      {a.creator.blocked && decidable && (
         <Callout
           tone="info"
           icon={CircleSlash}
@@ -267,6 +271,7 @@ function ApplicationCard({
             applicationId={a.id}
             creatorName={a.creator.displayName}
             priceKobo={priceKobo}
+            again={reopened}
           />
         )}
         {a.status === "submitted" && (
@@ -294,7 +299,7 @@ function ApplicationCard({
             blockedByMe={false}
           />
         )}
-        {open && <RejectForm applicationId={a.id} />}
+        {decidable && <RejectForm applicationId={a.id} />}
       </div>
     </li>
   );
@@ -312,11 +317,26 @@ function Outcome({ application: a }: { application: CampaignApplication }) {
       </Link>
     );
   }
+  // Paid hires (and ones finished or cancelled after paying) have their own page.
+  if (
+    a.status === "approved" &&
+    e &&
+    (e.fundedAt || e.status !== "cancelled")
+  ) {
+    return (
+      <Link
+        href={`/business/engagements/${e.id}`}
+        className={buttonVariants({ variant: "secondary" })}
+      >
+        View hire · {formatNaira(e.agreedPriceKobo)}
+      </Link>
+    );
+  }
   const text =
     a.status === "approved" && e?.status === "cancelled"
       ? e.cancelReason === "payment_expired"
-        ? "Hire lapsed: not paid within 48 hours."
-        : "You cancelled this hire before paying."
+        ? "Hire lapsed: not paid within 48 hours. The place is open again."
+        : "You cancelled this hire before paying. The place is open again."
       : a.status === "approved"
         ? `Hired at ${formatNaira(e?.agreedPriceKobo ?? 0)}.`
         : a.status === "rejected"

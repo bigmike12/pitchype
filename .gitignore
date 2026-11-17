@@ -45,3 +45,6 @@ next-env.d.ts
 
 # Brainstorm mockups (superpowers visual companion)
 .superpowers/
+
+# Live production values kept at the repo root. Not an .env* name, so it needs its own line.
+/env

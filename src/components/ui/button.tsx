@@ -6,14 +6,15 @@ import { cn } from "@/lib/utils";
 
 // shadcn/ui's Button, trimmed to the variants we use and restyled to the
 // Pitchype tokens.
-// Every size is at least 44px tall so it's an easy tap target.
+// Every size is at least 44px tall on touch screens so it's an easy tap
+// target; `sm` drops to 36px from 1024px, where a mouse is the norm.
 const buttonVariants = cva(
   "inline-flex shrink-0 items-center justify-center gap-2 rounded-control font-sans font-semibold whitespace-nowrap select-none disabled:pointer-events-none disabled:opacity-60 motion-safe:transition-[background-color,box-shadow,transform] motion-safe:duration-200 motion-safe:hover:-translate-y-px motion-safe:active:translate-y-0 motion-safe:active:scale-[0.98] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         // Near-black primary with a lit top edge.
-        default: "bg-ink text-white shadow-button hover:bg-[#26262b]",
+        default: "bg-ink text-white shadow-button hover:bg-ink-hover",
         // White button with a firm outline, for the second choice. Buttons
         // are identified by their label, so the outline is decorative.
         secondary:
@@ -24,6 +25,7 @@ const buttonVariants = cva(
       },
       size: {
         default: "h-11 px-5 text-[0.9375rem]",
+        sm: "h-11 px-4 text-sm lg:h-9 lg:px-3.5",
         lg: "h-12 px-6 text-base",
         icon: "size-11",
       },

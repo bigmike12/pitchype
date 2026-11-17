@@ -7,6 +7,7 @@ import { Suspense, type ReactNode } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { PageHeader } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/section-card";
 import { requireRole } from "@/lib/auth";
 import {
   PLATFORMS,
@@ -139,17 +140,16 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section
-      id={id}
-      aria-labelledby={`${id}-title`}
-      className="scroll-mt-24 rounded-card panel p-5 sm:p-6"
+    <SectionCard
+      anchor={id}
+      id={`${id}-title`}
+      title={title}
+      padded
+      className="scroll-mt-24"
     >
-      <h2 id={`${id}-title`} className="text-display-md">
-        {title}
-      </h2>
-      {lead && <p className="mt-2 max-w-xl">{lead}</p>}
-      <div className="mt-5">{children}</div>
-    </section>
+      {lead && <p className="mb-5 max-w-xl">{lead}</p>}
+      {children}
+    </SectionCard>
   );
 }
 

@@ -1,0 +1,120 @@
+import type { ReactNode } from "react";
+
+import { TABLE } from "@/components/ui/table";
+import { formatDateTime } from "@/lib/creator-profile";
+import { describeLedgerRow } from "@/lib/ledger-words";
+import { formatNaira } from "@/lib/money";
+import { cn } from "@/lib/utils";
+
+export type WalletLine = {
+  id: string;
+  createdAt: string;
+  eventType: string;
+  account: string;
+  amountKobo: number;
+  /** A hire's amount released before our fee, so a job payment shows the fee. */
+  releasedKobo?: number | null;
+};
+
+const th = TABLE.th;
+
+function Amount({ line }: { line: ReturnType<typeof describeLedgerRow> }) {
+  const into = line.direction === "in";
+  return (
+    <span
+      className={cn(
+        "font-semibold tabular-nums",
+        into ? "text-brand-green" : "text-ink",
+      )}
+    >
+      <span aria-hidden="true">{into ? "+" : "−"}</span>
+      <span className="sr-only">{into ? "Money in: " : "Money out: "}</span>
+      {formatNaira(line.walletAmountKobo)}
+    </span>
+  );
+}
+
+/**
+ * A person's wallet history: a table from 640px, a stacked list on phones
+ * (same pattern as `CampaignTable`). Takes ledger rows as stored and turns
+ * them into words and signs with `describeLedgerRow`. `footer` sits at the
+ * foot of the frame (a `<Pagination framed />`).
+ */
+export function LedgerTable({
+  rows,
+  footer,
+}: {
+  rows: WalletLine[];
+  footer?: ReactNode;
+}) {
+  const lines = rows.map((row) => ({ row, words: describeLedgerRow(row) }));
+
+  return (
+    <>
+      <div className="overflow-hidden rounded-card panel sm:hidden">
+        <ul className="divide-y divide-hairline">
+          {lines.map(({ row, words }) => (
+            <li key={row.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <p className="min-w-0 font-semibold text-ink">{words.label}</p>
+                <Amount line={words} />
+              </div>
+              {words.detail && (
+                <p className="mt-0.5 text-sm text-body">{words.detail}</p>
+              )}
+              <p className="mt-1 text-sm text-muted">
+                {formatDateTime(row.createdAt)}
+              </p>
+            </li>
+          ))}
+        </ul>
+        {footer}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-card panel sm:block">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-hairline bg-surface-soft/60">
+            <tr>
+              <th scope="col" className={th}>
+                Date
+              </th>
+              <th scope="col" className={th}>
+                What happened
+              </th>
+              <th scope="col" className={`${th} text-right`}>
+                Amount
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-hairline text-ink">
+            {lines.map(({ row, words }) => (
+              <tr
+                key={row.id}
+                className="hover:bg-surface-soft/60 motion-safe:transition-colors"
+              >
+                <td className="px-4 py-3 first:pl-5 last:pr-5 whitespace-nowrap text-muted">
+                  {formatDateTime(row.createdAt)}
+                </td>
+                <th
+                  scope="row"
+                  className="px-4 py-3 first:pl-5 last:pr-5 font-semibold"
+                >
+                  {words.label}
+                  {words.detail && (
+                    <span className="mt-0.5 block text-sm font-normal text-body">
+                      {words.detail}
+                    </span>
+                  )}
+                </th>
+                <td className="px-4 py-3 first:pl-5 last:pr-5 text-right whitespace-nowrap">
+                  <Amount line={words} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {footer}
+      </div>
+    </>
+  );
+}

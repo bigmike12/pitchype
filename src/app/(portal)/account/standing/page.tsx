@@ -9,6 +9,7 @@ import { Suspense } from "react";
 
 import { Callout } from "@/components/ui/callout";
 import { PageHeader } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/section-card";
 import {
   HeaderSkeleton,
   PageLoading,
@@ -88,81 +89,78 @@ async function Standing() {
       )}
 
       {standing.strikes.length > 0 && (
-        <section aria-labelledby="strikes-title" className="mt-8">
-          <h2 id="strikes-title" className="text-display-md">
-            Strikes
-          </h2>
-          <ul className="mt-4 divide-y divide-hairline rounded-card panel">
-            {standing.strikes.map((s) => (
-              <li key={s.id} className="p-4 sm:p-5">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <p
-                    className={cn(
-                      "font-semibold text-ink",
-                      s.voided && "line-through",
-                    )}
-                  >
-                    Held back: {s.flag}
-                  </p>
-                  <p className="text-sm text-muted">
-                    {formatDateTime(s.createdAt)}
-                    {s.voided && " · removed on review"}
-                  </p>
-                </div>
-                <blockquote className="mt-2 border-l-2 border-hairline pl-3 text-sm break-words whitespace-pre-line">
-                  {s.detail}
-                </blockquote>
-              </li>
-            ))}
-          </ul>
+        <div className="mt-3">
+          <SectionCard id="strikes-title" title="Strikes">
+            <ul className="divide-y divide-hairline">
+              {standing.strikes.map((s) => (
+                <li key={s.id} className="p-4 sm:p-5">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p
+                      className={cn(
+                        "font-semibold text-ink",
+                        s.voided && "line-through",
+                      )}
+                    >
+                      Held back: {s.flag}
+                    </p>
+                    <p className="text-sm text-muted">
+                      {formatDateTime(s.createdAt)}
+                      {s.voided && " · removed on review"}
+                    </p>
+                  </div>
+                  <blockquote className="mt-2 border-l-2 border-hairline pl-3 text-sm break-words whitespace-pre-line">
+                    {s.detail}
+                  </blockquote>
+                </li>
+              ))}
+            </ul>
+          </SectionCard>
           <p className="mt-2 text-sm text-muted">
             Only you and the Pitchype team see these messages; they were never
             delivered.
           </p>
-        </section>
+        </div>
       )}
 
       {(canAppeal || appeals.length > 0) && (
-        <section aria-labelledby="appeal-title" className="mt-10">
-          <h2 id="appeal-title" className="text-display-md">
-            Appeal
-          </h2>
+        <div className="mt-6 space-y-3">
           {openAppeal && (
             <Callout
               tone="info"
               icon={TriangleAlert}
               title="We’re looking at your appeal"
-              className="mt-4"
             >
               Sent {formatDateTime(openAppeal.createdAt)}. We’ll answer here.
             </Callout>
           )}
           {canAppeal && (
-            <div className="mt-4 rounded-card panel p-5 sm:p-6">
+            <SectionCard id="appeal-title" title="Appeal" padded>
               <AppealForm />
-            </div>
+            </SectionCard>
           )}
           {appeals.some((a) => a.status === "answered") && (
-            <ul className="mt-6 space-y-3">
-              {appeals
-                .filter((a) => a.status === "answered")
-                .map((a) => (
-                  <li key={a.id} className="rounded-card panel p-4 sm:p-5">
-                    <p className="text-sm text-muted">
-                      Your appeal of {formatDateTime(a.createdAt)}
-                    </p>
-                    <p className="mt-1 break-words whitespace-pre-line">
-                      {a.message}
-                    </p>
-                    <p className="mt-3 font-semibold text-ink">Our answer</p>
-                    <p className="mt-1 break-words whitespace-pre-line">
-                      {a.answer}
-                    </p>
-                  </li>
-                ))}
-            </ul>
+            <SectionCard id="answers-title" title="Answered appeals">
+              <ul className="divide-y divide-hairline">
+                {appeals
+                  .filter((a) => a.status === "answered")
+                  .map((a) => (
+                    <li key={a.id} className="p-4 sm:p-5">
+                      <p className="text-sm text-muted">
+                        Your appeal of {formatDateTime(a.createdAt)}
+                      </p>
+                      <p className="mt-1 break-words whitespace-pre-line">
+                        {a.message}
+                      </p>
+                      <p className="mt-3 font-semibold text-ink">Our answer</p>
+                      <p className="mt-1 break-words whitespace-pre-line">
+                        {a.answer}
+                      </p>
+                    </li>
+                  ))}
+              </ul>
+            </SectionCard>
           )}
-        </section>
+        </div>
       )}
     </>
   );

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 const TONES = {
   info: "bg-surface ring-1 ring-hairline shadow-card",
-  attention: "bg-[#fff1bf] ring-1 ring-[#f3dc8c]",
+  attention: "bg-attention ring-1 ring-attention-ring",
   success: "bg-brand-mint ring-1 ring-ink/5",
   danger: "bg-surface ring-1 ring-danger",
 } as const;

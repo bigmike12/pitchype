@@ -116,6 +116,14 @@ test("missing facts never show 'undefined'", () => {
     "profile_hidden",
     "profile_restored",
     "appeal_answered",
+    "hire_funded",
+    "work_started",
+    "funded_hire_cancelled",
+    "engagement_settled",
+    "payout_paid",
+    "payout_failed",
+    "payout_rejected",
+    "payment_stranded",
   ]) {
     const d = describeNotification(row(kind));
     assert.ok(d, kind);
@@ -124,6 +132,225 @@ test("missing facts never show 'undefined'", () => {
       /undefined|null/,
       kind,
     );
+  }
+});
+
+const hire = { ...campaign, engagement_id: "e1", name: "Ada Kitchen" };
+
+test("a funded hire tells the creator to start, and links to the job", () => {
+  const d = describeNotification(row("hire_funded", hire), "influencer");
+  assert.equal(d?.title, "Ada Kitchen paid for “Zobo week”");
+  assert.match(d?.body ?? "", /start work/i);
+  assert.equal(d?.href, "/jobs/e1");
+});
+
+test("starting work tells the business, and links to the hire", () => {
+  const d = describeNotification(
+    row("work_started", { ...hire, name: "Tolu" }),
+    "business",
+  );
+  assert.equal(d?.title, "Tolu started work on “Zobo week”");
+  assert.equal(d?.href, "/business/engagements/e1");
+});
+
+test("a cancelled paid hire reads differently for each side", () => {
+  const forCreator = describeNotification(
+    row("funded_hire_cancelled", hire),
+    "influencer",
+  );
+  const forBusiness = describeNotification(
+    row("funded_hire_cancelled", { ...hire, name: "Tolu" }),
+    "business",
+  );
+  assert.equal(forCreator?.title, "Ada Kitchen cancelled your paid hire for “Zobo week”");
+  assert.equal(forCreator?.href, "/jobs/e1");
+  assert.equal(forBusiness?.title, "Tolu withdrew from your paid hire for “Zobo week”");
+  assert.match(forBusiness?.body ?? "", /wallet/i);
+  assert.equal(forBusiness?.href, "/business/engagements/e1");
+});
+
+test("a settlement says how the money went, with a link for each side", () => {
+  const release = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      outcome: "release",
+      released_kobo: 5000000,
+      refunded_kobo: 0,
+    }),
+    "influencer",
+  );
+  assert.equal(release?.title, "“Zobo week” was settled");
+  assert.match(release?.body ?? "", /₦50,000/);
+  assert.equal(release?.href, "/jobs/e1");
+
+  const refund = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      outcome: "refund",
+      released_kobo: 0,
+      refunded_kobo: 5000000,
+    }),
+    "business",
+  );
+  assert.match(refund?.body ?? "", /₦50,000/);
+  assert.match(refund?.body ?? "", /back to your wallet/i);
+  assert.equal(refund?.href, "/business/engagements/e1");
+
+  const split = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      outcome: "split",
+      released_kobo: 2000000,
+      refunded_kobo: 3000000,
+    }),
+    "business",
+  );
+  assert.match(split?.body ?? "", /₦20,000/);
+  assert.match(split?.body ?? "", /₦30,000/);
+
+  const fault = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      outcome: "refund_creator_fault",
+      released_kobo: 0,
+      refunded_kobo: 5154594,
+    }),
+    "business",
+  );
+  assert.match(fault?.body ?? "", /₦51,545\.94/);
+});
+
+test("a creator is told what their wallet got, not the gross release", () => {
+  const release = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      outcome: "release",
+      released_kobo: 2500000,
+      refunded_kobo: 0,
+      creator_net_kobo: 2375000,
+      creator_fee_kobo: 125000,
+    }),
+    "influencer",
+  );
+  assert.equal(
+    release?.body,
+    "₦23,750 was added to your wallet: the ₦25,000 job price less our ₦1,250 fee.",
+  );
+
+  const split = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      outcome: "split",
+      released_kobo: 2000000,
+      refunded_kobo: 3000000,
+      creator_net_kobo: 1900000,
+      creator_fee_kobo: 100000,
+    }),
+    "influencer",
+  );
+  assert.equal(
+    split?.body,
+    "₦19,000 was added to your wallet: ₦20,000 of the job price less our ₦1,000 fee. ₦30,000 went back to the business.",
+  );
+
+  // A notice sent before the net was recorded never claims the gross amount
+  // reached the wallet.
+  const old = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      outcome: "release",
+      released_kobo: 2500000,
+      refunded_kobo: 0,
+    }),
+    "influencer",
+  );
+  assert.equal(
+    old?.body,
+    "₦25,000 was released for you. Your wallet gets that less our fee: see the exact amount in your wallet.",
+  );
+
+  // The business still hears the gross release: that is what it paid for.
+  const business = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      outcome: "release",
+      released_kobo: 2500000,
+      refunded_kobo: 0,
+      creator_net_kobo: 2375000,
+    }),
+    "business",
+  );
+  assert.equal(business?.body, "₦25,000 was released to the creator.");
+});
+
+test("payout notifications show the amount and link to the wallet", () => {
+  const paid = describeNotification(
+    row("payout_paid", { payout_id: "p1", amount_kobo: 4750000 }),
+    "influencer",
+  );
+  assert.equal(paid?.title, "Your ₦47,500 payout was sent");
+  // ₦47,500 is over ₦10,000 and up to ₦50,000: ₦25 tier fee + ₦50 stamp duty.
+  assert.equal(
+    paid?.body,
+    "₦47,425 is on its way to your bank after the ₦75 transfer cost.",
+  );
+  assert.equal(paid?.href, "/wallet");
+
+  const paidNoAmount = describeNotification(
+    row("payout_paid", { payout_id: "p1" }),
+    "influencer",
+  );
+  assert.equal(paidNoAmount?.title, "Your payout was sent");
+  assert.equal(paidNoAmount?.body, "It’s on its way to your bank account.");
+
+  const failed = describeNotification(
+    row("payout_failed", { payout_id: "p1", amount_kobo: 4750000 }),
+    "influencer",
+  );
+  assert.equal(failed?.title, "Your ₦47,500 payout didn’t go through");
+  assert.match(failed?.body ?? "", /back in your wallet/i);
+  assert.equal(failed?.href, "/wallet");
+
+  const rejected = describeNotification(
+    row("payout_rejected", {
+      payout_id: "p1",
+      amount_kobo: 4750000,
+      decision_reason: "The account name does not match.",
+    }),
+    "influencer",
+  );
+  assert.equal(rejected?.title, "We couldn’t approve your ₦47,500 payout");
+  assert.equal(rejected?.body, "The account name does not match.");
+  assert.equal(rejected?.href, "/wallet");
+});
+
+test("a stranded payment tells the business where its money is", () => {
+  const d = describeNotification(
+    row("payment_stranded", {
+      ...campaign,
+      engagement_id: "e1",
+      amount_kobo: 5250000,
+    }),
+    "business",
+  );
+  assert.equal(
+    d?.title,
+    "Your payment of ₦52,500 arrived, but this hire could not be started",
+  );
+  assert.equal(d?.body, "The money is in your Pitchype wallet.");
+  assert.equal(d?.href, "/business/wallet");
+
+  const noAmount = describeNotification(row("payment_stranded"), "business");
+  assert.equal(
+    noAmount?.title,
+    "Your payment arrived, but this hire could not be started",
+  );
+});
+
+test("a creator's job link falls back to their applications without a hire", () => {
+  for (const kind of ["hire_funded", "engagement_settled"]) {
+    const d = describeNotification(row(kind, campaign), "influencer");
+    assert.equal(d?.href, "/applications", kind);
   }
 });
 

@@ -6,7 +6,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(61);
+select plan(67);
 
 -- Setup, as the database owner ------------------------------------------------
 -- Ada is a business, Bayo and Chidi are creators, Dayo is an admin.
@@ -170,6 +170,30 @@ select is(
   (select array_agg(slug) from public.search_creators(in_state => 'Oyo')
     where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
   array['bayo-cooks'], 'filter by state');
+select is(
+  (select array_agg(slug) from public.search_creators(search => '  bayo ')
+    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+  array['bayo-cooks'], 'search by name, ignoring case and outer spaces');
+select is(
+  (select array_agg(slug) from public.search_creators(search => 'yaba')
+    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+  array['chidi-styles'], 'search by city');
+select is(
+  (select array_agg(slug) from public.search_creators(search => 'oyo')
+    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+  array['bayo-cooks'], 'search by state');
+select is(
+  (select array_agg(slug) from public.search_creators(search => 'food and')
+    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+  array['bayo-cooks'], 'search by niche name');
+select is(
+  (select count(*)::int from public.search_creators(search => '%')
+    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+  0, 'a typed % is a character, not a wildcard');
+select is(
+  (select count(*)::int from public.search_creators(search => '   ')
+    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+  2, 'a blank search filters nothing');
 
 select is(
   (select row(display_name, bio, starting_rate_kobo, details_visible)::text

@@ -24,10 +24,18 @@ export function ApproveButton({
   applicationId,
   creatorName,
   priceKobo,
+  again = false,
+  size,
+  dropAction,
 }: {
   applicationId: string;
   creatorName: string;
   priceKobo: number;
+  /** The creator's earlier hire ended without being paid for. */
+  again?: boolean;
+  size?: "sm";
+  /** On the hiring board: the column a dropped card opens this dialog for. */
+  dropAction?: string;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [state, formAction, pending] = useActionState<ApproveState, FormData>(
@@ -38,8 +46,13 @@ export function ApproveButton({
 
   return (
     <>
-      <Button type="button" onClick={() => dialogRef.current?.showModal()}>
-        Hire
+      <Button
+        type="button"
+        size={size}
+        data-drop-action={dropAction}
+        onClick={() => dialogRef.current?.showModal()}
+      >
+        {again ? "Hire again" : "Hire"}
       </Button>
       <dialog
         ref={dialogRef}
@@ -50,7 +63,8 @@ export function ApproveButton({
           <input type="hidden" name="applicationId" value={applicationId} />
           <input type="hidden" name="expectedPriceKobo" value={priceKobo} />
           <h2 id={`hire-${applicationId}`} className="text-display-md">
-            Hire {creatorName}?
+            Hire {creatorName}
+            {again ? " again" : ""}?
           </h2>
           <dl className="mt-5 space-y-2">
             <div className="flex justify-between gap-4">

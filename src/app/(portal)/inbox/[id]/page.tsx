@@ -88,73 +88,75 @@ async function Conversation({ params }: { params: Params }) {
         }
       />
 
-      <ol aria-label="Messages" className="space-y-3">
-        {messages.length === 0 && (
-          <li className="text-muted">No messages yet. Say hello.</li>
-        )}
-        {messages.map((m) => {
-          const mine = m.senderId === user.id;
-          return (
-            <li
-              key={m.id}
-              className={cn("flex", mine ? "justify-end" : "justify-start")}
-            >
-              <div
-                className={cn(
-                  "max-w-[85%] rounded-card px-4 py-3",
-                  mine ? "bg-ink text-white" : "panel text-ink",
-                )}
+      <div className="overflow-hidden rounded-card panel">
+        <ol aria-label="Messages" className="space-y-2.5 p-4 sm:p-5">
+          {messages.length === 0 && (
+            <li className="text-muted">No messages yet. Say hello.</li>
+          )}
+          {messages.map((m) => {
+            const mine = m.senderId === user.id;
+            return (
+              <li
+                key={m.id}
+                className={cn("flex", mine ? "justify-end" : "justify-start")}
               >
-                <p className="sr-only">{mine ? "You:" : `${other.name}:`}</p>
-                <p className="break-words whitespace-pre-line">{m.body}</p>
-                <time
-                  dateTime={m.createdAt}
+                <div
                   className={cn(
-                    "mt-1 block text-xs",
-                    mine ? "text-white/80" : "text-muted",
+                    "max-w-[85%] rounded-card px-3.5 py-2.5 sm:max-w-[70%]",
+                    mine ? "bg-ink text-white" : "bg-surface-soft text-ink",
                   )}
                 >
-                  {formatDateTime(m.createdAt)}
-                </time>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+                  <p className="sr-only">{mine ? "You:" : `${other.name}:`}</p>
+                  <p className="break-words whitespace-pre-line">{m.body}</p>
+                  <time
+                    dateTime={m.createdAt}
+                    className={cn(
+                      "mt-1 block text-xs",
+                      mine ? "text-white/80" : "text-muted",
+                    )}
+                  >
+                    {formatDateTime(m.createdAt)}
+                  </time>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
 
-      <div className="mt-8 border-t border-hairline pt-6">
-        {conversation.blocked ? (
-          <Callout
-            tone="info"
-            icon={CircleSlash}
-            title="Messaging isn’t available"
-          >
-            {conversation.blockedByMe
-              ? `You blocked ${other.name}. Unblock them to message each other again.`
-              : "You can’t message each other in this conversation any more."}
-          </Callout>
-        ) : view.state === "paused" || view.state === "suspended" ? (
-          <Callout
-            tone="danger"
-            icon={PauseCircle}
-            title={
-              view.state === "paused"
-                ? "Messaging is paused on your account"
-                : "Your account is suspended"
-            }
-            action={
-              <Link href="/account/standing" className="link">
-                See your account standing
-              </Link>
-            }
-          >
-            {view.state === "paused" && view.until
-              ? `You can send messages again after ${formatDateTime(view.until)}. You can still read this conversation.`
-              : "You can still read this conversation while we review your account."}
-          </Callout>
-        ) : (
-          <Composer conversationId={conversation.id} />
-        )}
+        <div className="border-t border-hairline bg-canvas p-4 sm:p-5">
+          {conversation.blocked ? (
+            <Callout
+              tone="info"
+              icon={CircleSlash}
+              title="Messaging isn’t available"
+            >
+              {conversation.blockedByMe
+                ? `You blocked ${other.name}. Unblock them to message each other again.`
+                : "You can’t message each other in this conversation any more."}
+            </Callout>
+          ) : view.state === "paused" || view.state === "suspended" ? (
+            <Callout
+              tone="danger"
+              icon={PauseCircle}
+              title={
+                view.state === "paused"
+                  ? "Messaging is paused on your account"
+                  : "Your account is suspended"
+              }
+              action={
+                <Link href="/account/standing" className="link">
+                  See your account standing
+                </Link>
+              }
+            >
+              {view.state === "paused" && view.until
+                ? `You can send messages again after ${formatDateTime(view.until)}. You can still read this conversation.`
+                : "You can still read this conversation while we review your account."}
+            </Callout>
+          ) : (
+            <Composer conversationId={conversation.id} />
+          )}
+        </div>
       </div>
 
       <LiveUpdates conversationId={conversation.id} />

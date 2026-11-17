@@ -21,6 +21,8 @@
   --color-surface-card: #ebebe6; /* stronger quiet fill: chips, tracks */
 
   --color-ink: #0e0e10;
+  /* The ink button's hover: a touch lifted from ink, still ≥ 15:1 with white. */
+  --color-ink-hover: #26262b;
   --color-body: #3b3b42;
   /* 4.98:1 even on surface-card. Never on the pastel brand fills. */
   --color-muted: #63636b;
@@ -43,6 +45,9 @@
   --color-brand-mint: #c2ecd9;
   --color-brand-sky: #c9e7f7;
   --color-brand-rose: #fad3e6;
+  /* Attention notices: a warmer tint than brand-sun, with its own ring. */
+  --color-attention: #fff1bf;
+  --color-attention-ring: #f3dc8c;
 
   /* Corner radii by role, not by size. */
   --radius-control: 0.75rem; /* buttons and form fields */

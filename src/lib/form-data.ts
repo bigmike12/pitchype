@@ -26,3 +26,11 @@ export function text(form: FormData, name: string): string {
   const value = form.get(name);
   return typeof value === "string" ? value : "";
 }
+
+const UUID_SHAPE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** True for the shape of a UUID; the database still decides whether it exists. */
+export function isUuid(value: string): boolean {
+  return UUID_SHAPE.test(value);
+}

@@ -83,6 +83,39 @@ export const STATUS_LABELS: Record<CampaignStatus, string> = {
   cancelled: "Cancelled",
 };
 
+/** The tabs on a business's campaign list, and which statuses each holds. */
+export const CAMPAIGN_GROUPS = [
+  { key: "all", label: "All" },
+  { key: "live", label: "Live" },
+  { key: "drafts", label: "Drafts" },
+  { key: "ended", label: "Ended" },
+] as const;
+
+export type CampaignGroup = Exclude<
+  (typeof CAMPAIGN_GROUPS)[number]["key"],
+  "all"
+>;
+
+/**
+ * Live is anything creators can still act on or that has work running
+ * (paused included: it comes back); drafts are not published yet.
+ */
+export function campaignGroup(status: CampaignStatus): CampaignGroup {
+  switch (status) {
+    case "draft":
+    case "pending_review":
+      return "drafts";
+    case "open":
+    case "paused":
+    case "in_progress":
+      return "live";
+    case "closed":
+    case "completed":
+    case "cancelled":
+      return "ended";
+  }
+}
+
 export type CampaignAction =
   | "submit"
   | "withdraw"

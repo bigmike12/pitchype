@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { parseApplicationForm } from "./applications.ts";
+import {
+  applicationBucket,
+  hireEndedUnpaid,
+  parseApplicationForm,
+} from "./applications.ts";
 
 function form(fields: Record<string, string>): FormData {
   const data = new FormData();
@@ -55,4 +59,54 @@ test("the note is optional, short, and free of contact details", () => {
     CAMPAIGN,
   );
   assert.match(!phone.ok ? (phone.errors.note ?? "") : "", /phone number/);
+});
+
+test("a hire has ended unpaid only when it lapsed or was cancelled before payment", () => {
+  const ended = (
+    status: string,
+    fundedAt: string | null = null,
+  ): Parameters<typeof hireEndedUnpaid>[0] => ({
+    status: "approved",
+    engagement: { status, fundedAt },
+  });
+  // Lapsed (or cancelled before paying): the place is free and the creator can return.
+  assert.equal(hireEndedUnpaid(ended("cancelled")), true);
+  // Still waiting for payment, paid, or finished: nothing to apply for.
+  assert.equal(hireEndedUnpaid(ended("awaiting_payment")), false);
+  assert.equal(hireEndedUnpaid(ended("funded", "2026-11-13T10:00:00Z")), false);
+  assert.equal(hireEndedUnpaid(ended("in_progress", "2026-11-13T10:00:00Z")), false);
+  // Cancelled after payment: money was involved, so no.
+  assert.equal(hireEndedUnpaid(ended("cancelled", "2026-11-13T10:00:00Z")), false);
+  // Other application states never reopen.
+  for (const status of ["submitted", "shortlisted", "rejected", "withdrawn"]) {
+    assert.equal(
+      hireEndedUnpaid({
+        status: status as "submitted",
+        engagement: { status: "cancelled", fundedAt: null },
+      }),
+      false,
+      status,
+    );
+  }
+  // An approved application with no hire row at all (should not happen) stays closed.
+  assert.equal(hireEndedUnpaid({ status: "approved", engagement: null }), false);
+});
+
+test("a hire that ended unpaid goes back to the business's to-decide list, not under Hired", () => {
+  const hire = (status: string, fundedAt: string | null = null) => ({
+    engagement: { status, fundedAt },
+  });
+  // Waiting for a decision.
+  assert.equal(applicationBucket({ status: "submitted", engagement: null }), "waiting");
+  assert.equal(applicationBucket({ status: "shortlisted", engagement: null }), "waiting");
+  // A live or paid hire is Hired.
+  assert.equal(applicationBucket({ status: "approved", ...hire("awaiting_payment") }), "hired");
+  assert.equal(applicationBucket({ status: "approved", ...hire("funded", "2026-11-13T10:00:00Z") }), "hired");
+  assert.equal(applicationBucket({ status: "approved", ...hire("cancelled", "2026-11-13T10:00:00Z") }), "hired");
+  // Lapsed or cancelled before payment: the place is open again and the
+  // business decides again. It must not read as a filled place.
+  assert.equal(applicationBucket({ status: "approved", ...hire("cancelled") }), "waiting");
+  // Passed over or withdrawn.
+  assert.equal(applicationBucket({ status: "rejected", engagement: null }), "closed");
+  assert.equal(applicationBucket({ status: "withdrawn", engagement: null }), "closed");
 });

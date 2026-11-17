@@ -5,7 +5,7 @@ import { Wordmark } from "@/components/brand/wordmark";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
- * The signed-in portal's frame. From 1024px: a 240px sidebar sitting on the
+ * The signed-in portal's frame. From 1024px: a 248px sidebar sitting on the
  * porcelain canvas, and the work area as one white panel inset beside it
  * (hairline, faint shadow, rounded corners; `overflow-clip` keeps the
  * corners clean without breaking the sticky glass top bar). Below 1024px the work area is the
@@ -23,7 +23,7 @@ export function PortalShell({
   children: ReactNode;
 }) {
   return (
-    <div className="min-h-dvh bg-canvas lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
+    <div className="min-h-dvh bg-canvas lg:grid lg:h-dvh lg:grid-cols-[15.5rem_minmax(0,1fr)] lg:overflow-hidden">
       <a
         href="#main"
         className="sr-only rounded-lg bg-ink px-4 py-3 font-semibold text-white focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50"
@@ -31,7 +31,7 @@ export function PortalShell({
         Skip to content
       </a>
 
-      <aside className="sticky top-0 hidden h-dvh flex-col lg:flex">
+      <aside className="sticky top-0 hidden h-dvh flex-col bg-canvas/95 backdrop-blur-md lg:flex">
         <div className="flex h-16 shrink-0 items-center px-5">
           <Link
             href="/home"
@@ -44,8 +44,8 @@ export function PortalShell({
         {sidebar}
       </aside>
 
-      <div className="flex min-h-dvh min-w-0 flex-col bg-surface lg:my-2 lg:mr-2 lg:min-h-[calc(100dvh-1rem)] lg:overflow-clip lg:rounded-frame lg:shadow-[0_0_0_1px_var(--color-hairline),var(--shadow-card)]">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-hairline px-4 glass sm:px-6 lg:h-16 lg:px-8">
+      <div className="flex min-h-dvh min-w-0 flex-col bg-surface lg:my-2 lg:mr-2 lg:h-[calc(100dvh-1rem)] lg:overflow-clip lg:rounded-frame lg:shadow-[0_0_0_1px_var(--color-hairline),var(--shadow-card)]">
+        <header className="z-30 flex h-14 shrink-0 items-center gap-3 border-b border-hairline px-4 glass sm:px-6 lg:h-[3.75rem] lg:px-8">
           <Link
             href="/home"
             aria-label="Pitchype home"
@@ -55,9 +55,10 @@ export function PortalShell({
           </Link>
           {topBar}
         </header>
+        {/* Desktop: only this area scrolls, under the fixed sidebar and header. */}
         <main
           id="main"
-          className="flex-1 px-4 py-8 enter sm:px-6 lg:px-8 lg:py-10"
+          className="flex-1 px-4 py-6 enter md:px-6 lg:min-h-0 lg:overflow-y-auto lg:px-8 lg:py-7"
         >
           {children}
         </main>
@@ -70,9 +71,13 @@ export function PortalShell({
 export function SidebarSkeleton() {
   return (
     <div aria-hidden="true" className="flex flex-1 flex-col px-3 pb-4">
-      <div className="flex-1 space-y-1">
-        {[60, 72, 84].map((width) => (
-          <div key={width} className="flex min-h-11 items-center gap-3 px-3">
+      <div className="flex-1 space-y-0.5 pt-2">
+        <Skeleton className="mb-2 ml-3 h-3 w-12" />
+        {[60, 72, 84, 52].map((width) => (
+          <div
+            key={width}
+            className="flex min-h-[2.375rem] items-center gap-2.5 px-3"
+          >
             <Skeleton className="size-[1.125rem] rounded-md" />
             <Skeleton className="h-4" style={{ width }} />
           </div>
@@ -93,7 +98,7 @@ export function SidebarSkeleton() {
 export function TopBarSkeleton() {
   return (
     <div aria-hidden="true" className="ml-auto flex items-center gap-2">
-      <Skeleton className="h-11 w-36 rounded-control max-sm:hidden" />
+      <Skeleton className="h-9 w-32 rounded-control max-lg:hidden" />
       <Skeleton className="size-11 rounded-control" />
       <Skeleton className="size-11 rounded-control lg:hidden" />
     </div>

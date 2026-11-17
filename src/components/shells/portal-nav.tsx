@@ -3,15 +3,27 @@
 import {
   CircleHelp,
   ClipboardList,
+  BadgeCheck,
+  Banknote,
+  EyeOff,
+  Flag,
   House,
   Inbox,
+  LayoutDashboard,
+  LockKeyhole,
+  ReceiptText,
+  Scale,
+  ShieldAlert,
+  SquareKanban,
   LogOut,
   Megaphone,
   Menu,
   Plus,
   Search,
+  ChevronsUpDown,
   ShieldCheck,
   UserRound,
+  Wallet,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -23,7 +35,16 @@ import { Wordmark } from "@/components/brand/wordmark";
 import { CreatorPhoto } from "@/components/creators/creator-photo";
 import { buttonVariants } from "@/components/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   isNavActive,
+  navGroups,
   sectionLabel,
   type NavIcon,
   type NavItem,
@@ -37,12 +58,60 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   campaigns: Megaphone,
   creators: Search,
   applications: ClipboardList,
+  board: SquareKanban,
   profile: UserRound,
   inbox: Inbox,
+  wallet: Wallet,
   admin: ShieldCheck,
+  overview: LayoutDashboard,
+  standing: ShieldAlert,
+  verification: BadgeCheck,
+  reports: Flag,
+  hidden: EyeOff,
+  escrow: LockKeyhole,
+  payouts: Banknote,
+  ledger: ReceiptText,
+  reconciliation: Scale,
 };
 
 type MainAction = { href: string; label: string } | null;
+
+const ROLE_LABEL: Record<PortalViewer["role"], string> = {
+  business: "Business",
+  influencer: "Creator",
+  admin: "Admin",
+};
+
+// What escrow means for the person reading it; admins don't need telling.
+const ESCROW_NOTE: Record<
+  PortalViewer["role"],
+  { title: string; body: string } | null
+> = {
+  business: {
+    title: "Protected by escrow",
+    body: "Your payment is held by Pitchype until the job is done.",
+  },
+  influencer: {
+    title: "Paid through escrow",
+    body: "The business pays before you start. Pitchype holds the money until the job is done.",
+  },
+  admin: null,
+};
+
+/** The sidebar's quiet reassurance card: a tinted fill, ink text. */
+function EscrowNote({ role }: { role: PortalViewer["role"] }) {
+  const note = ESCROW_NOTE[role];
+  if (!note) return null;
+  return (
+    <div className="mb-3 rounded-card bg-linear-to-br from-brand-lilac/55 to-brand-sky/55 p-3 text-[0.8125rem] leading-snug text-ink">
+      <p className="flex items-center gap-1.5 font-semibold">
+        <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
+        {note.title}
+      </p>
+      <p className="mt-1">{note.body}</p>
+    </div>
+  );
+}
 type SignOut = () => Promise<void>;
 
 function NavLinks({
@@ -54,45 +123,55 @@ function NavLinks({
 }) {
   const pathname = usePathname();
   return (
-    <ul className="space-y-1">
-      {items.map((item) => {
-        const Icon = ICONS[item.icon];
-        const active = isNavActive(pathname, item.href);
-        return (
-          <li key={item.href}>
-            <Link
-              href={item.href}
-              onClick={onNavigate}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "group flex min-h-11 items-center gap-3 rounded-xl px-3 text-[0.9375rem] text-ink motion-safe:transition-[background-color,box-shadow]",
-                active
-                  ? "bg-surface font-semibold shadow-card ring-1 ring-hairline"
-                  : "font-medium text-body hover:bg-ink/[0.04] hover:text-ink",
-              )}
-            >
-              <Icon
-                className={cn(
-                  "size-[1.125rem] shrink-0",
-                  active
-                    ? "text-brand-violet"
-                    : "text-muted group-hover:text-ink",
-                )}
-                aria-hidden="true"
-              />
-              {item.label}
-              {item.badge ? (
-                <span className="ml-auto rounded-full bg-ink px-2 py-0.5 text-xs font-semibold text-white">
-                  {item.badge}
-                  <span className="sr-only"> unread</span>
-                </span>
-              ) : null}
-              <PendingDot />
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
+    <div className="space-y-4">
+      {navGroups(items).map(({ group, items: links }) => (
+        <div key={group}>
+          <p className="px-3 pb-1.5 text-[0.6875rem] font-semibold tracking-wider text-muted uppercase">
+            {group}
+          </p>
+          <ul className="space-y-0.5">
+            {links.map((item) => {
+              const Icon = ICONS[item.icon];
+              const active = isNavActive(pathname, item.href);
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    onClick={onNavigate}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      // 44px on touch screens, tighter beside a mouse.
+                      "group flex min-h-11 items-center gap-2.5 rounded-[0.625rem] px-3 text-sm motion-safe:transition-[background-color,color,box-shadow] lg:min-h-[2.375rem]",
+                      active
+                        ? "panel font-semibold text-ink"
+                        : "font-medium text-body hover:bg-ink/[0.04] hover:text-ink",
+                    )}
+                  >
+                    <Icon
+                      className={cn(
+                        "size-[1.125rem] shrink-0",
+                        active
+                          ? "text-brand-violet"
+                          : "text-muted group-hover:text-ink",
+                      )}
+                      aria-hidden="true"
+                    />
+                    {item.label}
+                    {item.badge ? (
+                      <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-ink px-1.5 text-[0.6875rem] font-semibold text-white">
+                        {item.badge}
+                        <span className="sr-only"> unread</span>
+                      </span>
+                    ) : null}
+                    <PendingDot />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -139,7 +218,9 @@ function AccountBlock({
           <span className="block truncate text-sm font-semibold text-ink">
             {viewer.name}
           </span>
-          <span className="block text-xs text-muted">Account</span>
+          <span className="block text-xs text-muted">
+            {ROLE_LABEL[viewer.role]} account
+          </span>
         </span>
       </Link>
       <form
@@ -158,7 +239,74 @@ function AccountBlock({
   );
 }
 
-/** The sidebar's links and account block (desktop). */
+/**
+ * The account menu in the desktop sidebar: the person's name opens a small
+ * menu with their account and sign-out. The phone drawer keeps the flat
+ * AccountBlock, because a portal menu inside its modal dialog would sit
+ * behind the dialog's inert layer.
+ */
+function AccountMenu({
+  viewer,
+  signOutAction,
+}: {
+  viewer: PortalViewer;
+  signOutAction: SignOut;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-card p-2 text-left panel outline-none hover:bg-surface-soft focus-visible:ring-2 focus-visible:ring-ink data-[state=open]:bg-surface-soft">
+        <CreatorPhoto
+          name={viewer.name}
+          url={viewer.photoUrl}
+          sizes="32px"
+          className="size-8 shrink-0 rounded-full"
+        />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-ink">
+            {viewer.name}
+          </span>
+          <span className="block text-xs text-muted">
+            {ROLE_LABEL[viewer.role]}
+          </span>
+        </span>
+        <ChevronsUpDown
+          className="size-4 shrink-0 text-muted"
+          aria-hidden="true"
+        />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        side="top"
+        align="start"
+        className="w-(--radix-dropdown-menu-trigger-width)"
+      >
+        <DropdownMenuLabel>{viewer.name}</DropdownMenuLabel>
+        <DropdownMenuItem asChild>
+          <Link href="/account">
+            <UserRound aria-hidden="true" />
+            Account settings
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <form action={signOutAction}>
+          {/* Radix closes (and unmounts) the menu on select, which removes
+              this form before the browser submits it. Keep it open; the
+              redirect after signing out replaces the page. */}
+          <DropdownMenuItem
+            asChild
+            onSelect={(event) => event.preventDefault()}
+          >
+            <button type="submit" className="w-full">
+              <LogOut aria-hidden="true" />
+              Sign out
+            </button>
+          </DropdownMenuItem>
+        </form>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** The sidebar's links and account menu (desktop). */
 export function SidebarNav({
   viewer,
   items,
@@ -170,10 +318,35 @@ export function SidebarNav({
 }) {
   return (
     <div className="flex flex-1 flex-col px-3 pb-4">
-      <nav aria-label="Main" className="flex-1">
+      <nav aria-label="Main" className="flex-1 pt-2">
         <NavLinks items={items} />
       </nav>
-      <AccountBlock viewer={viewer} signOutAction={signOutAction} />
+      <EscrowNote role={viewer.role} />
+      <AccountMenu viewer={viewer} signOutAction={signOutAction} />
+      {/* Secondary links, in a lighter style than the navigation above. */}
+      <nav
+        aria-label="Help and legal"
+        className="mt-3 flex flex-wrap border-t border-hairline pt-1 text-xs text-muted"
+      >
+        <a
+          href={`mailto:${CONTACT_EMAIL}`}
+          className="inline-flex min-h-11 items-center px-2 hover:text-ink"
+        >
+          Help
+        </a>
+        <Link
+          href="/terms"
+          className="inline-flex min-h-11 items-center px-2 hover:text-ink"
+        >
+          Terms
+        </Link>
+        <Link
+          href="/privacy"
+          className="inline-flex min-h-11 items-center px-2 hover:text-ink"
+        >
+          Privacy
+        </Link>
+      </nav>
     </div>
   );
 }
@@ -181,10 +354,12 @@ export function SidebarNav({
 function MainActionLink({
   action,
   onNavigate,
+  size,
   className,
 }: {
   action: NonNullable<MainAction>;
   onNavigate?: () => void;
+  size?: "sm";
   className?: string;
 }) {
   const Icon = action.href.endsWith("/new") ? Plus : Search;
@@ -192,7 +367,7 @@ function MainActionLink({
     <Link
       href={action.href}
       onClick={onNavigate}
-      className={buttonVariants({ className })}
+      className={buttonVariants({ size, className })}
     >
       <Icon aria-hidden="true" />
       {action.label}
@@ -209,42 +384,41 @@ export function TopBarContent({
   items,
   mainAction,
   signOutAction,
+  wallet,
   bell,
 }: {
   viewer: PortalViewer;
   items: NavItem[];
   mainAction: MainAction;
   signOutAction: SignOut;
+  /** The creator's balance, linking to their wallet (creators only). */
+  wallet?: ReactNode;
   /** The notifications bell (businesses and creators). */
   bell?: ReactNode;
 }) {
   const pathname = usePathname();
   const section = sectionLabel(viewer.role, pathname);
+  // The home page's hero already carries the one primary action, so the top
+  // bar doesn't repeat it there.
+  const action = pathname === "/home" ? null : mainAction;
 
   return (
     <>
       {section && (
-        <p className="hidden truncate font-medium text-ink lg:block">
+        <p className="hidden truncate text-sm font-semibold text-ink lg:block">
           {section}
         </p>
       )}
       <div className="ml-auto flex items-center gap-2">
-        {mainAction && (
-          <MainActionLink action={mainAction} className="max-sm:hidden" />
+        {action && (
+          <MainActionLink action={action} size="sm" className="max-sm:hidden" />
         )}
+        {wallet}
         {bell}
-        <a
-          href={`mailto:${CONTACT_EMAIL}`}
-          aria-label="Help: email us"
-          title="Help: email us"
-          className={buttonVariants({ variant: "ghost", size: "icon" })}
-        >
-          <CircleHelp aria-hidden="true" />
-        </a>
         <MobileNav
           viewer={viewer}
           items={items}
-          mainAction={mainAction}
+          mainAction={action}
           signOutAction={signOutAction}
         />
       </div>
@@ -319,7 +493,7 @@ function MobileNav({
               <X aria-hidden="true" />
             </button>
           </div>
-          <nav aria-label="Main" className="mt-2 flex-1">
+          <nav aria-label="Main" className="mt-2 flex-1 overflow-y-auto">
             <NavLinks items={items} onNavigate={close} />
             {mainAction && (
               <MainActionLink
@@ -329,6 +503,16 @@ function MobileNav({
               />
             )}
           </nav>
+          <a
+            href={`mailto:${CONTACT_EMAIL}`}
+            className="mb-2 flex min-h-11 items-center gap-2.5 rounded-[0.625rem] px-3 text-sm font-medium text-body hover:bg-ink/[0.04] hover:text-ink"
+          >
+            <CircleHelp
+              className="size-[1.125rem] shrink-0 text-muted"
+              aria-hidden="true"
+            />
+            Help: email us
+          </a>
           <AccountBlock
             viewer={viewer}
             signOutAction={signOutAction}

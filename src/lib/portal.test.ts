@@ -6,6 +6,7 @@ import {
   isNavActive,
   mainActionFor,
   navFor,
+  navGroups,
   sectionLabel,
 } from "./portal.ts";
 
@@ -14,9 +15,11 @@ test("each role gets its own links", () => {
     navFor("business").map((i) => [i.href, i.label]),
     [
       ["/home", "Home"],
+      ["/business/board", "Hiring board"],
       ["/business/campaigns", "Campaigns"],
       ["/business/creators", "Find creators"],
       ["/inbox", "Inbox"],
+      ["/business/wallet", "Wallet"],
     ],
   );
   assert.deepEqual(
@@ -24,14 +27,27 @@ test("each role gets its own links", () => {
     [
       ["/home", "Home"],
       ["/campaigns", "Campaigns"],
-      ["/applications", "Applications"],
-      ["/profile", "Your profile"],
+      ["/applications", "Your work"],
       ["/inbox", "Inbox"],
+      ["/wallet", "Wallet"],
+      ["/profile", "Your profile"],
     ],
   );
   assert.deepEqual(
     navFor("admin").map((i) => [i.href, i.label]),
-    [["/admin", "Admin"]],
+    [
+      ["/admin", "Overview"],
+      ["/admin/standing", "Account standing"],
+      ["/admin/campaigns", "Campaigns"],
+      ["/admin/verification", "Verification"],
+      ["/admin/reports", "Reports"],
+      ["/admin/hidden", "Hidden profiles"],
+      ["/admin/money", "Money"],
+      ["/admin/money/escrow", "Escrow"],
+      ["/admin/money/payouts", "Payouts"],
+      ["/admin/money/ledger", "Ledger"],
+      ["/admin/money/reconciliation", "Reconciliation"],
+    ],
   );
 });
 
@@ -55,8 +71,25 @@ test("a link is active on its path and below it; Home only on /home", () => {
   );
   assert.equal(isNavActive("/campaigns", "/campaigns"), true);
   assert.equal(isNavActive("/campaignsx", "/campaigns"), false);
+  assert.equal(isNavActive("/wallet", "/wallet"), true);
+  assert.equal(isNavActive("/wallet/history", "/wallet"), true);
+  assert.equal(isNavActive("/walletx", "/wallet"), false);
   assert.equal(isNavActive("/business/creators", "/business/campaigns"), false);
   assert.equal(isNavActive("/account", "/home"), false);
+});
+
+test("Admin and Money are never active together", () => {
+  assert.equal(isNavActive("/admin", "/admin"), true);
+  assert.equal(isNavActive("/admin/money", "/admin"), false);
+  assert.equal(isNavActive("/admin/money", "/admin/money"), true);
+  assert.equal(isNavActive("/admin/money/payouts", "/admin/money"), false);
+  assert.equal(
+    isNavActive("/admin/money/payouts", "/admin/money/payouts"),
+    true,
+  );
+  assert.equal(isNavActive("/admin/standing", "/admin"), false);
+  assert.equal(isNavActive("/admin/money/payouts", "/admin"), false);
+  assert.equal(isNavActive("/admin/moneyx", "/admin/money"), false);
 });
 
 test("the top bar names the section", () => {
@@ -64,7 +97,16 @@ test("the top bar names the section", () => {
     sectionLabel("business", "/business/campaigns/9f1c"),
     "Campaigns",
   );
+  assert.equal(sectionLabel("admin", "/admin"), "Overview");
+  assert.equal(sectionLabel("admin", "/admin/money/ledger"), "Ledger");
+  assert.equal(sectionLabel("admin", "/admin/money/engagements/9f1c"), "Money");
   assert.equal(sectionLabel("influencer", "/account"), "Account");
+  assert.equal(sectionLabel("influencer", "/account/standing"), "Account");
+  assert.equal(
+    sectionLabel("business", "/business/engagements/9f1c/pay"),
+    "Hiring board",
+  );
+  assert.equal(sectionLabel("influencer", "/jobs/9f1c"), "Your work");
   assert.equal(sectionLabel("influencer", "/somewhere-else"), null);
 });
 
@@ -76,5 +118,38 @@ test("greets by first name", () => {
 
 test("a thread keeps Inbox active", () => {
   assert.equal(isNavActive("/inbox/9f1c", "/inbox"), true);
-  assert.equal(sectionLabel("influencer", "/applications"), "Applications");
+  assert.equal(sectionLabel("influencer", "/applications"), "Your work");
+});
+
+test("Wallet is a business link, active on its own page", () => {
+  assert.equal(isNavActive("/business/wallet", "/business/wallet"), true);
+  assert.equal(isNavActive("/business/wallet/x", "/business/wallet"), true);
+  assert.equal(isNavActive("/business/walletx", "/business/wallet"), false);
+  assert.equal(sectionLabel("business", "/business/wallet"), "Wallet");
+  assert.equal(
+    navFor("business").find((i) => i.href === "/business/wallet")?.icon,
+    "wallet",
+  );
+});
+
+test("the sidebar groups links under captions, keeping their order", () => {
+  assert.deepEqual(
+    navGroups(navFor("influencer")).map((g) => [
+      g.group,
+      g.items.map((i) => i.label),
+    ]),
+    [
+      ["Work", ["Home", "Campaigns", "Your work", "Inbox"]],
+      ["Money", ["Wallet"]],
+      ["You", ["Your profile"]],
+    ],
+  );
+  assert.deepEqual(
+    navGroups(navFor("business")).map((g) => [g.group, g.items.length]),
+    [
+      ["Hiring", 5],
+      ["Money", 1],
+    ],
+  );
+  assert.deepEqual(navGroups([]), []);
 });

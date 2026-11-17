@@ -14,16 +14,20 @@ export function controlClasses({
   error,
   icon,
   trailing,
+  compact,
 }: {
   error?: string;
   icon?: boolean;
   trailing?: boolean;
+  /** 44px (36px from 1024px) instead of 48px, for filter toolbars. */
+  compact?: boolean;
 }) {
   return cn(
     controlClass,
+    compact && "h-11 lg:h-9 lg:text-sm",
     error ? "border-danger" : "border-field",
-    icon ? "pl-11" : "pl-4",
-    trailing ? "pr-14" : "pr-4",
+    icon ? (compact ? "pl-9" : "pl-11") : compact ? "pl-3" : "pl-4",
+    trailing ? (compact ? "pr-8" : "pr-14") : compact ? "pr-3.5" : "pr-4",
   );
 }
 
@@ -40,14 +44,23 @@ export function FieldLabel({
   htmlFor,
   children,
   aside,
+  compact,
 }: {
   htmlFor: string;
   children: ReactNode;
   aside?: ReactNode;
+  compact?: boolean;
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <label htmlFor={htmlFor} className="font-semibold text-ink">
+      <label
+        htmlFor={htmlFor}
+        className={
+          compact
+            ? "text-[0.8125rem] font-medium text-muted"
+            : "font-semibold text-ink"
+        }
+      >
         {children}
       </label>
       {aside && <span className="text-sm">{aside}</span>}
@@ -55,11 +68,20 @@ export function FieldLabel({
   );
 }
 
-export function FieldIcon({ icon: Icon }: { icon: LucideIcon }) {
+export function FieldIcon({
+  icon: Icon,
+  compact,
+}: {
+  icon: LucideIcon;
+  compact?: boolean;
+}) {
   return (
     <Icon
       aria-hidden="true"
-      className="pointer-events-none absolute top-1/2 left-4 size-[1.125rem] -translate-y-1/2 text-muted"
+      className={cn(
+        "pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted",
+        compact ? "left-3 size-4" : "left-4 size-[1.125rem]",
+      )}
     />
   );
 }
@@ -111,22 +133,26 @@ export function TextField({
   error,
   icon,
   labelAside,
+  compact,
   className,
   ...input
-}: FieldProps & Omit<ComponentProps<"input">, "name" | "id">) {
+}: FieldProps & {
+  /** A smaller label and control, for filter toolbars. */
+  compact?: boolean;
+} & Omit<ComponentProps<"input">, "name" | "id">) {
   return (
     <div className={className}>
-      <FieldLabel htmlFor={id} aside={labelAside}>
+      <FieldLabel htmlFor={id} aside={labelAside} compact={compact}>
         {label}
       </FieldLabel>
-      <div className="relative mt-2">
-        {icon && <FieldIcon icon={icon} />}
+      <div className={compact ? "relative mt-1.5" : "relative mt-2"}>
+        {icon && <FieldIcon icon={icon} compact={compact} />}
         <input
           id={id}
           name={name}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy(id, hint, error)}
-          className={controlClasses({ error, icon: Boolean(icon) })}
+          className={controlClasses({ error, icon: Boolean(icon), compact })}
           {...input}
         />
       </div>
@@ -144,16 +170,21 @@ export function SelectField({
   hint,
   error,
   icon,
+  compact,
   className,
   ...select
 }: FieldProps & {
   options: { value: string; label: string }[];
   placeholder: string;
+  /** A smaller label and control, for filter toolbars. */
+  compact?: boolean;
 } & Omit<ComponentProps<"select">, "name" | "id" | "children">) {
   return (
     <div className={className}>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <div className="relative mt-2">
+      <FieldLabel htmlFor={id} compact={compact}>
+        {label}
+      </FieldLabel>
+      <div className={compact ? "relative mt-1.5" : "relative mt-2"}>
         {icon && <FieldIcon icon={icon} />}
         <select
           // React resets a form after its action succeeds, and a select
@@ -168,7 +199,12 @@ export function SelectField({
           aria-describedby={describedBy(id, hint, error)}
           // Our own chevron, so selects line up with text fields.
           className={cn(
-            controlClasses({ error, icon: Boolean(icon), trailing: true }),
+            controlClasses({
+              error,
+              icon: Boolean(icon),
+              trailing: true,
+              compact,
+            }),
             "appearance-none",
           )}
           {...select}
@@ -182,7 +218,10 @@ export function SelectField({
         </select>
         <ChevronDown
           aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 right-4 size-5 -translate-y-1/2 text-ink"
+          className={cn(
+            "pointer-events-none absolute top-1/2 -translate-y-1/2",
+            compact ? "right-2.5 size-4 text-muted" : "right-4 size-5 text-ink",
+          )}
         />
       </div>
       <FieldMessages id={id} hint={hint} error={error} />

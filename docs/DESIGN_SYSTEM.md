@@ -44,6 +44,8 @@ more places; otherwise style it locally.
 | `brand-violet` | #5B3DF5 | The one saturated accent: active nav icon, progress, live dot, glows, the end of `text-gradient`. Text-safe on white (6.1:1) |
 | `brand-green` | #0F3D2E | The escrow sticker and success text |
 | `brand-lilac`, `brand-sun`, `brand-peach`, `brand-mint`, `brand-sky`, `brand-rose` | see `globals.css` | Pastel fills: pills, tiles, avatars, aurora stops |
+| `attention`, `attention-ring` | #FFF1BF, #F3DC8C | The `attention` callout's tint and outline (warmer than `brand-sun`) |
+| `ink-hover` | #26262B | Hover of the primary (ink) button |
 
 Contrast rules (checked against WCAG AA):
 
@@ -165,8 +167,9 @@ the need before adding it (CLAUDE.md §2).
 
 | Component | File | Notes |
 |---|---|---|
-| `Button`, `buttonVariants` | `ui/button.tsx` | shadcn/ui's Button, restyled. `default` (ink, `shadow-button`), `secondary` (white, `hairline-strong` outline, `shadow-card`), `light` (on dark surfaces), `ghost` (4% ink wash). Sizes `default` (44px), `lg` (48px), `icon`. Use `buttonVariants` to style links as buttons. |
-| `TextField`, `SelectField`, `TextAreaField` | `ui/field.tsx` | Visible label, optional leading `icon` (not on text areas), `hint`, `error`, `labelAside` (e.g. "Forgot your password?"); `TextAreaField` also takes `optional`. |
+| `Button`, `buttonVariants` | `ui/button.tsx` | shadcn/ui's Button, restyled. `default` (ink, `shadow-button`), `secondary` (white, `hairline-strong` outline, `shadow-card`), `light` (on dark surfaces), `ghost` (4% ink wash). Sizes `default` (44px), `lg` (48px), `icon`, and `sm` (44px on touch screens, 36px from 1024px: for buttons inside rows and the top bar). Use `buttonVariants` to style links as buttons. |
+| `TextField`, `SelectField`, `TextAreaField` | `ui/field.tsx` | Visible label, optional leading `icon` (not on text areas), `hint`, `error`, `labelAside` (e.g. "Forgot your password?"); `TextAreaField` also takes `optional`. `SelectField` takes `compact` (44px control, `text-sm` label) for filter toolbars. |
+| `FilterBar`, `filterHref` | `ui/filter-bar.tsx` | The toolbar above a list (campaigns, creators, the admin ledger; also the public directory): one slim `panel` (12–16px padding), the fields in a row with the submit button (`size="sm"`, filters icon) at the row's end from 1024px and full width under the fields below it. Filters that are on show under a hairline as chips (`surface-soft`, each a link that drops just that filter) with "Clear all" at the right; with none on, there is no second row. A plain GET form: works without JavaScript and every filtered view is a URL. Fields inside it take `compact` (13px muted label; 44px control on touch, 36px from 1024px). |
 | `PasswordField` | `ui/password-field.tsx` | Adds a Show button. |
 | `ChoiceGroup` | `ui/choice-group.tsx` | One choice from 2–3 options, on real radio buttons. `variant="pills"` (compact, label only; not used at the moment) or `variant="cards"` (stacked, with icon, tone and a one-line description; the sign-up account type). Controlled (`value` + `onValueChange`) or not (`defaultValue`). |
 | `FormMessage` | `ui/form-message.tsx` | The form's overall result, just above the submit button. Always rendered (announces changes). |
@@ -176,21 +179,37 @@ the need before adding it (CLAUDE.md §2).
 | Product fragments | `brand/fragments.tsx` | `ProductFragment` (labelled as an image, "Sample" tag), `Avatar` (initials, never photos), `Chip`. Fictional data only. |
 | Stickers | `brand/stickers.tsx` | `EscrowSticker` (`tone="light"` on dark backgrounds), `ApprovedBadge`, `clay()` shading for shapes. |
 | `ClayTile` | `brand/stickers.tsx` | A glossy rounded square in a pastel (`Tone`: sun, lilac, mint, peach, coral, sky, rose): `clay()` gradient, lit top edge, soft drop, an ink Lucide icon; `md` 36px, `lg` 48px. Our stand-in for 3D icons: onboarding's why-card, action cards, empty states, the creators band. Decorative. |
-| `PageHeader` | `ui/page-header.tsx` | The top of every portal page: optional breadcrumbs (ancestors only, each truncated), the `text-display-page` title with an optional `badge`, a lead, and `actions` (right from 640px, below on phones). |
+| `PageHeader` | `ui/page-header.tsx` | The top of every portal page: optional breadcrumbs (ancestors only, each truncated), the `text-display-page` title with an optional `badge`, a 15px muted lead, and `actions` (right from 640px, below on phones). |
 | `Popover` | `ui/popover.tsx` | shadcn/ui's popover (Radix), restyled: a white card floating over the page (hairline and `shadow-pop`, `rounded-card`), aligned to the end of its trigger, kept 16px from the screen edges. Focus the panel itself on open (`onOpenAutoFocus`), so a mouse click doesn't ring the first button. Used by the notifications bell. |
 | `Callout` | `ui/callout.tsx` | One style for every status message in the portal. Tones `info` (a `panel`), `attention` (pale butter with a sun outline), `success` (mint), `danger` (white, danger outline and icon). Icon, bold title, text, optional `action`. Quote an admin's note on its own line, so a note ending in a full stop doesn't get a second one. |
 | `Skeleton` and friends | `ui/skeleton.tsx` | shadcn/ui's Skeleton, restyled (`skeleton` utility). `PageLoading` (the fallback wrapper with its screen-reader label), `HeaderSkeleton` (crumbs, action), `SectionTitleSkeleton`, `PanelSkeleton`, `FormSkeleton`, `FiltersSkeleton`, `CardGridSkeleton` (`action`, `creator`, `campaign`), `TableSkeleton` (like `CampaignTable`). Compose them to match the page's real layout so nothing jumps when it arrives. `OnboardingStepSkeleton` (in `onboarding-step.tsx`), `SidebarSkeleton` and `TopBarSkeleton` (in `portal-shell.tsx`). |
 | `EmptyState` | `ui/empty-state.tsx` | What a list shows when it has nothing yet: large clay tile, title, one line, optional action. With no results, keep the results count for screen readers only (`sr-only`) so the message isn't repeated. |
-| `ActionCard` | `ui/action-card.tsx` | A quick action (Clay-style): a `panel` with a clay tile, title and one line; the whole card is one link. Lifts on hover and shows an arrow in the corner. |
-| `CampaignTable` | `campaigns/campaign-table.tsx` | A business's campaigns: a table from 640px (titles wrap), a stacked list on phones (titles truncate). |
+| `ActionCard` | `ui/action-card.tsx` | A quick action (Clay-style): a `panel` with a large clay tile, title and one line; the whole card is one link. Lifts on hover; a small round arrow chip in the corner turns ink on hover. |
+| `TABLE` | `ui/table.ts` | Class names for the one table look, so each table keeps plain markup: `frame` (white `panel`, clipped), `head` (`surface-soft/60`), `th` (40px tall, 11px semibold capitals, 0.06em tracking, muted), `body`, `row` (hover wash), `td` (16px sides, 20px at the row's ends, 12px top and bottom), and `list`/`listRow` for the stacked list a table becomes under 640px. Every table uses these; don't restyle one table on its own. |
+| `Pagination` | `ui/pagination.tsx` | The pager for every list: "49–72 of 222 campaigns" at the left; Previous, numbered pages (first, last, the current one and its neighbours, "…" for gaps) and Next at the right. The current page is an ink square; steps are 44px on touch, 36px from 1024px; Previous/Next show only their arrows on phones. Links only (`hrefFor`), so every page is a URL. With one page it shows just the count; with nothing, nothing. `framed` puts it in the foot of a table or `SectionCard` (`surface-soft/60` strip); without it, it stands 24px under a card grid. Page maths is in `lib/paging.ts` (`parsePage`, `pageOf`, `pageWindow`, `pagedHref`). |
+| `FilterTabs` | `ui/filter-tabs.tsx` | A segmented row of links that narrows a list to one group, each with its count ("Live 1"): a `surface-soft` track, the current tab a white pill with a lilac count. Used on a business's campaign list (All, Live, Drafts, Ended), the applicants page, admin reports and admin payouts. Scrolls sideways on phones. Use it for a handful of fixed groups; use `FilterBar` for fields. |
+| `CreatorCard` | `creators/creator-card.tsx` | One creator in the directory (public and portal). A 4:3 photo inset 8px with a white "Verified" pill over its corner when any account is verified; name (16px semibold, one line), place, up to two niche chips and "+n"; then a `surface-soft/60` footer strip with the platforms (`PlatformSummary`) and, for viewers who may see it, the rate at the right ("From ₦10,000" or "Rate Negotiable"). The name link stretches over the card. |
+| `CampaignCard` | `app/(portal)/(influencer)/campaigns/campaign-card.tsx` | One open campaign for a creator. Header: a tinted initial tile for the business (colour fixed per name), its name and place, and the mint "You qualify" pill. Title (16px semibold, two lines at most), what to post as chips with the platform icon, and the first reason when they don't qualify. Footer strip: pay in display type with "You receive …" under it, closing date and places at the right. |
+| Search field | `ui/field.tsx` (`TextField compact type="search" icon={Search}`) | The first field in a `FilterBar`, name `q`, wider than the selects. Words are trimmed and capped at 60 characters (`lib/search.ts`) and show as a "Search" chip. Creators: name, city, state, niche names. Campaigns: title, brief, business name. Matching is in the database (`search_pattern`, migration `20261116100000`). |
+| `QueueCard` | `app/(portal)/(admin)/admin/queue.tsx` | One admin queue: a `SectionCard` with the count as a pill, an optional one-line note, hairline-divided rows and a framed pager (10 a page). |
+| `CampaignTable` | `campaigns/campaign-table.tsx` | A business's campaigns, in the shared table look (`TABLE`, below): a table from 640px, a stacked list on phones; the title is the link and the whole row follows it. `footer` takes a `<Pagination framed />`. |
+| `LedgerTable` | `money/ledger-table.tsx` | A person's wallet history (the business and creator wallets). Takes ledger rows as stored and words them with `describeLedgerRow` (`lib/ledger-words.ts`): date, what happened, and the amount with a green `+` or ink `−` sign in `tabular-nums`. Same pattern as `CampaignTable`: a table from 640px, a stacked list on phones. Show `EmptyState` instead when there are no rows. |
+| `AdminLedgerTable` | `money/admin-ledger-table.tsx` | The whole ledger for admins, one line per row: time, event (with who and why), raw account name, owner, a link to the hire's money trail and the amount **as stored** (wallets, escrow and revenue are negative when money is owed or earned), with `+`/`−` and screen-reader words. Table from 640px, stacked list on phones. Admin pages only. |
 | `NichePicker` | `creators/niche-picker.tsx` | Niche pills (checkboxes named `niches`), up to three; controlled. Profile editor and onboarding. |
 | `Directory`, `DirectoryFilters`, `CreatorProfileView` | `creators/directory.tsx`, `creators/directory-filters.tsx`, `creators/creator-profile-view.tsx` | The creator directory and a profile, shared by the public pages (`basePath="/creators"`) and the business portal (`/business/creators`). |
 | Illustrations | `landing/hero-illustration.tsx`, `brand/auth-scene.tsx` | Built from the fragments and stickers. Stickers sit only over empty areas. |
 | `StatusPill`, `DeliverableList`, `RequirementList` | `campaigns/campaign-facts.tsx` | A campaign's status; what each creator posts and when; who can apply. Given a creator's `problems`, each requirement shows a tick or a cross (with words for screen readers). |
 | `CreatorPhoto` | `creators/creator-photo.tsx` | A real creator's square photo (`rounded-card`), or their initials on a brand colour picked from their name. Decorative: the name is always beside it. Not `Avatar`, which is for fictional people. |
-| `CreatorCard` | `creators/creator-card.tsx` | A directory card: photo, name (the link, stretched over the card), location, niche chips, platform summary, and the rate line for viewers who may see it. `href` is the profile page; `null` for a preview with no link. |
 | `PlatformIcon` | `creators/platform-icon.tsx` | Line glyphs for Instagram, TikTok, YouTube and X in Lucide's style. Always next to the platform's name (visible or `sr-only`). |
 | `PlatformSummary`, `PlatformDetails`, `VerifiedMark` | `creators/platform-list.tsx` | Followers as "10K–50K" or a verified count, labelled "Self-reported, updated …" or "Verified, as of …". `VerifiedMark` is the mint "Verified" pill; on cards (`PlatformSummary`) a verified platform gets a solid `brand-coral` seal with a white tick. |
+| `SectionCard` | `ui/section-card.tsx` | A titled card: a 48px header strip (15px semibold title, then `aside` on the right for a count pill, a status pill or a link) over content that runs edge to edge. Lists inside it are `divide-y divide-hairline` rows with `px-4 sm:px-5`; never put another card inside one. `padded` pads the content for forms and prose; `anchor` puts an id on the section for jump links. Used by "Needs you", "Your profile", the hiring pipeline, and the sections of the wallet, account and profile pages. |
+| `StatCard`, `TILE_TONES` | `ui/stat-card.tsx` | One figure about the account: a flat 32px pastel icon tile and a 13px muted label, the figure in display type (28px, `tabular-nums`), and one muted line saying what it means. `href` makes the whole card a link that lifts on hover. `emphasis` turns it into the page's one ink card (white text), for the money someone can act on; use it at most once per page. Real figures only: no trend arrows, percentages or sparklines until there is stored history to draw them from (CLAUDE.md §3). `TILE_TONES` maps a `Tone` to its flat fill class, for small icon tiles elsewhere. |
+| `TaskList`, `Task` | `(portal)/home/task-list.tsx` | "Needs you": a `SectionCard` listing the specific next steps waiting on this person, most urgent first. Each row is an icon tile, a bold title, one muted line and one `sm` button (ink for the first thing to do, `secondary` for the rest). The header shows the count in a lilac pill. With nothing to do it says "Nothing is waiting on you right now." Tasks are built from real records in the home page, never invented. |
+| `HomeGreeting` | `(portal)/home/task-list.tsx` | The top of a home page: "Hi Ada" in `text-display-page`, one muted line worded from what is actually waiting, and the page's buttons on the right (below on phones). |
+| Hiring pipeline | `(portal)/home/business-home.tsx` (`Step`) | A `SectionCard` with four stages side by side (two by two on phones): To review, To pay, In progress, Completed. Each is a coloured dot and label, a display-type count and one line. To review and To pay link to where the work is when their count is above zero. Counts come from `hirePipeline` in `lib/home.ts`, which reads `listMyHires` (`lib/db/applications.ts`). |
+| `Board`, `BoardColumn`, `BoardCard`, `BoardTabs` | `ui/board.tsx` (client), column rules in `lib/board.ts` | The Kanban board. Columns are `canvas` wells with an inset hairline (a coloured dot, 13px title, count pill and a one-line hint), side by side from 1024px in a row that scrolls sideways if it must; below 1024px one column shows at a time, chosen with `BoardTabs` (links carrying `?col=`, so it works without JavaScript). Cards are white `panel`s on `rounded-xl` with `sm` buttons. **Dragging has no rules of its own:** a card may hold elements marked `data-drop-action="<column key>"` (a button, a submit button or a link); it can be dropped on exactly those columns, and dropping clicks that element. So a drag does what the visible button does, with the same confirmation and server checks, and a card changes column only when the page returns with the new state. Never add a drop that skips a confirmation or moves money by itself. Droppable columns get a violet ring while a card is held and a lilac wash under it; draggable cards show a grip icon and a grab cursor from 1024px. Buttons stay for keyboards and touch screens (native drag and drop doesn't run there). An empty column says "Nothing here". `BoardSkeleton` (in `ui/skeleton.tsx`) is the loading shape. |
+| Home pages | `(portal)/home/` | See "Home pages" under Page patterns. |
+| Portal nav | `shells/portal-nav.tsx`, `lib/portal.ts` | Links sit under small uppercase captions (`group` on each `NavItem`; `navGroups` groups them): Work / Money / You for creators (Home, Campaigns, Your work, Inbox; Wallet; Your profile), Hiring / Money for businesses (Home, Hiring board, Campaigns, Find creators, Inbox; Wallet). Rows are 38px from 1024px and 44px in the phone drawer. Active: a white `panel` pill, ink semibold text, violet icon. Hover: ink at 4%. Unread counts are a 20px ink pill. Above the account card sits `EscrowNote`, a lilac-to-sky tinted card saying what escrow means for that role (none for admins). The account card shows the name and the role. The sidebar ends with Help, Terms and Privacy in `text-xs` muted; the phone drawer has "Help: email us" above the account block. |
 | Shells | `shells/auth-shell.tsx`, `shells/portal-shell.tsx` (+ `portal-nav.tsx`), `shells/onboarding-shell.tsx`, `app/(marketing)/layout.tsx` | See below. |
 
 ## Page patterns
@@ -237,24 +256,118 @@ the need before adding it (CLAUDE.md §2).
   instead. A 3px coral-to-violet progress bar runs along the top of the page
   (`aria-hidden`).
 - **Portal pages** (`PortalShell`, every page under `app/(portal)/`): the
-  layout draws the shell once (Clay-style). From 1024px, a 240px sidebar on
-  the canvas (wordmark; the role's links, the active one a white `panel` with
-  a violet icon; the account card with Sign out at the bottom) and the work
-  area as one white panel inset 8px (`rounded-frame`, hairline, `overflow-clip`
-  so the sticky glass top bar keeps working). The 64px top bar holds the
-  section name, the role's main action and Help. Below 1024px, the work area
-  is the whole white page under a glass top bar whose menu button opens the
-  same sidebar contents in a native `<dialog>` that slides in from the left.
-  Pages start with `PageHeader`, keep reading and form pages to `max-w-3xl`
-  and let tables and grids use the full width. Cards are `panel`s; tinted
-  fills are only for callouts, pills, tiles and quiet boxes. Status is a `Callout`, empty lists an
-  `EmptyState`, quick actions `ActionCard`s, figures white outlined stat
-  cards. Filter forms are a white outlined toolbar.
+  layout draws the shell once. Since 2026-11-16 the portal follows a modern
+  dashboard-kit look (structure borrowed from HeroUI Pro's dashboards; none
+  of its code, and no new dependencies), on our own tokens. From 1024px, a
+  248px sidebar on the canvas (wordmark; the role's links under captions,
+  the active one a white `panel` pill with a violet icon; the escrow note;
+  the account card) and the work area as one white panel inset 8px
+  (`rounded-frame`, hairline, `overflow-clip` so the sticky glass top bar
+  keeps working). The 60px top bar holds the section name on the left and,
+  on the right, the role's main action (`sm` button, not on `/home`), a
+  creator's wallet balance as an outlined chip, and the bell. Below 1024px,
+  the work area is the whole white page under a 56px glass top bar whose
+  menu button opens the same sidebar contents in a native `<dialog>` that
+  slides in from the left. Density: controls inside the shell and inside
+  rows are 36–38px from 1024px and at least 44px on touch screens. Pages
+  start with `PageHeader`, keep reading and form pages to `max-w-3xl` and
+  let tables and grids use the full width. Cards are `panel`s on
+  `rounded-card`, 12px apart in a grid; a card with a title is a
+  `SectionCard`; figures are `StatCard`s. Tinted fills are only for
+  callouts, pills, icon tiles and quiet boxes. Status is a `Callout`, empty
+  lists an `EmptyState`, quick actions `ActionCard`s. Filter forms are a
+  `FilterBar`.
+- **Home pages** (`/home`, rebuilt 2026-11-16): `HomeGreeting`, any
+  `Callout`s, then cards built only from the person's own records.
+  **Creator:** four `StatCard`s (wallet balance as the ink `emphasis` card,
+  earned in total after our fee, applications waiting, campaigns they
+  qualify for; two across on phones, four from 1280px), the "Get listed"
+  checklist while they aren't in the directory, then "Needs you" beside
+  "Your profile" (photo, city, niches, starting rate, a Listed pill, and a
+  row per platform with its verified count or self-reported range), then
+  three campaign cards. **Business:** the hiring pipeline (To review links to the hiring board), then "Needs you"
+  beside two `StatCard`s (wallet, live campaigns), then the recent
+  campaigns table. The greeting row holds the page's main buttons (one for
+  creators; "Find creators" and "Post a campaign" for businesses), and each
+  task carries its own button, so the older "one action per home page" rule
+  no longer applies. Home pages show no charts, trends or comparisons: we
+  have no stored history, and we never show invented figures.
+- **Boards** (added 2026-11-16): the two places people manage work in
+  flight. Which column a card sits in is decided in `lib/board.ts` from what
+  has really happened, with tests; cards outside every column (passed,
+  withdrawn, lapsed, cancelled, refunded) sit in a "Closed" `<details>` list
+  under the board.
+  **Business, `/business/board` ("Hiring board"):** one card per creator.
+  Columns Applied → Shortlisted → To pay → In progress → Completed, with
+  campaign filter pills above ("All campaigns" reads the 12 most recently
+  changed campaigns that have applications). Cards: Applied and Shortlisted
+  show platforms, the asked price against the campaign's, Hire (the same
+  fee-confirmation dialog as the applicants page), Shortlist or Message, and
+  a link to the campaign's applicants page for the note, passing and
+  blocking; To pay shows the deadline and Pay; In progress and Completed
+  link to the hire. Drags: Applied → Shortlisted (shortlists), and Applied or
+  Shortlisted → To pay (opens the Hire dialog). A hire that ended unpaid is
+  back in Applied with "Hire again". The per-campaign applicants page
+  (`/business/campaigns/[id]/applications`) stays as the detailed view.
+  **Creator, `/applications` ("Your work" in the nav; the route is
+  unchanged):** one card per campaign applied to. Columns Applied → Hired →
+  Ready to start → In progress → Paid. Paid shows what reached the wallet
+  after our fee. The one drag is Ready to start → In progress, which opens
+  the job page where starting work is confirmed.
+  Columns for submitted and reviewed work arrive with Stage 7.
+- **Detail pages** (a campaign for its business or for a creator, a hire,
+  a job; reworked 2026-11-16): two columns from 1280px, one below. The wide
+  column holds the content as `SectionCard`s (what's posted, who can apply,
+  the brief; or the status `Callout` and the "What's happened" timeline);
+  the 22rem column holds the facts and the action (figures, the receipt, a
+  creator's Apply form) and stays in view (`xl:sticky`). On phones the facts
+  and the action come first on campaign pages, and the receipt sits between
+  the status and the timeline on hire and job pages. Page wrapper
+  `max-w-6xl` (campaigns) or `max-w-5xl` (hire, job).
+- **The pay page stays a narrow single column** (`max-w-2xl`): it is a
+  checkout, and nothing sits beside the amount.
+- **Long forms** (the campaign form): one `padded` `SectionCard` per part,
+  12px apart, at `max-w-3xl`. Boxes inside a card (a deliverable row, a
+  checkbox row, a summary) are `bg-canvas ring-1 ring-hairline` wells, never
+  a second `panel`.
+- **Wallet pages** (`/wallet`, `/business/wallet`): the balance is the
+  page's one `emphasis` `StatCard`, then `SectionCard`s 12px apart (a
+  creator's "How it adds up" statement, Bank account, Ask for a payout, Your
+  payouts), then History as a `LedgerTable`.
+- **Long forms** also covers the live-campaign edit form ("Wording", then
+  "Places and dates").
+- **Settings-style pages** (`/account`, `/account/standing`, `/profile`):
+  one `SectionCard` per part, stacked (`padded` for forms, unpadded for
+  lists such as strikes).
+- **Conversation** (`/inbox/[id]`): one `panel` card at `max-w-3xl`: the
+  messages, then the composer on a `bg-canvas` footer strip under a
+  hairline. Your messages are ink bubbles on the right; theirs are
+  `bg-surface-soft` on the left (not a `panel`: no card inside a card).
+  Bubbles are at most 85% wide on a phone, 70% from `sm`.
+- **Admin pages.** One page per job, each in the sidebar. Review:
+  `/admin` (overview: one `StatCard` per queue, each a link; nothing is
+  decided there), `/admin/standing`, `/admin/campaigns`,
+  `/admin/verification`, `/admin/reports` (creators and campaigns as
+  `FilterTabs`), `/admin/hidden`. Money: `/admin/money` (the reconciliation
+  callout and four `StatCard` links), `/admin/money/escrow`,
+  `/admin/money/payouts` (waiting and decided as `FilterTabs`),
+  `/admin/money/ledger`, `/admin/money/reconciliation`. A queue page is a
+  `PageHeader` and one `QueueCard` per list; items are rows with no frame of
+  their own; an empty queue is one muted line.
+- **Lists are paged.** Every list ends in a `Pagination`: card grids
+  (campaigns 24, creators), tables (a business's campaigns 10, wallet
+  history 15, the admin ledger 50, reconciliation checks 15), row lists
+  (inbox 20, applicants 10, a creator's payouts 5, admin queues 10). A page
+  with two lists gives the second its own search param. The boards are not
+  paged: a column is a stage, and "Completed" and "Closed" are already
+  capped or folded away.
+- **One main action.** The top bar already carries a role's main action
+  ("New campaign", "Find campaigns"), so a list page does not repeat it in
+  its page header; it appears in the page only inside an empty state.
 - **Directory pages:** the public pages use the marketing layout; the business
-  portal has the same directory at `/business/creators`. Filters are a plain
-  GET form (a `surface-soft` panel in public, a white `panel` toolbar in the
-  portal),
-  so every filtered view is a shareable URL. Cards in a 1/2/3/4-column grid.
+  portal has the same directory at `/business/creators`. Filters are a `FilterBar`
+  (a plain GET form, the same white `panel` toolbar in public and in the
+  portal), so every filtered view is a shareable URL. Cards in a 1/2/3/4-column grid. Cards (creator, campaign) keep their footer facts below a hairline, so prices and platforms line up across a row; a creator's photo is 5:4.
   Signed-out visitors get one `brand-sun` prompt explaining what businesses
   see.
 - **Applications** (Stage 5): a creator's campaign page ends with the apply
@@ -298,6 +411,12 @@ the need before adding it (CLAUDE.md §2).
   forms can keep `action={formAction}`.
 
 ## Inspiration, not copying
+
+The 2026-11-16 portal rebuild borrows structure from HeroUI Pro's dashboard
+templates (grouped sidebar, stat cards, titled cards, a "needs you" list,
+compact desktop density). HeroUI Pro is paid, licensed software: we use none
+of its code or components, and the portal stays on Tailwind, shadcn/ui and
+our tokens. Colours, type, radii and shadows are unchanged.
 
 The 2026-11-10 redesign borrows structure and feel from Passionfroot (the
 framed, split onboarding with a gradient panel and a "why we ask" card; soft

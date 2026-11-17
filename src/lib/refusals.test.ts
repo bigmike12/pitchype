@@ -12,5 +12,34 @@ test("every refusal the database can give has words", () => {
 test("only known codes count as refusals", () => {
   assert.equal(isRefusal("campaign_full"), true);
   assert.equal(isRefusal("appeal_too_soon"), true);
+  assert.equal(isRefusal("payment_in_progress"), true);
+  assert.equal(isRefusal("payment_mismatch"), true);
+  assert.equal(isRefusal("not_enough_balance"), true);
+  assert.equal(isRefusal("wallet_covers_total"), true);
+  assert.equal(isRefusal("release_invalid"), true);
+  assert.equal(isRefusal("settle_reason_required"), true);
+  assert.equal(isRefusal("fee_notice_required"), true);
+  for (const code of [
+    "no_bank_account",
+    "payout_too_small",
+    "payout_fee_too_high",
+    "payout_not_enough_balance",
+    "no_such_payout",
+    "payout_not_pending",
+    "payout_reason_required",
+  ]) {
+    assert.equal(isRefusal(code), true, code);
+  }
+  assert.equal(isRefusal("invalid_bank_account"), false);
+  assert.equal(isRefusal("invalid_outcome"), false);
   assert.equal(isRefusal("duplicate key value"), false);
+});
+
+test("the fee notice refusal tells the business what to tick", () => {
+  assert.match(refusalText("fee_notice_required"), /fee/i);
+});
+
+test("an escrow that does not match the price points to the money trail", () => {
+  assert.equal(isRefusal("escrow_mismatch"), true);
+  assert.match(refusalText("escrow_mismatch"), /money trail/);
 });

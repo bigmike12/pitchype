@@ -6,6 +6,7 @@ import { Suspense, type ReactNode } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/section-card";
 import { requireUser } from "@/lib/auth";
 import { listMyBlocks } from "@/lib/db/moderation";
 import { getProfile } from "@/lib/db/profiles";
@@ -183,14 +184,8 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section
-      aria-labelledby={`${id}-title`}
-      className="rounded-card panel p-5 sm:p-6"
-    >
-      <h2 id={`${id}-title`} className="mb-4 text-display-md">
-        {title}
-      </h2>
+    <SectionCard id={`${id}-title`} title={title} padded>
       {children}
-    </section>
+    </SectionCard>
   );
 }

@@ -17,6 +17,7 @@ import {
 } from "@/components/campaigns/campaign-facts";
 import { Callout } from "@/components/ui/callout";
 import { PageHeader } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/section-card";
 import { requireUser } from "@/lib/auth";
 import { creatorReceivesKobo, formatDay, problemText } from "@/lib/campaign";
 import { formatDate } from "@/lib/creator-profile";
@@ -41,7 +42,7 @@ type Params = Promise<{ id: string }>;
 
 export default function CampaignPage({ params }: { params: Params }) {
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-6xl">
       <Suspense
         fallback={
           <PageLoading label="Loading the campaign…">
@@ -103,139 +104,135 @@ async function Campaign({ params }: { params: Params }) {
         }
       />
 
-      <dl className="grid gap-4 rounded-card panel p-5 sm:grid-cols-3 sm:p-6">
-        {campaign.priceKobo !== null && (
-          <div>
-            <dt className="text-sm text-muted">Pay per creator</dt>
-            <dd className="mt-1 text-display-md">
-              {formatNaira(campaign.priceKobo)}
-            </dd>
-            <dd className="text-sm text-muted">
-              You receive {formatNaira(creatorReceivesKobo(campaign.priceKobo))}{" "}
-              after our 5% fee
-            </dd>
-          </div>
-        )}
-        <div>
-          <dt className="flex items-center gap-1.5 text-sm text-muted">
-            <Users className="size-4" aria-hidden="true" />
-            Places
-          </dt>
-          <dd className="mt-1 text-display-md">{campaign.places}</dd>
-        </div>
-        <div>
-          <dt className="flex items-center gap-1.5 text-sm text-muted">
-            <CalendarClock className="size-4" aria-hidden="true" />
-            Applications close
-          </dt>
-          <dd className="mt-1 text-display-md">
-            {formatDay(campaign.applicationsCloseOn)}
-          </dd>
-        </div>
-      </dl>
+      <div className="mt-6 grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="space-y-3 xl:order-2 xl:sticky xl:top-0">
+          <dl className="grid gap-4 rounded-card p-4 panel sm:grid-cols-3 sm:p-5 xl:grid-cols-1">
+            {campaign.priceKobo !== null && (
+              <div>
+                <dt className="text-sm text-muted">Pay per creator</dt>
+                <dd className="mt-1 font-display text-[1.75rem] leading-none font-semibold tracking-[-0.03em] text-ink tabular-nums">
+                  {formatNaira(campaign.priceKobo)}
+                </dd>
+                <dd className="mt-1.5 text-[0.8125rem] text-muted">
+                  You receive{" "}
+                  {formatNaira(creatorReceivesKobo(campaign.priceKobo))} after
+                  our 5% fee
+                </dd>
+              </div>
+            )}
+            <div>
+              <dt className="flex items-center gap-1.5 text-sm text-muted">
+                <Users className="size-4" aria-hidden="true" />
+                Creators
+              </dt>
+              <dd className="mt-1 font-display text-[1.75rem] leading-none font-semibold tracking-[-0.03em] text-ink tabular-nums">
+                {campaign.places}
+              </dd>
+            </div>
+            <div>
+              <dt className="flex items-center gap-1.5 text-sm text-muted">
+                <CalendarClock className="size-4" aria-hidden="true" />
+                Applications close
+              </dt>
+              <dd className="mt-1 font-display text-[1.75rem] leading-none font-semibold tracking-[-0.03em] text-ink tabular-nums">
+                {formatDay(campaign.applicationsCloseOn)}
+              </dd>
+            </div>
+          </dl>
 
-      {isCreator &&
-        (application ? (
-          <ApplicationPanel application={application} />
-        ) : qualifies && campaign.priceKobo !== null ? (
-          <section
-            aria-labelledby="apply-title"
-            className="mt-6 rounded-card panel p-5 sm:p-6"
-          >
-            <p className="flex items-center gap-2 text-sm font-semibold text-ink">
-              <BadgeCheck
-                className="size-4 text-brand-green"
-                aria-hidden="true"
+          {isCreator &&
+            (application ? (
+              <ApplicationPanel application={application} />
+            ) : qualifies && campaign.priceKobo !== null ? (
+              <section
+                aria-labelledby="apply-title"
+                className="rounded-card p-4 panel sm:p-5"
+              >
+                <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+                  <BadgeCheck
+                    className="size-4 text-brand-green"
+                    aria-hidden="true"
+                  />
+                  You qualify for this campaign
+                </p>
+                <h2 id="apply-title" className="mt-2 mb-5 text-display-md">
+                  Apply
+                </h2>
+                <ApplyForm
+                  campaignId={campaign.id}
+                  campaignPriceKobo={campaign.priceKobo}
+                />
+              </section>
+            ) : (
+              <Callout
+                tone="info"
+                icon={CircleAlert}
+                title="You don’t qualify yet"
+                action={
+                  <Link href="/profile" className="link">
+                    Update your profile
+                  </Link>
+                }
+              >
+                <ul className="list-disc space-y-1 pl-5">
+                  {campaign.problems.map((p, i) => (
+                    <li key={i}>
+                      {problemText(p, { nicheNames, states: campaign.states })}
+                    </li>
+                  ))}
+                </ul>
+              </Callout>
+            ))}
+        </div>
+        <div className="space-y-3 xl:order-1">
+          <SectionCard id="posts-title" title="What you post" padded>
+            <div>
+              <DeliverableList
+                deliverables={campaign.deliverables}
+                postFrom={campaign.postFrom}
+                deliverBy={campaign.deliverBy}
               />
-              You qualify for this campaign
-            </p>
-            <h2 id="apply-title" className="mt-2 mb-5 text-display-md">
-              Apply
-            </h2>
-            <ApplyForm
-              campaignId={campaign.id}
-              campaignPriceKobo={campaign.priceKobo}
-            />
-          </section>
-        ) : (
-          <Callout
-            tone="info"
-            icon={CircleAlert}
-            title="You don’t qualify yet"
-            className="mt-6"
-            action={
-              <Link href="/profile" className="link">
-                Update your profile
-              </Link>
-            }
-          >
-            <ul className="list-disc space-y-1 pl-5">
-              {campaign.problems.map((p, i) => (
-                <li key={i}>
-                  {problemText(p, { nicheNames, states: campaign.states })}
-                </li>
-              ))}
-            </ul>
-          </Callout>
-        ))}
+            </div>
+          </SectionCard>
 
-      <section aria-labelledby="posts-title" className="mt-10">
-        <h2 id="posts-title" className="text-display-md">
-          What you post
-        </h2>
-        <div className="mt-4">
-          <DeliverableList
-            deliverables={campaign.deliverables}
-            postFrom={campaign.postFrom}
-            deliverBy={campaign.deliverBy}
-          />
+          <SectionCard id="who-title" title="Who can apply" padded>
+            <div>
+              <RequirementList
+                platforms={campaign.platforms}
+                verifiedOnly={campaign.verifiedOnly}
+                nicheNames={nicheNames}
+                states={campaign.states}
+                problems={isCreator ? campaign.problems : undefined}
+              />
+            </div>
+          </SectionCard>
+
+          <SectionCard id="brief-title" title="Brief" padded>
+            {campaign.revisedAt && (
+              <p className="mt-2 text-sm text-muted">
+                Edited {formatDate(campaign.revisedAt)}
+              </p>
+            )}
+            <p className="max-w-[65ch] whitespace-pre-line">{campaign.brief}</p>
+            {campaign.guidelines && (
+              <>
+                <h3 className="mt-6 font-semibold text-ink">
+                  Notes from the business
+                </h3>
+                <p className="mt-1 max-w-[65ch] whitespace-pre-line">
+                  {campaign.guidelines}
+                </p>
+              </>
+            )}
+          </SectionCard>
+
+          {isCreator && (
+            <div className="max-w-xl pt-6">
+              <CampaignReportForm campaignId={campaign.id} />
+            </div>
+          )}
         </div>
-      </section>
-
-      <section aria-labelledby="who-title" className="mt-10">
-        <h2 id="who-title" className="text-display-md">
-          Who can apply
-        </h2>
-        <div className="mt-4">
-          <RequirementList
-            platforms={campaign.platforms}
-            verifiedOnly={campaign.verifiedOnly}
-            nicheNames={nicheNames}
-            states={campaign.states}
-            problems={isCreator ? campaign.problems : undefined}
-          />
-        </div>
-      </section>
-
-      <section aria-labelledby="brief-title" className="mt-10">
-        <h2 id="brief-title" className="text-display-md">
-          Brief
-        </h2>
-        {campaign.revisedAt && (
-          <p className="mt-2 text-sm text-muted">
-            Edited {formatDate(campaign.revisedAt)}
-          </p>
-        )}
-        <p className="mt-3 max-w-[65ch] whitespace-pre-line">
-          {campaign.brief}
-        </p>
-        {campaign.guidelines && (
-          <>
-            <h3 className="mt-6 font-semibold text-ink">
-              Notes from the business
-            </h3>
-            <p className="mt-1 max-w-[65ch] whitespace-pre-line">
-              {campaign.guidelines}
-            </p>
-          </>
-        )}
-      </section>
-
-      {isCreator && (
-        <div className="mt-12 max-w-xl">
-          <CampaignReportForm campaignId={campaign.id} />
-        </div>
-      )}
+      </div>
     </>
   );
 }

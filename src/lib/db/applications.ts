@@ -127,9 +127,22 @@ export type EngagementSummary = {
   payBy: string;
   cancelledAt: string | null;
   cancelReason: string | null;
+  // Stage 6: funding, work started, settlement and the fee snapshot taken at
+  // funding (null until each happens).
+  fundedAt: string | null;
+  startedAt: string | null;
+  settledAt: string | null;
+  settleOutcome: string | null;
+  releasedKobo: number | null;
+  refundedKobo: number | null;
+  businessFeeKobo: number | null;
+  creatorFeeBps: number | null;
+  creatorMinFeeKobo: number | null;
 };
 
-function toEngagement(value: Json | undefined): EngagementSummary | null {
+export function toEngagement(
+  value: Json | undefined,
+): EngagementSummary | null {
   if (!isObject(value) || !str(value.id)) return null;
   return {
     id: str(value.id) ?? "",
@@ -139,6 +152,15 @@ function toEngagement(value: Json | undefined): EngagementSummary | null {
     payBy: str(value.pay_by) ?? "",
     cancelledAt: str(value.cancelled_at),
     cancelReason: str(value.cancel_reason),
+    fundedAt: str(value.funded_at),
+    startedAt: str(value.started_at),
+    settledAt: str(value.settled_at),
+    settleOutcome: str(value.settle_outcome),
+    releasedKobo: num(value.released_kobo),
+    refundedKobo: num(value.refunded_kobo),
+    businessFeeKobo: num(value.business_fee_kobo),
+    creatorFeeBps: num(value.creator_fee_bps),
+    creatorMinFeeKobo: num(value.creator_min_fee_kobo),
   };
 }
 
@@ -283,6 +305,39 @@ export async function getApplicationCounts(): Promise<
       { total: row.total, waiting: row.waiting },
     ]),
   );
+}
+
+export type MyHire = {
+  id: string;
+  status: EngagementStatus;
+  agreedPriceKobo: number;
+  payBy: string;
+  campaignTitle: string;
+};
+
+/**
+ * The signed-in business's hires across all its campaigns, newest first, for
+ * the home page's pipeline. A plain read under RLS (a business sees only its
+ * own hires). The status is as stored, so an unpaid hire past its deadline
+ * may still read `awaiting_payment`: callers compare `payBy` with now
+ * (`hirePipeline` in lib/home.ts does).
+ */
+export async function listMyHires(businessId: string): Promise<MyHire[]> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("engagements")
+    .select("id, status, agreed_price_kobo, pay_by, campaigns (title)")
+    .eq("business_id", businessId)
+    .order("approved_at", { ascending: false })
+    .limit(200);
+  if (error) throw new Error(`hires lookup failed (${error.code})`);
+  return data.map((e) => ({
+    id: e.id,
+    status: e.status,
+    agreedPriceKobo: e.agreed_price_kobo,
+    payBy: e.pay_by,
+    campaignTitle: e.campaigns?.title ?? "",
+  }));
 }
 
 export type EngagementDetails = EngagementSummary & {

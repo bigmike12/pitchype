@@ -20,6 +20,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { PageHeader } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/section-card";
 import { requireRole } from "@/lib/auth";
 import { formatDay, maxSpend, type CampaignAction } from "@/lib/campaign";
 import { formatDateTime } from "@/lib/creator-profile";
@@ -47,7 +48,7 @@ type Params = Promise<{ id: string }>;
 
 export default function CampaignPage({ params }: { params: Params }) {
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-6xl">
       <Suspense
         fallback={
           <PageLoading label="Loading the campaign…">
@@ -139,102 +140,100 @@ async function Campaign({ params }: { params: Params }) {
         )}
       </div>
 
-      <dl className="mt-10 grid gap-4 sm:grid-cols-3">
-        {qualifying !== null && (
-          <Stat
-            label={
-              <>
-                <Users className="size-4" aria-hidden="true" />
-                Creators who qualify now
-              </>
-            }
-            value={qualifying.toLocaleString("en-NG")}
-          />
-        )}
-        <Stat
-          label="Per creator, with our fee"
-          value={formatNaira(spend.perCreatorKobo)}
-          note={`${formatNaira(campaign.priceKobo)} + ${formatNaira(spend.feePerCreatorKobo)} fee`}
-        />
-        <Stat
-          label={`Most you could spend (${campaign.places} ${campaign.places === 1 ? "creator" : "creators"})`}
-          value={formatNaira(spend.totalKobo)}
-        />
-      </dl>
-      <p className="mt-2 text-sm text-muted">
-        Nothing is charged now. You pay for each creator when you accept them.
-      </p>
-      {qualifying === 0 && live && (
-        <Callout
-          tone="attention"
-          icon={CircleAlert}
-          title="No listed creator qualifies yet"
-          className="mt-4"
-        >
-          Lower the follower minimums, allow more niches or states, or turn off
-          “verified creators only” to reach more.
-        </Callout>
-      )}
-
-      <section aria-labelledby="posts-title" className="mt-10">
-        <h2 id="posts-title" className="text-display-md">
-          What each creator posts
-        </h2>
-        <div className="mt-4">
-          <DeliverableList
-            deliverables={campaign.deliverables}
-            postFrom={campaign.postFrom}
-            deliverBy={campaign.deliverBy}
-          />
-        </div>
-      </section>
-
-      <section aria-labelledby="who-title" className="mt-10">
-        <h2 id="who-title" className="text-display-md">
-          Who can apply
-        </h2>
-        <div className="mt-4">
-          <RequirementList
-            platforms={campaign.platforms}
-            verifiedOnly={campaign.verifiedOnly}
-            nicheNames={campaign.niches.flatMap((s) => nicheName.get(s) ?? [])}
-            states={campaign.states}
-          />
-        </div>
-        <p className="mt-3 flex items-center gap-2 text-sm text-muted">
-          <Clock className="size-4" aria-hidden="true" />
-          Applications close at the end of{" "}
-          {formatDay(campaign.applicationsCloseOn)} (Lagos time).
-        </p>
-      </section>
-
-      <section aria-labelledby="brief-title" className="mt-10">
-        <h2 id="brief-title" className="text-display-md">
-          Brief
-        </h2>
-        <p className="mt-3 max-w-[65ch] whitespace-pre-line">
-          {campaign.brief}
-        </p>
-        {campaign.guidelines && (
-          <>
-            <h3 className="mt-6 font-semibold text-ink">Notes for creators</h3>
-            <p className="mt-1 max-w-[65ch] whitespace-pre-line">
-              {campaign.guidelines}
-            </p>
-          </>
-        )}
-        {campaign.revisions.length > 1 && (
-          <p className="mt-4 text-sm text-muted">
-            Wording changed {campaign.revisions.length - 1}{" "}
-            {campaign.revisions.length === 2 ? "time" : "times"} since it was
-            first submitted, most recently{" "}
-            {formatDateTime(
-              campaign.revisions[campaign.revisions.length - 1].createdAt,
+      <div className="mt-6 grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="space-y-3 xl:order-2 xl:sticky xl:top-0">
+          <dl className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+            {qualifying !== null && (
+              <Stat
+                label={
+                  <>
+                    <Users className="size-4" aria-hidden="true" />
+                    Creators who qualify now
+                  </>
+                }
+                value={qualifying.toLocaleString("en-NG")}
+              />
             )}
-            . Creators see that it was edited.
+            <Stat
+              label="Per creator, with our fee"
+              value={formatNaira(spend.perCreatorKobo)}
+              note={`${formatNaira(campaign.priceKobo)} + ${formatNaira(spend.feePerCreatorKobo)} fee`}
+            />
+            <Stat
+              label={`Most you could spend (${campaign.places} ${campaign.places === 1 ? "creator" : "creators"})`}
+              value={formatNaira(spend.totalKobo)}
+            />
+          </dl>
+          <p className="mt-2 text-sm text-muted">
+            Nothing is charged now. You pay for each creator when you accept
+            them.
           </p>
-        )}
-      </section>
+          {qualifying === 0 && live && (
+            <Callout
+              tone="attention"
+              icon={CircleAlert}
+              title="No listed creator qualifies yet"
+            >
+              Lower the follower minimums, allow more niches or states, or turn
+              off “verified creators only” to reach more.
+            </Callout>
+          )}
+        </div>
+        <div className="space-y-3 xl:order-1">
+          <SectionCard id="posts-title" title="What each creator posts" padded>
+            <div>
+              <DeliverableList
+                deliverables={campaign.deliverables}
+                postFrom={campaign.postFrom}
+                deliverBy={campaign.deliverBy}
+              />
+            </div>
+          </SectionCard>
+
+          <SectionCard id="who-title" title="Who can apply" padded>
+            <div>
+              <RequirementList
+                platforms={campaign.platforms}
+                verifiedOnly={campaign.verifiedOnly}
+                nicheNames={campaign.niches.flatMap(
+                  (s) => nicheName.get(s) ?? [],
+                )}
+                states={campaign.states}
+              />
+            </div>
+            <p className="mt-3 flex items-center gap-2 text-sm text-muted">
+              <Clock className="size-4" aria-hidden="true" />
+              Applications close at the end of{" "}
+              {formatDay(campaign.applicationsCloseOn)} (Lagos time).
+            </p>
+          </SectionCard>
+
+          <SectionCard id="brief-title" title="Brief" padded>
+            <p className="max-w-[65ch] whitespace-pre-line">{campaign.brief}</p>
+            {campaign.guidelines && (
+              <>
+                <h3 className="mt-6 font-semibold text-ink">
+                  Notes for creators
+                </h3>
+                <p className="mt-1 max-w-[65ch] whitespace-pre-line">
+                  {campaign.guidelines}
+                </p>
+              </>
+            )}
+            {campaign.revisions.length > 1 && (
+              <p className="mt-4 text-sm text-muted">
+                Wording changed {campaign.revisions.length - 1}{" "}
+                {campaign.revisions.length === 2 ? "time" : "times"} since it
+                was first submitted, most recently{" "}
+                {formatDateTime(
+                  campaign.revisions[campaign.revisions.length - 1].createdAt,
+                )}
+                . Creators see that it was edited.
+              </p>
+            )}
+          </SectionCard>
+        </div>
+      </div>
     </>
   );
 }
@@ -360,10 +359,14 @@ function Stat({
   note?: string;
 }) {
   return (
-    <div className="rounded-card panel p-5">
-      <dt className="flex items-center gap-1.5 text-sm text-muted">{label}</dt>
-      <dd className="mt-1 text-display-md">{value}</dd>
-      {note && <dd className="text-sm text-muted">{note}</dd>}
+    <div className="rounded-card p-4 panel">
+      <dt className="flex items-center gap-1.5 text-[0.8125rem] font-medium text-muted">
+        {label}
+      </dt>
+      <dd className="mt-1.5 font-display text-[1.75rem] leading-none font-semibold tracking-[-0.03em] text-ink tabular-nums">
+        {value}
+      </dd>
+      {note && <dd className="mt-1.5 text-[0.8125rem] text-muted">{note}</dd>}
     </div>
   );
 }
