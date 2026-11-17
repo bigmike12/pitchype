@@ -2,7 +2,8 @@
 
 Builds on Stage 6 (hires are paid into escrow, the creator presses Start work,
 an admin can settle). Money rules stay in CLAUDE.md §6; this document adds the
-decisions and the shape. Status: draft 2026-11-17, waiting for approval.
+decisions and the shape. Status: approved 2026-11-17 (the owner asked to build it); built on branch
+stage-7-submissions.
 
 ## 1. Intent
 
@@ -81,18 +82,24 @@ disputed ──opener withdraws dispute──▶ back to the status it came from
 Settling a settled hire stays a no-op (it checks `settled_at` first).
 
 **The deadline is enforced in the database, not by the job.** Before
-`accept_submission`, `deny_submission`, `open_dispute` and the admin settle run
-on a `submitted` hire, they release it if `review_deadline_at` has passed. So:
-- a business that denies after the deadline is refused (`review_closed`) and
-  the hire is auto-released in the same transaction;
+`accept_submission` and `deny_submission` run on a `submitted` hire, they
+release it if `review_deadline_at` has passed. So:
+- a business that denies after the deadline gets the outcome `review_closed`
+  (returned, not raised, so the release in the same transaction is kept) and
+  the hire is auto-released;
 - an accept after the deadline still releases, as `auto_released`;
 - the daily job only catches the hires nobody touched.
 
 This is the same pattern as `expire_unpaid_engagements()` running before every
-approval (CLAUDE.md §5). Reads go through `engagement_json`, which should show a
-`submitted` hire past its deadline as auto-released at once, the way it already
-shows an unpaid hire past `pay_by` as lapsed, so the screen never contradicts
-the money.
+approval (CLAUDE.md §5). Unlike the lapse, auto-release moves money, so
+`engagement_json` does **not** pretend an overdue hire is released: the status
+stays `submitted` until the ledger says otherwise, and the screens word it as
+"Review time ended on [date]; the money is being released" (it reaches the
+wallet at the next daily run, or sooner if the business opens the hire).
+
+A dispute can't be opened on a `submitted` hire: the business denies first
+(the denial's reasons are what the dispute is about). Denying stops the clock,
+which is how CLAUDE.md §6.9's "denies or opens a dispute" is met.
 
 **Locks:** same order as Stage 6: the business's `users` row, then the
 engagement, then the submission or dispute. Accept, deny, auto-release, open
@@ -162,7 +169,8 @@ inside; none callable by `anon`):
   `in_progress` or `denied` with rounds left. Sets `review_deadline_at = now() + 7 days`.
 - `accept_submission(engagement)`: the business. Releases in full.
 - `deny_submission(engagement, reasons)`: the business, before the deadline.
-- `open_dispute(engagement, reason, links, file_ids)`, `add_dispute_statement(...)`,
+- `open_dispute(engagement, reason, links, file_ids)` (from `denied`, or
+  `in_progress` past the non-delivery date in §11.4), `add_dispute_statement(...)`,
   `withdraw_dispute(dispute)`, `decide_dispute(dispute, outcome, release_kobo, reason)` (admin).
 - `withdraw_from_engagement(engagement)`: the creator, from `in_progress` or `denied`.
 - `release_overdue_submissions()`: service role only; the daily job. Returns
@@ -284,3 +292,29 @@ database), as business, creator and admin, at 390 px and desktop.
 - `docs/legal/terms.md` sections 6 and 7: fill in the resubmission limit and
   dispute timelines.
 - `vercel.json`: the new cron route (`/api/cron/review-deadlines`, daily).
+
+## 11. Calls made after the builder check (mine, for you to check)
+
+1. **No dispute from `submitted`.** The business denies first; the denial stops
+   the clock. `opened_from` stays `denied | in_progress`, and withdrawing a
+   dispute never needs to restore a review deadline.
+2. **The Stage 6 admin escrow tool stays on `funded` and `in_progress`.**
+   `settle_engagement` keeps its old status check; only the new Stage 7
+   functions (accept, auto-release, `decide_dispute`, creator withdraw) reach
+   `submitted`, `denied` and `disputed`. An admin can't override a business's
+   review without a dispute record, and a dispute can't end settled while its
+   row says `open`. `decide_dispute` closes the dispute and settles in one
+   transaction.
+3. **No fake "released" status** (section 3). The screen says "being
+   released" until the ledger moves.
+4. **Non-delivery disputes** are allowed once the later of the campaign's
+   current `deliver_by` (end of that day, Lagos time) and `started_at` plus 7
+   days has passed. A creator who starts late always gets a week.
+5. **No new terms snapshot.** The dispute page shows the current campaign,
+   which is safe for price, requirements and deliverables (locked once live),
+   and the hire's price and fee from the engagement. Building the snapshot
+   decided in `campaign-spec-decisions.md` goes to `docs/TODO.md`.
+6. **Campaigns aren't moved to `completed`** in this stage. Added to
+   `docs/TODO.md`.
+7. **The contact-details check** applies to statement text, not to proof
+   links (links to other apps are the point of proof).
