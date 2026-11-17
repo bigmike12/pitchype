@@ -11,7 +11,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(101);
+select plan(105);
 
 -- Ada and Bola are businesses, Efe is an admin, creators 5b101..5b108 are hired by Ada.
 insert into public.users (id, auth_user_id, email, role) values
@@ -410,6 +410,24 @@ select throws_ok($$ insert into public.proof_files (owner_id, path, content_type
   '42501', null, 'anon cannot insert a file row');
 select throws_ok($$ select public.submit_work('5b000000-0000-0000-0000-0000000e0007', null, array['https://x.com'], null) $$,
   '42501', null, 'anon cannot submit');
+reset role;
+
+select ok(not has_table_privilege('service_role', 'public.submissions', 'insert')
+          and not has_table_privilege('service_role', 'public.submissions', 'update')
+          and not has_table_privilege('service_role', 'public.submissions', 'delete')
+          and not has_table_privilege('service_role', 'public.submissions', 'truncate')
+          and has_table_privilege('service_role', 'public.submissions', 'select'),
+  'the server reads submissions but cannot write them directly');
+select ok(not has_table_privilege('service_role', 'public.proof_files', 'insert')
+          and not has_table_privilege('service_role', 'public.proof_files', 'update')
+          and not has_table_privilege('service_role', 'public.proof_files', 'delete')
+          and not has_table_privilege('service_role', 'public.proof_files', 'truncate')
+          and has_table_privilege('service_role', 'public.proof_files', 'select'),
+  'the server reads proof files but cannot write them directly');
+set local role service_role;
+select throws_ok($$ delete from public.proof_files $$, '42501', null, 'a service-role delete of a file row is refused');
+select isnt((select public.register_proof_file('00000000-0000-0000-0000-00000005b108', 'c8/two.webp', 'image/webp', 1)),
+  null, 'the server registers a file through the function');
 reset role;
 
 -- Function grants and the bucket ------------------------------------------------------------------------------

@@ -485,10 +485,12 @@ grant execute on function public.register_proof_file(uuid, text, text, integer) 
 alter table public.submissions enable row level security;
 alter table public.proof_files enable row level security;
 
-revoke all on table public.submissions from anon, authenticated;
-revoke all on table public.proof_files from anon, authenticated;
-grant select on table public.submissions to authenticated;
-grant select on table public.proof_files to authenticated;
+-- No direct writes for any role, the server included (as for the ledger): every
+-- change goes through the security definer functions above.
+revoke all on table public.submissions from anon, authenticated, service_role;
+revoke all on table public.proof_files from anon, authenticated, service_role;
+grant select on table public.submissions to authenticated, service_role;
+grant select on table public.proof_files to authenticated, service_role;
 
 create policy "Submissions: both sides of the hire, admins"
   on public.submissions for select to authenticated
