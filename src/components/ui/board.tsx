@@ -189,6 +189,78 @@ export function BoardCard({
   );
 }
 
+/**
+ * The top of every card, like the landing page's: an avatar, a bold name or
+ * title, and one muted line about it. The right padding leaves room for the
+ * drag grip.
+ */
+export function BoardCardHeader({
+  avatar,
+  title,
+  mark,
+  detail,
+}: {
+  avatar: ReactNode;
+  title: ReactNode;
+  /** A small mark after the title, e.g. the verified seal. */
+  mark?: ReactNode;
+  detail?: ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 pr-5">
+      {avatar}
+      <div className="min-w-0">
+        <h3 className="flex items-center gap-1 font-semibold text-ink">
+          <span className="line-clamp-2 break-words">{title}</span>
+          {mark}
+        </h3>
+        {detail && <p className="line-clamp-2 text-xs text-muted">{detail}</p>}
+      </div>
+    </div>
+  );
+}
+
+const PILL_TONES = {
+  neutral: "bg-surface-card",
+  lilac: "bg-brand-lilac",
+  mint: "bg-brand-mint",
+  sun: "bg-brand-sun",
+  coral: "bg-brand-coral",
+} as const;
+
+export type PillTone = keyof typeof PILL_TONES;
+
+/** What the card is worth, and a pill saying where it stands. Ink text on the pastel. */
+export function BoardCardAmount({
+  amount,
+  note,
+  pill,
+  tone = "neutral",
+}: {
+  amount: string;
+  /** Small words after the amount, e.g. "plus our fee". */
+  note?: string;
+  pill: string;
+  tone?: PillTone;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+      <p className="text-ink">
+        <span className="font-semibold tabular-nums">{amount}</span>
+        {note && <span className="text-xs text-muted"> {note}</span>}
+      </p>
+      <span
+        className={cn(
+          "rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap text-ink",
+          PILL_TONES[tone],
+        )}
+      >
+        {pill}
+      </span>
+    </div>
+  );
+}
+
 /** Below 1024px: one link per column, choosing which column shows. */
 export function BoardTabs({
   columns,

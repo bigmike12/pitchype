@@ -1,4 +1,4 @@
-import { Kanban, Plus } from "lucide-react";
+import { BadgeCheck, Kanban, Megaphone, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -6,12 +6,14 @@ import { Suspense } from "react";
 import { startConversationAction } from "@/app/(portal)/inbox/actions";
 import { BoardToolbar } from "@/components/board/board-toolbar";
 import { CreatorPhoto } from "@/components/creators/creator-photo";
-import { PlatformSummary } from "@/components/creators/platform-list";
 import {
   Board,
   BoardCard,
+  BoardCardAmount,
+  BoardCardHeader,
   BoardColumn,
   BoardTabs,
+  type PillTone,
 } from "@/components/ui/board";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -28,6 +30,7 @@ import { requireRole } from "@/lib/auth";
 import {
   BUSINESS_COLUMNS,
   businessColumn,
+  creatorDetailLine,
   matchesBoardFilter,
   shownColumn,
   uniquePeople,
@@ -40,9 +43,9 @@ import {
   type CampaignApplication,
 } from "@/lib/db/applications";
 import { listOwnCampaigns } from "@/lib/db/campaigns";
+import { listNiches } from "@/lib/db/creators";
 import { formatNaira } from "@/lib/money";
 import { parseSearch } from "@/lib/search";
-import { cn } from "@/lib/utils";
 
 import { shortlistAction } from "../campaigns/[id]/applications/actions";
 import { ApproveButton } from "../campaigns/[id]/applications/decision-buttons";
@@ -99,11 +102,13 @@ const first = (value: string | string[] | undefined) =>
 
 async function HiringBoard({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireRole("business");
-  const [campaigns, counts, query] = await Promise.all([
+  const [campaigns, counts, niches, query] = await Promise.all([
     listOwnCampaigns(user.id),
     getApplicationCounts(),
+    listNiches(),
     searchParams,
   ]);
+  const nicheName = new Map(niches.map((n) => [n.slug, n.name]));
 
   // Only campaigns someone has applied to can put a card on the board.
   const withApplications = campaigns.filter(
@@ -252,6 +257,12 @@ async function HiringBoard({ searchParams }: { searchParams: SearchParams }) {
                     card={card}
                     column={column.key}
                     showCampaign={!picked}
+                    detail={creatorDetailLine(
+                      card.creator.platforms,
+                      card.creator.niches.flatMap(
+                        (s) => nicheName.get(s) ?? [],
+                      ),
+                    )}
                   />
                 ))}
                 {all.length > visible.length && (
@@ -295,55 +306,104 @@ async function HiringBoard({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
+// The pill on each card: where it stands. "In progress" depends on whether
+// work has started.
+const STAGES: Record<
+  Exclude<BusinessColumn, "closed" | "in_progress">,
+  { pill: string; tone: PillTone }
+> = {
+  applied: { pill: "Applied", tone: "neutral" },
+  shortlisted: { pill: "Shortlisted", tone: "lilac" },
+  to_pay: { pill: "To pay", tone: "sun" },
+  to_review: { pill: "Work sent in", tone: "lilac" },
+  changes: { pill: "Sent back", tone: "coral" },
+  disputed: { pill: "Under review", tone: "neutral" },
+  completed: { pill: "Released", tone: "mint" },
+};
+
+/**
+ * One creator on the hiring board, laid out like the landing page's card:
+ * photo, name and one line about them (niche, platform, followers), then the
+ * money with a pill for where it stands, then what matters in this column
+ * and its buttons.
+ */
 function HireCard({
   card,
   column,
   showCampaign,
+  detail,
 }: {
   card: Card;
   column: Exclude<BusinessColumn, "closed">;
   showCampaign: boolean;
+  detail: string;
 }) {
   const { creator, engagement } = card;
-  const priceKobo = card.proposedPriceKobo ?? card.campaignPriceKobo;
   const decidable = column === "applied" || column === "shortlisted";
   const canHire = decidable && !creator.suspended && !creator.blocked;
   const reopened = hireEndedUnpaid(card);
   const applicantsHref = `/business/campaigns/${card.campaignId}/applications`;
+  const priceKobo = card.proposedPriceKobo ?? card.campaignPriceKobo;
+  const verified = creator.platforms.some((p) => p.verified);
+
+  const stage =
+    column === "in_progress"
+      ? engagement?.status === "funded"
+        ? { pill: "Not started", tone: "neutral" as const }
+        : { pill: "Working", tone: "mint" as const }
+      : STAGES[column];
+  const amountKobo = !engagement
+    ? priceKobo
+    : column === "completed"
+      ? (engagement.releasedKobo ?? engagement.agreedPriceKobo)
+      : engagement.agreedPriceKobo;
 
   return (
     <BoardCard draggable={canHire || card.status === "submitted"}>
-      <div className="flex items-center gap-2.5 pr-5">
-        <CreatorPhoto
-          name={creator.displayName}
-          url={creator.photoUrl}
-          sizes="36px"
-          className="size-9 shrink-0 rounded-full"
-        />
-        <div className="min-w-0">
-          <h3 className="truncate font-semibold text-ink">
-            {creator.displayName}
-          </h3>
-          <p className="truncate text-xs text-muted">
-            {showCampaign ? card.campaignTitle : `${creator.city}`}
-          </p>
-        </div>
-      </div>
+      <BoardCardHeader
+        avatar={
+          <CreatorPhoto
+            name={creator.displayName}
+            url={creator.photoUrl}
+            sizes="36px"
+            className="size-9 shrink-0 rounded-full"
+          />
+        }
+        title={creator.displayName}
+        mark={
+          verified && (
+            <>
+              <BadgeCheck
+                className="size-4 shrink-0 fill-brand-coral text-white"
+                aria-hidden="true"
+              />
+              <span className="sr-only">verified</span>
+            </>
+          )
+        }
+        detail={detail || creator.city}
+      />
+
+      <BoardCardAmount
+        amount={formatNaira(amountKobo)}
+        note={column === "to_pay" ? "plus our fee" : undefined}
+        pill={stage.pill}
+        tone={stage.tone}
+      />
+
+      {showCampaign && (
+        <p className="flex items-center gap-1 text-xs text-muted">
+          <Megaphone className="size-3.5 shrink-0" aria-hidden="true" />
+          <span className="truncate">{card.campaignTitle}</span>
+        </p>
+      )}
 
       {decidable && (
         <>
-          <PlatformSummary platforms={creator.platforms} />
-          <p className="text-[0.8125rem]">
-            <span className="font-semibold text-ink tabular-nums">
-              {card.proposedPriceKobo === null
-                ? formatNaira(card.campaignPriceKobo)
-                : `Asks ${formatNaira(card.proposedPriceKobo)}`}
-            </span>{" "}
-            <span className="text-muted">
-              {card.proposedPriceKobo === null
-                ? "your price"
-                : `· your price ${formatNaira(card.campaignPriceKobo)}`}
-            </span>
+          <p className="text-xs text-muted">
+            Applied {formatDate(card.createdAt)}
+            {card.proposedPriceKobo !== null &&
+              ` · asks ${formatNaira(card.proposedPriceKobo)}, your price ${formatNaira(card.campaignPriceKobo)}`}
           </p>
           {reopened && (
             <p className="text-xs text-muted">
@@ -403,12 +463,6 @@ function HireCard({
 
       {column === "to_pay" && engagement && (
         <>
-          <p className="text-[0.8125rem]">
-            <span className="font-semibold text-ink tabular-nums">
-              {formatNaira(engagement.agreedPriceKobo)}
-            </span>{" "}
-            <span className="text-muted">plus our fee</span>
-          </p>
           <p className="rounded-lg bg-attention px-2 py-1 text-xs font-semibold text-ink">
             Pay by {formatDateTime(engagement.payBy)}, or it lapses
           </p>
@@ -422,64 +476,32 @@ function HireCard({
         </>
       )}
 
-      {column !== "applied" &&
-        column !== "shortlisted" &&
-        column !== "to_pay" &&
-        engagement && (
-          <>
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-semibold text-ink tabular-nums">
-                {formatNaira(
-                  column === "completed"
-                    ? (engagement.releasedKobo ?? engagement.agreedPriceKobo)
-                    : engagement.agreedPriceKobo,
-                )}
-              </span>
-              {column !== "completed" && (
-                <span
-                  className={cn(
-                    "rounded-full px-2 py-0.5 text-xs font-semibold text-ink",
-                    engagement.status === "funded"
-                      ? "bg-surface-card"
-                      : "bg-brand-mint",
-                  )}
-                >
-                  {IN_PROGRESS_LABELS[engagement.status] ?? "Working"}
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-muted">
-              {column === "completed"
-                ? engagement.settledAt
-                  ? `Released ${formatDate(engagement.settledAt)}`
-                  : "Released to the creator"
-                : engagement.startedAt
-                  ? `Started ${formatDate(engagement.startedAt)}`
-                  : engagement.fundedAt
-                    ? `Paid ${formatDate(engagement.fundedAt)}`
-                    : null}
-            </p>
-            <Link
-              href={`/business/engagements/${engagement.id}`}
-              className={buttonVariants({
-                variant: "secondary",
-                size: "sm",
-                className: "w-full",
-              })}
-            >
-              Open hire
-              <span className="sr-only">: {creator.displayName}</span>
-            </Link>
-          </>
-        )}
+      {!decidable && column !== "to_pay" && engagement && (
+        <>
+          <p className="text-xs text-muted">
+            {column === "completed"
+              ? engagement.settledAt
+                ? `Released ${formatDate(engagement.settledAt)}`
+                : "Released to the creator"
+              : engagement.startedAt
+                ? `Started ${formatDate(engagement.startedAt)}`
+                : engagement.fundedAt
+                  ? `Paid ${formatDate(engagement.fundedAt)}`
+                  : null}
+          </p>
+          <Link
+            href={`/business/engagements/${engagement.id}`}
+            className={buttonVariants({
+              variant: "secondary",
+              size: "sm",
+              className: "w-full",
+            })}
+          >
+            Open hire
+            <span className="sr-only">: {creator.displayName}</span>
+          </Link>
+        </>
+      )}
     </BoardCard>
   );
 }
-
-const IN_PROGRESS_LABELS: Record<string, string> = {
-  funded: "Not started",
-  in_progress: "Working",
-  submitted: "Work sent in",
-  denied: "Sent back",
-  disputed: "Under review",
-};

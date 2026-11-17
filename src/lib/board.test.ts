@@ -5,6 +5,7 @@ import {
   BUSINESS_COLUMNS,
   CREATOR_COLUMNS,
   businessColumn,
+  creatorDetailLine,
   creatorColumn,
   matchesBoardFilter,
   shownColumn,
@@ -164,4 +165,43 @@ test("the people row lists each person once, in first-seen order", () => {
     people.map((p) => p.id),
     ["b", "a"],
   );
+});
+
+const listing = (
+  platform: "instagram" | "tiktok",
+  followerRange: "1k_5k" | "5k_10k" | "10k_50k" | null,
+  verifiedFollowerCount: number | null = null,
+) => ({
+  platform,
+  handle: null,
+  followerRange,
+  followersUpdatedAt: "2026-11-01T00:00:00Z",
+  verified: verifiedFollowerCount !== null,
+  verifiedFollowerCount,
+  verifiedAt: null,
+});
+
+test("a hiring card's detail line names a niche, the biggest platform and its followers", () => {
+  assert.equal(
+    creatorDetailLine(
+      [listing("tiktok", "1k_5k"), listing("instagram", "5k_10k")],
+      ["Food and drinks", "Lifestyle"],
+    ),
+    "Food and drinks · Instagram · 5K–10K",
+  );
+  // A verified count reads compactly and wins on size.
+  assert.equal(
+    creatorDetailLine(
+      [listing("instagram", "10k_50k"), listing("tiktok", null, 18_400)],
+      ["Food and drinks"],
+    ),
+    "Food and drinks · TikTok · 18.4K",
+  );
+  // Missing parts are left out, not shown as blanks.
+  assert.equal(
+    creatorDetailLine([listing("instagram", "1k_5k")], []),
+    "Instagram · 1K–5K",
+  );
+  assert.equal(creatorDetailLine([], ["Fashion"]), "Fashion");
+  assert.equal(creatorDetailLine([], []), "");
 });
