@@ -1781,6 +1781,7 @@ export type Database = {
         Args: { application: string; decision: string; note: string }
         Returns: undefined
       }
+      delete_orphan_proof_files: { Args: never; Returns: string[] }
       deliverable_kind_allowed: {
         Args: {
           kind: Database["public"]["Enums"]["deliverable_kind"]
@@ -1961,6 +1962,7 @@ export type Database = {
         Args: { e: Database["public"]["Tables"]["engagements"]["Row"] }
         Returns: boolean
       }
+      release_overdue_submissions: { Args: never; Returns: number }
       report_campaign: {
         Args: {
           campaign: string
@@ -2070,6 +2072,7 @@ export type Database = {
         Args: { body: string; conversation: string; dedupe: string }
         Returns: Json
       }
+      send_review_reminders: { Args: never; Returns: number }
       set_creator_hidden: {
         Args: { creator: string; reason: string }
         Returns: undefined
@@ -2229,6 +2232,12 @@ export type Database = {
         | "payout_failed"
         | "payout_rejected"
         | "payment_stranded"
+        | "work_submitted"
+        | "submission_denied"
+        | "review_reminder"
+        | "dispute_opened"
+        | "dispute_statement"
+        | "dispute_withdrawn"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -2444,6 +2453,12 @@ export const Constants = {
         "payout_failed",
         "payout_rejected",
         "payment_stranded",
+        "work_submitted",
+        "submission_denied",
+        "review_reminder",
+        "dispute_opened",
+        "dispute_statement",
+        "dispute_withdrawn",
       ],
       payment_model: ["fixed", "per_click"],
       report_reason: [

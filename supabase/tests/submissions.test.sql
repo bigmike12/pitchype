@@ -80,9 +80,9 @@ select is((select array_agg(status::text order by id) from public.engagements
 -- Screenshots are registered by the server before submitting. Creator 7 owns
 -- the first two, creator 8 the third.
 create temporary table files on commit drop as
-select public.register_proof_file('00000000-0000-0000-0000-00000005b107', 'c7/one.webp', 'image/webp', 120000) as one,
-       public.register_proof_file('00000000-0000-0000-0000-00000005b107', 'c7/two.webp', 'image/webp', 90000) as two,
-       public.register_proof_file('00000000-0000-0000-0000-00000005b108', 'c8/one.webp', 'image/webp', 80000) as other;
+select public.register_proof_file('00000000-0000-0000-0000-00000005b107', '00000000-0000-0000-0000-00000005b107/one.webp', 'image/webp', 120000) as one,
+       public.register_proof_file('00000000-0000-0000-0000-00000005b107', '00000000-0000-0000-0000-00000005b107/two.webp', 'image/webp', 90000) as two,
+       public.register_proof_file('00000000-0000-0000-0000-00000005b108', '00000000-0000-0000-0000-00000005b108/one.webp', 'image/webp', 80000) as other;
 grant select on files to authenticated;
 select ok((select bool_and(submission_id is null and dispute_statement_id is null) from public.proof_files
             where id in ((select one from files), (select two from files), (select other from files))),
@@ -426,7 +426,7 @@ select ok(not has_table_privilege('service_role', 'public.proof_files', 'insert'
   'the server reads proof files but cannot write them directly');
 set local role service_role;
 select throws_ok($$ delete from public.proof_files $$, '42501', null, 'a service-role delete of a file row is refused');
-select isnt((select public.register_proof_file('00000000-0000-0000-0000-00000005b108', 'c8/two.webp', 'image/webp', 1)),
+select isnt((select public.register_proof_file('00000000-0000-0000-0000-00000005b108', '00000000-0000-0000-0000-00000005b108/two.webp', 'image/webp', 1)),
   null, 'the server registers a file through the function');
 reset role;
 
