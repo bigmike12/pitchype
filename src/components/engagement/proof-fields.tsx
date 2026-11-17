@@ -11,7 +11,11 @@ import {
   FieldLabel,
   TextAreaField,
 } from "@/components/ui/field";
-import { MAX_PROOF_FILES, MAX_PROOF_LINKS } from "@/lib/proof";
+import {
+  MAX_PROOF_FILES,
+  MAX_PROOF_LINK_LENGTH,
+  MAX_PROOF_LINKS,
+} from "@/lib/proof";
 import {
   fitsRequestBudget,
   TOO_BIG_TOGETHER_MESSAGE,
@@ -90,16 +94,23 @@ export async function formDataWithShrunkScreenshots(
   return { ok: false, message: TOO_BIG_TOGETHER_MESSAGE };
 }
 
+// Ten links of 500 characters plus a line break (or two) between them: more
+// than this can't be valid, and a giant paste would blow the request budget.
+const MAX_LINKS_TEXT_LENGTH = MAX_PROOF_LINKS * (MAX_PROOF_LINK_LENGTH + 2);
+
 export function ProofFields({
   idPrefix,
   linksOptional = false,
   errors,
+  onScreenshotsChange,
 }: {
   /** Keeps ids apart when a page has two proof forms. */
   idPrefix: string;
   /** Links aren't needed when there is a screenshot (or nothing is required). */
   linksOptional?: boolean;
   errors?: { links?: string; screenshots?: string };
+  /** Lets the form drop a "too big together" message once the choice changes. */
+  onScreenshotsChange?: () => void;
 }) {
   const shotsId = `${idPrefix}-screenshots`;
   return (
@@ -111,6 +122,7 @@ export function ProofFields({
         optional={linksOptional}
         rows={3}
         autoComplete="off"
+        maxLength={MAX_LINKS_TEXT_LENGTH}
         placeholder="https://www.instagram.com/p/…"
         hint={`One link per line, up to ${MAX_PROOF_LINKS}. Each starts with http:// or https://.`}
         error={errors?.links}
@@ -125,6 +137,7 @@ export function ProofFields({
           type="file"
           multiple
           accept="image/jpeg,image/png,image/webp"
+          onChange={onScreenshotsChange}
           aria-invalid={errors?.screenshots ? true : undefined}
           aria-describedby={
             errors?.screenshots

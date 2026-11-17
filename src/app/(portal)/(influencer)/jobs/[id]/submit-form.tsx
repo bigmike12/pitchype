@@ -84,6 +84,7 @@ export function SubmitForm({
 
       <ProofFields
         idPrefix="submit"
+        onScreenshotsChange={() => setPictureError(undefined)}
         errors={{
           ...state.errors,
           screenshots: pictureError ?? state.errors?.screenshots,

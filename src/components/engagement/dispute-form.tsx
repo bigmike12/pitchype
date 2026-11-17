@@ -14,12 +14,24 @@ import {
   MIN_DISPUTE_REASON_LENGTH,
 } from "@/lib/proof";
 
-import { openDisputeAction, type DisputeState } from "./actions";
+import type { DisputeState } from "@/lib/open-dispute";
 
-/** Opens a dispute on work that was sent back; an admin then decides. */
-export function DisputeForm({ engagementId }: { engagementId: string }) {
+/**
+ * Opens a dispute; an admin then decides. The same form for both sides: the
+ * page passes its own Server Action and the sentence that says what the
+ * dispute is about and what happens next.
+ */
+export function DisputeForm({
+  engagementId,
+  action,
+  intro,
+}: {
+  engagementId: string;
+  action: (previous: DisputeState, form: FormData) => Promise<DisputeState>;
+  intro: string;
+}) {
   const [state, formAction, pending] = useActionState<DisputeState, FormData>(
-    openDisputeAction,
+    action,
     { status: "idle" },
   );
   const [preparing, setPreparing] = useState(false);
@@ -51,11 +63,7 @@ export function DisputeForm({ engagementId }: { engagementId: string }) {
         className="mt-3 max-w-xl space-y-5"
       >
         <input type="hidden" name="engagementId" value={engagementId} />
-        <p>
-          If you think the business was wrong to send your work back, tell us
-          why. An admin will read both sides and decide how the money is paid
-          out. While a dispute is open you can’t send the work in again.
-        </p>
+        <p>{intro}</p>
         <TextAreaField
           id="dispute-reason"
           name="reason"
@@ -70,6 +78,7 @@ export function DisputeForm({ engagementId }: { engagementId: string }) {
         <ProofFields
           idPrefix="dispute"
           linksOptional
+          onScreenshotsChange={() => setPictureError(undefined)}
           errors={{
             ...state.errors,
             screenshots: pictureError ?? state.errors?.screenshots,

@@ -4,23 +4,12 @@ import { refresh } from "next/cache";
 
 import { requireRole } from "@/lib/auth";
 import { getEngagementDetails } from "@/lib/db/applications";
-import { openDispute } from "@/lib/db/disputes";
 import { cancelFundedEngagement, startEngagement } from "@/lib/db/money";
 import { submitWork, withdrawFromEngagement } from "@/lib/db/submissions";
 import { text, type FormState } from "@/lib/form-data";
-import {
-  DISPUTE_OPEN_LIMITED_MESSAGE,
-  isDisputeOpenLimited,
-  isSubmitLimited,
-  SUBMIT_LIMITED_MESSAGE,
-} from "@/lib/money-limits";
-import {
-  MAX_PROOF_FILES,
-  parseDisputeReason,
-  parseOptionalProofLinks,
-  parseProofLinks,
-  parseProofNote,
-} from "@/lib/proof";
+import { isSubmitLimited, SUBMIT_LIMITED_MESSAGE } from "@/lib/money-limits";
+import { openDisputeFromForm, type DisputeState } from "@/lib/open-dispute";
+import { MAX_PROOF_FILES, parseProofLinks, parseProofNote } from "@/lib/proof";
 import {
   screenshotFiles,
   storeScreenshots,
@@ -32,7 +21,6 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export type JobActionState = FormState<never>;
 export type SubmitState = FormState<"links" | "note" | "screenshots">;
-export type DisputeState = FormState<"reason" | "links" | "screenshots">;
 
 const SAVE_FAILED =
   "We couldn’t save your pictures just now. Try again in a moment.";
@@ -174,62 +162,11 @@ export async function submitWorkAction(
   return { status: "success", message: "Your work has been sent in." };
 }
 
-/**
- * The creator opens a dispute on work the business sent back. The reason is
- * required; links and pictures are optional. Same order as submitting.
- */
+/** The creator opens a dispute on work the business sent back. */
 export async function openDisputeAction(
   _previous: DisputeState,
   form: FormData,
 ): Promise<DisputeState> {
   const user = await requireRole("influencer");
-  const engagementId = text(form, "engagementId");
-  if (!UUID.test(engagementId)) {
-    return { status: "error", message: refusalText("no_such_engagement") };
-  }
-
-  const files = screenshotFiles(form);
-  if (files.length > MAX_PROOF_FILES) {
-    return { status: "error", errors: { screenshots: TOO_MANY_SCREENSHOTS } };
-  }
-  const reason = parseDisputeReason(text(form, "reason"));
-  const links = parseOptionalProofLinks(text(form, "links"));
-  if (!reason.ok || !links.ok) {
-    return {
-      status: "error",
-      errors: {
-        reason: reason.ok ? undefined : reason.message,
-        links: links.ok ? undefined : links.message,
-      },
-    };
-  }
-  if (isDisputeOpenLimited(user.id)) {
-    return { status: "error", message: DISPUTE_OPEN_LIMITED_MESSAGE };
-  }
-
-  let fileIds: string[] = [];
-  if (files.length > 0) {
-    try {
-      const stored = await storeScreenshots(user.id, files);
-      if (!stored.ok) {
-        return { status: "error", errors: { screenshots: stored.message } };
-      }
-      fileIds = stored.fileIds;
-    } catch (error) {
-      console.error("proof upload failed", error);
-      return { status: "error", message: SAVE_FAILED };
-    }
-  }
-
-  const result = await openDispute(
-    engagementId,
-    reason.reason,
-    links.links,
-    fileIds,
-  );
-  refresh();
-  if (!result.ok) {
-    return { status: "error", message: refusalText(result.reason) };
-  }
-  return { status: "success", message: "Your dispute is open." };
+  return openDisputeFromForm(user.id, form);
 }

@@ -13,6 +13,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { DisputeForm } from "@/components/engagement/dispute-form";
 import { Rounds } from "@/components/engagement/rounds";
 import { buttonVariants } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
@@ -33,7 +34,7 @@ import { describeJobStatus } from "@/lib/job-status-words";
 import { formatNaira } from "@/lib/money";
 import { CONTACT_EMAIL } from "@/lib/site";
 
-import { DisputeForm } from "./dispute-form";
+import { openDisputeAction } from "./actions";
 import { StartWorkForm } from "./start-form";
 import { SubmitForm } from "./submit-form";
 import { WithdrawForm } from "./withdraw-form";
@@ -205,7 +206,11 @@ async function Job({ params }: { params: Params }) {
 
           {status.canStart && <StartWorkForm engagementId={engagement.id} />}
           {status.canOpenDispute && (
-            <DisputeForm engagementId={engagement.id} />
+            <DisputeForm
+              engagementId={engagement.id}
+              action={openDisputeAction}
+              intro="If you think the business was wrong to send your work back, tell us why. An admin will read both sides and decide how the money is paid out. While a dispute is open you can’t send the work in again."
+            />
           )}
           {status.canWithdraw && (
             <WithdrawForm
