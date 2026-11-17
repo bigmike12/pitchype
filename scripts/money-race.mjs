@@ -30,7 +30,6 @@ import {
   charge,
   checker,
   creatorWithBalance,
-  delayed,
   denyCall,
   deniedHire,
   disputeFacts,
@@ -886,6 +885,15 @@ async function requestVsFailedTransfer(c) {
   return `orders ${fmt(tally(orders))}`;
 }
 
+// The job sweeps every overdue hire in the local database, so a hire left over
+// from an aborted run can add to its count. The scenarios therefore judge the
+// job's answer only by 'none failed' and 'at least this many released', and
+// read what happened to their own hire from the hire itself.
+function sweepCounts(answer) {
+  const [released, failed] = String(answer).split("/").map(Number);
+  return { released, failed };
+}
+
 // 16 ----------------------------------------------------------------------------------------------------
 //
 // Stage 7. Every scenario below ends with exactly one settlement group (or none,
@@ -901,22 +909,24 @@ async function acceptVsAutoRelease(c) {
   const orders = [];
   const lateBy = [
     [0, 0],
-    [10, 0],
-    [0, 10],
-    [30, 0],
-    [0, 30],
+    [2, 0],
+    [0, 2],
+    [4, 0],
+    [0, 4],
   ];
   for (let round = 1; round <= lateBy.length; round++) {
     const hire = await overdueHire(PRICE);
     const [accepted, swept] = await racePair(
       {
         who: as.user(hire.business),
-        call: delayed(
-          lateBy[round - 1][0],
-          `public.accept_submission(${lit(hire.id)})`,
-        ),
+        call: `public.accept_submission(${lit(hire.id)})`,
+        delayMs: lateBy[round - 1][0],
       },
-      { who: as.service, call: delayed(lateBy[round - 1][1], sweepCall) },
+      {
+        who: as.service,
+        call: sweepCall,
+        delayMs: lateBy[round - 1][1],
+      },
       round % 2 === 0,
     );
     const f = await hireFacts(hire);
@@ -948,15 +958,15 @@ async function acceptVsAutoRelease(c) {
       orders.push("accept first");
       c.eq(
         `round ${round} accept first: [accept, job]`,
-        [accepted, swept],
-        ["auto_released", "0/0"],
+        [accepted, sweepCounts(swept).failed],
+        ["auto_released", 0],
       );
     } else {
       orders.push("job first");
       c.eq(
         `round ${round} job first: [accept, job]`,
-        [accepted, swept],
-        ["error:engagement_locked", "1/0"],
+        [accepted, sweepCounts(swept).released >= 1, sweepCounts(swept).failed],
+        ["error:engagement_locked", true, 0],
       );
     }
   }
@@ -968,15 +978,18 @@ async function acceptVsAutoRelease(c) {
     times(3, () => ({ who: as.service, call: sweepCall })),
   );
   c.ok(
-    `3× job: ${fmt(tally(sweeps))} (one released, none failed)`,
-    sweeps.filter((o) => o === "1/0").length === 1 &&
-      sweeps.every((o) => o === "1/0" || o === "0/0"),
+    `3× job: ${fmt(tally(sweeps))} (none failed)`,
+    sweeps.every((o) => sweepCounts(o).failed === 0),
   );
   const f = await hireFacts(hire);
   c.eq(
     "3× job: hire",
     [f.status, f.escrow, f.settlements, f.creator_wallet],
     ["auto_released", 0, 1, CREATOR_NET],
+  );
+  c.ok(
+    "3× job: someone released it",
+    sweeps.some((o) => sweepCounts(o).released >= 1),
   );
   return `accept vs job ${fmt(tally(orders))} | 3× job ${fmt(tally(sweeps))}`;
 }
@@ -992,19 +1005,24 @@ async function denyVsAutoRelease(c) {
   // one back a few milliseconds ([deny delay, job delay]) to reach both orders.
   const lateBy = [
     [0, 0],
-    [0, 10],
-    [0, 30],
-    [10, 0],
-    [30, 0],
+    [0, 2],
+    [0, 4],
+    [2, 0],
+    [4, 0],
   ];
   for (let round = 1; round <= lateBy.length; round++) {
     const hire = await overdueHire(PRICE);
     const [denied, swept] = await racePair(
       {
         who: as.user(hire.business),
-        call: delayed(lateBy[round - 1][0], denyCall(hire)),
+        call: denyCall(hire),
+        delayMs: lateBy[round - 1][0],
       },
-      { who: as.service, call: delayed(lateBy[round - 1][1], sweepCall) },
+      {
+        who: as.service,
+        call: sweepCall,
+        delayMs: lateBy[round - 1][1],
+      },
       round % 2 === 0,
     );
     const f = await hireFacts(hire);
@@ -1029,15 +1047,15 @@ async function denyVsAutoRelease(c) {
       orders.push("deny first");
       c.eq(
         `round ${round} deny first: [deny, job]`,
-        [denied, swept],
-        ["review_closed", "0/0"],
+        [denied, sweepCounts(swept).failed],
+        ["review_closed", 0],
       );
     } else {
       orders.push("job first");
       c.eq(
         `round ${round} job first: [deny, job]`,
-        [denied, swept],
-        ["error:engagement_locked", "1/0"],
+        [denied, sweepCounts(swept).released >= 1, sweepCounts(swept).failed],
+        ["error:engagement_locked", true, 0],
       );
     }
   }
@@ -1054,7 +1072,7 @@ async function decideVsAcceptOnDispute(c) {
   const winners = [];
   // The business's accept usually reaches its lock first, so later rounds start
   // it a few milliseconds late to let the admin go first too.
-  const lateBy = [0, 5, 10, 20, 40];
+  const lateBy = [0, 1, 2, 3, 4];
   for (let round = 1; round <= lateBy.length; round++) {
     const hire = await disputedHire(PRICE);
     const [decided, accepted] = await racePair(
@@ -1064,10 +1082,8 @@ async function decideVsAcceptOnDispute(c) {
       },
       {
         who: as.user(hire.business),
-        call: delayed(
-          lateBy[round - 1],
-          `public.accept_submission(${lit(hire.id)})`,
-        ),
+        call: `public.accept_submission(${lit(hire.id)})`,
+        delayMs: lateBy[round - 1],
       },
       round % 2 === 0,
     );
@@ -1232,27 +1248,23 @@ async function decideVsWithdrawDispute(c) {
   // one back a few milliseconds ([decide delay, withdraw delay]).
   const lateBy = [
     [0, 0],
-    [0, 10],
-    [10, 0],
-    [0, 30],
-    [30, 0],
+    [0, 2],
+    [2, 0],
+    [0, 4],
+    [4, 0],
   ];
   for (let round = 1; round <= lateBy.length; round++) {
     const hire = await disputedHire(PRICE);
     const [decided, withdrew] = await racePair(
       {
         who: as.user(admin),
-        call: delayed(
-          lateBy[round - 1][0],
-          `public.decide_dispute(${lit(hire.dispute)}, 'release', null::bigint, 'race test')`,
-        ),
+        call: `public.decide_dispute(${lit(hire.dispute)}, 'release', null::bigint, 'race test')`,
+        delayMs: lateBy[round - 1][0],
       },
       {
         who: as.user(hire.creator),
-        call: delayed(
-          lateBy[round - 1][1],
-          `public.withdraw_dispute(${lit(hire.dispute)})`,
-        ),
+        call: `public.withdraw_dispute(${lit(hire.dispute)})`,
+        delayMs: lateBy[round - 1][1],
       },
       round % 2 === 0,
     );

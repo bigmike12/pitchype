@@ -104,10 +104,11 @@ export const as = {
 // it (before commit, or after the rollback of a refused call), so race() can
 // check every call started before any finished.
 const now = `(extract(epoch from clock_timestamp()) * 1000)::text`;
-function callText(who, expr, gate = "") {
+function callText(who, expr, gate = "", delayMs = 0) {
   return `begin;
 ${who}
 ${gate}
+${delayMs > 0 ? `select pg_sleep(${delayMs / 1000});` : ""}
 select ${now} as race_started \\gset
 \\echo STARTED :race_started
 \\set ON_ERROR_STOP 0
@@ -202,7 +203,9 @@ $$;`);
   }
 
   const gate = `select pg_advisory_xact_lock_shared(${key}) \\gset`;
-  const workers = calls.map((c) => psql(callText(c.who, c.call, gate)));
+  const workers = calls.map((c) =>
+    psql(callText(c.who, c.call, gate, c.delayMs)),
+  );
   const [held, ...results] = await Promise.all([coordinator, ...workers]);
   const outcomes = results.map(outcomeOf);
   if (held.code !== 0) throw new Error(`barrier: ${errorOf(held.stderr)}`);
@@ -246,14 +249,11 @@ export async function racePair(a, b, flip) {
   return [ra, rb];
 }
 
-// The same call, started a few milliseconds late (after the barrier and after
-// the start time is taken, so it still counts as overlapping). The call that
-// is usually first to a lock can then be made to arrive second, so a scenario
-// reaches both orders. pg_sleep in FROM runs before the select list.
-export function delayed(ms, expr) {
-  return `(select (${expr})::text from pg_sleep(${ms / 1000}))`;
-}
-
+// A call may carry `delayMs`: it then sleeps after the barrier and before its
+// start time is taken, so the call that is usually first to a lock can be made
+// to arrive second. The start time is taken after the sleep, so the overlap
+// check measures real work: a delayed call that only starts once the other has
+// finished fails the "calls did not overlap" check instead of passing it.
 export function times(n, make) {
   return Array.from({ length: n }, (_, i) => make(i));
 }
