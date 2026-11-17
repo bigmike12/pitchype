@@ -18,6 +18,7 @@ export function QueueCard<T>({
   note,
   empty,
   paged,
+  count,
   noun,
   hrefFor,
   children,
@@ -28,6 +29,8 @@ export function QueueCard<T>({
   /** What to say when nothing waits. */
   empty: string;
   paged: Paged<T>;
+  /** The exact number waiting, when the list is capped and `paged.total` is not it. */
+  count?: number;
   noun: [string, string];
   hrefFor: (page: number) => string;
   children: (item: T) => ReactNode;
@@ -38,7 +41,7 @@ export function QueueCard<T>({
       title={title}
       aside={
         <span className="rounded-full bg-surface-card px-2 py-0.5 text-xs font-semibold text-ink tabular-nums">
-          {paged.total}
+          {count ?? paged.total}
           <span className="sr-only"> waiting</span>
         </span>
       }

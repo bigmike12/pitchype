@@ -25,7 +25,7 @@ import {
 } from "@/lib/db/campaigns";
 import { countOpenDisputes } from "@/lib/db/disputes";
 import { getStandingReview } from "@/lib/db/moderation";
-import { listEscrowEngagements } from "@/lib/db/money";
+import { countEscrowEngagements } from "@/lib/db/money";
 import { countPayoutsAwaitingApproval } from "@/lib/db/payouts";
 import { listHiddenCreators, listOpenReports } from "@/lib/db/reports";
 import { listVerificationQueue } from "@/lib/db/verification";
@@ -75,7 +75,7 @@ async function Overview() {
     listOpenCampaignReports(),
     listHiddenCreators(),
     countPayoutsAwaitingApproval(),
-    listEscrowEngagements(),
+    countEscrowEngagements(),
     countOpenDisputes(),
   ]);
 
@@ -144,7 +144,7 @@ async function Overview() {
         />
         <StatCard
           label="Hires in escrow"
-          value={`${escrow.hires.length}${escrow.more ? "+" : ""}`}
+          value={String(escrow)}
           detail="Paid for, not settled yet"
           icon={LockKeyhole}
           tone="lilac"

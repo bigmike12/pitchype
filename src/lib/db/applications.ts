@@ -356,6 +356,11 @@ export type EngagementDetails = EngagementSummary & {
   };
   creator: { id: string; name: string; slug: string | null };
   business: { id: string; name: string };
+  /**
+   * What the settlement credited to the creator's wallet, read from the
+   * ledger (null until the hire is settled).
+   */
+  creatorNetKobo: number | null;
   // Stage 7: where the review stands.
   /** The latest submission's round (1 to 4), or null before the first. */
   round: number | null;
@@ -389,6 +394,7 @@ export async function getEngagementDetails(
   const b = obj(data.business);
   return {
     ...summary,
+    creatorNetKobo: num(data.creator_net_kobo),
     applicationId: str(data.application_id) ?? "",
     campaign: {
       id: str(k.id) ?? "",

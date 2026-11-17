@@ -254,7 +254,11 @@ export const DISPUTE_LIST_CAP = 200;
  * It does not check the role: anyone else gets only their own open disputes
  * (RLS), so the page that calls it must require an admin.
  */
-export async function listOpenDisputes(): Promise<DisputeListRow[]> {
+export async function listOpenDisputes(): Promise<{
+  disputes: DisputeListRow[];
+  /** There are open disputes beyond the cap (count them with countOpenDisputes). */
+  more: boolean;
+}> {
   const supabase = await createSessionClient();
   const { data, error } = await supabase
     .from("disputes")
@@ -263,9 +267,11 @@ export async function listOpenDisputes(): Promise<DisputeListRow[]> {
     )
     .eq("status", "open")
     .order("opened_at", { ascending: true })
-    .limit(DISPUTE_LIST_CAP);
+    .limit(DISPUTE_LIST_CAP + 1);
   if (error) throw new Error(`disputes lookup failed (${error.code})`);
-  if (data.length === 0) return [];
+  const more = data.length > DISPUTE_LIST_CAP;
+  if (more) data.pop();
+  if (data.length === 0) return { disputes: [], more: false };
 
   const hires = data.flatMap((row) =>
     row.engagements ? [row.engagements] : [],
@@ -297,7 +303,7 @@ export async function listOpenDisputes(): Promise<DisputeListRow[]> {
     creators.data?.map((c) => [c.user_id, c.display_name]),
   );
 
-  return data.flatMap((row) => {
+  const disputes = data.flatMap((row): DisputeListRow[] => {
     const hire = row.engagements;
     if (!hire) return [];
     return [
@@ -317,4 +323,5 @@ export async function listOpenDisputes(): Promise<DisputeListRow[]> {
       },
     ];
   });
+  return { disputes, more };
 }

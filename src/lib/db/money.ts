@@ -602,6 +602,18 @@ export async function listEscrowEngagements(): Promise<{
   return { hires, more };
 }
 
+/** How many hires hold escrow, exactly (the list above is capped), for admins. */
+export async function countEscrowEngagements(): Promise<number> {
+  const supabase = await createSessionClient();
+  const { count, error } = await supabase
+    .from("engagements")
+    .select("id", { count: "exact", head: true })
+    .in("status", [...ESCROW_STATUSES])
+    .is("settled_at", null);
+  if (error) throw new Error(`escrow count failed (${error.code})`);
+  return count ?? 0;
+}
+
 /** One hire that is still holding escrow, for admins; null if it isn't one. */
 export async function getEscrowEngagement(
   engagementId: string,

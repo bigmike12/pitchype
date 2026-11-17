@@ -5,7 +5,6 @@
 // never from what an admin picked in the form. No framework imports, so node
 // tests cover the wording.
 
-import { INFLUENCER_FEE_BPS, MIN_FEE_KOBO, creatorFee } from "./fees.ts";
 import { formatNaira } from "./money.ts";
 
 export type DisputeViewer = "creator" | "business" | "admin";
@@ -22,8 +21,8 @@ export type DisputeEnd = {
 export type DisputeMoney = {
   releasedKobo: number | null;
   refundedKobo: number | null;
-  creatorFeeBps: number | null;
-  creatorMinFeeKobo: number | null;
+  /** What the settlement credited to the creator's wallet, from the ledger. */
+  creatorNetKobo: number | null;
 };
 
 export const STATEMENT_AUTHOR_LABEL = {
@@ -86,14 +85,10 @@ export function describeDisputeEnd(
   const toCreator = (): string => {
     if (released === null) return "The payment was released.";
     if (viewer === "creator") {
-      const added =
-        released -
-        creatorFee(
-          released,
-          money.creatorFeeBps ?? INFLUENCER_FEE_BPS,
-          money.creatorMinFeeKobo ?? MIN_FEE_KOBO,
-        );
-      return `${formatNaira(added)} was added to your wallet after our fee.`;
+      // The wallet credit is read from the ledger, never worked out here.
+      return money.creatorNetKobo === null
+        ? "The payment was released to your wallet, less our fee."
+        : `${formatNaira(money.creatorNetKobo)} was added to your wallet after our fee.`;
     }
     return `${fromEscrow(released)} was released to ${names.creator}.`;
   };

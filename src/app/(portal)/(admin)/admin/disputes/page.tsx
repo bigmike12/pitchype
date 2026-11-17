@@ -3,7 +3,12 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth";
-import { listOpenDisputes, type DisputeListRow } from "@/lib/db/disputes";
+import {
+  countOpenDisputes,
+  DISPUTE_LIST_CAP,
+  listOpenDisputes,
+  type DisputeListRow,
+} from "@/lib/db/disputes";
 import {
   daysOpenWords,
   OPENED_FROM_WORDS,
@@ -24,8 +29,9 @@ export default async function DisputesPage({
   searchParams: SearchParams;
 }) {
   await requireRole("admin");
-  const [disputes, query] = await Promise.all([
+  const [{ disputes, more }, count, query] = await Promise.all([
     listOpenDisputes(),
+    countOpenDisputes(),
     searchParams,
   ]);
   // Computed once for the whole list, so every row counts from the same time.
@@ -40,7 +46,15 @@ export default async function DisputesPage({
       <QueueCard
         id="disputes-title"
         title="Open disputes"
-        note="Pitchype aims to decide within 5 working days of opening. The other side is asked to respond within 3 days."
+        note={
+          <>
+            Pitchype aims to decide within 5 working days of opening. The other
+            side is asked to respond within 3 days.
+            {more &&
+              ` Showing the oldest ${DISPUTE_LIST_CAP} of ${count}; more appear as these are decided.`}
+          </>
+        }
+        count={count}
         empty="No disputes are open."
         paged={pageOf(disputes, parsePage(query.page), QUEUE_PAGE_SIZE)}
         noun={["dispute", "disputes"]}

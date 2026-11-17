@@ -12,8 +12,7 @@ const names = { creator: "Ada", business: "Acme", opener: "Acme" };
 const money: DisputeMoney = {
   releasedKobo: 5_000_000,
   refundedKobo: 0,
-  creatorFeeBps: 500,
-  creatorMinFeeKobo: 50_000,
+  creatorNetKobo: 4_750_000,
 };
 const decided = (outcome: string) => ({
   status: "decided" as const,
@@ -93,8 +92,7 @@ test("the business accepting during a dispute, and a withdrawal", () => {
     {
       releasedKobo: null,
       refundedKobo: null,
-      creatorFeeBps: null,
-      creatorMinFeeKobo: null,
+      creatorNetKobo: null,
     },
     "creator",
     names,
@@ -113,4 +111,34 @@ test("days open", () => {
   assert.equal(daysOpenWords("2026-11-17T08:00:00Z", now), "Opened today");
   assert.equal(daysOpenWords("2026-11-16T11:00:00Z", now), "Open 1 day");
   assert.equal(daysOpenWords("2026-11-10T12:00:00Z", now), "Open 7 days");
+});
+
+test("the creator's figure is the ledger's, not a recomputation", () => {
+  // A net that no current fee rate would give: it is shown as recorded.
+  const words = describeDisputeEnd(
+    decided("release"),
+    { ...money, creatorNetKobo: 4_912_300 },
+    "creator",
+    names,
+  );
+  assert.match(words?.body ?? "", /₦49,123 was added to your wallet/);
+  const unknown = describeDisputeEnd(
+    decided("release"),
+    { ...money, creatorNetKobo: null },
+    "creator",
+    names,
+  );
+  assert.doesNotMatch(unknown?.body ?? "", /₦/);
+});
+
+test("a business sees a creator-fault refund as money back in its wallet", () => {
+  const words = describeDisputeEnd(
+    decided("refund_creator_fault"),
+    { ...money, releasedKobo: 0, refundedKobo: 5_154_600, creatorNetKobo: 0 },
+    "business",
+    names,
+  );
+  assert.equal(words?.title, "Decided for the business");
+  assert.match(words?.body ?? "", /₦51,546 is back in your wallet/);
+  assert.doesNotMatch(words?.body ?? "", /released/);
 });

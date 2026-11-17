@@ -11,6 +11,7 @@ import {
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
 import {
+  countEscrowEngagements,
   ESCROW_LIST_CAP,
   listEscrowEngagements,
   type EscrowEngagement,
@@ -51,8 +52,9 @@ export default function EscrowPage({
 
 async function Escrow({ searchParams }: { searchParams: SearchParams }) {
   await requireRole("admin");
-  const [escrow, query] = await Promise.all([
+  const [escrow, count, query] = await Promise.all([
     listEscrowEngagements(),
+    countEscrowEngagements(),
     searchParams,
   ]);
 
@@ -73,9 +75,10 @@ async function Escrow({ searchParams }: { searchParams: SearchParams }) {
             sent in, sent back or disputed is settled by its review, or by the
             dispute, not here.
             {escrow.more &&
-              ` Showing the oldest ${ESCROW_LIST_CAP}; more appear as these are settled.`}
+              ` Showing the oldest ${ESCROW_LIST_CAP} of ${count}; more appear as these are settled.`}
           </>
         }
+        count={count}
         empty="Nothing is in escrow."
         paged={pageOf(escrow.hires, parsePage(query.page), QUEUE_PAGE_SIZE)}
         noun={["hire", "hires"]}
