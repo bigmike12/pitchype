@@ -44,6 +44,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  isItemActive,
   isNavActive,
   navGroups,
   sectionLabel,
@@ -134,7 +135,7 @@ function NavLinks({
           <ul className="space-y-0.5">
             {links.map((item) => {
               const Icon = ICONS[item.icon];
-              const active = isNavActive(pathname, item.href);
+              const active = isItemActive(pathname, item);
               return (
                 <li key={item.href}>
                   <Link
@@ -256,9 +257,19 @@ function AccountMenu({
   viewer: PortalViewer;
   signOutAction: SignOut;
 }) {
+  const pathname = usePathname();
+  // The account pages have no link of their own in the nav, so this is how
+  // the sidebar shows where you are.
+  const onAccount = isNavActive(pathname, "/account");
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-card p-2 text-left panel outline-none hover:bg-surface-soft focus-visible:ring-2 focus-visible:ring-ink data-[state=open]:bg-surface-soft">
+      <DropdownMenuTrigger
+        aria-current={onAccount ? "page" : undefined}
+        className={cn(
+          "flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-card p-2 text-left panel outline-none hover:bg-surface-soft focus-visible:ring-2 focus-visible:ring-ink data-[state=open]:bg-surface-soft",
+          onAccount && "ring-1 ring-brand-violet",
+        )}
+      >
         <CreatorPhoto
           name={viewer.name}
           url={viewer.photoUrl}

@@ -123,3 +123,30 @@ export function shownColumn<K extends string>(
   const filled = columns.find((c) => (counts.get(c.key) ?? 0) > 0);
   return (filled ?? columns[0]).key;
 }
+
+/** What the board's search box and people row narrow the cards to. */
+export type BoardFilter = {
+  /** Trimmed search text; matched against each card's text, ignoring case. */
+  search: string | undefined;
+  /** The one person picked in the people row, by id. */
+  person: string | undefined;
+};
+
+/** What a card carries for filtering: whose it is, and its searchable text. */
+export type BoardCardKey = { personId: string; text: string[] };
+
+/** Whether a card passes the picked person and the search (both optional). */
+export function matchesBoardFilter(
+  card: BoardCardKey,
+  filter: BoardFilter,
+): boolean {
+  if (filter.person && card.personId !== filter.person) return false;
+  if (!filter.search) return true;
+  const needle = filter.search.toLocaleLowerCase();
+  return card.text.some((text) => text.toLocaleLowerCase().includes(needle));
+}
+
+/** One entry per person, in the order each first appears on the board. */
+export function uniquePeople<T extends { id: string }>(people: T[]): T[] {
+  return [...new Map(people.map((person) => [person.id, person])).values()];
+}

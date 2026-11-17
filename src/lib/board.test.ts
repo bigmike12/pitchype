@@ -6,7 +6,9 @@ import {
   CREATOR_COLUMNS,
   businessColumn,
   creatorColumn,
+  matchesBoardFilter,
   shownColumn,
+  uniquePeople,
 } from "./board.ts";
 
 const app = (
@@ -126,4 +128,40 @@ test("a phone shows the asked column, else the first with cards", () => {
     "shortlisted",
   );
   assert.equal(shownColumn(BUSINESS_COLUMNS, new Map(), undefined), "applied");
+});
+
+test("a card matches when it is the picked person's and the search finds it", () => {
+  const card = {
+    personId: "c1",
+    text: ["Ada Obi", "Lagos", "Summer drinks launch"],
+  };
+  const none = { search: undefined, person: undefined };
+  assert.equal(matchesBoardFilter(card, none), true);
+  assert.equal(matchesBoardFilter(card, { ...none, person: "c1" }), true);
+  assert.equal(matchesBoardFilter(card, { ...none, person: "c2" }), false);
+  // Case-insensitive, and any field counts.
+  assert.equal(matchesBoardFilter(card, { ...none, search: "ada" }), true);
+  assert.equal(matchesBoardFilter(card, { ...none, search: "DRINKS" }), true);
+  assert.equal(matchesBoardFilter(card, { ...none, search: "abuja" }), false);
+  // Both must pass.
+  assert.equal(
+    matchesBoardFilter(card, { search: "lagos", person: "c2" }),
+    false,
+  );
+  assert.equal(
+    matchesBoardFilter(card, { search: "lagos", person: "c1" }),
+    true,
+  );
+});
+
+test("the people row lists each person once, in first-seen order", () => {
+  const people = uniquePeople([
+    { id: "b", name: "Bola" },
+    { id: "a", name: "Ada" },
+    { id: "b", name: "Bola" },
+  ]);
+  assert.deepEqual(
+    people.map((p) => p.id),
+    ["b", "a"],
+  );
 });
