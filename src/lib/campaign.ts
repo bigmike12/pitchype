@@ -154,6 +154,30 @@ export function maxSpend(priceKobo: number, places: number) {
   };
 }
 
+/** How full a campaign is, in words: "1 of 3 filled" and "2 still needed". */
+export function placesStatus(places: number, taken: number) {
+  const left = Math.max(places - taken, 0);
+  return {
+    left,
+    filled: `${taken} of ${places} filled`,
+    needed: left === 0 ? "All places filled" : `${left} still needed`,
+  };
+}
+
+/**
+ * What a creator reads about places: how many are left once any are taken
+ * ("2 of 3 places left"), else just how many creators are wanted. `taken` is
+ * null when the database doesn't say.
+ */
+export function placesLeftText(places: number, taken: number | null): string {
+  if (taken === null || taken <= 0) {
+    return `${places} ${places === 1 ? "creator" : "creators"}`;
+  }
+  const { left } = placesStatus(places, taken);
+  if (left === 0) return "All places filled";
+  return `${left} of ${places} ${places === 1 ? "place" : "places"} left`;
+}
+
 /** What a creator receives at the listed price, after their fee. */
 export function creatorReceivesKobo(priceKobo: number): number {
   return feeExample(priceKobo).influencerReceivesKobo;

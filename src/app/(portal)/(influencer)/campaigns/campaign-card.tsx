@@ -8,6 +8,7 @@ import {
   creatorReceivesKobo,
   deliverableText,
   formatDay,
+  placesLeftText,
   problemText,
 } from "@/lib/campaign";
 import type { CampaignListing } from "@/lib/db/campaigns";
@@ -126,7 +127,7 @@ export function CampaignCard({
           </span>
           <span className="flex items-center justify-end gap-1">
             <Users className="size-3.5 shrink-0" aria-hidden="true" />
-            {campaign.places} {campaign.places === 1 ? "creator" : "creators"}
+            {placesLeftText(campaign.places, campaign.placesTaken)}
           </span>
         </p>
       </div>

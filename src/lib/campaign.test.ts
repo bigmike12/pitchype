@@ -11,6 +11,8 @@ import {
   parseLiveEditForm,
   problemText,
   campaignGroup,
+  placesLeftText,
+  placesStatus,
 } from "./campaign.ts";
 
 const NICHES = [
@@ -287,4 +289,29 @@ test("every campaign status sits in one tab of the business's list", () => {
   assert.equal(campaignGroup("closed"), "ended");
   assert.equal(campaignGroup("completed"), "ended");
   assert.equal(campaignGroup("cancelled"), "ended");
+});
+
+test("a campaign says how many places are filled and how many it still needs", () => {
+  assert.deepEqual(placesStatus(3, 1), {
+    left: 2,
+    filled: "1 of 3 filled",
+    needed: "2 still needed",
+  });
+  assert.deepEqual(placesStatus(3, 0), {
+    left: 3,
+    filled: "0 of 3 filled",
+    needed: "3 still needed",
+  });
+  assert.equal(placesStatus(3, 3).needed, "All places filled");
+  // More held than places (places can't be cut below held, but never go negative).
+  assert.equal(placesStatus(2, 3).left, 0);
+});
+
+test("creators read how many places are left", () => {
+  assert.equal(placesLeftText(3, 1), "2 of 3 places left");
+  assert.equal(placesLeftText(3, 2), "1 of 3 places left");
+  assert.equal(placesLeftText(3, 3), "All places filled");
+  // Nothing taken, or the database didn't say: how many creators are wanted.
+  assert.equal(placesLeftText(3, 0), "3 creators");
+  assert.equal(placesLeftText(1, null), "1 creator");
 });

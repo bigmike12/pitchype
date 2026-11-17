@@ -269,6 +269,8 @@ export type CampaignListing = {
   verifiedOnly: boolean;
   priceKobo: number | null;
   places: number;
+  /** Places held by hires; null if the database doesn't say. */
+  placesTaken: number | null;
   applicationsCloseOn: string;
   postFrom: string | null;
   deliverBy: string;
@@ -489,6 +491,7 @@ function toListing(value: Json): CampaignListing | null {
     verifiedOnly: value.verified_only === true,
     priceKobo: num(value.price_kobo),
     places: num(value.places) ?? 0,
+    placesTaken: num(value.places_taken),
     applicationsCloseOn: str(value.applications_close_on) ?? "",
     postFrom: str(value.post_from),
     deliverBy: str(value.deliver_by) ?? "",

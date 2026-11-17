@@ -92,3 +92,18 @@ export function applicationBucket(application: {
   if (hireEndedUnpaid(application)) return "waiting";
   return application.status === "approved" ? "hired" : "closed";
 }
+
+/**
+ * Whether a hire holds one of its campaign's places: not cancelled or
+ * refunded, and not an unpaid hire past its pay-by time (that one has lapsed,
+ * even if the database hasn't recorded it yet). Mirrors held_places() in the
+ * database, which counts stored statuses after lapsing the stale ones; the
+ * database is still what refuses to over-fill a campaign.
+ */
+export function holdsPlace(
+  hire: { status: string; payBy: string },
+  now: number,
+): boolean {
+  if (hire.status === "cancelled" || hire.status === "refunded") return false;
+  return !(hire.status === "awaiting_payment" && Date.parse(hire.payBy) < now);
+}

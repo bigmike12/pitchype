@@ -22,7 +22,12 @@ import { Callout } from "@/components/ui/callout";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
 import { requireRole } from "@/lib/auth";
-import { formatDay, maxSpend, type CampaignAction } from "@/lib/campaign";
+import {
+  formatDay,
+  maxSpend,
+  placesStatus,
+  type CampaignAction,
+} from "@/lib/campaign";
 import { formatDateTime } from "@/lib/creator-profile";
 import { getApplicationCounts } from "@/lib/db/applications";
 import {
@@ -83,7 +88,14 @@ async function Campaign({ params }: { params: Params }) {
     live ? countQualifyingCreators(campaign.id) : Promise.resolve(null),
     getApplicationCounts(),
   ]);
-  const applications = counts.get(campaign.id) ?? { total: 0, waiting: 0 };
+  const applications = counts.get(campaign.id) ?? {
+    total: 0,
+    waiting: 0,
+    taken: 0,
+  };
+  const places = placesStatus(campaign.places, applications.taken);
+  const canHaveHires =
+    campaign.status !== "draft" && campaign.status !== "pending_review";
   const nicheName = new Map(niches.map((n) => [n.slug, n.name]));
   const spend = maxSpend(campaign.priceKobo, campaign.places);
 
@@ -143,6 +155,13 @@ async function Campaign({ params }: { params: Params }) {
       <div className="mt-6 grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-3 xl:order-2 xl:sticky xl:top-0">
           <dl className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+            {canHaveHires && (
+              <Stat
+                label="Places filled"
+                value={`${applications.taken} of ${campaign.places}`}
+                note={places.needed}
+              />
+            )}
             {qualifying !== null && (
               <Stat
                 label={

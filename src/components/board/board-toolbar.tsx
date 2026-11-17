@@ -8,6 +8,11 @@ import {
   filterHref,
   type ActiveFilter,
 } from "@/components/ui/filter-bar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { SEARCH_MAX } from "@/lib/search";
 import { cn } from "@/lib/utils";
 
@@ -80,49 +85,12 @@ export function BoardToolbar({
     });
   }
 
-  return (
-    <div className="mb-4 space-y-3">
-      {people.length > 0 && (
-        <nav
-          aria-label={`${personNoun[0].toUpperCase() + personNoun.slice(1)}s on this board`}
-          className="flex flex-wrap items-center gap-y-1"
-        >
-          <ul className="flex items-center pl-3">
-            {people.slice(0, MAX_PEOPLE).map((person) => {
-              const on = person.id === who;
-              return (
-                <li key={person.id} className="-ml-3 first:ml-0">
-                  <Link
-                    href={hrefWith({ who: on ? undefined : person.id })}
-                    aria-current={on ? "true" : undefined}
-                    scroll={false}
-                    className="grid size-11 place-items-center rounded-full"
-                  >
-                    <CreatorPhoto
-                      name={person.name}
-                      url={person.photoUrl}
-                      sizes="36px"
-                      className={cn(
-                        "size-9 rounded-full ring-2",
-                        on ? "ring-ink" : "ring-canvas",
-                      )}
-                    />
-                    <span className="sr-only">
-                      {on ? "Show everyone" : `Show only ${person.name}`}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-          {people.length > MAX_PEOPLE && (
-            <p className="px-2 text-xs text-muted">
-              +{people.length - MAX_PEOPLE} more: search for them
-            </p>
-          )}
-        </nav>
-      )}
+  const noun = personNoun[0].toUpperCase() + personNoun.slice(1);
+  const plural = personNoun.endsWith("s") ? `${noun}es` : `${noun}s`;
+  const hidden = people.length - MAX_PEOPLE;
 
+  return (
+    <div className="mb-4">
       <FilterBar
         action={basePath}
         label="Search and filter the board"
@@ -130,8 +98,8 @@ export function BoardToolbar({
         active={active}
         fieldsClassName={
           campaigns
-            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]"
-            : "grid grid-cols-1"
+            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto]"
+            : "grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto]"
         }
       >
         {who && <input type="hidden" name="who" value={who} />}
@@ -155,6 +123,60 @@ export function BoardToolbar({
             defaultValue={campaign ?? ""}
             options={campaigns.map((c) => ({ value: c.id, label: c.title }))}
           />
+        )}
+        {people.length > 0 && (
+          // The people on the board: tap one to narrow the board to them.
+          <nav
+            aria-label={`${plural} on this board`}
+            className={campaigns ? "sm:col-span-2 lg:col-span-1" : undefined}
+          >
+            <p className="text-[0.8125rem] font-medium text-muted">{plural}</p>
+            <ul className="mt-1.5 flex items-center pl-2">
+              {people.slice(0, MAX_PEOPLE).map((person) => {
+                const on = person.id === who;
+                return (
+                  <li key={person.id} className="-ml-2 first:ml-0">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link
+                          href={hrefWith({ who: on ? undefined : person.id })}
+                          aria-current={on ? "true" : undefined}
+                          scroll={false}
+                          className="grid size-11 place-items-center rounded-full lg:size-9"
+                        >
+                          <CreatorPhoto
+                            name={person.name}
+                            url={person.photoUrl}
+                            sizes="36px"
+                            className={cn(
+                              "size-9 rounded-full ring-2",
+                              on ? "ring-ink" : "ring-surface",
+                            )}
+                          />
+                          <span className="sr-only">
+                            {on ? "Show everyone" : `Show only ${person.name}`}
+                          </span>
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent>{person.name}</TooltipContent>
+                    </Tooltip>
+                  </li>
+                );
+              })}
+              {hidden > 0 && (
+                <li className="-ml-2 grid size-11 place-items-center lg:size-9">
+                  <span className="grid size-9 place-items-center rounded-full bg-surface-soft text-xs font-semibold text-ink ring-2 ring-surface">
+                    +{hidden}
+                    <span className="sr-only">
+                      {" "}
+                      more {hidden === 1 ? personNoun : plural.toLowerCase()}:
+                      search to find them
+                    </span>
+                  </span>
+                </li>
+              )}
+            </ul>
+          </nav>
         )}
       </FilterBar>
     </div>
