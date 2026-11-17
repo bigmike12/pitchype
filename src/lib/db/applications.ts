@@ -342,9 +342,25 @@ export async function listMyHires(businessId: string): Promise<MyHire[]> {
 
 export type EngagementDetails = EngagementSummary & {
   applicationId: string;
-  campaign: { id: string; title: string; priceKobo: number };
+  campaign: {
+    id: string;
+    title: string;
+    priceKobo: number;
+    /** The campaign's deliver-by date (YYYY-MM-DD). */
+    deliverBy: string;
+  };
   creator: { id: string; name: string; slug: string | null };
   business: { id: string; name: string };
+  // Stage 7: where the review stands.
+  /** The latest submission's round (1 to 4), or null before the first. */
+  round: number | null;
+  /** When the round waiting for review is released on its own. */
+  reviewDeadlineAt: string | null;
+  /** Resubmissions still allowed: 4 minus the rounds used. */
+  roundsLeft: number;
+  openDisputeId: string | null;
+  /** When the business may dispute missing work; null unless in progress. */
+  disputeAllowedFrom: string | null;
 };
 
 /** One hire, for either side; null if it isn't theirs. */
@@ -373,6 +389,7 @@ export async function getEngagementDetails(
       id: str(k.id) ?? "",
       title: str(k.title) ?? "",
       priceKobo: num(k.price_kobo) ?? 0,
+      deliverBy: str(k.deliver_by) ?? "",
     },
     creator: {
       id: str(c.id) ?? "",
@@ -380,5 +397,10 @@ export async function getEngagementDetails(
       slug: str(c.slug),
     },
     business: { id: str(b.id) ?? "", name: str(b.name) ?? "" },
+    round: num(data.round),
+    reviewDeadlineAt: str(data.review_deadline_at),
+    roundsLeft: num(data.rounds_left) ?? 0,
+    openDisputeId: str(data.open_dispute_id),
+    disputeAllowedFrom: str(data.dispute_allowed_from),
   };
 }

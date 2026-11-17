@@ -44,7 +44,7 @@ explicit user ids, so they keep working with a plain Postgres client.
 **Moving users out:** `auth.users` (passwords are bcrypt hashes, which most
 providers can import) and `public.users` both export with `pg_dump`.
 
-## Supabase Storage (profile photos)
+## Supabase Storage (profile photos and proof of work)
 
 Creators' photos are processed on our server (`src/lib/profile-photo.ts`,
 using `sharp`, which runs anywhere Node does) and only the result is stored:
@@ -61,6 +61,22 @@ version number, so the storage provider never appears in business data.
 **Export:** download the bucket with the Supabase CLI
 (`supabase storage cp -r ss:///profile-photos ./profile-photos --experimental`)
 or the Storage API, then upload the same paths to the new provider.
+
+**Proof of work (`work-proof` bucket, Stage 7).** Screenshots creators and
+businesses attach to a submission or a dispute statement go through the same
+kind of pipeline (`src/lib/proof-image.ts`, `sharp`): contents checked, turned
+upright, shrunk to 2,000px on the longest side, saved as WebP with no
+metadata, at most 5 MB. Unlike profile photos the bucket is **private**: pages
+show them through signed URLs that last 10 minutes.
+
+| What | Where | Provider-specific? | To replace |
+|---|---|---|---|
+| Upload, signed URLs, delete | `src/lib/storage.ts` (`saveProofFile`, `proofFileUrls`, `deleteProofObjects`), the only code that touches the bucket. Objects are named `<owner user id>/<uuid>.webp` | Yes: `supabase.storage` | Rewrite those three functions for S3, R2 or a disk behind signed links (keep the path scheme). Callers don't change |
+| The bucket | `supabase/migrations/20261117100000_create_submissions.sql` inserts a private bucket (5 MB, `image/webp` only) into `storage.buckets`, with no storage policies | Yes | Create a private bucket in the new provider; skip that insert on plain Postgres |
+| Which file belongs to what | `proof_files` table (path, owner, the submission or statement it is attached to), written only by `register_proof_file()` (service role) and the submit and dispute functions | No: plain Postgres | Nothing to change; export the table with the data |
+| Removing files that were never attached | `delete_orphan_proof_files()` deletes the rows after a day and returns the paths; the daily job (Scheduled jobs below) then deletes those objects with `deleteProofObjects`. A failed object delete is logged by count and answers 500; the row is already gone, so the leftover file has to be removed by hand | Partly | The storage half is `deleteProofObjects` |
+
+**Export:** as above, for the `work-proof` bucket.
 
 ## Vercel (hosting)
 
@@ -99,9 +115,10 @@ RLS-protected tables are refused.
 |---|---|---|---|
 | Lapsing unpaid approvals (48 hours) | `src/app/api/cron/expire-engagements/route.ts`, a plain route handler protected by `CRON_SECRET`; it calls `expire_unpaid_engagements()` with the secret-key client | No | Call the URL daily from any scheduler (cron, `pg_cron` with `pg_net`, a GitHub Action) with `Authorization: Bearer $CRON_SECRET` |
 | Money checks (daily): settle payouts stuck in `processing`, then record a reconciliation run against Paystack's balance | `src/app/api/cron/money-checks/route.ts` and `src/lib/money-checks.ts`, protected by `CRON_SECRET`; it calls Paystack through `src/lib/paystack.ts` and the database through `src/lib/db/*` | No | Call the URL daily from any scheduler with `Authorization: Bearer $CRON_SECRET`. It answers 500 when any step failed, so alert on that |
-| The schedule | `vercel.json` (`crons`): `expire-engagements` at 03:00 UTC, `money-checks` at 03:30 UTC | Yes: Vercel Cron | Any of the schedulers above |
+| Review deadlines (daily): release submitted work the business didn't review within 7 days, send the 3-day and 1-day review reminders, remove proof files never attached (rows, then the objects in the `work-proof` bucket) | `src/app/api/cron/review-deadlines/route.ts` and `src/lib/review-deadlines.ts`, protected by `CRON_SECRET`; it calls the database through `src/lib/db/submissions.ts` and storage through `src/lib/storage.ts`. Safe to run twice or late | No | Call the URL daily from any scheduler with `Authorization: Bearer $CRON_SECRET`. It answers 500 when any step failed or any hire couldn't be released, so alert on that |
+| The schedule | `vercel.json` (`crons`): `expire-engagements` at 03:00 UTC, `money-checks` at 03:30 UTC, `review-deadlines` at 03:15 UTC | Yes: Vercel Cron | Any of the schedulers above |
 
-Both routes share one rule (`src/app/api/cron/authorised.ts`): with no `CRON_SECRET`
+All three routes share one rule (`src/app/api/cron/authorised.ts`): with no `CRON_SECRET`
 set, nothing is authorised, so set it in every environment that should run them.
 
 ## Build-time only

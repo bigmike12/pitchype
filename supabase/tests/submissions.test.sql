@@ -11,7 +11,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(105);
+select plan(110);
 
 -- Ada and Bola are businesses, Efe is an admin, creators 5b101..5b108 are hired by Ada.
 insert into public.users (id, auth_user_id, email, role) values
@@ -136,6 +136,31 @@ select is((select review_deadline_at from public.submissions where engagement_id
 select is((select count(*)::integer from public.ledger_entries
             where engagement_id = '5b000000-0000-0000-0000-0000000e0001' and event_type = 'hire_settled'), 0,
   'submitting moves no money');
+
+-- The hire page's review facts (engagement_details) ------------------------------------------------------------
+create temporary table nd on commit drop as
+select public.non_delivery_dispute_at(e) as at from public.engagements e
+ where e.id = '5b000000-0000-0000-0000-0000000e0004';
+grant select on nd to authenticated;
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "5b5b5b5b-0000-0000-0000-00000005b001"}'; -- Ada
+select is((select array[d ->> 'round', d ->> 'rounds_left', d ->> 'open_dispute_id', d ->> 'dispute_allowed_from']
+             from public.engagement_details('5b000000-0000-0000-0000-0000000e0001') d),
+  array['1', '3', null, null],
+  'a submitted hire shows round 1, three resubmissions left, no dispute and no non-delivery date');
+select is((select (d ->> 'review_deadline_at')::timestamptz
+             from public.engagement_details('5b000000-0000-0000-0000-0000000e0001') d),
+  now() + interval '7 days', 'it carries the pending round''s review deadline');
+select is((select array[d ->> 'round', d ->> 'rounds_left', d ->> 'review_deadline_at', d #>> '{campaign,deliver_by}']
+             from public.engagement_details('5b000000-0000-0000-0000-0000000e0004') d),
+  array[null, '4', null, (public.lagos_today() + 20)::text],
+  'work in progress has no round yet, four left and the campaign''s deliver-by date');
+select is((select (d ->> 'dispute_allowed_from')::timestamptz
+             from public.engagement_details('5b000000-0000-0000-0000-0000000e0004') d),
+  (select at from nd), 'work in progress shows when a non-delivery dispute opens, from the database rule');
+select is((select d ->> 'dispute_allowed_from' from public.engagement_details('5b000000-0000-0000-0000-0000000e0002') d),
+  null, 'a funded hire that has not started has no non-delivery date');
+reset role;
 
 -- Nothing settles a submitted hire except review -------------------------------------------------------
 set local role authenticated;

@@ -12,7 +12,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(119);
+select plan(121);
 
 -- Ada and Bola are businesses, Efe is an admin, creators d1101..d1108; Ada
 -- hires creators 1 to 7.
@@ -161,6 +161,10 @@ select ok((select g.status = 'disputed' and d.opened_from = 'in_progress' and d.
 set local role authenticated;
 select throws_ok($$ select public.accept_submission('d1000000-0000-0000-0000-0000000e0007') $$,
   'P0001', 'engagement_locked', 'nothing was submitted, so there is nothing to accept');
+select is((select d ->> 'open_dispute_id' from public.engagement_details('d1000000-0000-0000-0000-0000000e0007') d),
+  (select id::text from dids where hire = 7), 'the hire page facts name the open dispute');
+select is((select d ->> 'dispute_allowed_from' from public.engagement_details('d1000000-0000-0000-0000-0000000e0007') d),
+  null, 'a disputed hire has no non-delivery date');
 select lives_ok($$ select public.withdraw_dispute((select id from dids where hire = 7)) $$,
   'Ada withdraws her dispute');
 reset role;
