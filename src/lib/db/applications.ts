@@ -349,6 +349,8 @@ export type EngagementDetails = EngagementSummary & {
     priceKobo: number;
     /** The campaign's deliver-by date (YYYY-MM-DD). */
     deliverBy: string;
+    /** The campaign's brief as it reads now (the wording can change while live). */
+    brief: string;
     /** What the campaign asked for, in order; locked once it was live. */
     deliverables: Deliverable[];
   };
@@ -393,6 +395,7 @@ export async function getEngagementDetails(
       title: str(k.title) ?? "",
       priceKobo: num(k.price_kobo) ?? 0,
       deliverBy: str(k.deliver_by) ?? "",
+      brief: str(k.brief) ?? "",
       deliverables: list(k.deliverables).flatMap((d) => {
         if (!isObject(d)) return [];
         const platform = str(d.platform);

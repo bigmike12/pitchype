@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   Banknote,
   EyeOff,
+  Gavel,
   Flag,
   House,
   Inbox,
@@ -69,6 +70,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   reports: Flag,
   hidden: EyeOff,
   escrow: LockKeyhole,
+  disputes: Gavel,
   payouts: Banknote,
   ledger: ReceiptText,
   reconciliation: Scale,
@@ -160,7 +162,9 @@ function NavLinks({
                     {item.badge ? (
                       <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-ink px-1.5 text-[0.6875rem] font-semibold text-white">
                         {item.badge}
-                        <span className="sr-only"> unread</span>
+                        <span className="sr-only">
+                          {item.icon === "disputes" ? " open" : " unread"}
+                        </span>
                       </span>
                     ) : null}
                     <PendingDot />

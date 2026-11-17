@@ -3,6 +3,8 @@
 // deny_submission); these give the person a message instead of a refusal code.
 // No framework imports, so Node's test runner can load it.
 
+import { findContactDetails } from "./contact-details.ts";
+
 export const MAX_PROOF_LINKS = 10;
 export const MAX_PROOF_LINK_LENGTH = 500;
 export const MAX_PROOF_FILES = 5;
@@ -111,6 +113,10 @@ export function parseOptionalProofLinks(
   return parseProofLinks(raw);
 }
 
+/** Shown when text in a dispute holds a phone number, email or chat link (no strike; strikes are for chat). */
+export const CONTACT_DETAILS_IN_DISPUTE_MESSAGE =
+  "Keep contact details out of disputes.";
+
 export const MIN_DISPUTE_REASON_LENGTH = 20;
 export const MAX_DISPUTE_REASON_LENGTH = 2000;
 
@@ -126,5 +132,29 @@ export function parseDisputeReason(raw: string): ParseResult<"reason", string> {
       message: `Explain the problem in ${MIN_DISPUTE_REASON_LENGTH} to ${MAX_DISPUTE_REASON_LENGTH.toLocaleString("en-NG")} characters.`,
     };
   }
+  if (findContactDetails(reason)) {
+    return { ok: false, message: CONTACT_DETAILS_IN_DISPUTE_MESSAGE };
+  }
   return { ok: true, reason };
+}
+
+export const MAX_STATEMENT_LENGTH = 2000;
+
+/**
+ * A dispute statement: 1 to 2,000 characters after trimming, with no contact
+ * details (the same check as the opening reason). Links are not checked,
+ * because a link to another app is what proof often is.
+ */
+export function parseStatementBody(raw: string): ParseResult<"body", string> {
+  const body = raw.trim();
+  if (length(body) < 1 || length(body) > MAX_STATEMENT_LENGTH) {
+    return {
+      ok: false,
+      message: `Write a statement of up to ${MAX_STATEMENT_LENGTH.toLocaleString("en-NG")} characters.`,
+    };
+  }
+  if (findContactDetails(body)) {
+    return { ok: false, message: CONTACT_DETAILS_IN_DISPUTE_MESSAGE };
+  }
+  return { ok: true, body };
 }

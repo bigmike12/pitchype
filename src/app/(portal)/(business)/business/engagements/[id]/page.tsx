@@ -92,6 +92,7 @@ async function Engagement({ params }: { params: Params }) {
     { ...engagement, creatorName: engagement.creator.name },
     new Date(),
   );
+  const showReview = status.canReview && toReview !== undefined;
   const applicationsHref = `/business/campaigns/${engagement.campaign.id}/applications`;
 
   const timeline = [
@@ -184,7 +185,7 @@ async function Engagement({ params }: { params: Params }) {
           </dl>
         </div>
         <div className="space-y-4 xl:col-start-1">
-          {status.canReview && toReview && (
+          {showReview && (
             <SectionCard id="review-title" title="Work to review">
               <Rounds rounds={[toReview]} />
               <div className="space-y-4 border-t border-hairline p-4 sm:p-5">
@@ -203,13 +204,16 @@ async function Engagement({ params }: { params: Params }) {
               </div>
             </SectionCard>
           )}
-          {rounds.length > 1 && (
-            <SectionCard id="rounds-title" title="All rounds of work">
-              <Rounds rounds={rounds} />
-            </SectionCard>
-          )}
-          {rounds.length === 1 && !toReview && (
-            <SectionCard id="rounds-title" title="The work sent in">
+          {/* The review panel shows the round being reviewed; whenever it
+              isn't shown (including a lone round whose review time has
+              ended) the history is, so the work is never hidden. */}
+          {(rounds.length > 1 || (rounds.length === 1 && !showReview)) && (
+            <SectionCard
+              id="rounds-title"
+              title={
+                rounds.length > 1 ? "All rounds of work" : "The work sent in"
+              }
+            >
               <Rounds rounds={rounds} />
             </SectionCard>
           )}

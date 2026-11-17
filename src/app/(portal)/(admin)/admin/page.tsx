@@ -3,6 +3,7 @@ import {
   Banknote,
   EyeOff,
   Flag,
+  Gavel,
   LockKeyhole,
   Megaphone,
   ShieldAlert,
@@ -22,6 +23,7 @@ import {
   listCampaignsForReview,
   listOpenCampaignReports,
 } from "@/lib/db/campaigns";
+import { countOpenDisputes } from "@/lib/db/disputes";
 import { getStandingReview } from "@/lib/db/moderation";
 import { listEscrowEngagements } from "@/lib/db/money";
 import { countPayoutsAwaitingApproval } from "@/lib/db/payouts";
@@ -64,6 +66,7 @@ async function Overview() {
     hidden,
     payouts,
     escrow,
+    disputes,
   ] = await Promise.all([
     getStandingReview(),
     listCampaignsForReview(),
@@ -73,6 +76,7 @@ async function Overview() {
     listHiddenCreators(),
     countPayoutsAwaitingApproval(),
     listEscrowEngagements(),
+    countOpenDisputes(),
   ]);
 
   return (
@@ -145,6 +149,14 @@ async function Overview() {
           icon={LockKeyhole}
           tone="lilac"
           href="/admin/money/escrow"
+        />
+        <StatCard
+          label="Open disputes"
+          value={String(disputes)}
+          detail={disputes > 0 ? "Read and decide" : "Oldest first"}
+          icon={Gavel}
+          tone="rose"
+          href="/admin/disputes"
         />
       </div>
     </>

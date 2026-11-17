@@ -5,6 +5,7 @@ import {
   isBankCheckLimited,
   isDisputeOpenLimited,
   isPayoutLimited,
+  isStatementLimited,
   isSubmitLimited,
 } from "./money-limits.ts";
 
@@ -50,6 +51,17 @@ test("the 6th dispute in a day is limited", () => {
   assert.equal(isDisputeOpenLimited("dispute-user", START + 6 * HOUR), true);
   assert.equal(
     isDisputeOpenLimited("dispute-user", START + 24 * HOUR + 1),
+    false,
+  );
+});
+
+test("the 31st statement in an hour is limited, and it frees up after the hour", () => {
+  for (let i = 0; i < 30; i += 1) {
+    assert.equal(isStatementLimited("statement-user", START + i * 1000), false);
+  }
+  assert.equal(isStatementLimited("statement-user", START + 31 * 1000), true);
+  assert.equal(
+    isStatementLimited("statement-user", START + 60 * MINUTE + 1),
     false,
   );
 });

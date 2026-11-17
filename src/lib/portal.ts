@@ -20,6 +20,7 @@ export type NavIcon =
   | "reports"
   | "hidden"
   | "escrow"
+  | "disputes"
   | "payouts"
   | "ledger"
   | "reconciliation";
@@ -45,6 +46,8 @@ export type PortalViewer = {
   needsOnboarding: boolean;
   /** Unread chat messages, for the Inbox link. */
   unread: number;
+  /** Open disputes, for the admin's Disputes link (0 for everyone else). */
+  openDisputes: number;
 };
 
 const NAV: Record<PortalRole, NavItem[]> = {
@@ -131,6 +134,12 @@ const NAV: Record<PortalRole, NavItem[]> = {
       href: "/admin/money/escrow",
       label: "Escrow",
       icon: "escrow",
+      group: "Money",
+    },
+    {
+      href: "/admin/disputes",
+      label: "Disputes",
+      icon: "disputes",
       group: "Money",
     },
     {

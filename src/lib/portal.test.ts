@@ -44,6 +44,7 @@ test("each role gets its own links", () => {
       ["/admin/hidden", "Hidden profiles"],
       ["/admin/money", "Money"],
       ["/admin/money/escrow", "Escrow"],
+      ["/admin/disputes", "Disputes"],
       ["/admin/money/payouts", "Payouts"],
       ["/admin/money/ledger", "Ledger"],
       ["/admin/money/reconciliation", "Reconciliation"],
@@ -108,6 +109,16 @@ test("the top bar names the section", () => {
   );
   assert.equal(sectionLabel("influencer", "/jobs/9f1c"), "Your work");
   assert.equal(sectionLabel("influencer", "/somewhere-else"), null);
+});
+
+test("Disputes is an admin link with its own section name", () => {
+  assert.equal(isNavActive("/admin/disputes/9f1c", "/admin/disputes"), true);
+  assert.equal(isNavActive("/admin/disputes", "/admin"), false);
+  assert.equal(sectionLabel("admin", "/admin/disputes/9f1c"), "Disputes");
+  assert.equal(
+    navFor("admin").find((i) => i.href === "/admin/disputes")?.icon,
+    "disputes",
+  );
 });
 
 test("greets by first name", () => {

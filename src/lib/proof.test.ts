@@ -7,6 +7,7 @@ import {
   parseOptionalProofLinks,
   parseProofLinks,
   parseProofNote,
+  parseStatementBody,
 } from "./proof.ts";
 
 test("no links and no screenshots is refused", () => {
@@ -138,4 +139,38 @@ test("a dispute reason is 20 to 2,000 characters after trimming", () => {
   assert.equal(parseDisputeReason("r".repeat(2001)).ok, false);
   // An emoji counts as one character, as the database counts it.
   assert.equal(parseDisputeReason("😀".repeat(20)).ok, true);
+});
+
+test("a dispute reason or statement with contact details is refused, without a strike", () => {
+  const refused = {
+    ok: false,
+    message: "Keep contact details out of disputes.",
+  };
+  assert.deepEqual(
+    parseDisputeReason("Call me on 0803 123 4567 and I will explain."),
+    refused,
+  );
+  assert.deepEqual(
+    parseStatementBody("Write to me at ada@example.com"),
+    refused,
+  );
+  assert.deepEqual(
+    parseStatementBody("Message me on https://wa.me/2348031234567"),
+    refused,
+  );
+  assert.equal(
+    parseStatementBody("The post went live on 14 November.").ok,
+    true,
+  );
+});
+
+test("a statement is 1 to 2,000 characters after trimming", () => {
+  assert.equal(parseStatementBody("   ").ok, false);
+  assert.deepEqual(parseStatementBody("  Fair point.  "), {
+    ok: true,
+    body: "Fair point.",
+  });
+  assert.equal(parseStatementBody("s".repeat(2000)).ok, true);
+  assert.equal(parseStatementBody("s".repeat(2001)).ok, false);
+  assert.equal(parseStatementBody("😀".repeat(2000)).ok, true);
 });

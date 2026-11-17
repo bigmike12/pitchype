@@ -8,21 +8,11 @@ import { FormMessage } from "@/components/ui/form-message";
 import { formatNaira } from "@/lib/money";
 import {
   SETTLE_OUTCOMES,
-  isSettleOutcome,
-  parseNairaAmount,
-  settlePreview,
+  describeSettlePreview,
+  type SettleFacts,
 } from "@/lib/settle-preview";
 
 import { settleAction, type SettleState } from "./actions";
-
-type Facts = {
-  agreedPriceKobo: number;
-  businessFeeKobo: number;
-  creatorFeeBps: number;
-  creatorMinFeeKobo: number;
-  /** The funding payment's charge; null if that payment can't be found. */
-  paystackChargeKobo: number | null;
-};
 
 /**
  * One admin settlement of a hire's escrow: the outcome, the amount for a
@@ -35,7 +25,7 @@ export function SettleForm({
   facts,
 }: {
   engagementId: string;
-  facts: Facts;
+  facts: SettleFacts;
 }) {
   const [outcome, setOutcome] = useState("");
   const [amount, setAmount] = useState("");
@@ -45,31 +35,11 @@ export function SettleForm({
   );
   const idFor = (name: string) => `settle-${engagementId}-${name}`;
 
-  let line: string | null = null;
-  let problem: string | null = null;
-  let warning: string | null = null;
-  if (isSettleOutcome(outcome)) {
-    const typed = outcome === "split" ? parseNairaAmount(amount) : null;
-    if (typed && !typed.ok) {
-      problem = amount.trim() === "" ? null : typed.error;
-    } else {
-      const preview = settlePreview({
-        outcome,
-        agreedPriceKobo: facts.agreedPriceKobo,
-        releaseKobo: typed?.ok ? typed.kobo : null,
-        businessFeeKobo: facts.businessFeeKobo,
-        creatorFeeBps: facts.creatorFeeBps,
-        creatorMinFeeKobo: facts.creatorMinFeeKobo,
-        paystackChargeKobo: facts.paystackChargeKobo,
-      });
-      if (preview.ok) {
-        line = `Creator receives ${formatNaira(preview.creatorGetsKobo)} after their ${formatNaira(preview.creatorFeeKobo)} fee · Business gets back ${formatNaira(preview.businessGetsBackKobo)} · Pitchype keeps ${formatNaira(preview.platformKeepsKobo)}`;
-        warning = preview.warning;
-      } else if (typed) {
-        problem = preview.error;
-      }
-    }
-  }
+  const { line, problem, warning } = describeSettlePreview(
+    outcome,
+    amount,
+    facts,
+  );
 
   return (
     <details>

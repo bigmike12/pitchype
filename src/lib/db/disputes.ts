@@ -197,10 +197,46 @@ export async function getDispute(
   };
 }
 
+/**
+ * The newest dispute on a hire, open or closed, for either person on it or an
+ * admin; null if there has never been one (or the hire isn't theirs). The
+ * dispute pages are addressed by hire, because that is what notifications
+ * link to.
+ */
+export async function getLatestDisputeId(
+  engagementId: string,
+): Promise<string | null> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("disputes")
+    .select("id")
+    .eq("engagement_id", engagementId)
+    .order("opened_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    if (error.code === "22P02") return null;
+    throw new Error(`dispute lookup failed (${error.code})`);
+  }
+  return data?.id ?? null;
+}
+
+/** How many disputes are open, for the admin sidebar. Admins only (RLS). */
+export async function countOpenDisputes(): Promise<number> {
+  const supabase = await createSessionClient();
+  const { count, error } = await supabase
+    .from("disputes")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "open");
+  if (error) throw new Error(`disputes count failed (${error.code})`);
+  return count ?? 0;
+}
+
 export type DisputeListRow = {
   id: string;
   engagementId: string;
   openedBy: string;
+  openedByRole: "creator" | "business";
   openedFrom: "denied" | "in_progress";
   reason: string;
   openedAt: string;
@@ -269,6 +305,8 @@ export async function listOpenDisputes(): Promise<DisputeListRow[]> {
         id: row.id,
         engagementId: row.engagement_id,
         openedBy: row.opened_by,
+        openedByRole:
+          row.opened_by === hire.creator_id ? "creator" : "business",
         openedFrom: row.opened_from as DisputeListRow["openedFrom"],
         reason: row.reason,
         openedAt: row.opened_at,

@@ -69,7 +69,9 @@ async function Escrow({ searchParams }: { searchParams: SearchParams }) {
         note={
           <>
             Settle one only when the creator or business can’t finish it
-            themselves; every settlement needs a written reason.
+            themselves; every settlement needs a written reason. Work that was
+            sent in, sent back or disputed is settled by its review, or by the
+            dispute, not here.
             {escrow.more &&
               ` Showing the oldest ${ESCROW_LIST_CAP}; more appear as these are settled.`}
           </>
@@ -88,11 +90,15 @@ async function Escrow({ searchParams }: { searchParams: SearchParams }) {
 const STATUS_WORDS: Record<EscrowEngagement["status"], string> = {
   funded: "Paid, work not started",
   in_progress: "Work started",
+  submitted: "Work sent in, waiting for the business to review it",
+  denied: "Work sent back to the creator",
+  disputed: "In dispute",
 };
 
 function EscrowItem({ hire }: { hire: EscrowEngagement }) {
   // The fee snapshot is written when the hire is funded, so it is always
   // there for a hire in escrow; if it somehow isn't, nothing is settled blind.
+  const settleHere = hire.status === "funded" || hire.status === "in_progress";
   const facts =
     hire.businessFeeKobo !== null &&
     hire.creatorFeeBps !== null &&
@@ -126,13 +132,21 @@ function EscrowItem({ hire }: { hire: EscrowEngagement }) {
         {hire.startedAt && `, started ${formatDateTime(hire.startedAt)}`}
       </p>
       <div className="mt-4 flex flex-wrap items-start gap-x-6 gap-y-2">
-        {facts ? (
+        {!settleHere ? null : facts ? (
           <SettleForm engagementId={hire.id} facts={facts} />
         ) : (
           <p className="text-sm text-danger">
             This hire’s fee details are missing, so it can’t be settled here.
             Open its trail.
           </p>
+        )}
+        {hire.openDisputeId && (
+          <Link
+            href={`/admin/disputes/${hire.openDisputeId}`}
+            className="link inline-flex min-h-11 items-center text-sm font-semibold"
+          >
+            Open the dispute
+          </Link>
         )}
         <Link
           href={`/admin/money/engagements/${hire.id}`}

@@ -1,4 +1,4 @@
--- engagement_details carries the campaign's deliverables in order, even after
+-- engagement_details carries the campaign's brief and deliverables in order, even after
 -- the campaign has left `open` (the creator's job page lists them as the
 -- submit checklist), and only to people on the hire.
 -- Run with: supabase test db
@@ -6,7 +6,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(3);
+select plan(4);
 
 insert into public.users (id, auth_user_id, email, role) values
   ('00000000-0000-0000-0000-00000005d001', '5d5d5d5d-0000-0000-0000-00000005d001', 'biz.deliv@example.com', 'business'),
@@ -45,6 +45,10 @@ set local request.jwt.claims = '{"sub": "5d5d5d5d-0000-0000-0000-00000005d001"}'
 select is((select jsonb_array_length(d #> '{campaign,deliverables}')
              from public.engagement_details('5d000000-0000-0000-0000-0000000e0001') d),
   2, 'the business gets them too');
+
+select is((select d #>> '{campaign,brief}'
+             from public.engagement_details('5d000000-0000-0000-0000-0000000e0001') d),
+  'A brief that is long enough for the checks.', 'and the brief, for the dispute page');
 
 set local request.jwt.claims = '{"sub": "5d5d5d5d-0000-0000-0000-00000005d003"}';
 select throws_ok($$select public.engagement_details('5d000000-0000-0000-0000-0000000e0001')$$,
