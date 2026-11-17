@@ -14,6 +14,11 @@ const base: HireFacts = {
   releasedKobo: null,
   refundedKobo: null,
   businessFeeKobo: 250_000,
+  round: null,
+  reviewDeadlineAt: null,
+  roundsLeft: 3,
+  openDisputeId: null,
+  disputeAllowedFrom: null,
 };
 const words = (over: Partial<HireFacts>) =>
   describeHireStatus({ ...base, ...over }, NOW);
@@ -81,6 +86,78 @@ test("an unpaid hire in time asks for payment; past its time it is waiting to la
     /The time to pay has passed, so this hire will lapse shortly\./,
   );
   assert.ok(!/Pay by/.test(late.body));
+});
+
+test("submitted before the deadline can be reviewed, with the date", () => {
+  const w = words({
+    status: "submitted",
+    round: 1,
+    reviewDeadlineAt: "2026-11-18T12:00:00Z",
+  });
+  assert.equal(w.title, "Waiting for your review");
+  assert.match(w.body, /18 Nov/);
+  assert.equal(w.canReview, true);
+  assert.equal(w.canOpenDispute, false);
+});
+
+test("submitted after the deadline is being released, and can't be reviewed", () => {
+  const w = words({
+    status: "submitted",
+    round: 1,
+    reviewDeadlineAt: "2026-11-13T11:00:00Z",
+  });
+  assert.equal(
+    w.body,
+    "Review time ended on 13 Nov, 12:00. The money is being released.",
+  );
+  assert.equal(w.canReview, false);
+});
+
+test("denied: waiting for the creator, with rounds left; dispute allowed", () => {
+  const w = words({ status: "denied", round: 1, roundsLeft: 3 });
+  assert.equal(w.title, "Sent back");
+  assert.match(w.body, /3 resubmissions left/);
+  assert.equal(w.canReview, false);
+  assert.equal(w.canOpenDispute, true);
+  const none = words({ status: "denied", roundsLeft: 0 });
+  assert.match(none.body, /no resubmissions left/);
+  assert.equal(none.canOpenDispute, true);
+  assert.equal(
+    words({ status: "denied", openDisputeId: "d1" }).canOpenDispute,
+    false,
+  );
+});
+
+test("in progress: dispute only once the non-delivery date has passed", () => {
+  assert.equal(words({ status: "in_progress" }).canOpenDispute, false);
+  assert.equal(
+    words({
+      status: "in_progress",
+      disputeAllowedFrom: "2026-11-14T00:00:00Z",
+    }).canOpenDispute,
+    false,
+  );
+  const late = words({
+    status: "in_progress",
+    disputeAllowedFrom: "2026-11-13T00:00:00Z",
+  });
+  assert.equal(late.canOpenDispute, true);
+  assert.match(late.body, /open a dispute/);
+});
+
+test("disputed and auto-released have their own words", () => {
+  const d = words({ status: "disputed", openDisputeId: "d1" });
+  assert.equal(d.title, "Pitchype is reviewing this");
+  assert.equal(d.canOpenDispute, false);
+  assert.equal(d.canReview, false);
+  const a = words({
+    status: "auto_released",
+    settleOutcome: "release",
+    releasedKobo: 5_000_000,
+  });
+  assert.equal(a.title, "Released automatically");
+  assert.match(a.body, /₦50,000 was released to Ada/);
+  assert.equal(a.done, true);
 });
 
 test("every status has words", () => {

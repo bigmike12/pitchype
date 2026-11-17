@@ -56,6 +56,9 @@ const DOTS: Record<Exclude<BusinessColumn, "closed">, string> = {
   shortlisted: "bg-brand-violet",
   to_pay: "bg-brand-coral",
   in_progress: "bg-brand-green",
+  to_review: "bg-brand-violet",
+  changes: "bg-brand-coral",
+  disputed: "bg-ink",
   completed: "bg-ink",
 };
 
@@ -398,53 +401,56 @@ function HireCard({
         </>
       )}
 
-      {(column === "in_progress" || column === "completed") && engagement && (
-        <>
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-semibold text-ink tabular-nums">
-              {formatNaira(
-                column === "completed"
-                  ? (engagement.releasedKobo ?? engagement.agreedPriceKobo)
-                  : engagement.agreedPriceKobo,
-              )}
-            </span>
-            {column === "in_progress" && (
-              <span
-                className={cn(
-                  "rounded-full px-2 py-0.5 text-xs font-semibold text-ink",
-                  engagement.status === "funded"
-                    ? "bg-surface-card"
-                    : "bg-brand-mint",
+      {column !== "applied" &&
+        column !== "shortlisted" &&
+        column !== "to_pay" &&
+        engagement && (
+          <>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-semibold text-ink tabular-nums">
+                {formatNaira(
+                  column === "completed"
+                    ? (engagement.releasedKobo ?? engagement.agreedPriceKobo)
+                    : engagement.agreedPriceKobo,
                 )}
-              >
-                {IN_PROGRESS_LABELS[engagement.status] ?? "Working"}
               </span>
-            )}
-          </div>
-          <p className="text-xs text-muted">
-            {column === "completed"
-              ? engagement.settledAt
-                ? `Released ${formatDate(engagement.settledAt)}`
-                : "Released to the creator"
-              : engagement.startedAt
-                ? `Started ${formatDate(engagement.startedAt)}`
-                : engagement.fundedAt
-                  ? `Paid ${formatDate(engagement.fundedAt)}`
-                  : null}
-          </p>
-          <Link
-            href={`/business/engagements/${engagement.id}`}
-            className={buttonVariants({
-              variant: "secondary",
-              size: "sm",
-              className: "w-full",
-            })}
-          >
-            Open hire
-            <span className="sr-only">: {creator.displayName}</span>
-          </Link>
-        </>
-      )}
+              {column !== "completed" && (
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-xs font-semibold text-ink",
+                    engagement.status === "funded"
+                      ? "bg-surface-card"
+                      : "bg-brand-mint",
+                  )}
+                >
+                  {IN_PROGRESS_LABELS[engagement.status] ?? "Working"}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted">
+              {column === "completed"
+                ? engagement.settledAt
+                  ? `Released ${formatDate(engagement.settledAt)}`
+                  : "Released to the creator"
+                : engagement.startedAt
+                  ? `Started ${formatDate(engagement.startedAt)}`
+                  : engagement.fundedAt
+                    ? `Paid ${formatDate(engagement.fundedAt)}`
+                    : null}
+            </p>
+            <Link
+              href={`/business/engagements/${engagement.id}`}
+              className={buttonVariants({
+                variant: "secondary",
+                size: "sm",
+                className: "w-full",
+              })}
+            >
+              Open hire
+              <span className="sr-only">: {creator.displayName}</span>
+            </Link>
+          </>
+        )}
     </BoardCard>
   );
 }

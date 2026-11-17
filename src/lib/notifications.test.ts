@@ -461,6 +461,37 @@ test("dispute notices go to the dispute page for each role", () => {
   );
 });
 
+test("a creator withdrawing after starting reads as a withdrawal for the business", () => {
+  const withdrew = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      name: "Tolu",
+      status: "refunded",
+      outcome: "refund_creator_fault",
+      released_kobo: 0,
+      refunded_kobo: 5154594,
+    }),
+    "business",
+  );
+  assert.equal(withdrew?.title, "Tolu withdrew from “Zobo week”");
+  assert.match(withdrew?.body ?? "", /₦51,545\.94/);
+  assert.equal(withdrew?.href, "/business/engagements/e1");
+
+  // Any other settlement keeps the settled wording.
+  const refund = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      name: "Tolu",
+      status: "refunded",
+      outcome: "refund",
+      released_kobo: 0,
+      refunded_kobo: 5000000,
+    }),
+    "business",
+  );
+  assert.equal(refund?.title, "“Zobo week” was settled");
+});
+
 test("an automatic release reads differently from a settlement", () => {
   const auto = describeNotification(
     row("engagement_settled", {

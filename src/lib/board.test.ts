@@ -23,15 +23,12 @@ test("the hiring board follows decisions, payment and release", () => {
   assert.equal(businessColumn(app("submitted")), "applied");
   assert.equal(businessColumn(app("shortlisted")), "shortlisted");
   assert.equal(businessColumn(app("approved", "awaiting_payment")), "to_pay");
-  for (const s of [
-    "funded",
-    "in_progress",
-    "submitted",
-    "denied",
-    "disputed",
-  ]) {
+  for (const s of ["funded", "in_progress"]) {
     assert.equal(businessColumn(app("approved", s, paid)), "in_progress", s);
   }
+  assert.equal(businessColumn(app("approved", "submitted", paid)), "to_review");
+  assert.equal(businessColumn(app("approved", "denied", paid)), "changes");
+  assert.equal(businessColumn(app("approved", "disputed", paid)), "disputed");
   for (const s of ["accepted", "auto_released", "paid_out"]) {
     assert.equal(businessColumn(app("approved", s, paid)), "completed", s);
   }
@@ -52,9 +49,13 @@ test("the creator's board follows the same facts from their side", () => {
   assert.equal(creatorColumn(app("shortlisted")), "applied");
   assert.equal(creatorColumn(app("approved", "awaiting_payment")), "hired");
   assert.equal(creatorColumn(app("approved", "funded", paid)), "ready");
-  for (const s of ["in_progress", "submitted", "denied", "disputed"]) {
-    assert.equal(creatorColumn(app("approved", s, paid)), "in_progress", s);
-  }
+  assert.equal(
+    creatorColumn(app("approved", "in_progress", paid)),
+    "in_progress",
+  );
+  assert.equal(creatorColumn(app("approved", "submitted", paid)), "to_review");
+  assert.equal(creatorColumn(app("approved", "denied", paid)), "changes");
+  assert.equal(creatorColumn(app("approved", "disputed", paid)), "disputed");
   for (const s of ["accepted", "auto_released", "paid_out"]) {
     assert.equal(creatorColumn(app("approved", s, paid)), "paid", s);
   }
@@ -62,6 +63,28 @@ test("the creator's board follows the same facts from their side", () => {
   assert.equal(creatorColumn(app("approved", "cancelled", paid)), "closed");
   assert.equal(creatorColumn(app("rejected")), "closed");
   assert.equal(creatorColumn(app("withdrawn")), "closed");
+});
+
+test("the new review columns sit between in progress and done, in order", () => {
+  const keys = (cols: readonly { key: string }[]) => cols.map((c) => c.key);
+  assert.deepEqual(keys(BUSINESS_COLUMNS).slice(3), [
+    "in_progress",
+    "to_review",
+    "changes",
+    "disputed",
+    "completed",
+  ]);
+  assert.deepEqual(keys(CREATOR_COLUMNS).slice(3), [
+    "in_progress",
+    "to_review",
+    "changes",
+    "disputed",
+    "paid",
+  ]);
+  const hint = (cols: readonly { key: string; hint: string }[], k: string) =>
+    cols.find((c) => c.key === k)?.hint;
+  assert.equal(hint(BUSINESS_COLUMNS, "to_review"), "Work submitted");
+  assert.equal(hint(CREATOR_COLUMNS, "changes"), "Fix and resubmit");
 });
 
 test("every column a card can land in is drawn, or is closed", () => {
@@ -73,7 +96,11 @@ test("every column a card can land in is drawn, or is closed", () => {
     app("approved", "awaiting_payment"),
     app("approved", "funded", paid),
     app("approved", "in_progress", paid),
+    app("approved", "submitted", paid),
+    app("approved", "denied", paid),
+    app("approved", "disputed", paid),
     app("approved", "accepted", paid),
+    app("approved", "auto_released", paid),
     app("approved", "refunded", paid),
     app("approved"),
     app("rejected"),

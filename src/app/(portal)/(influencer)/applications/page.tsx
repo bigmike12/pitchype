@@ -41,6 +41,9 @@ const DOTS: Record<Exclude<CreatorColumn, "closed">, string> = {
   hired: "bg-brand-coral",
   ready: "bg-brand-violet",
   in_progress: "bg-brand-green",
+  to_review: "bg-brand-violet",
+  changes: "bg-brand-coral",
+  disputed: "bg-ink",
   paid: "bg-ink",
 };
 
@@ -257,7 +260,7 @@ function WorkCard({
             {APPLICATION_STATUS_LABELS[a.status]}
           </span>
         )}
-        {(column === "ready" || column === "in_progress") && (
+        {column !== "applied" && column !== "hired" && column !== "paid" && (
           <span className="rounded-full bg-brand-mint px-2 py-0.5 text-xs font-semibold whitespace-nowrap text-ink">
             Held by Pitchype
           </span>
@@ -332,6 +335,12 @@ function detail(
       return e?.startedAt
         ? `Started ${formatDate(e.startedAt)}`
         : "Work in progress";
+    case "to_review":
+      return "Sent in. Waiting for the business to review.";
+    case "changes":
+      return "Sent back. Fix the work and send it again.";
+    case "disputed":
+      return "Pitchype is reviewing this.";
     case "paid":
       return e?.releasedKobo
         ? `${formatNaira(e.releasedKobo)} earned, less our fee`

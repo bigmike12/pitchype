@@ -12,7 +12,14 @@ type BoardApplication = {
 };
 
 /** Where a hire that exists and hasn't ended unpaid stands. */
-type HireStage = "to_pay" | "in_progress" | "completed" | "closed";
+type HireStage =
+  | "to_pay"
+  | "in_progress"
+  | "to_review"
+  | "changes"
+  | "disputed"
+  | "completed"
+  | "closed";
 
 function hireStage(engagementStatus: string): HireStage {
   switch (engagementStatus) {
@@ -20,10 +27,13 @@ function hireStage(engagementStatus: string): HireStage {
       return "to_pay";
     case "funded":
     case "in_progress":
-    case "submitted":
-    case "denied":
-    case "disputed":
       return "in_progress";
+    case "submitted":
+      return "to_review";
+    case "denied":
+      return "changes";
+    case "disputed":
+      return "disputed";
     case "accepted":
     case "auto_released":
     case "paid_out":
@@ -39,6 +49,9 @@ export const BUSINESS_COLUMNS = [
   { key: "shortlisted", label: "Shortlisted", hint: "Your maybes" },
   { key: "to_pay", label: "To pay", hint: "Hired, not yet paid" },
   { key: "in_progress", label: "In progress", hint: "Paid, held by Pitchype" },
+  { key: "to_review", label: "To review", hint: "Work submitted" },
+  { key: "changes", label: "Changes asked", hint: "Waiting for the creator" },
+  { key: "disputed", label: "In dispute", hint: "With Pitchype" },
   { key: "completed", label: "Completed", hint: "Payment released" },
 ] as const;
 
@@ -65,6 +78,9 @@ export const CREATOR_COLUMNS = [
   { key: "hired", label: "Hired", hint: "Waiting for payment" },
   { key: "ready", label: "Ready to start", hint: "Paid and held by Pitchype" },
   { key: "in_progress", label: "In progress", hint: "You’re working on these" },
+  { key: "to_review", label: "To review", hint: "Waiting for the business" },
+  { key: "changes", label: "Changes asked", hint: "Fix and resubmit" },
+  { key: "disputed", label: "In dispute", hint: "With Pitchype" },
   { key: "paid", label: "Paid", hint: "In your wallet" },
 ] as const;
 

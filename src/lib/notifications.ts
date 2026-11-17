@@ -199,6 +199,21 @@ export function describeNotification(
         href: disputePage,
       };
     case "engagement_settled":
+      // A creator who withdraws after starting settles the hire as a refund
+      // at their fault. Only the business hears it (the creator was the
+      // actor), so it reads as a withdrawal, not a settlement.
+      if (
+        role === "business" &&
+        d.status === "refunded" &&
+        d.outcome === "refund_creator_fault" &&
+        text(d.cancel_reason) === null
+      ) {
+        return {
+          title: `${name} withdrew from ${quoted}`,
+          body: settlementBody(d, role),
+          href: businessHire,
+        };
+      }
       return {
         title: title
           ? `“${title}” was ${d.status === "auto_released" ? "released automatically" : "settled"}`
