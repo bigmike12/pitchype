@@ -50,6 +50,9 @@ Details: README, "Deploy to Vercel".
 
 ## 3. Before launch (opening sign-up to the public)
 
+- [ ] **You:** send `docs/legal/` (README with the questions, `terms.md`,
+      `privacy.md`; drafted 2026-11-17) to a Nigerian fintech and data
+      lawyer, then swap the approved text into the two pages.
 - [ ] **You, now urgent:** sign-up is linked from the site (2026-11-10), but
       the privacy notice and terms still say "draft, covers the waitlist
       only". They must cover accounts, public creator profiles and photos,
