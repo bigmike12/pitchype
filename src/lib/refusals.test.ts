@@ -27,6 +27,13 @@ test("only known codes count as refusals", () => {
     "no_such_payout",
     "payout_not_pending",
     "payout_reason_required",
+    "no_rounds_left",
+    "review_closed",
+    "proof_required",
+    "proof_invalid",
+    "reasons_required",
+    "dispute_open",
+    "not_your_file",
   ]) {
     assert.equal(isRefusal(code), true, code);
   }
