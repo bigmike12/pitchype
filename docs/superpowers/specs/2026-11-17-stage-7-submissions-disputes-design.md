@@ -95,7 +95,7 @@ approval (CLAUDE.md §5). Unlike the lapse, auto-release moves money, so
 `engagement_json` does **not** pretend an overdue hire is released: the status
 stays `submitted` until the ledger says otherwise, and the screens word it as
 "Review time ended on [date]; the money is being released" (it reaches the
-wallet at the next daily run, or sooner if the business opens the hire).
+wallet at the next daily run; reading the page doesn't release anything).
 
 A dispute can't be opened on a `submitted` hire: the business denies first
 (the denial's reasons are what the dispute is about). Denying stops the clock,

@@ -126,7 +126,7 @@ business's wallet or future payments `[counsel to confirm]`.
 “started” when the creator presses **Start work** on a paid engagement, after
 a confirmation.
 
-6.2 When finished, the creator submits proof: 1 to 10 links, up to 5
+6.2 When finished, the creator submits proof: up to 10 links, up to 5
 screenshots and a short note, with at least one link or one screenshot.
 
 6.3 The business then has **7 days** to review. It can:

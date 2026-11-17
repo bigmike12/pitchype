@@ -16,6 +16,8 @@ export type JobFacts = {
   settleOutcome: string | null;
   releasedKobo: number | null;
   refundedKobo: number | null;
+  /** What the settlement credited to the wallet, from the ledger; null until settled. */
+  creatorNetKobo: number | null;
   agreedPriceKobo: number;
   /** The fee snapshot taken when the business paid; null until then. */
   creatorFeeBps: number | null;
@@ -179,7 +181,11 @@ export function describeJobStatus(e: JobFacts, now: Date): JobStatusWords {
             : "Your payment was released.",
         );
       }
-      const added = e.releasedKobo - creatorFee(e.releasedKobo, bps, minKobo);
+      // The recorded credit wins; the estimate only covers a settlement whose
+      // ledger figure isn't there.
+      const added =
+        e.creatorNetKobo ??
+        e.releasedKobo - creatorFee(e.releasedKobo, bps, minKobo);
       const wallet = `${formatNaira(added)} was added to your wallet after our fee.`;
       return words(
         title,

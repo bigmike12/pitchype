@@ -12,7 +12,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(121);
+select plan(125);
 
 -- Ada and Bola are businesses, Efe is an admin, creators d1101..d1108; Ada
 -- hires creators 1 to 7.
@@ -194,6 +194,10 @@ select throws_ok($$ select public.open_dispute('d1000000-0000-0000-0000-0000000e
 select throws_ok($$ select public.open_dispute('d1000000-0000-0000-0000-0000000e0003', 'The posts match the brief exactly.',
                       null, array[(select other from files)]) $$,
   'P0001', 'not_your_file', 'another creator''s file is refused');
+select throws_ok($$ select public.open_dispute('d1000000-0000-0000-0000-0000000e0003', 'Call me on 0803 123 4567 and we will settle it.', null, null) $$,
+  'P0001', 'contact_details', 'a phone number in the reason is refused');
+select throws_ok($$ select public.open_dispute('d1000000-0000-0000-0000-0000000e0003', 'Message me at wa.me/2348031234567 about the posts.', null, null) $$,
+  'P0001', 'contact_details', 'a WhatsApp link in the reason is refused');
 select is((select count(*)::integer from public.disputes where engagement_id = 'd1000000-0000-0000-0000-0000000e0003'), 0,
   'refused openings wrote nothing');
 select lives_ok($$ select public.open_dispute('d1000000-0000-0000-0000-0000000e0003', ' The posts match the brief exactly. ',
@@ -256,6 +260,10 @@ select throws_ok($$ select public.add_dispute_statement((select id from dids whe
   'P0001', 'statement_invalid', 'an empty statement is refused');
 select throws_ok($$ select public.add_dispute_statement((select id from dids where hire = 3 and status = 'open'), repeat('s', 2001), null, null) $$,
   'P0001', 'statement_invalid', 'a statement over 2,000 characters is refused');
+select throws_ok($$ select public.add_dispute_statement((select id from dids where hire = 3 and status = 'open'), 'Ring me on +234 803 123 4567.', null, null) $$,
+  'P0001', 'contact_details', 'a phone number in a statement is refused');
+select throws_ok($$ select public.add_dispute_statement((select id from dids where hire = 3 and status = 'open'), 'Chat on wa.me/2348031234567 instead.', null, null) $$,
+  'P0001', 'contact_details', 'a WhatsApp link in a statement is refused');
 select throws_ok($$ select public.add_dispute_statement((select id from dids where hire = 3 and status = 'open'), 'Again.',
                       null, array[(select one from files)]) $$,
   'P0001', 'not_your_file', 'a file already attached cannot be reused');
@@ -519,13 +527,13 @@ select ok(not has_function_privilege('authenticated', 'public.write_dispute_stat
 reset role;
 select throws_ok($$ insert into public.submissions (engagement_id, round, status, decided_at, denial_reasons, review_deadline_at)
                     values ('d1000000-0000-0000-0000-0000000e0002', 1, 'denied', now(), null, now() + interval '7 days') $$,
-  '23514', null, 'a denied submission without reasons is refused');
+  '23514', 'new row for relation "submissions" violates check constraint "submissions_denial_check"', 'a denied submission without reasons is refused');
 select throws_ok($$ insert into public.submissions (engagement_id, round, status, decided_at, denial_reasons, review_deadline_at)
                     values ('d1000000-0000-0000-0000-0000000e0002', 2, 'denied', now(), '{}', now() + interval '7 days') $$,
-  '23514', null, 'so is one with an empty list of reasons');
+  '23514', 'new row for relation "submissions" violates check constraint "submissions_denial_check"', 'so is one with an empty list of reasons');
 select throws_ok($$ insert into public.submissions (engagement_id, round, status, decided_at, denial_reasons, review_deadline_at)
                     values ('d1000000-0000-0000-0000-0000000e0002', 3, 'auto_accepted', now(), array['Wrong hashtag'], now() + interval '7 days') $$,
-  '23514', null, 'and so is an auto-accepted one that carries reasons');
+  '23514', 'new row for relation "submissions" violates check constraint "submissions_denial_check"', 'and so is an auto-accepted one that carries reasons');
 
 -- Totals ---------------------------------------------------------------------------------------------------------
 select is((select count(*)::integer from (

@@ -383,6 +383,13 @@ Deferred from Stage 7:
 - [ ] A hire whose auto-release keeps failing is visible only in the database
       log and as a daily 500 from `/api/cron/review-deadlines`. Surface it on
       `/admin/money`.
+- [ ] Race scenarios 16 to 21 in `scripts/money-race.mjs` are timing
+      dependent: scenario 18 sometimes sees only one winner order, and the
+      delays are tuned to one machine. Make them wait on locks instead of
+      sleeping if they start to flake.
+- [ ] Submission notes and denial reasons aren't checked for contact details
+      (only dispute text is, in the database). The owner's call; decide before
+      launch whether they should be.
 - [ ] Accepting during a dispute overwrites the denied round's `decided_at`
       (the denial time is lost). Keep the denial time if it ever matters.
 - [ ] A dispute can be opened, withdrawn and reopened repeatedly; this is

@@ -69,15 +69,54 @@ export function ReviewForm({
   );
 }
 
+/**
+ * Accepting work the business sent back and the creator disputed: the same
+ * confirmation, which also says the dispute closes. Shown on the dispute page.
+ */
+export function AcceptDisputedWork({
+  engagementId,
+  creatorName,
+  priceKobo,
+}: {
+  engagementId: string;
+  creatorName: string;
+  priceKobo: number;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="space-y-4">
+      <Button
+        type="button"
+        variant="secondary"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+      >
+        Accept the work
+      </Button>
+      {open && (
+        <AcceptForm
+          engagementId={engagementId}
+          creatorName={creatorName}
+          priceKobo={priceKobo}
+          closesDispute
+          onCancel={() => setOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
 function AcceptForm({
   engagementId,
   creatorName,
   priceKobo,
+  closesDispute = false,
   onCancel,
 }: {
   engagementId: string;
   creatorName: string;
   priceKobo: number;
+  closesDispute?: boolean;
   onCancel: () => void;
 }) {
   const [state, formAction, pending] = useActionState<ReviewState, FormData>(
@@ -94,7 +133,9 @@ function AcceptForm({
         <span className="font-semibold tabular-nums">
           {formatNaira(priceKobo)}
         </span>{" "}
-        goes to {creatorName}. You can’t undo this.
+        {closesDispute
+          ? `goes to ${creatorName} and the dispute closes. You can’t undo this.`
+          : `goes to ${creatorName}. You can’t undo this.`}
       </p>
       <FormMessage status={state.status} message={state.message} />
       <div className="flex flex-wrap gap-3">

@@ -468,7 +468,7 @@ select public.add_dispute_statement((select id from public.disputes where engage
 reset role;
 select is(pg_temp.about(pg_temp.bo(), 'dispute_statement', pg_temp.job(4))
         + pg_temp.about(pg_temp.reviewer(4), 'dispute_statement', pg_temp.job(4)), 4,
-  'an admin''s statement goes to both people');
+  'an admin''s statement goes to both people (4 in all, counting the two earlier statements)');
 select is(pg_temp.count_of('00000000-0000-0000-0000-0000000ce002', 'dispute_statement')
         + pg_temp.count_of('00000000-0000-0000-0000-0000000ce002', 'dispute_opened'), 0,
   'and the admin is told nothing');
@@ -489,7 +489,7 @@ reset role;
 select is(pg_temp.about(pg_temp.reviewer(4), 'dispute_opened', pg_temp.job(4)), 1, 'a dispute opened by the business notifies the creator');
 select is(pg_temp.about(pg_temp.bo(), 'dispute_opened', pg_temp.job(4)), 1, 'and the business is not told of its own');
 select is(pg_temp.about(pg_temp.reviewer(4), 'dispute_statement', pg_temp.job(4)), 2,
-  'the business''s opening statement is not announced either');
+  'the business''s opening statement is not announced either (2 in all: the earlier notice from Bo and the admin''s)');
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "cecececc-0000-0000-0000-0000000ce002"}'; -- Efe

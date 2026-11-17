@@ -13,6 +13,7 @@ const base: JobFacts = {
   settleOutcome: null,
   releasedKobo: null,
   refundedKobo: null,
+  creatorNetKobo: null,
   agreedPriceKobo: 5_000_000,
   creatorFeeBps: 500,
   creatorMinFeeKobo: 50_000,
@@ -132,6 +133,26 @@ test("released money says what reached the wallet after our fee", () => {
   assert.equal(
     words({ status: "accepted", releasedKobo: 2_000_000 }).body,
     "₦19,000 was added to your wallet after our fee.",
+  );
+});
+
+test("a recorded credit is shown instead of the estimate", () => {
+  const w = words({
+    status: "accepted",
+    releasedKobo: 5_000_000,
+    creatorNetKobo: 4_712_300,
+  });
+  assert.equal(w.body, "₦47,123 was added to your wallet after our fee.");
+  const auto = words({
+    status: "auto_released",
+    releasedKobo: 5_000_000,
+    creatorNetKobo: 4_712_300,
+  });
+  assert.match(auto.body, /₦47,123 was added to your wallet after our fee/);
+  // The preview before settling stays an estimate from the fee snapshot.
+  assert.equal(
+    words({ status: "in_progress", creatorNetKobo: 4_712_300 }).youReceiveKobo,
+    4_750_000,
   );
 });
 

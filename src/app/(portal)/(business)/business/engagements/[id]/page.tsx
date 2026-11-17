@@ -28,6 +28,7 @@ import {
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
 import { getEngagementDetails } from "@/lib/db/applications";
+import { getLatestDisputeId } from "@/lib/db/disputes";
 import { listSubmissions } from "@/lib/db/submissions";
 import { feeExample } from "@/lib/fees";
 import { describeHireStatus } from "@/lib/hire-status-words";
@@ -84,6 +85,8 @@ async function Engagement({ params }: { params: Params }) {
   // Newest round first: the one being reviewed leads the history.
   const rounds = (await listSubmissions(engagement.id)).reverse();
   const toReview = rounds.find((round) => round.status === "pending_review");
+  // Kept after the dispute ends, so either person can read how it went.
+  const disputeId = await getLatestDisputeId(engagement.id);
 
   const feeKobo =
     engagement.businessFeeKobo ??
@@ -217,12 +220,14 @@ async function Engagement({ params }: { params: Params }) {
               <Rounds rounds={rounds} />
             </SectionCard>
           )}
-          {engagement.openDisputeId && (
+          {disputeId && (
             <Link
               href={`/business/engagements/${engagement.id}/dispute`}
               className={buttonVariants({ variant: "secondary" })}
             >
-              See the dispute
+              {engagement.openDisputeId
+                ? "See the dispute"
+                : "See the closed dispute"}
             </Link>
           )}
 

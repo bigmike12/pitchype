@@ -28,6 +28,7 @@ import {
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
 import { getEngagementDetails } from "@/lib/db/applications";
+import { getLatestDisputeId } from "@/lib/db/disputes";
 import { listSubmissions } from "@/lib/db/submissions";
 import { formatRate, INFLUENCER_FEE_BPS, MIN_FEE_KOBO } from "@/lib/fees";
 import { describeJobStatus } from "@/lib/job-status-words";
@@ -97,6 +98,8 @@ async function Job({ params }: { params: Params }) {
   if (!engagement || engagement.creator.id !== user.id) notFound();
   // Newest round first: while resubmitting, the latest reasons come first.
   const rounds = (await listSubmissions(engagement.id)).reverse();
+  // Kept after the dispute ends, so either person can read how it went.
+  const disputeId = await getLatestDisputeId(engagement.id);
 
   const business = engagement.business.name;
   const status = describeJobStatus(
@@ -179,12 +182,14 @@ async function Job({ params }: { params: Params }) {
               roundsLeft={engagement.roundsLeft}
             />
           )}
-          {engagement.openDisputeId && (
+          {disputeId && (
             <Link
               href={`/jobs/${engagement.id}/dispute`}
               className={buttonVariants({ variant: "secondary" })}
             >
-              See the dispute
+              {engagement.openDisputeId
+                ? "See the dispute"
+                : "See the closed dispute"}
             </Link>
           )}
 

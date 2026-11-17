@@ -61,6 +61,7 @@ const REFUSAL_TEXT = {
   statement_invalid: "Write a statement of up to 2,000 characters.",
   no_such_dispute: "We couldn’t find that dispute.",
   dispute_closed: "This dispute has already been closed.",
+  contact_details: "Keep contact details out of disputes.",
   // Payouts
   no_bank_account: "Add a bank account before asking for a payout.",
   payout_too_small: "The smallest payout is ₦1,000.",
