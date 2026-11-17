@@ -3,6 +3,8 @@ import { test } from "node:test";
 
 import {
   parseDenialReasons,
+  parseDisputeReason,
+  parseOptionalProofLinks,
   parseProofLinks,
   parseProofNote,
 } from "./proof.ts";
@@ -113,4 +115,27 @@ test("five valid reasons are accepted, trimmed, blanks skipped", () => {
     },
   );
   assert.equal(parseDenialReasons(["abc", "r".repeat(500)]).ok, true);
+});
+
+test("optional links: nothing typed is fine, a bad link is not", () => {
+  assert.deepEqual(parseOptionalProofLinks(" \n "), { ok: true, links: [] });
+  assert.deepEqual(parseOptionalProofLinks("https://x.com/p/1"), {
+    ok: true,
+    links: ["https://x.com/p/1"],
+  });
+  assert.equal(parseOptionalProofLinks("not a link").ok, false);
+});
+
+test("a dispute reason is 20 to 2,000 characters after trimming", () => {
+  assert.equal(parseDisputeReason("too short").ok, false);
+  assert.equal(parseDisputeReason(" ".repeat(30)).ok, false);
+  assert.equal(parseDisputeReason("r".repeat(19)).ok, false);
+  assert.deepEqual(parseDisputeReason(`  ${"r".repeat(20)}  `), {
+    ok: true,
+    reason: "r".repeat(20),
+  });
+  assert.equal(parseDisputeReason("r".repeat(2000)).ok, true);
+  assert.equal(parseDisputeReason("r".repeat(2001)).ok, false);
+  // An emoji counts as one character, as the database counts it.
+  assert.equal(parseDisputeReason("😀".repeat(20)).ok, true);
 });

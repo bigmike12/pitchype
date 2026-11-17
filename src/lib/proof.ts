@@ -99,3 +99,32 @@ export function parseDenialReasons(
   }
   return { ok: true, reasons };
 }
+
+/**
+ * Links that may be left out (a dispute's opening statement): nothing typed
+ * is fine, anything typed is checked like proof links.
+ */
+export function parseOptionalProofLinks(
+  raw: string,
+): ParseResult<"links", string[]> {
+  if (raw.trim() === "") return { ok: true, links: [] };
+  return parseProofLinks(raw);
+}
+
+export const MIN_DISPUTE_REASON_LENGTH = 20;
+export const MAX_DISPUTE_REASON_LENGTH = 2000;
+
+/** What went wrong, in the person's words: 20 to 2,000 characters. */
+export function parseDisputeReason(raw: string): ParseResult<"reason", string> {
+  const reason = raw.trim();
+  if (
+    length(reason) < MIN_DISPUTE_REASON_LENGTH ||
+    length(reason) > MAX_DISPUTE_REASON_LENGTH
+  ) {
+    return {
+      ok: false,
+      message: `Explain the problem in ${MIN_DISPUTE_REASON_LENGTH} to ${MAX_DISPUTE_REASON_LENGTH.toLocaleString("en-NG")} characters.`,
+    };
+  }
+  return { ok: true, reason };
+}

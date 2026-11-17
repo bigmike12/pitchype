@@ -6,7 +6,8 @@
 // they join profiles the caller can't read directly.
 
 import type { ApplicationInput, ApplicationStatus } from "@/lib/applications";
-import type { PlatformListing } from "@/lib/creator-profile";
+import type { Deliverable, DeliverableKind } from "@/lib/campaign";
+import { isPlatform, type PlatformListing } from "@/lib/creator-profile";
 import { profilePhotoUrl } from "@/lib/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createSessionClient } from "@/lib/supabase/server";
@@ -348,6 +349,8 @@ export type EngagementDetails = EngagementSummary & {
     priceKobo: number;
     /** The campaign's deliver-by date (YYYY-MM-DD). */
     deliverBy: string;
+    /** What the campaign asked for, in order; locked once it was live. */
+    deliverables: Deliverable[];
   };
   creator: { id: string; name: string; slug: string | null };
   business: { id: string; name: string };
@@ -390,6 +393,14 @@ export async function getEngagementDetails(
       title: str(k.title) ?? "",
       priceKobo: num(k.price_kobo) ?? 0,
       deliverBy: str(k.deliver_by) ?? "",
+      deliverables: list(k.deliverables).flatMap((d) => {
+        if (!isObject(d)) return [];
+        const platform = str(d.platform);
+        const quantity = num(d.quantity);
+        return platform && isPlatform(platform) && quantity
+          ? [{ platform, kind: str(d.kind) as DeliverableKind, quantity }]
+          : [];
+      }),
     },
     creator: {
       id: str(c.id) ?? "",
