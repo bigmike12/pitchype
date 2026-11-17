@@ -89,7 +89,12 @@ export async function saveProofFile(
   }
 }
 
-/** A signed URL for each path that could be signed, valid for 10 minutes. */
+/**
+ * A signed URL for each path that could be signed, valid for 10 minutes.
+ * Signing skips row level security, so pass only paths read back through the
+ * signed-in person's own session client (which RLS has already filtered),
+ * never a path that came from a request.
+ */
 export async function proofFileUrls(
   paths: string[],
 ): Promise<Map<string, string>> {

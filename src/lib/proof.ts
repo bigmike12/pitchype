@@ -16,7 +16,11 @@ export type ParseResult<Key extends string, Value> =
 // emoji is one.
 const length = (text: string) => [...text].length;
 
+// No whitespace anywhere: new URL() would percent-encode an inner space and
+// accept "https://x.com/post and more text", but the database requires
+// ^https?://\S+$ and would refuse it with a bare code.
 function isWebLink(link: string): boolean {
+  if (/\s/.test(link)) return false;
   try {
     const url = new URL(link);
     return (

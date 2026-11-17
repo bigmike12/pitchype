@@ -58,6 +58,8 @@ test("only http and https links are accepted", () => {
     "instagram.com/p/a",
     "https://",
     "https:// not a link",
+    "https://x.com/post and more text",
+    "https://x.com/post\u00a0and",
   ]) {
     assert.equal(parseProofLinks(bad).ok, false, bad);
   }

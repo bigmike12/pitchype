@@ -214,8 +214,9 @@ export const DISPUTE_LIST_CAP = 200;
 
 /**
  * Open disputes, oldest first, for admins. Row level security shows admins
- * every dispute, hire, campaign and profile, so this uses the session client;
- * for anyone else it simply returns nothing.
+ * every dispute, hire, campaign and profile, so this uses the session client.
+ * It does not check the role: anyone else gets only their own open disputes
+ * (RLS), so the page that calls it must require an admin.
  */
 export async function listOpenDisputes(): Promise<DisputeListRow[]> {
   const supabase = await createSessionClient();
