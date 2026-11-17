@@ -246,6 +246,14 @@ export async function racePair(a, b, flip) {
   return [ra, rb];
 }
 
+// The same call, started a few milliseconds late (after the barrier and after
+// the start time is taken, so it still counts as overlapping). The call that
+// is usually first to a lock can then be made to arrive second, so a scenario
+// reaches both orders. pg_sleep in FROM runs before the select list.
+export function delayed(ms, expr) {
+  return `(select (${expr})::text from pg_sleep(${ms / 1000}))`;
+}
+
 export function times(n, make) {
   return Array.from({ length: n }, (_, i) => make(i));
 }
@@ -374,6 +382,64 @@ export async function requestPayout(creator, amount) {
   return must(as.user(creator), `public.request_payout(${amount})`);
 }
 
+// Stage 7 fixtures: a hire taken through the real functions, as the people
+// would. Each helper builds on the one before it.
+
+// Funded, then started by the creator.
+export async function startedHire(price) {
+  const hire = await newHire(price);
+  await fund(hire);
+  await must(as.user(hire.creator), `public.start_engagement(${lit(hire.id)})`);
+  return hire;
+}
+
+// 'ok' when a submission was made. submit_work() returns the new id, which
+// differs on every call, so it is turned into a word the outcomes can be counted by.
+export function submitCall(hire) {
+  return `case when public.submit_work(${lit(hire.id)}, null, array['https://example.com/race-proof']::text[], array[]::uuid[]) is not null then 'ok' end`;
+}
+
+export function denyCall(hire) {
+  return `public.deny_submission(${lit(hire.id)}, array['The post is not what was agreed'])`;
+}
+
+// Submitted: round 1 waiting for review.
+export async function submittedHire(price) {
+  const hire = await startedHire(price);
+  await must(as.user(hire.creator), submitCall(hire));
+  return hire;
+}
+
+// Submitted, with the review deadline already past. Set by hand as the
+// database owner; submit_work() always writes now() + 7 days.
+export async function overdueHire(price) {
+  const hire = await submittedHire(price);
+  await run(
+    `update public.submissions set review_deadline_at = now() - interval '1 minute' where engagement_id = ${lit(hire.id)};`,
+  );
+  return hire;
+}
+
+// Submitted, then denied by the business.
+export async function deniedHire(price) {
+  const hire = await submittedHire(price);
+  await must(as.user(hire.business), denyCall(hire));
+  return hire;
+}
+
+// Denied, then disputed by the creator. Returns the hire with its dispute id.
+export async function disputedHire(price) {
+  const hire = await deniedHire(price);
+  const dispute = await must(
+    as.user(hire.creator),
+    `public.open_dispute(${lit(hire.id)}, 'The business denied work that matches the brief exactly.', array[]::text[], array[]::uuid[])`,
+  );
+  return { ...hire, dispute };
+}
+
+// What the release job returns, as one word: 'released/failed'.
+export const sweepCall = `(select released::text || '/' || failed::text from public.release_overdue_submissions())`;
+
 // Facts -----------------------------------------------------------------------------------------------
 
 export function hireFacts(hire) {
@@ -400,6 +466,26 @@ select json_build_object(
   'business_wallet', public.wallet_balance(e.business_id, 'business_wallet'),
   'creator_wallet', public.wallet_balance(e.creator_id, 'creator_wallet')
 ) from public.engagements e where e.id = ${lit(hire.id)}`);
+}
+
+// A hire's submissions in round order: what was decided, whether reasons were
+// stored, and whether the system (no person) decided it.
+export function submissionFacts(hire) {
+  return json(`
+select coalesce(json_agg(json_build_object(
+  'round', s.round, 'status', s.status,
+  'has_reasons', s.denial_reasons is not null,
+  'decided_by_system', s.decided_at is not null and s.decided_by is null) order by s.round), '[]'::json)
+  from public.submissions s where s.engagement_id = ${lit(hire.id)}`);
+}
+
+// A hire's disputes, oldest first.
+export function disputeFacts(hire) {
+  return json(`
+select coalesce(json_agg(json_build_object(
+  'status', d.status, 'outcome', d.outcome, 'closed', d.closed_at is not null)
+  order by d.opened_at), '[]'::json)
+  from public.disputes d where d.engagement_id = ${lit(hire.id)}`);
 }
 
 export function payoutFacts(payoutId) {
@@ -481,12 +567,14 @@ select json_build_object(
       select 1 from public.ledger_entries l join public.payouts p on p.id = l.payout_id
        where l.account = 'payout_in_flight' and p.user_id in (select id from race_users)
        group by l.payout_id having sum(l.amount_kobo) > 0) x),
-  -- A funded or started hire holds exactly its price; any other status holds nothing.
+  -- A hire with work running, under review, denied or disputed holds exactly its
+  -- price; any other status (settled, cancelled, refunded, unpaid) holds nothing.
   'escrow_not_matching_status', (select count(*) from public.engagements e
        where e.business_id in (select id from race_users)
          and coalesce((select sum(l.amount_kobo) from public.ledger_entries l
                         where l.engagement_id = e.id and l.account = 'escrow'), 0)
-             <> case when e.status in ('funded', 'in_progress') then -e.agreed_price_kobo else 0 end)
+             <> case when e.status in ('funded', 'in_progress', 'submitted', 'denied', 'disputed')
+                     then -e.agreed_price_kobo else 0 end)
 )`);
   const problems = [];
   if (Number(f.sum) !== 0)
