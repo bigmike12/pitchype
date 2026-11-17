@@ -6,7 +6,7 @@
 
 import type { SettleOutcome } from "./db/money.ts";
 import { creatorFee, faultRefund } from "./fees.ts";
-import { KOBO_PER_NAIRA } from "./money.ts";
+import { KOBO_PER_NAIRA, formatNaira } from "./money.ts";
 
 export const SETTLE_OUTCOMES: { value: SettleOutcome; label: string }[] = [
   { value: "release", label: "Release in full to the creator" },
@@ -128,5 +128,57 @@ export function settlePreview(input: {
     businessGetsBackKobo,
     platformKeepsKobo: businessFeeKeptKobo + feeKobo,
     warning,
+  };
+}
+
+/** A hire's fee snapshot and price: what the preview line is worked from. */
+export type SettleFacts = {
+  agreedPriceKobo: number;
+  businessFeeKobo: number;
+  creatorFeeBps: number;
+  creatorMinFeeKobo: number;
+  /** The funding payment's charge; null if that payment can't be found. */
+  paystackChargeKobo: number | null;
+};
+
+/**
+ * What a settlement form shows under its fields while an admin fills it in:
+ * the one-line result for what is chosen so far, a problem with the typed
+ * amount (not while it is still empty), and a warning from the preview. Used
+ * by the escrow settle form and the dispute decision form, so both say the
+ * same thing. The server checks every input again.
+ */
+export function describeSettlePreview(
+  outcome: string,
+  amountText: string,
+  facts: SettleFacts,
+): { line: string | null; problem: string | null; warning: string | null } {
+  if (!isSettleOutcome(outcome)) {
+    return { line: null, problem: null, warning: null };
+  }
+  const typed = outcome === "split" ? parseNairaAmount(amountText) : null;
+  if (typed && !typed.ok) {
+    return {
+      line: null,
+      problem: amountText.trim() === "" ? null : typed.error,
+      warning: null,
+    };
+  }
+  const preview = settlePreview({
+    outcome,
+    ...facts,
+    releaseKobo: typed?.ok ? typed.kobo : null,
+  });
+  if (!preview.ok) {
+    return {
+      line: null,
+      problem: typed ? preview.error : null,
+      warning: null,
+    };
+  }
+  return {
+    line: `Creator receives ${formatNaira(preview.creatorGetsKobo)} after their ${formatNaira(preview.creatorFeeKobo)} fee · Business gets back ${formatNaira(preview.businessGetsBackKobo)} · Pitchype keeps ${formatNaira(preview.platformKeepsKobo)}`,
+    problem: null,
+    warning: preview.warning,
   };
 }

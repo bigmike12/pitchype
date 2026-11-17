@@ -7,6 +7,7 @@ import {
   mainActionFor,
   navFor,
   navGroups,
+  isItemActive,
   sectionLabel,
 } from "./portal.ts";
 
@@ -44,6 +45,7 @@ test("each role gets its own links", () => {
       ["/admin/hidden", "Hidden profiles"],
       ["/admin/money", "Money"],
       ["/admin/money/escrow", "Escrow"],
+      ["/admin/disputes", "Disputes"],
       ["/admin/money/payouts", "Payouts"],
       ["/admin/money/ledger", "Ledger"],
       ["/admin/money/reconciliation", "Reconciliation"],
@@ -99,7 +101,11 @@ test("the top bar names the section", () => {
   );
   assert.equal(sectionLabel("admin", "/admin"), "Overview");
   assert.equal(sectionLabel("admin", "/admin/money/ledger"), "Ledger");
-  assert.equal(sectionLabel("admin", "/admin/money/engagements/9f1c"), "Money");
+  assert.equal(
+    sectionLabel("admin", "/admin/money/engagements/9f1c"),
+    "Escrow",
+  );
+  assert.equal(sectionLabel("admin", "/admin/money/payouts/9f1c/x"), "Payouts");
   assert.equal(sectionLabel("influencer", "/account"), "Account");
   assert.equal(sectionLabel("influencer", "/account/standing"), "Account");
   assert.equal(
@@ -108,6 +114,16 @@ test("the top bar names the section", () => {
   );
   assert.equal(sectionLabel("influencer", "/jobs/9f1c"), "Your work");
   assert.equal(sectionLabel("influencer", "/somewhere-else"), null);
+});
+
+test("Disputes is an admin link with its own section name", () => {
+  assert.equal(isNavActive("/admin/disputes/9f1c", "/admin/disputes"), true);
+  assert.equal(isNavActive("/admin/disputes", "/admin"), false);
+  assert.equal(sectionLabel("admin", "/admin/disputes/9f1c"), "Disputes");
+  assert.equal(
+    navFor("admin").find((i) => i.href === "/admin/disputes")?.icon,
+    "disputes",
+  );
 });
 
 test("greets by first name", () => {
@@ -152,4 +168,17 @@ test("the sidebar groups links under captions, keeping their order", () => {
     ],
   );
   assert.deepEqual(navGroups([]), []);
+});
+
+test("a hire's page lights up the sidebar link it belongs to", () => {
+  const link = (role: "business" | "influencer" | "admin", href: string) =>
+    navFor(role).find((item) => item.href === href)!;
+  const board = link("business", "/business/board");
+  const work = link("influencer", "/applications");
+  const escrow = link("admin", "/admin/money/escrow");
+  assert.equal(isItemActive("/business/engagements/9f1c/pay", board), true);
+  assert.equal(isItemActive("/business/engagements/9f1c", board), true);
+  assert.equal(isItemActive("/jobs/9f1c/dispute", work), true);
+  assert.equal(isItemActive("/admin/money/engagements/9f1c", escrow), true);
+  assert.equal(isItemActive("/business/engagementsx/9f1c", board), false);
 });

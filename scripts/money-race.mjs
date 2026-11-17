@@ -1,4 +1,4 @@
-// Races the Stage 6 money functions against each other on the local Supabase
+// Races the Stage 6 and 7 money functions against each other on the local Supabase
 // database, each call in its own Postgres session, and checks that money
 // never moves twice and the ledger always balances. pgTAP runs in one
 // transaction, so it cannot show what happens when sessions overlap; this can.
@@ -30,6 +30,10 @@ import {
   charge,
   checker,
   creatorWithBalance,
+  denyCall,
+  deniedHire,
+  disputeFacts,
+  disputedHire,
   eventKey,
   eventsStored,
   fmt,
@@ -40,6 +44,7 @@ import {
   must,
   newAdmin,
   newHire,
+  overdueHire,
   overlap,
   paymentFacts,
   paymentsOf,
@@ -52,6 +57,11 @@ import {
   run,
   settleCall,
   startPayment,
+  startedHire,
+  submissionFacts,
+  submitCall,
+  submittedHire,
+  sweepCall,
   tally,
   times,
   wallet,
@@ -875,6 +885,438 @@ async function requestVsFailedTransfer(c) {
   return `orders ${fmt(tally(orders))}`;
 }
 
+// The job sweeps every overdue hire in the local database, so a hire left over
+// from an aborted run can add to its count. The scenarios therefore judge the
+// job's answer only by 'none failed' and 'at least this many released', and
+// read what happened to their own hire from the hire itself.
+function sweepCounts(answer) {
+  const [released, failed] = String(answer).split("/").map(Number);
+  return { released, failed };
+}
+
+// 16 ----------------------------------------------------------------------------------------------------
+//
+// Stage 7. Every scenario below ends with exactly one settlement group (or none,
+// when the race is not about money) and the shared invariants, which now count
+// submitted, denied and disputed hires as holding their price.
+
+async function acceptVsAutoRelease(c) {
+  // The business accepts an overdue hire while the daily job releases it.
+  // Whoever is second finds it released: accept after the job is refused
+  // (engagement_locked), the job after accept finds nothing to do (0).
+  // Which call reaches its lock first varies run to run, so later rounds hold
+  // one back a few milliseconds ([accept delay, job delay]) to reach both orders.
+  const orders = [];
+  const lateBy = [
+    [0, 0],
+    [2, 0],
+    [0, 2],
+    [4, 0],
+    [0, 4],
+  ];
+  for (let round = 1; round <= lateBy.length; round++) {
+    const hire = await overdueHire(PRICE);
+    const [accepted, swept] = await racePair(
+      {
+        who: as.user(hire.business),
+        call: `public.accept_submission(${lit(hire.id)})`,
+        delayMs: lateBy[round - 1][0],
+      },
+      {
+        who: as.service,
+        call: sweepCall,
+        delayMs: lateBy[round - 1][1],
+      },
+      round % 2 === 0,
+    );
+    const f = await hireFacts(hire);
+    c.eq(
+      `round ${round}: hire`,
+      [
+        f.status,
+        f.settle_outcome,
+        f.escrow,
+        f.settlements,
+        f.creator_fee_lines,
+      ],
+      ["auto_released", "release", 0, 1, 1],
+    );
+    c.eq(
+      `round ${round}: wallets`,
+      [f.creator_wallet, f.business_wallet],
+      [CREATOR_NET, 0],
+    );
+    c.eq(`round ${round}: submission`, await submissionFacts(hire), [
+      {
+        round: 1,
+        status: "auto_accepted",
+        has_reasons: false,
+        decided_by_system: true,
+      },
+    ]);
+    if (accepted === "auto_released") {
+      orders.push("accept first");
+      c.eq(
+        `round ${round} accept first: [accept, job]`,
+        [accepted, sweepCounts(swept).failed],
+        ["auto_released", 0],
+      );
+    } else {
+      orders.push("job first");
+      c.eq(
+        `round ${round} job first: [accept, job]`,
+        [accepted, sweepCounts(swept).released >= 1, sweepCounts(swept).failed],
+        ["error:engagement_locked", true, 0],
+      );
+    }
+  }
+  c.winners("accept vs auto-release", orders);
+
+  // The job run three times at once on one overdue hire releases it once.
+  const hire = await overdueHire(PRICE);
+  const sweeps = await race(
+    times(3, () => ({ who: as.service, call: sweepCall })),
+  );
+  c.ok(
+    `3× job: ${fmt(tally(sweeps))} (none failed)`,
+    sweeps.every((o) => sweepCounts(o).failed === 0),
+  );
+  const f = await hireFacts(hire);
+  c.eq(
+    "3× job: hire",
+    [f.status, f.escrow, f.settlements, f.creator_wallet],
+    ["auto_released", 0, 1, CREATOR_NET],
+  );
+  c.ok(
+    "3× job: someone released it",
+    sweeps.some((o) => sweepCounts(o).released >= 1),
+  );
+  return `accept vs job ${fmt(tally(orders))} | 3× job ${fmt(tally(sweeps))}`;
+}
+
+// 17 ----------------------------------------------------------------------------------------------------
+
+async function denyVsAutoRelease(c) {
+  // The deadline has passed, so the business may no longer deny: either deny
+  // closes the review itself (review_closed) or the job got there first
+  // (engagement_locked). Either way the hire is auto-released and no denial is stored.
+  const orders = [];
+  // Which call reaches its lock first varies run to run, so each round holds
+  // one back a few milliseconds ([deny delay, job delay]) to reach both orders.
+  const lateBy = [
+    [0, 0],
+    [0, 2],
+    [0, 4],
+    [2, 0],
+    [4, 0],
+  ];
+  for (let round = 1; round <= lateBy.length; round++) {
+    const hire = await overdueHire(PRICE);
+    const [denied, swept] = await racePair(
+      {
+        who: as.user(hire.business),
+        call: denyCall(hire),
+        delayMs: lateBy[round - 1][0],
+      },
+      {
+        who: as.service,
+        call: sweepCall,
+        delayMs: lateBy[round - 1][1],
+      },
+      round % 2 === 0,
+    );
+    const f = await hireFacts(hire);
+    c.eq(
+      `round ${round}: hire`,
+      [f.status, f.settle_outcome, f.escrow, f.settlements, f.creator_wallet],
+      ["auto_released", "release", 0, 1, CREATOR_NET],
+    );
+    c.eq(
+      `round ${round}: submission, no denial stored`,
+      await submissionFacts(hire),
+      [
+        {
+          round: 1,
+          status: "auto_accepted",
+          has_reasons: false,
+          decided_by_system: true,
+        },
+      ],
+    );
+    if (denied === "review_closed") {
+      orders.push("deny first");
+      c.eq(
+        `round ${round} deny first: [deny, job]`,
+        [denied, sweepCounts(swept).failed],
+        ["review_closed", 0],
+      );
+    } else {
+      orders.push("job first");
+      c.eq(
+        `round ${round} job first: [deny, job]`,
+        [denied, sweepCounts(swept).released >= 1, sweepCounts(swept).failed],
+        ["error:engagement_locked", true, 0],
+      );
+    }
+  }
+  c.winners("deny vs auto-release", orders);
+  return `orders ${fmt(tally(orders))}`;
+}
+
+// 18 ----------------------------------------------------------------------------------------------------
+
+async function decideVsAcceptOnDispute(c) {
+  // Denied work, disputed by the creator: the business may still accept it
+  // while the admin decides. One of them settles; the other is refused.
+  const admin = await newAdmin();
+  const winners = [];
+  // The business's accept usually reaches its lock first, so later rounds start
+  // it a few milliseconds late to let the admin go first too.
+  const lateBy = [0, 1, 2, 3, 4];
+  for (let round = 1; round <= lateBy.length; round++) {
+    const hire = await disputedHire(PRICE);
+    const [decided, accepted] = await racePair(
+      {
+        who: as.user(admin),
+        call: `public.decide_dispute(${lit(hire.dispute)}, 'release', null::bigint, 'race test')`,
+      },
+      {
+        who: as.user(hire.business),
+        call: `public.accept_submission(${lit(hire.id)})`,
+        delayMs: lateBy[round - 1],
+      },
+      round % 2 === 0,
+    );
+    const f = await hireFacts(hire);
+    const [dispute] = await disputeFacts(hire);
+    c.eq(
+      `round ${round}: hire`,
+      [
+        f.status,
+        f.settle_outcome,
+        f.escrow,
+        f.settlements,
+        f.creator_wallet,
+        f.business_wallet,
+      ],
+      ["accepted", "release", 0, 1, CREATOR_NET, 0],
+    );
+    if (decided === "ok") {
+      winners.push("admin decides");
+      c.eq(
+        `round ${round} admin won: [decide, accept]`,
+        [decided, accepted],
+        ["ok", "error:engagement_locked"],
+      );
+      c.eq(`round ${round} admin won: dispute`, dispute, {
+        status: "decided",
+        outcome: "release",
+        closed: true,
+      });
+      c.eq(
+        `round ${round} admin won: submission stays denied`,
+        (await submissionFacts(hire)).map((s) => s.status),
+        ["denied"],
+      );
+    } else {
+      winners.push("business accepts");
+      c.eq(
+        `round ${round} business won: [decide, accept]`,
+        [decided, accepted],
+        ["error:dispute_closed", "accepted"],
+      );
+      c.eq(`round ${round} business won: dispute`, dispute, {
+        status: "decided",
+        outcome: "accepted_by_business",
+        closed: true,
+      });
+      c.eq(
+        `round ${round} business won: submission`,
+        (await submissionFacts(hire)).map((s) => s.status),
+        ["accepted"],
+      );
+    }
+  }
+  c.winners("decide vs accept", winners);
+  return `winners ${fmt(tally(winners))}`;
+}
+
+// 19 ----------------------------------------------------------------------------------------------------
+
+async function doubleSubmit(c) {
+  // Two submits at once on work in progress: one round 1.
+  const fresh = await startedHire(PRICE);
+  const first = await race(
+    times(2, () => ({ who: as.user(fresh.creator), call: submitCall(fresh) })),
+  );
+  sameCounts(c, "2× submit_work", first, {
+    ok: 1,
+    "error:engagement_locked": 1,
+  });
+  const f1 = await hireFacts(fresh);
+  c.eq(
+    "hire",
+    [f1.status, f1.escrow, f1.settlements],
+    ["submitted", -PRICE, 0],
+  );
+  c.eq("one round 1 waiting for review", await submissionFacts(fresh), [
+    {
+      round: 1,
+      status: "pending_review",
+      has_reasons: false,
+      decided_by_system: false,
+    },
+  ]);
+
+  // Two resubmits at once after a denial: one round 2.
+  const denied = await deniedHire(PRICE);
+  const again = await race(
+    times(2, () => ({
+      who: as.user(denied.creator),
+      call: submitCall(denied),
+    })),
+  );
+  sameCounts(c, "2× resubmit", again, { ok: 1, "error:engagement_locked": 1 });
+  const f2 = await hireFacts(denied);
+  c.eq(
+    "resubmitted hire",
+    [f2.status, f2.escrow, f2.settlements],
+    ["submitted", -PRICE, 0],
+  );
+  c.eq("one round 2 waiting for review", await submissionFacts(denied), [
+    { round: 1, status: "denied", has_reasons: true, decided_by_system: false },
+    {
+      round: 2,
+      status: "pending_review",
+      has_reasons: false,
+      decided_by_system: false,
+    },
+  ]);
+  return `first ${fmt(tally(first))} | resubmit ${fmt(tally(again))}`;
+}
+
+// 20 ----------------------------------------------------------------------------------------------------
+
+async function withdrawVsAccept(c) {
+  // The creator can't walk away once work is submitted, in either order: the
+  // withdrawal is refused and the accept releases once.
+  const withdrawn = [];
+  for (let round = 1; round <= 3; round++) {
+    const hire = await submittedHire(PRICE);
+    const [withdraw, accepted] = await racePair(
+      {
+        who: as.user(hire.creator),
+        call: `public.withdraw_from_engagement(${lit(hire.id)})`,
+      },
+      {
+        who: as.user(hire.business),
+        call: `public.accept_submission(${lit(hire.id)})`,
+      },
+      round % 2 === 0,
+    );
+    withdrawn.push(withdraw);
+    c.eq(
+      `round ${round}: [withdraw, accept]`,
+      [withdraw, accepted],
+      ["error:engagement_locked", "accepted"],
+    );
+    const f = await hireFacts(hire);
+    c.eq(
+      `round ${round}: hire`,
+      [
+        f.status,
+        f.settle_outcome,
+        f.escrow,
+        f.settlements,
+        f.creator_wallet,
+        f.business_wallet,
+      ],
+      ["accepted", "release", 0, 1, CREATOR_NET, 0],
+    );
+  }
+  return `withdraw ${fmt(tally(withdrawn))}`;
+}
+
+// 21 ----------------------------------------------------------------------------------------------------
+
+async function decideVsWithdrawDispute(c) {
+  // An open dispute is either decided by the admin or withdrawn by its opener,
+  // never both. A withdrawal moves no money and returns the hire to denied.
+  const admin = await newAdmin();
+  const winners = [];
+  // Which call reaches its lock first varies run to run, so each round holds
+  // one back a few milliseconds ([decide delay, withdraw delay]).
+  const lateBy = [
+    [0, 0],
+    [0, 2],
+    [2, 0],
+    [0, 4],
+    [4, 0],
+  ];
+  for (let round = 1; round <= lateBy.length; round++) {
+    const hire = await disputedHire(PRICE);
+    const [decided, withdrew] = await racePair(
+      {
+        who: as.user(admin),
+        call: `public.decide_dispute(${lit(hire.dispute)}, 'release', null::bigint, 'race test')`,
+        delayMs: lateBy[round - 1][0],
+      },
+      {
+        who: as.user(hire.creator),
+        call: `public.withdraw_dispute(${lit(hire.dispute)})`,
+        delayMs: lateBy[round - 1][1],
+      },
+      round % 2 === 0,
+    );
+    const f = await hireFacts(hire);
+    const [dispute] = await disputeFacts(hire);
+    if (decided === "ok") {
+      winners.push("admin decides");
+      c.eq(
+        `round ${round} admin won: [decide, withdraw]`,
+        [decided, withdrew],
+        ["ok", "error:dispute_closed"],
+      );
+      c.eq(
+        `round ${round} admin won: hire`,
+        [f.status, f.settle_outcome, f.escrow, f.settlements, f.creator_wallet],
+        ["accepted", "release", 0, 1, CREATOR_NET],
+      );
+      c.eq(`round ${round} admin won: dispute`, dispute, {
+        status: "decided",
+        outcome: "release",
+        closed: true,
+      });
+    } else {
+      winners.push("creator withdraws");
+      c.eq(
+        `round ${round} withdraw won: [decide, withdraw]`,
+        [decided, withdrew],
+        ["error:dispute_closed", "ok"],
+      );
+      c.eq(
+        `round ${round} withdraw won: hire`,
+        [
+          f.status,
+          f.settle_outcome,
+          f.escrow,
+          f.settlements,
+          f.creator_wallet,
+          f.business_wallet,
+        ],
+        ["denied", null, -PRICE, 0, 0, 0],
+      );
+      c.eq(`round ${round} withdraw won: dispute`, dispute, {
+        status: "withdrawn",
+        outcome: null,
+        closed: true,
+      });
+    }
+  }
+  c.winners("decide vs withdraw", winners);
+  return `winners ${fmt(tally(winners))}`;
+}
+
 // Runner ------------------------------------------------------------------------------------------------
 
 const scenarios = [
@@ -893,6 +1335,12 @@ const scenarios = [
   ["13 settle vs cancel and start", settleVsCancel],
   ["14 concurrent start_payment", concurrentStartPayment],
   ["15 payout request vs failed transfer", requestVsFailedTransfer],
+  ["16 accept vs auto-release", acceptVsAutoRelease],
+  ["17 deny vs auto-release", denyVsAutoRelease],
+  ["18 decide dispute vs accept", decideVsAcceptOnDispute],
+  ["19 double submit", doubleSubmit],
+  ["20 withdraw vs accept", withdrawVsAccept],
+  ["21 decide dispute vs withdraw dispute", decideVsWithdrawDispute],
 ];
 
 async function runOnce(scenario) {

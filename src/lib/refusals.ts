@@ -1,7 +1,8 @@
-// Every refusal the Stage 5 and 6 database functions raise (errcode P0001, the
+// Every refusal the Stage 5 to 7 database functions raise (errcode P0001, the
 // code as the message), with the words people see. One list for
-// applications, payments, chat and account standing, because several codes
-// (not_allowed, activity_paused, account_suspended) are shared.
+// applications, payments, reviewing work, disputes, chat and account
+// standing, because several codes (not_allowed, activity_paused,
+// account_suspended) are shared.
 // No framework imports, so it can be unit-tested.
 
 const REFUSAL_TEXT = {
@@ -41,6 +42,26 @@ const REFUSAL_TEXT = {
   settle_reason_required: "Write a reason of up to 500 characters.",
   escrow_mismatch:
     "This hire’s escrow doesn’t match its price. Open its money trail to see why.",
+  // Submitting and reviewing work
+  no_rounds_left:
+    "You’ve used all 3 resubmissions. You can open a dispute or withdraw from the job.",
+  review_closed:
+    "The review time for this work has ended, so the money has been released to the creator.",
+  proof_required: "Add at least one link or one screenshot.",
+  proof_invalid:
+    "Check your proof: up to 10 links starting with http:// or https://, each up to 500 characters, up to 5 different screenshots, and a note of up to 1,000 characters.",
+  reasons_required: "Give 1 to 5 reasons, each 3 to 500 characters.",
+  dispute_open:
+    "There’s an open dispute on this hire. An admin will decide it.",
+  not_your_file: "One of those screenshots can’t be used. Upload it again.",
+  // Disputes
+  dispute_not_allowed_yet:
+    "You can open a dispute about missing work once the deliver-by date has passed and the creator has had a week since starting.",
+  dispute_reason_invalid: "Explain the problem in 20 to 2,000 characters.",
+  statement_invalid: "Write a statement of up to 2,000 characters.",
+  no_such_dispute: "We couldn’t find that dispute.",
+  dispute_closed: "This dispute has already been closed.",
+  contact_details: "Keep contact details out of disputes.",
   // Payouts
   no_bank_account: "Add a bank account before asking for a payout.",
   payout_too_small: "The smallest payout is ₦1,000.",

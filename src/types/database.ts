@@ -496,6 +496,112 @@ export type Database = {
           },
         ]
       }
+      dispute_statements: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          dispute_id: string
+          id: string
+          links: string[]
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          dispute_id: string
+          id?: string
+          links?: string[]
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          dispute_id?: string
+          id?: string
+          links?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispute_statements_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispute_statements_dispute_id_fkey"
+            columns: ["dispute_id"]
+            isOneToOne: false
+            referencedRelation: "disputes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      disputes: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          decision_reason: string | null
+          engagement_id: string
+          id: string
+          opened_at: string
+          opened_by: string
+          opened_from: Database["public"]["Enums"]["engagement_status"]
+          outcome: string | null
+          reason: string
+          status: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          decision_reason?: string | null
+          engagement_id: string
+          id?: string
+          opened_at?: string
+          opened_by: string
+          opened_from: Database["public"]["Enums"]["engagement_status"]
+          outcome?: string | null
+          reason: string
+          status?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          decision_reason?: string | null
+          engagement_id?: string
+          id?: string
+          opened_at?: string
+          opened_by?: string
+          opened_from?: Database["public"]["Enums"]["engagement_status"]
+          outcome?: string | null
+          reason?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disputes_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disputes_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disputes_opened_by_fkey"
+            columns: ["opened_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       engagements: {
         Row: {
           agreed_price_kobo: number
@@ -1285,6 +1391,61 @@ export type Database = {
           },
         ]
       }
+      proof_files: {
+        Row: {
+          bytes: number
+          content_type: string
+          created_at: string
+          dispute_statement_id: string | null
+          id: string
+          owner_id: string
+          path: string
+          submission_id: string | null
+        }
+        Insert: {
+          bytes: number
+          content_type: string
+          created_at?: string
+          dispute_statement_id?: string | null
+          id?: string
+          owner_id: string
+          path: string
+          submission_id?: string | null
+        }
+        Update: {
+          bytes?: number
+          content_type?: string
+          created_at?: string
+          dispute_statement_id?: string | null
+          id?: string
+          owner_id?: string
+          path?: string
+          submission_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proof_files_dispute_statement_id_fkey"
+            columns: ["dispute_statement_id"]
+            isOneToOne: false
+            referencedRelation: "dispute_statements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proof_files_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proof_files_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reconciliation_runs: {
         Row: {
           difference_kobo: number
@@ -1311,6 +1472,69 @@ export type Database = {
           ran_at?: string
         }
         Relationships: []
+      }
+      submissions: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          denial_reasons: string[] | null
+          engagement_id: string
+          id: string
+          links: string[]
+          note: string | null
+          reminded_1d_at: string | null
+          reminded_3d_at: string | null
+          review_deadline_at: string
+          round: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          denial_reasons?: string[] | null
+          engagement_id: string
+          id?: string
+          links?: string[]
+          note?: string | null
+          reminded_1d_at?: string | null
+          reminded_3d_at?: string | null
+          review_deadline_at: string
+          round: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          denial_reasons?: string[] | null
+          engagement_id?: string
+          id?: string
+          links?: string[]
+          note?: string | null
+          reminded_1d_at?: string | null
+          reminded_3d_at?: string | null
+          review_deadline_at?: string
+          round?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submissions_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_blocks: {
         Row: {
@@ -1563,7 +1787,17 @@ export type Database = {
       }
     }
     Functions: {
+      accept_submission: { Args: { engagement: string }; Returns: string }
       active_strike_count: { Args: { person: string }; Returns: number }
+      add_dispute_statement: {
+        Args: {
+          body: string
+          dispute: string
+          file_ids: string[]
+          links: string[]
+        }
+        Returns: string
+      }
       admin_engagement_trail: { Args: { engagement: string }; Returns: Json }
       admin_ledger: {
         Args: {
@@ -1669,12 +1903,26 @@ export type Database = {
         Args: { application: string; decision: string; note: string }
         Returns: undefined
       }
+      decide_dispute: {
+        Args: {
+          dispute: string
+          outcome: string
+          reason: string
+          release_kobo: number
+        }
+        Returns: undefined
+      }
+      delete_orphan_proof_files: { Args: never; Returns: string[] }
       deliverable_kind_allowed: {
         Args: {
           kind: Database["public"]["Enums"]["deliverable_kind"]
           on_platform: Database["public"]["Enums"]["social_platform"]
         }
         Returns: boolean
+      }
+      deny_submission: {
+        Args: { engagement: string; reasons: string[] }
+        Returns: string
       }
       display_name_of: { Args: { person: string }; Returns: string }
       edit_application: {
@@ -1776,6 +2024,10 @@ export type Database = {
       my_blocks: { Args: never; Returns: Json }
       my_conversations: { Args: never; Returns: Json }
       new_verification_code: { Args: never; Returns: string }
+      non_delivery_dispute_at: {
+        Args: { e: Database["public"]["Tables"]["engagements"]["Row"] }
+        Returns: string
+      }
       notify: {
         Args: {
           facts: Json
@@ -1786,6 +2038,15 @@ export type Database = {
         Returns: undefined
       }
       open_campaign_count: { Args: never; Returns: number }
+      open_dispute: {
+        Args: {
+          engagement: string
+          file_ids: string[]
+          links: string[]
+          reason: string
+        }
+        Returns: string
+      }
       pay_from_wallet: {
         Args: { engagement: string; fee_notice_seen: boolean }
         Returns: undefined
@@ -1827,11 +2088,31 @@ export type Database = {
         Args: { dedupe: string; detail: string; flag: string; person: string }
         Returns: Json
       }
+      register_proof_file: {
+        Args: {
+          bytes: number
+          content_type: string
+          owner: string
+          path: string
+        }
+        Returns: string
+      }
       reject_payout: {
         Args: { payout: string; reason: string }
         Returns: undefined
       }
       relax_standing: { Args: { person: string }; Returns: undefined }
+      release_if_overdue: {
+        Args: { e: Database["public"]["Tables"]["engagements"]["Row"] }
+        Returns: boolean
+      }
+      release_overdue_submissions: {
+        Args: never
+        Returns: {
+          failed: number
+          released: number
+        }[]
+      }
       report_campaign: {
         Args: {
           campaign: string
@@ -1941,6 +2222,7 @@ export type Database = {
         Args: { body: string; conversation: string; dedupe: string }
         Returns: Json
       }
+      send_review_reminders: { Args: never; Returns: number }
       set_creator_hidden: {
         Args: { creator: string; reason: string }
         Returns: undefined
@@ -1961,6 +2243,7 @@ export type Database = {
           outcome: string
           reason: string
           release_kobo: number
+          release_status?: Database["public"]["Enums"]["engagement_status"]
         }
         Returns: undefined
       }
@@ -1993,6 +2276,15 @@ export type Database = {
         Args: { request_id: string }
         Returns: undefined
       }
+      submit_work: {
+        Args: {
+          engagement: string
+          file_ids: string[]
+          links: string[]
+          note: string
+        }
+        Returns: string
+      }
       transfer_fee_for: { Args: { amount_kobo: number }; Returns: number }
       transition_campaign: {
         Args: { action: string; campaign_id: string; note?: string }
@@ -2017,6 +2309,21 @@ export type Database = {
       withdraw_application: {
         Args: { application: string }
         Returns: undefined
+      }
+      withdraw_dispute: { Args: { dispute: string }; Returns: undefined }
+      withdraw_from_engagement: {
+        Args: { engagement: string }
+        Returns: undefined
+      }
+      write_dispute_statement: {
+        Args: {
+          author: string
+          body: string
+          dispute: string
+          file_ids: string[]
+          links: string[]
+        }
+        Returns: string
       }
     }
     Enums: {
@@ -2086,6 +2393,12 @@ export type Database = {
         | "payout_failed"
         | "payout_rejected"
         | "payment_stranded"
+        | "work_submitted"
+        | "submission_denied"
+        | "review_reminder"
+        | "dispute_opened"
+        | "dispute_statement"
+        | "dispute_withdrawn"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -2301,6 +2614,12 @@ export const Constants = {
         "payout_failed",
         "payout_rejected",
         "payment_stranded",
+        "work_submitted",
+        "submission_denied",
+        "review_reminder",
+        "dispute_opened",
+        "dispute_statement",
+        "dispute_withdrawn",
       ],
       payment_model: ["fixed", "per_click"],
       report_reason: [

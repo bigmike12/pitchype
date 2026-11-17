@@ -12,7 +12,10 @@ import {
 import { StatCard } from "@/components/ui/stat-card";
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
-import { getLatestReconciliation, listEscrowEngagements } from "@/lib/db/money";
+import {
+  getLatestReconciliation,
+  countEscrowEngagements,
+} from "@/lib/db/money";
 import { countPayoutsAwaitingApproval } from "@/lib/db/payouts";
 
 import { Reconciliation } from "./reconciliation-callout";
@@ -48,7 +51,7 @@ async function Money() {
   const [reconciliation, waiting, escrow] = await Promise.all([
     getLatestReconciliation(),
     countPayoutsAwaitingApproval(),
-    listEscrowEngagements(),
+    countEscrowEngagements(),
   ]);
 
   return (
@@ -71,7 +74,7 @@ async function Money() {
         />
         <StatCard
           label="Hires in escrow"
-          value={`${escrow.hires.length}${escrow.more ? "+" : ""}`}
+          value={String(escrow)}
           detail="Paid for, not settled yet"
           icon={ShieldCheck}
           tone="lilac"

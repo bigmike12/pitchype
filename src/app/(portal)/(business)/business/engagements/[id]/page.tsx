@@ -1,14 +1,26 @@
-import { CircleCheck, CircleSlash, Clock, Hammer } from "lucide-react";
+import {
+  CircleCheck,
+  CircleSlash,
+  Clock,
+  Hammer,
+  Hourglass,
+  Scale,
+  Undo2,
+  type LucideIcon,
+} from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { DisputeForm } from "@/components/engagement/dispute-form";
+import { Rounds } from "@/components/engagement/rounds";
 import { buttonVariants } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
 import {
+  FormSkeleton,
   HeaderSkeleton,
   PageLoading,
   PanelSkeleton,
@@ -16,16 +28,30 @@ import {
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
 import { getEngagementDetails } from "@/lib/db/applications";
+import { getLatestDisputeId } from "@/lib/db/disputes";
+import { listSubmissions } from "@/lib/db/submissions";
 import { feeExample } from "@/lib/fees";
 import { describeHireStatus } from "@/lib/hire-status-words";
 import { formatNaira } from "@/lib/money";
 import { CONTACT_EMAIL } from "@/lib/site";
 
+import { openDisputeAction } from "./actions";
 import { CancelFundedForm } from "./cancel-form";
+import { ReviewForm } from "./review-form";
 
 export const metadata: Metadata = { title: "Your hire" };
 
 type Params = Promise<{ id: string }>;
+
+const CALLOUT_ICONS: Record<string, LucideIcon> = {
+  awaiting_payment: Clock,
+  in_progress: Hammer,
+  submitted: Hourglass,
+  denied: Undo2,
+  disputed: Scale,
+  cancelled: CircleSlash,
+  refunded: CircleSlash,
+};
 
 export default function EngagementPage({ params }: { params: Params }) {
   return (
@@ -35,6 +61,9 @@ export default function EngagementPage({ params }: { params: Params }) {
           <PageLoading label="Loading the hire…">
             <HeaderSkeleton crumbs />
             <PanelSkeleton lines={3} />
+            <div className="mt-4">
+              <FormSkeleton fields={2} />
+            </div>
             <div className="mt-4">
               <PanelSkeleton lines={4} />
             </div>
@@ -53,6 +82,12 @@ async function Engagement({ params }: { params: Params }) {
   const engagement = await getEngagementDetails(id);
   if (!engagement || engagement.business.id !== user.id) notFound();
 
+  // Newest round first: the one being reviewed leads the history.
+  const rounds = (await listSubmissions(engagement.id)).reverse();
+  const toReview = rounds.find((round) => round.status === "pending_review");
+  // Kept after the dispute ends, so either person can read how it went.
+  const disputeId = await getLatestDisputeId(engagement.id);
+
   const feeKobo =
     engagement.businessFeeKobo ??
     feeExample(engagement.agreedPriceKobo).businessFeeKobo;
@@ -60,6 +95,7 @@ async function Engagement({ params }: { params: Params }) {
     { ...engagement, creatorName: engagement.creator.name },
     new Date(),
   );
+  const showReview = status.canReview && toReview !== undefined;
   const applicationsHref = `/business/campaigns/${engagement.campaign.id}/applications`;
 
   const timeline = [
@@ -91,21 +127,16 @@ async function Engagement({ params }: { params: Params }) {
         <div className="xl:col-start-1">
           <Callout
             tone={
-              engagement.status === "awaiting_payment"
+              engagement.status === "awaiting_payment" ||
+              engagement.status === "denied"
                 ? "attention"
-                : status.done
+                : status.done ||
+                    engagement.status === "submitted" ||
+                    engagement.status === "disputed"
                   ? "info"
                   : "success"
             }
-            icon={
-              engagement.status === "awaiting_payment"
-                ? Clock
-                : engagement.status === "in_progress"
-                  ? Hammer
-                  : status.done && engagement.status === "cancelled"
-                    ? CircleSlash
-                    : CircleCheck
-            }
+            icon={CALLOUT_ICONS[engagement.status] ?? CircleCheck}
             title={status.title}
             action={
               status.canPay ? (
@@ -156,7 +187,50 @@ async function Engagement({ params }: { params: Params }) {
             </div>
           </dl>
         </div>
-        <div className="xl:col-start-1">
+        <div className="space-y-4 xl:col-start-1">
+          {showReview && (
+            <SectionCard id="review-title" title="Work to review">
+              <Rounds rounds={[toReview]} />
+              <div className="space-y-4 border-t border-hairline p-4 sm:p-5">
+                <p className="text-sm font-semibold text-ink">
+                  Review by{" "}
+                  <time dateTime={toReview.reviewDeadlineAt}>
+                    {formatDateTime(toReview.reviewDeadlineAt)}
+                  </time>{" "}
+                  (Lagos time), or it’s released automatically.
+                </p>
+                <ReviewForm
+                  engagementId={engagement.id}
+                  creatorName={engagement.creator.name}
+                  priceKobo={engagement.agreedPriceKobo}
+                />
+              </div>
+            </SectionCard>
+          )}
+          {/* The review panel shows the round being reviewed; whenever it
+              isn't shown (including a lone round whose review time has
+              ended) the history is, so the work is never hidden. */}
+          {(rounds.length > 1 || (rounds.length === 1 && !showReview)) && (
+            <SectionCard
+              id="rounds-title"
+              title={
+                rounds.length > 1 ? "All rounds of work" : "The work sent in"
+              }
+            >
+              <Rounds rounds={rounds} />
+            </SectionCard>
+          )}
+          {disputeId && (
+            <Link
+              href={`/business/engagements/${engagement.id}/dispute`}
+              className={buttonVariants({ variant: "secondary" })}
+            >
+              {engagement.openDisputeId
+                ? "See the dispute"
+                : "See the closed dispute"}
+            </Link>
+          )}
+
           <SectionCard id="timeline" title="What’s happened">
             <ol className="divide-y divide-hairline">
               {timeline.map((step) => (
@@ -173,6 +247,17 @@ async function Engagement({ params }: { params: Params }) {
             </ol>
           </SectionCard>
 
+          {status.canOpenDispute && (
+            <DisputeForm
+              engagementId={engagement.id}
+              action={openDisputeAction}
+              intro={
+                engagement.status === "denied"
+                  ? `If you and ${engagement.creator.name} can’t agree about the work, open a dispute. An admin will read both sides and decide how the money is paid out. You and ${engagement.creator.name} can each add statements while it is open.`
+                  : `The delivery date has passed and ${engagement.creator.name} hasn’t sent in the work. Open a dispute and an admin will decide how the money is paid out. You and ${engagement.creator.name} can each add statements while it is open.`
+              }
+            />
+          )}
           {engagement.status === "funded" && (
             <CancelFundedForm
               engagementId={engagement.id}

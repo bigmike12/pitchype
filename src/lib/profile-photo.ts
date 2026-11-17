@@ -11,7 +11,19 @@ export const PHOTO_SIZE = 512;
 const ACCEPTED_FORMATS = new Set(["jpeg", "png", "webp"]);
 
 // Refuses "decompression bombs": small files that expand to huge images.
-const MAX_INPUT_PIXELS = 50_000_000;
+export const MAX_INPUT_PIXELS = 50_000_000;
+
+/** True when the file's contents (not its name) are a JPEG, PNG or WebP. */
+export async function hasAcceptedFormat(input: Uint8Array): Promise<boolean> {
+  try {
+    const { format } = await sharp(input, {
+      limitInputPixels: MAX_INPUT_PIXELS,
+    }).metadata();
+    return format !== undefined && ACCEPTED_FORMATS.has(format);
+  } catch {
+    return false;
+  }
+}
 
 export type PhotoResult =
   | { ok: true; webp: Buffer }
@@ -24,15 +36,7 @@ export async function processProfilePhoto(
     return { ok: false, reason: "too_large" };
   }
 
-  let format: string | undefined;
-  try {
-    ({ format } = await sharp(input, {
-      limitInputPixels: MAX_INPUT_PIXELS,
-    }).metadata());
-  } catch {
-    return { ok: false, reason: "unsupported" };
-  }
-  if (!format || !ACCEPTED_FORMATS.has(format)) {
+  if (!(await hasAcceptedFormat(input))) {
     return { ok: false, reason: "unsupported" };
   }
 

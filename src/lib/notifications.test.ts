@@ -124,6 +124,12 @@ test("missing facts never show 'undefined'", () => {
     "payout_failed",
     "payout_rejected",
     "payment_stranded",
+    "work_submitted",
+    "submission_denied",
+    "review_reminder",
+    "dispute_opened",
+    "dispute_statement",
+    "dispute_withdrawn",
   ]) {
     const d = describeNotification(row(kind));
     assert.ok(d, kind);
@@ -162,9 +168,15 @@ test("a cancelled paid hire reads differently for each side", () => {
     row("funded_hire_cancelled", { ...hire, name: "Tolu" }),
     "business",
   );
-  assert.equal(forCreator?.title, "Ada Kitchen cancelled your paid hire for “Zobo week”");
+  assert.equal(
+    forCreator?.title,
+    "Ada Kitchen cancelled your paid hire for “Zobo week”",
+  );
   assert.equal(forCreator?.href, "/jobs/e1");
-  assert.equal(forBusiness?.title, "Tolu withdrew from your paid hire for “Zobo week”");
+  assert.equal(
+    forBusiness?.title,
+    "Tolu withdrew from your paid hire for “Zobo week”",
+  );
   assert.match(forBusiness?.body ?? "", /wallet/i);
   assert.equal(forBusiness?.href, "/business/engagements/e1");
 });
@@ -352,6 +364,177 @@ test("a creator's job link falls back to their applications without a hire", () 
     const d = describeNotification(row(kind, campaign), "influencer");
     assert.equal(d?.href, "/applications", kind);
   }
+});
+
+test("a submission tells the business to review, with the deadline", () => {
+  const d = describeNotification(
+    row("work_submitted", {
+      ...hire,
+      name: "Tolu",
+      review_deadline_at: "2026-11-24T10:00:00Z",
+    }),
+    "business",
+  );
+  assert.equal(d?.title, "Tolu submitted work for “Zobo week”");
+  assert.match(d?.body ?? "", /24 Nov/);
+  assert.match(d?.body ?? "", /automatically/);
+  assert.equal(d?.href, "/business/engagements/e1");
+});
+
+test("a denial gives the creator the reasons and the rounds left", () => {
+  const d = describeNotification(
+    row("submission_denied", {
+      ...hire,
+      reasons: ["Wrong hashtag", "Post is too short"],
+      rounds_left: 3,
+    }),
+    "influencer",
+  );
+  assert.equal(d?.title, "Ada Kitchen sent back your work for “Zobo week”");
+  assert.match(d?.body ?? "", /Wrong hashtag/);
+  assert.match(d?.body ?? "", /Post is too short/);
+  assert.match(d?.body ?? "", /3 times left/);
+  assert.equal(d?.href, "/jobs/e1");
+
+  const last = describeNotification(
+    row("submission_denied", {
+      ...hire,
+      reasons: ["Off brief"],
+      rounds_left: 0,
+    }),
+    "influencer",
+  );
+  assert.match(last?.body ?? "", /can’t resubmit/);
+  const one = describeNotification(
+    row("submission_denied", {
+      ...hire,
+      reasons: ["Off brief"],
+      rounds_left: 1,
+    }),
+    "influencer",
+  );
+  assert.match(one?.body ?? "", /1 time left/);
+});
+
+test("a review reminder says how long is left, with the date", () => {
+  const facts = {
+    ...hire,
+    name: "Tolu",
+    review_deadline_at: "2026-11-24T10:00:00Z",
+  };
+  const last = describeNotification(
+    row("review_reminder", { ...facts, days_left: 1 }),
+    "business",
+  );
+  assert.match(last?.title ?? "", /about a day left/i);
+  assert.match(last?.body ?? "", /24 Nov/);
+  assert.equal(last?.href, "/business/engagements/e1");
+
+  const earlier = describeNotification(
+    row("review_reminder", { ...facts, days_left: 3 }),
+    "business",
+  );
+  assert.match(earlier?.title ?? "", /3 days left/);
+});
+
+test("dispute notices go to the dispute page for each role", () => {
+  const facts = { ...hire, dispute_id: "d1", name: "Tolu" };
+  for (const kind of [
+    "dispute_opened",
+    "dispute_statement",
+    "dispute_withdrawn",
+  ]) {
+    const forBusiness = describeNotification(row(kind, facts), "business");
+    const forCreator = describeNotification(row(kind, facts), "influencer");
+    assert.equal(forBusiness?.href, "/business/engagements/e1/dispute", kind);
+    assert.equal(forCreator?.href, "/jobs/e1/dispute", kind);
+    assert.match(forBusiness?.title ?? "", /Tolu/, kind);
+  }
+  assert.match(
+    describeNotification(row("dispute_opened", facts), "business")?.title ?? "",
+    /opened a dispute/,
+  );
+  assert.match(
+    describeNotification(row("dispute_withdrawn", facts), "business")?.title ??
+      "",
+    /withdrew/,
+  );
+});
+
+test("a creator withdrawing after starting reads as a withdrawal for the business", () => {
+  const withdrew = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      name: "Tolu",
+      status: "refunded",
+      outcome: "refund_creator_fault",
+      settled_by: "influencer",
+      released_kobo: 0,
+      refunded_kobo: 5154594,
+    }),
+    "business",
+  );
+  assert.equal(withdrew?.title, "Tolu withdrew from “Zobo week”");
+  assert.match(withdrew?.body ?? "", /₦51,545\.94/);
+  assert.equal(withdrew?.href, "/business/engagements/e1");
+
+  // An admin refunding at the creator's fault is not a withdrawal.
+  const adminFault = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      name: "Tolu",
+      status: "refunded",
+      outcome: "refund_creator_fault",
+      settled_by: "admin",
+      released_kobo: 0,
+      refunded_kobo: 5154594,
+    }),
+    "business",
+  );
+  assert.equal(adminFault?.title, "“Zobo week” was settled");
+  assert.match(adminFault?.body ?? "", /₦51,545\.94/);
+
+  // Any other settlement keeps the settled wording.
+  const refund = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      name: "Tolu",
+      status: "refunded",
+      outcome: "refund",
+      released_kobo: 0,
+      refunded_kobo: 5000000,
+    }),
+    "business",
+  );
+  assert.equal(refund?.title, "“Zobo week” was settled");
+});
+
+test("an automatic release reads differently from a settlement", () => {
+  const auto = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      status: "auto_released",
+      outcome: "release",
+      released_kobo: 5000000,
+      refunded_kobo: 0,
+    }),
+    "business",
+  );
+  assert.equal(auto?.title, "“Zobo week” was released automatically");
+  assert.match(auto?.body ?? "", /₦50,000/);
+  assert.equal(auto?.href, "/business/engagements/e1");
+
+  const accepted = describeNotification(
+    row("engagement_settled", {
+      ...hire,
+      status: "accepted",
+      outcome: "release",
+      released_kobo: 5000000,
+      refunded_kobo: 0,
+    }),
+    "influencer",
+  );
+  assert.equal(accepted?.title, "“Zobo week” was settled");
 });
 
 test("unknown kinds are skipped, not shown blank", () => {

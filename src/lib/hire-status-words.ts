@@ -15,6 +15,15 @@ export type HireFacts = {
   releasedKobo: number | null;
   refundedKobo: number | null;
   businessFeeKobo: number | null;
+  // Stage 7: where the review stands (from EngagementDetails).
+  round: number | null;
+  /** When the round waiting for review is released on its own. */
+  reviewDeadlineAt: string | null;
+  /** Resubmissions still allowed. */
+  roundsLeft: number;
+  openDisputeId: string | null;
+  /** When the business may dispute missing work; null unless in progress. */
+  disputeAllowedFrom: string | null;
 };
 
 export type HireStatusWords = {
@@ -24,6 +33,10 @@ export type HireStatusWords = {
   done: boolean;
   /** Unpaid and still inside its 48 hours: the Pay button belongs here. */
   canPay: boolean;
+  /** Work sent in and still inside its review time: accept or send back. */
+  canReview: boolean;
+  /** The business can open a dispute now. */
+  canOpenDispute: boolean;
 };
 
 const ended = (title: string, body: string): HireStatusWords => ({
@@ -31,12 +44,20 @@ const ended = (title: string, body: string): HireStatusWords => ({
   body,
   done: true,
   canPay: false,
+  canReview: false,
+  canOpenDispute: false,
 });
-const running = (title: string, body: string): HireStatusWords => ({
+const running = (
+  title: string,
+  body: string,
+  actions: Partial<Pick<HireStatusWords, "canReview" | "canOpenDispute">> = {},
+): HireStatusWords => ({
   title,
   body,
   done: false,
   canPay: false,
+  canReview: actions.canReview ?? false,
+  canOpenDispute: actions.canOpenDispute ?? false,
 });
 
 export function describeHireStatus(e: HireFacts, now: Date): HireStatusWords {
@@ -61,31 +82,57 @@ export function describeHireStatus(e: HireFacts, now: Date): HireStatusWords {
         body: `Nothing starts until you pay. Pay by ${formatDateTime(e.payBy)} (Lagos time), or the hire lapses.`,
         done: false,
         canPay: true,
+        canReview: false,
+        canOpenDispute: false,
       };
     case "funded":
       return running(
         "Paid",
         `Waiting for ${creator} to start. The money is held by Pitchype until the job is done.`,
       );
-    case "in_progress":
+    case "in_progress": {
+      // The date is set only for work that is overdue; see non_delivery_dispute_at.
+      const canOpenDispute =
+        e.disputeAllowedFrom !== null &&
+        Date.parse(e.disputeAllowedFrom) <= now.getTime();
       return running(
         "Work has started",
-        `${creator} is working on this. The money is held by Pitchype until the job is done.`,
+        canOpenDispute
+          ? `${creator} is working on this, but the delivery date has passed. If the work isn’t coming, you can open a dispute. The money is held by Pitchype until the job is done.`
+          : `${creator} is working on this. The money is held by Pitchype until the job is done.`,
+        { canOpenDispute },
       );
-    case "submitted":
+    }
+    case "submitted": {
+      const deadline = e.reviewDeadlineAt;
+      if (deadline !== null && Date.parse(deadline) <= now.getTime()) {
+        // "Released" only once the ledger has moved.
+        return running(
+          "Review time has ended",
+          `Review time ended on ${formatDateTime(deadline)}. The money is being released.`,
+        );
+      }
       return running(
         "Waiting for your review",
-        `${creator} has sent in the work.`,
+        deadline === null
+          ? `${creator} has sent in the work.`
+          : `${creator} has sent in the work. Review it by ${formatDateTime(deadline)} (Lagos time), or the money is released to ${creator} automatically.`,
+        { canReview: true },
       );
-    case "denied":
-      return running(
-        "Sent back",
-        `${creator} can fix the work and send it again.`,
-      );
+    }
+    case "denied": {
+      const left =
+        e.roundsLeft > 0
+          ? `${creator} can fix the work and send it again (${e.roundsLeft} ${e.roundsLeft === 1 ? "resubmission" : "resubmissions"} left).`
+          : `${creator} has no resubmissions left. You can open a dispute.`;
+      return running("Sent back", `You asked for changes. ${left}`, {
+        canOpenDispute: e.openDisputeId === null,
+      });
+    }
     case "disputed":
       return running(
-        "Under review",
-        "We’re looking at this hire. We’ll be in touch.",
+        "Pitchype is reviewing this",
+        "A dispute is open. We’ll look at both sides and decide how the money is paid out.",
       );
     case "cancelled":
       if (e.fundedAt === null) {
@@ -105,6 +152,12 @@ export function describeHireStatus(e: HireFacts, now: Date): HireStatusWords {
       );
     default:
       // accepted, auto_released, paid_out, refunded: money has moved.
+      if (e.status === "auto_released") {
+        return ended(
+          "Released automatically",
+          `The review time ended, so ${released} was released to ${creator}.`,
+        );
+      }
       switch (e.settleOutcome) {
         case "refund":
           return ended(

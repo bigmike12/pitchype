@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { startConversationAction } from "@/app/(portal)/inbox/actions";
+import { BoardToolbar } from "@/components/board/board-toolbar";
 import { CreatorPhoto } from "@/components/creators/creator-photo";
 import { PlatformSummary } from "@/components/creators/platform-list";
 import {
@@ -14,9 +15,11 @@ import {
 } from "@/components/ui/board";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { filterHref } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
 import {
   BoardSkeleton,
+  FiltersSkeleton,
   HeaderSkeleton,
   PageLoading,
 } from "@/components/ui/skeleton";
@@ -25,7 +28,9 @@ import { requireRole } from "@/lib/auth";
 import {
   BUSINESS_COLUMNS,
   businessColumn,
+  matchesBoardFilter,
   shownColumn,
+  uniquePeople,
   type BusinessColumn,
 } from "@/lib/board";
 import { formatDate, formatDateTime } from "@/lib/creator-profile";
@@ -36,6 +41,7 @@ import {
 } from "@/lib/db/applications";
 import { listOwnCampaigns } from "@/lib/db/campaigns";
 import { formatNaira } from "@/lib/money";
+import { parseSearch } from "@/lib/search";
 import { cn } from "@/lib/utils";
 
 import { shortlistAction } from "../campaigns/[id]/applications/actions";
@@ -56,6 +62,9 @@ const DOTS: Record<Exclude<BusinessColumn, "closed">, string> = {
   shortlisted: "bg-brand-violet",
   to_pay: "bg-brand-coral",
   in_progress: "bg-brand-green",
+  to_review: "bg-brand-violet",
+  changes: "bg-brand-coral",
+  disputed: "bg-ink",
   completed: "bg-ink",
 };
 
@@ -69,6 +78,7 @@ export default function BoardPage({
       fallback={
         <PageLoading label="Loading your hiring board…">
           <HeaderSkeleton action />
+          <FiltersSkeleton />
           <BoardSkeleton />
         </PageLoading>
       }
@@ -104,13 +114,33 @@ async function HiringBoard({ searchParams }: { searchParams: SearchParams }) {
   const lists = await Promise.all(
     read.map((c) => listCampaignApplications(c.id)),
   );
-  const cards: Card[] = read.flatMap((c, index) =>
+  const all: Card[] = read.flatMap((c, index) =>
     (lists[index] ?? []).map((a) => ({
       ...a,
       campaignId: c.id,
       campaignTitle: c.title,
       campaignPriceKobo: c.priceKobo ?? 0,
     })),
+  );
+
+  // The search and the picked creator narrow the cards; the people row still
+  // lists everyone on the chosen campaign, so it stays usable while filtered.
+  const filter = { search: parseSearch(query.q), person: first(query.who) };
+  const people = uniquePeople(
+    all.map((card) => ({
+      id: card.creator.id,
+      name: card.creator.displayName,
+      photoUrl: card.creator.photoUrl,
+    })),
+  );
+  const cards = all.filter((card) =>
+    matchesBoardFilter(
+      {
+        personId: card.creator.id,
+        text: [card.creator.displayName, card.creator.city, card.campaignTitle],
+      },
+      filter,
+    ),
   );
 
   const byColumn = new Map<BusinessColumn, Card[]>();
@@ -124,13 +154,14 @@ async function HiringBoard({ searchParams }: { searchParams: SearchParams }) {
   const shown = shownColumn(BUSINESS_COLUMNS, columnCounts, first(query.col));
   const closed = byColumn.get("closed") ?? [];
 
-  const href = (campaign: string | undefined, col?: string) => {
-    const params = new URLSearchParams();
-    if (campaign) params.set("campaign", campaign);
-    if (col) params.set("col", col);
-    const text = params.toString();
-    return text ? `/business/board?${text}` : "/business/board";
-  };
+  // This board with one column chosen, keeping every filter on.
+  const href = (col?: string) =>
+    filterHref("/business/board", {
+      campaign: picked?.id,
+      who: filter.person,
+      q: filter.search,
+      col,
+    });
   const newCampaign = (
     <Link href="/business/campaigns/new" className={buttonVariants()}>
       <Plus aria-hidden="true" />
@@ -166,35 +197,28 @@ async function HiringBoard({ searchParams }: { searchParams: SearchParams }) {
         lead="Every creator, from application to finished job. Use a card’s buttons, or drag it to the next column."
       />
 
-      <nav
-        aria-label="Filter by campaign"
-        className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-wrap lg:px-0"
-      >
-        {[{ id: undefined, title: "All campaigns" }, ...withApplications].map(
-          (c) => {
-            const current = (picked?.id ?? undefined) === c.id;
-            return (
-              <Link
-                key={c.id ?? "all"}
-                href={href(c.id)}
-                aria-current={current ? "true" : undefined}
-                className={cn(
-                  "inline-flex min-h-11 max-w-56 shrink-0 items-center rounded-full border px-3.5 text-sm lg:min-h-9",
-                  current
-                    ? "border-ink bg-ink font-semibold text-white"
-                    : "border-hairline-strong bg-surface font-medium text-body hover:bg-surface-soft",
-                )}
-              >
-                <span className="truncate">{c.title}</span>
-              </Link>
-            );
-          },
-        )}
-      </nav>
+      <BoardToolbar
+        basePath="/business/board"
+        query={{
+          q: filter.search,
+          who: filter.person,
+          campaign: picked?.id,
+          col: first(query.col),
+        }}
+        people={people}
+        personNoun="creator"
+        searchPlaceholder="Creator or campaign"
+        campaigns={withApplications.map((c) => ({ id: c.id, title: c.title }))}
+      />
       {!picked && withApplications.length > MAX_CAMPAIGNS && (
         <p className="mb-4 text-sm text-muted">
-          Showing your {MAX_CAMPAIGNS} most recently changed campaigns. Pick a
-          campaign above to see another.
+          Showing your {MAX_CAMPAIGNS} most recently changed campaigns. Pick one
+          in the filter to see another.
+        </p>
+      )}
+      {cards.length === 0 && all.length > 0 && (
+        <p className="mb-4 text-sm text-muted">
+          No cards match these filters. Clear all above to see them again.
         </p>
       )}
 
@@ -204,7 +228,7 @@ async function HiringBoard({ searchParams }: { searchParams: SearchParams }) {
           counts={columnCounts}
           shown={shown}
           hrefs={Object.fromEntries(
-            BUSINESS_COLUMNS.map((c) => [c.key, href(picked?.id, c.key)]),
+            BUSINESS_COLUMNS.map((c) => [c.key, href(c.key)]),
           )}
         />
         <Board label="Hiring board">
@@ -398,53 +422,56 @@ function HireCard({
         </>
       )}
 
-      {(column === "in_progress" || column === "completed") && engagement && (
-        <>
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-semibold text-ink tabular-nums">
-              {formatNaira(
-                column === "completed"
-                  ? (engagement.releasedKobo ?? engagement.agreedPriceKobo)
-                  : engagement.agreedPriceKobo,
-              )}
-            </span>
-            {column === "in_progress" && (
-              <span
-                className={cn(
-                  "rounded-full px-2 py-0.5 text-xs font-semibold text-ink",
-                  engagement.status === "funded"
-                    ? "bg-surface-card"
-                    : "bg-brand-mint",
+      {column !== "applied" &&
+        column !== "shortlisted" &&
+        column !== "to_pay" &&
+        engagement && (
+          <>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-semibold text-ink tabular-nums">
+                {formatNaira(
+                  column === "completed"
+                    ? (engagement.releasedKobo ?? engagement.agreedPriceKobo)
+                    : engagement.agreedPriceKobo,
                 )}
-              >
-                {IN_PROGRESS_LABELS[engagement.status] ?? "Working"}
               </span>
-            )}
-          </div>
-          <p className="text-xs text-muted">
-            {column === "completed"
-              ? engagement.settledAt
-                ? `Released ${formatDate(engagement.settledAt)}`
-                : "Released to the creator"
-              : engagement.startedAt
-                ? `Started ${formatDate(engagement.startedAt)}`
-                : engagement.fundedAt
-                  ? `Paid ${formatDate(engagement.fundedAt)}`
-                  : null}
-          </p>
-          <Link
-            href={`/business/engagements/${engagement.id}`}
-            className={buttonVariants({
-              variant: "secondary",
-              size: "sm",
-              className: "w-full",
-            })}
-          >
-            Open hire
-            <span className="sr-only">: {creator.displayName}</span>
-          </Link>
-        </>
-      )}
+              {column !== "completed" && (
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-xs font-semibold text-ink",
+                    engagement.status === "funded"
+                      ? "bg-surface-card"
+                      : "bg-brand-mint",
+                  )}
+                >
+                  {IN_PROGRESS_LABELS[engagement.status] ?? "Working"}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted">
+              {column === "completed"
+                ? engagement.settledAt
+                  ? `Released ${formatDate(engagement.settledAt)}`
+                  : "Released to the creator"
+                : engagement.startedAt
+                  ? `Started ${formatDate(engagement.startedAt)}`
+                  : engagement.fundedAt
+                    ? `Paid ${formatDate(engagement.fundedAt)}`
+                    : null}
+            </p>
+            <Link
+              href={`/business/engagements/${engagement.id}`}
+              className={buttonVariants({
+                variant: "secondary",
+                size: "sm",
+                className: "w-full",
+              })}
+            >
+              Open hire
+              <span className="sr-only">: {creator.displayName}</span>
+            </Link>
+          </>
+        )}
     </BoardCard>
   );
 }

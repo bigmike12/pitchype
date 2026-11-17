@@ -2,6 +2,9 @@ import { isRefusal, type Refusal } from "../refusals.ts";
 
 export type Refused = { ok: false; reason: Refusal };
 
+/** What a database writer returns: the value, or the reason it was refused. */
+export type Result<T> = { ok: true; value: T } | Refused;
+
 /**
  * Turns a refusal from a Stage 5 database function (errcode P0001 with a
  * known code as the message, or a 42501 permission error) into a typed

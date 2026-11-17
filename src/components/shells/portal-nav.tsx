@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   Banknote,
   EyeOff,
+  Gavel,
   Flag,
   House,
   Inbox,
@@ -43,6 +44,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  isItemActive,
   isNavActive,
   navGroups,
   sectionLabel,
@@ -69,6 +71,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   reports: Flag,
   hidden: EyeOff,
   escrow: LockKeyhole,
+  disputes: Gavel,
   payouts: Banknote,
   ledger: ReceiptText,
   reconciliation: Scale,
@@ -132,7 +135,7 @@ function NavLinks({
           <ul className="space-y-0.5">
             {links.map((item) => {
               const Icon = ICONS[item.icon];
-              const active = isNavActive(pathname, item.href);
+              const active = isItemActive(pathname, item);
               return (
                 <li key={item.href}>
                   <Link
@@ -160,7 +163,9 @@ function NavLinks({
                     {item.badge ? (
                       <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-ink px-1.5 text-[0.6875rem] font-semibold text-white">
                         {item.badge}
-                        <span className="sr-only"> unread</span>
+                        <span className="sr-only">
+                          {item.icon === "disputes" ? " open" : " unread"}
+                        </span>
                       </span>
                     ) : null}
                     <PendingDot />
@@ -252,9 +257,19 @@ function AccountMenu({
   viewer: PortalViewer;
   signOutAction: SignOut;
 }) {
+  const pathname = usePathname();
+  // The account pages have no link of their own in the nav, so this is how
+  // the sidebar shows where you are.
+  const onAccount = isNavActive(pathname, "/account");
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-card p-2 text-left panel outline-none hover:bg-surface-soft focus-visible:ring-2 focus-visible:ring-ink data-[state=open]:bg-surface-soft">
+      <DropdownMenuTrigger
+        aria-current={onAccount ? "page" : undefined}
+        className={cn(
+          "flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-card p-2 text-left panel outline-none hover:bg-surface-soft focus-visible:ring-2 focus-visible:ring-ink data-[state=open]:bg-surface-soft",
+          onAccount && "ring-1 ring-brand-violet",
+        )}
+      >
         <CreatorPhoto
           name={viewer.name}
           url={viewer.photoUrl}

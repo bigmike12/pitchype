@@ -47,7 +47,7 @@ export function Board({
       <div
         role="group"
         aria-label={label}
-        className="grid gap-3 lg:auto-cols-[minmax(11rem,1fr)] lg:grid-flow-col lg:items-start lg:overflow-x-auto lg:pb-2"
+        className="grid gap-3 lg:auto-cols-[minmax(15rem,1fr)] lg:grid-flow-col lg:items-start lg:overflow-x-auto lg:pb-2"
       >
         {children}
       </div>

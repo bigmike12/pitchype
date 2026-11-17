@@ -21,9 +21,13 @@ import { getPortalViewer } from "./viewer";
 // its own Suspense boundary; both share one cached viewer lookup.
 
 const itemsFor = (viewer: PortalViewer) =>
-  navFor(viewer.role).map((item) =>
-    item.icon === "inbox" ? { ...item, badge: viewer.unread } : item,
-  );
+  navFor(viewer.role).map((item) => {
+    if (item.icon === "inbox") return { ...item, badge: viewer.unread };
+    if (item.icon === "disputes") {
+      return { ...item, badge: viewer.openDisputes };
+    }
+    return item;
+  });
 
 export async function PortalSidebar() {
   const viewer = await getPortalViewer();

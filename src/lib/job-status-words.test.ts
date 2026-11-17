@@ -13,11 +13,17 @@ const base: JobFacts = {
   settleOutcome: null,
   releasedKobo: null,
   refundedKobo: null,
+  creatorNetKobo: null,
   agreedPriceKobo: 5_000_000,
   creatorFeeBps: 500,
   creatorMinFeeKobo: 50_000,
   businessName: "Acme",
   payBy: "2026-11-14T12:00:00Z",
+  round: null,
+  reviewDeadlineAt: null,
+  roundsLeft: 3,
+  openDisputeId: null,
+  disputeAllowedFrom: null,
 };
 const words = (over: Partial<JobFacts>) =>
   describeJobStatus({ ...base, ...over }, NOW);
@@ -46,39 +52,107 @@ test("paid: the creator can start or withdraw", () => {
   assert.equal(w.canWithdraw, true);
 });
 
-test("in progress: no actions", () => {
+test("in progress: the creator can send in the work or withdraw", () => {
   const w = words({ status: "in_progress", startedAt: "2026-11-13T10:00:00Z" });
   assert.equal(w.title, "Work in progress");
   assert.equal(w.canStart, false);
+  assert.equal(w.canSubmit, true);
+  assert.equal(w.canWithdraw, true);
+  assert.equal(w.canResubmit, false);
+  assert.equal(w.canOpenDispute, false);
+});
+
+test("submitted before the deadline waits for the business, with the date", () => {
+  const w = words({
+    status: "submitted",
+    round: 1,
+    reviewDeadlineAt: "2026-11-18T12:00:00Z",
+  });
+  assert.equal(w.title, "Waiting for Acme to review");
+  assert.match(w.body, /18 Nov/);
+  assert.equal(w.canSubmit, false);
+  assert.equal(w.canResubmit, false);
+  assert.equal(w.canWithdraw, false);
+  assert.equal(w.canOpenDispute, false);
+});
+
+test("submitted after the deadline says the money is being released, not released", () => {
+  const w = words({
+    status: "submitted",
+    round: 1,
+    reviewDeadlineAt: "2026-11-13T11:00:00Z",
+  });
+  assert.equal(
+    w.body,
+    "Review time ended on 13 Nov, 12:00. The money is being released.",
+  );
+  assert.ok(!w.body.includes("was released"));
   assert.equal(w.canWithdraw, false);
 });
 
-test("submitted, denied and disputed have their own words", () => {
-  assert.equal(
-    words({ status: "submitted" }).body,
-    "Your submission is with Acme.",
+test("denied with resubmissions left can fix and send again", () => {
+  const w = words({ status: "denied", round: 2, roundsLeft: 2 });
+  assert.equal(w.title, "Sent back");
+  assert.match(w.body, /2 resubmissions left/);
+  assert.equal(w.canResubmit, true);
+  assert.equal(w.canWithdraw, true);
+  assert.equal(w.canOpenDispute, true);
+  assert.match(
+    words({ status: "denied", roundsLeft: 1 }).body,
+    /1 resubmission left/,
   );
-  assert.equal(words({ status: "denied" }).body, "Acme sent it back.");
-  assert.equal(words({ status: "disputed" }).body, "This job is under review.");
-  for (const status of ["submitted", "denied", "disputed"]) {
-    const w = words({ status });
-    assert.equal(w.canStart, false);
-    assert.equal(w.canWithdraw, false);
-    assert.ok(w.title.length > 0);
-    assert.ok(!w.body.includes("isn’t open yet"));
-  }
+});
+
+test("denied with none left can only dispute or withdraw", () => {
+  const w = words({ status: "denied", round: 4, roundsLeft: 0 });
+  assert.equal(w.canResubmit, false);
+  assert.equal(w.canOpenDispute, true);
+  assert.equal(w.canWithdraw, true);
+  assert.match(w.body, /No resubmissions left/);
+});
+
+test("disputed: Pitchype is reviewing, no actions", () => {
+  const w = words({ status: "disputed", openDisputeId: "d1" });
+  assert.equal(w.title, "Pitchype is reviewing this");
+  assert.equal(w.canWithdraw, false);
+  assert.equal(w.canOpenDispute, false);
+  assert.equal(w.canResubmit, false);
+  assert.equal(w.canSubmit, false);
 });
 
 test("released money says what reached the wallet after our fee", () => {
-  for (const status of ["accepted", "auto_released", "paid_out"]) {
+  for (const status of ["accepted", "paid_out"]) {
     const w = words({ status, releasedKobo: 5_000_000 });
     assert.equal(w.title, "Payment released");
     assert.equal(w.body, "₦47,500 was added to your wallet after our fee.");
   }
+  const auto = words({ status: "auto_released", releasedKobo: 5_000_000 });
+  assert.equal(auto.title, "Released automatically");
+  assert.match(auto.body, /₦47,500 was added to your wallet after our fee/);
   // A split releases only part; the fee applies to that part.
   assert.equal(
     words({ status: "accepted", releasedKobo: 2_000_000 }).body,
     "₦19,000 was added to your wallet after our fee.",
+  );
+});
+
+test("a recorded credit is shown instead of the estimate", () => {
+  const w = words({
+    status: "accepted",
+    releasedKobo: 5_000_000,
+    creatorNetKobo: 4_712_300,
+  });
+  assert.equal(w.body, "₦47,123 was added to your wallet after our fee.");
+  const auto = words({
+    status: "auto_released",
+    releasedKobo: 5_000_000,
+    creatorNetKobo: 4_712_300,
+  });
+  assert.match(auto.body, /₦47,123 was added to your wallet after our fee/);
+  // The preview before settling stays an estimate from the fee snapshot.
+  assert.equal(
+    words({ status: "in_progress", creatorNetKobo: 4_712_300 }).youReceiveKobo,
+    4_750_000,
   );
 });
 

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { BoardToolbar } from "@/components/board/board-toolbar";
 import {
   Board,
   BoardCard,
@@ -11,9 +12,11 @@ import {
 } from "@/components/ui/board";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { filterHref } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
 import {
   BoardSkeleton,
+  FiltersSkeleton,
   HeaderSkeleton,
   PageLoading,
 } from "@/components/ui/skeleton";
@@ -22,7 +25,9 @@ import { requireRole } from "@/lib/auth";
 import {
   CREATOR_COLUMNS,
   creatorColumn,
+  matchesBoardFilter,
   shownColumn,
+  uniquePeople,
   type CreatorColumn,
 } from "@/lib/board";
 import { lagosToday } from "@/lib/campaign";
@@ -30,17 +35,24 @@ import { formatDate, formatDateTime } from "@/lib/creator-profile";
 import { listMyApplications, type MyApplication } from "@/lib/db/applications";
 import { INFLUENCER_FEE_BPS, MIN_FEE_KOBO, creatorFee } from "@/lib/fees";
 import { formatNaira } from "@/lib/money";
+import { parseSearch } from "@/lib/search";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Your work" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
+const first = (value: string | string[] | undefined) =>
+  Array.isArray(value) ? value[0] : value;
+
 const DOTS: Record<Exclude<CreatorColumn, "closed">, string> = {
   applied: "bg-field",
   hired: "bg-brand-coral",
   ready: "bg-brand-violet",
   in_progress: "bg-brand-green",
+  to_review: "bg-brand-violet",
+  changes: "bg-brand-coral",
+  disputed: "bg-ink",
   paid: "bg-ink",
 };
 
@@ -54,6 +66,7 @@ export default function WorkPage({
       fallback={
         <PageLoading label="Loading your work…">
           <HeaderSkeleton action />
+          <FiltersSkeleton />
           <BoardSkeleton />
         </PageLoading>
       }
@@ -97,16 +110,35 @@ async function WorkBoard({ searchParams }: { searchParams: SearchParams }) {
     );
   }
 
+  // The search and the picked business narrow the cards; the people row still
+  // lists every business the creator has applied to.
+  const filter = { search: parseSearch(query.q), person: first(query.who) };
+  const people = uniquePeople(
+    applications.map((a) => ({
+      id: a.campaign.businessId,
+      name: a.campaign.businessName,
+      photoUrl: null,
+    })),
+  );
+  const cards = applications.filter((a) =>
+    matchesBoardFilter(
+      {
+        personId: a.campaign.businessId,
+        text: [a.campaign.title, a.campaign.businessName],
+      },
+      filter,
+    ),
+  );
+
   const byColumn = new Map<CreatorColumn, MyApplication[]>();
-  for (const application of applications) {
+  for (const application of cards) {
     const column = creatorColumn(application);
     byColumn.set(column, [...(byColumn.get(column) ?? []), application]);
   }
   const counts = new Map<string, number>(
     CREATOR_COLUMNS.map((c) => [c.key, byColumn.get(c.key)?.length ?? 0]),
   );
-  const requested = Array.isArray(query.col) ? query.col[0] : query.col;
-  const shown = shownColumn(CREATOR_COLUMNS, counts, requested);
+  const shown = shownColumn(CREATOR_COLUMNS, counts, first(query.col));
   const closed = byColumn.get("closed") ?? [];
   // Creators can open a campaign only while it takes applications.
   const viewable = (a: MyApplication) =>
@@ -119,13 +151,37 @@ async function WorkBoard({ searchParams }: { searchParams: SearchParams }) {
         lead="Every campaign you’ve applied to, from sent to paid."
       />
 
+      <BoardToolbar
+        basePath="/applications"
+        query={{
+          q: filter.search,
+          who: filter.person,
+          col: first(query.col),
+        }}
+        people={people}
+        personNoun="business"
+        searchPlaceholder="Campaign or business"
+      />
+      {cards.length === 0 && applications.length > 0 && (
+        <p className="mb-4 text-sm text-muted">
+          No cards match these filters. Clear all above to see them again.
+        </p>
+      )}
+
       <div className="space-y-3">
         <BoardTabs
           columns={CREATOR_COLUMNS}
           counts={counts}
           shown={shown}
           hrefs={Object.fromEntries(
-            CREATOR_COLUMNS.map((c) => [c.key, `/applications?col=${c.key}`]),
+            CREATOR_COLUMNS.map((c) => [
+              c.key,
+              filterHref("/applications", {
+                q: filter.search,
+                who: filter.person,
+                col: c.key,
+              }),
+            ]),
           )}
         />
         <Board label="Your work">
@@ -257,7 +313,7 @@ function WorkCard({
             {APPLICATION_STATUS_LABELS[a.status]}
           </span>
         )}
-        {(column === "ready" || column === "in_progress") && (
+        {column !== "applied" && column !== "hired" && column !== "paid" && (
           <span className="rounded-full bg-brand-mint px-2 py-0.5 text-xs font-semibold whitespace-nowrap text-ink">
             Held by Pitchype
           </span>
@@ -332,6 +388,12 @@ function detail(
       return e?.startedAt
         ? `Started ${formatDate(e.startedAt)}`
         : "Work in progress";
+    case "to_review":
+      return "Sent in. Waiting for the business to review.";
+    case "changes":
+      return "Sent back. Fix the work and send it again.";
+    case "disputed":
+      return "Pitchype is reviewing this.";
     case "paid":
       return e?.releasedKobo
         ? `${formatNaira(e.releasedKobo)} earned, less our fee`

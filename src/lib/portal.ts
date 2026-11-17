@@ -20,6 +20,7 @@ export type NavIcon =
   | "reports"
   | "hidden"
   | "escrow"
+  | "disputes"
   | "payouts"
   | "ledger"
   | "reconciliation";
@@ -32,6 +33,11 @@ export type NavItem = {
   group: string;
   /** A count shown on the link, e.g. unread messages. */
   badge?: number;
+  /**
+   * Other paths that belong under this link when they don't sit under its
+   * own path, e.g. a hire's page under "Your work".
+   */
+  under?: string[];
 };
 
 /** Who the shell is drawn for. */
@@ -45,6 +51,8 @@ export type PortalViewer = {
   needsOnboarding: boolean;
   /** Unread chat messages, for the Inbox link. */
   unread: number;
+  /** Open disputes, for the admin's Disputes link (0 for everyone else). */
+  openDisputes: number;
 };
 
 const NAV: Record<PortalRole, NavItem[]> = {
@@ -55,6 +63,7 @@ const NAV: Record<PortalRole, NavItem[]> = {
       label: "Hiring board",
       icon: "board",
       group: "Hiring",
+      under: ["/business/engagements"],
     },
     {
       href: "/business/campaigns",
@@ -89,6 +98,7 @@ const NAV: Record<PortalRole, NavItem[]> = {
       label: "Your work",
       icon: "board",
       group: "Work",
+      under: ["/jobs"],
     },
     { href: "/inbox", label: "Inbox", icon: "inbox", group: "Work" },
     { href: "/wallet", label: "Wallet", icon: "wallet", group: "Money" },
@@ -131,6 +141,13 @@ const NAV: Record<PortalRole, NavItem[]> = {
       href: "/admin/money/escrow",
       label: "Escrow",
       icon: "escrow",
+      group: "Money",
+      under: ["/admin/money/engagements"],
+    },
+    {
+      href: "/admin/disputes",
+      label: "Disputes",
+      icon: "disputes",
       group: "Money",
     },
     {
@@ -196,17 +213,21 @@ export function isNavActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/** Whether a sidebar link is the current page's: its own path, or one of its `under` paths. */
+export function isItemActive(pathname: string, item: NavItem): boolean {
+  return [item.href, ...(item.under ?? [])].some((href) =>
+    isNavActive(pathname, href),
+  );
+}
+
 /** The section name shown in the top bar. */
 export function sectionLabel(
   role: PortalRole,
   pathname: string,
 ): string | null {
-  const active = navFor(role).find((item) => isNavActive(pathname, item.href));
+  const active = navFor(role).find((item) => isItemActive(pathname, item));
   if (active) return active.label;
-  // Pages that hang off a section without living under its path.
-  if (pathname.startsWith("/business/engagements/")) return "Hiring board";
-  if (pathname.startsWith("/jobs/")) return "Your work";
-  // A hire's money trail.
+  // Any other admin money page (the payout check, the ledger export).
   if (role === "admin" && pathname.startsWith("/admin/money/")) return "Money";
   if (pathname === "/account" || pathname.startsWith("/account/")) {
     return "Account";

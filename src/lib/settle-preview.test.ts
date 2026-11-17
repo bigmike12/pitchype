@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { parseNairaAmount, settlePreview } from "./settle-preview.ts";
+import {
+  describeSettlePreview,
+  parseNairaAmount,
+  settlePreview,
+} from "./settle-preview.ts";
 
 const base = {
   agreedPriceKobo: 5_000_000,
@@ -156,4 +160,50 @@ test("a wallet-only funding payment has no card charge, so the business gets pri
     assert.equal(p.platformKeepsKobo, 0);
     assert.equal(p.warning, null);
   }
+});
+
+test("the form's preview line, problem and warning", () => {
+  const facts = {
+    agreedPriceKobo: 5_000_000,
+    businessFeeKobo: 250_000,
+    creatorFeeBps: 500,
+    creatorMinFeeKobo: 50_000,
+    paystackChargeKobo: 154_600,
+  };
+  // Nothing chosen yet: nothing to show.
+  assert.deepEqual(describeSettlePreview("", "", facts), {
+    line: null,
+    problem: null,
+    warning: null,
+  });
+  const release = describeSettlePreview("release", "", facts);
+  assert.equal(
+    release.line,
+    "Creator receives ₦47,500 after their ₦2,500 fee · Business gets back ₦0 · Pitchype keeps ₦5,000",
+  );
+  // A split waits for an amount without complaining about the empty box.
+  assert.deepEqual(describeSettlePreview("split", "  ", facts), {
+    line: null,
+    problem: null,
+    warning: null,
+  });
+  assert.equal(
+    describeSettlePreview("split", "abc", facts).problem,
+    "Enter a whole number of naira, like 20,000.",
+  );
+  assert.match(
+    describeSettlePreview("split", "50,000", facts).problem ?? "",
+    /releases part of the price/,
+  );
+  assert.match(
+    describeSettlePreview("split", "20,000", facts).line ?? "",
+    /Creator receives ₦19,000 after their ₦1,000 fee · Business gets back ₦30,000/,
+  );
+  assert.match(
+    describeSettlePreview("refund_creator_fault", "", {
+      ...facts,
+      paystackChargeKobo: null,
+    }).warning ?? "",
+    /couldn’t be found/,
+  );
 });

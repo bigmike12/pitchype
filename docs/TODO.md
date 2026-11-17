@@ -50,6 +50,9 @@ Details: README, "Deploy to Vercel".
 
 ## 3. Before launch (opening sign-up to the public)
 
+- [ ] **You:** send `docs/legal/` (README with the questions, `terms.md`,
+      `privacy.md`; drafted 2026-11-17) to a Nigerian fintech and data
+      lawyer, then swap the approved text into the two pages.
 - [ ] **You, now urgent:** sign-up is linked from the site (2026-11-10), but
       the privacy notice and terms still say "draft, covers the waitlist
       only". They must cover accounts, public creator profiles and photos,
@@ -230,7 +233,7 @@ Design: `docs/superpowers/specs/2026-11-10-stage-5-applications-chat-design.md`.
 
 - [ ] Stage 8: email off the `notifications` table (Resend), with
       per-person preferences; money-critical ones always send (CLAUDE.md §8).
-- [ ] Stage 7: add kinds for submissions and auto-release (a trigger plus a
+- [x] Stage 7: add kinds for submissions and auto-release (a trigger plus a
       case in `src/lib/notifications.ts`). The payment, work started, paid
       cancellation, settlement and payout kinds were added in Stage 6.
 - [ ] The bell shows the latest 20. Add a full `/notifications` page if
@@ -352,15 +355,52 @@ Product and code follow-ups:
       Today an admin refunds by hand on request.
 - [ ] A "reversal after paid" correction and the durable admin alerts: moved
       to "Before real money" above.
-- [ ] The `paid_out` engagement status is unused (payouts come from the
-      wallet). Decide in Stage 7 whether to drop it from the enum.
+- [x] The `paid_out` engagement status is unused (payouts come from the
+      wallet). Decided in Stage 7: it stays in the enum, unused (dropping an
+      enum value means rebuilding the type).
 - [ ] Cache `listBanks()`; it runs uncached, up to five pages, on every form
       render, name check and save.
 - [ ] Rate limits (bank checks, payout requests) are in memory per instance,
       like the others (section 5).
-- [ ] Stage 7 must call `settle_engagement_internal` for accept, auto-release
+- [x] Stage 7 must call `settle_engagement_internal` for accept, auto-release
       and disputes, skip the actor in `engagements_money_notify`, and widen
       settlement to `submitted` and `disputed`.
+
+Deferred from Stage 7:
+
+- [ ] Email for the Stage 7 notices (work submitted, denied, review
+      reminders, auto-release, dispute opened/statement/withdrawn, decision):
+      in-app only today. Stage 8 sends them off the `notifications` table.
+- [ ] Build the hire terms snapshot decided in
+      `docs/campaign-spec-decisions.md` (accepted creators keep the terms they
+      agreed to). Stage 7 shows the current campaign, which is safe only
+      because price, requirements and deliverables are locked once live.
+- [ ] Move a campaign to `completed` once all its hires are settled. Stage 7
+      does not change campaign status.
+- [ ] Auto-release runs in one transaction per cron run, so a statement
+      timeout would roll back a whole backlog. Batch or cap
+      `release_overdue_submissions()` if volume grows.
+- [ ] A hire whose auto-release keeps failing is visible only in the database
+      log and as a daily 500 from `/api/cron/review-deadlines`. Surface it on
+      `/admin/money`.
+- [ ] Race scenarios 16 to 21 in `scripts/money-race.mjs` are timing
+      dependent: scenario 18 sometimes sees only one winner order, and the
+      delays are tuned to one machine. Make them wait on locks instead of
+      sleeping if they start to flake.
+- [ ] Submission notes and denial reasons aren't checked for contact details
+      (only dispute text is, in the database). The owner's call; decide before
+      launch whether they should be.
+- [ ] Accepting during a dispute overwrites the denied round's `decided_at`
+      (the denial time is lost). Keep the denial time if it ever matters.
+- [ ] A dispute can be opened, withdrawn and reopened repeatedly; this is
+      only rate-limited (5 opens a day), not capped per hire.
+- [ ] The business hire page lists the pending round twice (under "Work to
+      review" and "All rounds of work") when there is more than one round.
+- [ ] `/admin/money/escrow` shows an exact count of hires holding escrow but
+      no total held across them.
+- [ ] A proof object can be orphaned for good if its storage delete fails
+      after the database row is gone; there is no job to find it, so clean up
+      by hand (compare the `work-proof` bucket against `proof_files`).
 
 Deferred minors, database:
 
@@ -499,7 +539,7 @@ Portal rebuild (2026-11-16, the dashboard-kit look):
       once per campaign (capped at 12). Replace with one database function
       returning a business's applications across campaigns, with a pgTAP
       test, when the local database is running.
-- [ ] Board columns for submitted work and review, with Stage 7.
+- [x] Board columns for submitted work and review, with Stage 7.
 - [ ] Sidebar count next to "Campaigns" (creators: open campaigns they
       qualify for; businesses: applications to decide) and tabs (All, Live,
       Drafts) on the home page's campaigns table: both were in the mockup and

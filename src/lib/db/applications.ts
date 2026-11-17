@@ -6,7 +6,8 @@
 // they join profiles the caller can't read directly.
 
 import type { ApplicationInput, ApplicationStatus } from "@/lib/applications";
-import type { PlatformListing } from "@/lib/creator-profile";
+import type { Deliverable, DeliverableKind } from "@/lib/campaign";
+import { isPlatform, type PlatformListing } from "@/lib/creator-profile";
 import { profilePhotoUrl } from "@/lib/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createSessionClient } from "@/lib/supabase/server";
@@ -342,9 +343,34 @@ export async function listMyHires(businessId: string): Promise<MyHire[]> {
 
 export type EngagementDetails = EngagementSummary & {
   applicationId: string;
-  campaign: { id: string; title: string; priceKobo: number };
+  campaign: {
+    id: string;
+    title: string;
+    priceKobo: number;
+    /** The campaign's deliver-by date (YYYY-MM-DD). */
+    deliverBy: string;
+    /** The campaign's brief as it reads now (the wording can change while live). */
+    brief: string;
+    /** What the campaign asked for, in order; locked once it was live. */
+    deliverables: Deliverable[];
+  };
   creator: { id: string; name: string; slug: string | null };
   business: { id: string; name: string };
+  /**
+   * What the settlement credited to the creator's wallet, read from the
+   * ledger (null until the hire is settled).
+   */
+  creatorNetKobo: number | null;
+  // Stage 7: where the review stands.
+  /** The latest submission's round (1 to 4), or null before the first. */
+  round: number | null;
+  /** When the round waiting for review is released on its own. */
+  reviewDeadlineAt: string | null;
+  /** Resubmissions still allowed: 4 minus the rounds used. */
+  roundsLeft: number;
+  openDisputeId: string | null;
+  /** When the business may dispute missing work; null unless in progress. */
+  disputeAllowedFrom: string | null;
 };
 
 /** One hire, for either side; null if it isn't theirs. */
@@ -368,11 +394,22 @@ export async function getEngagementDetails(
   const b = obj(data.business);
   return {
     ...summary,
+    creatorNetKobo: num(data.creator_net_kobo),
     applicationId: str(data.application_id) ?? "",
     campaign: {
       id: str(k.id) ?? "",
       title: str(k.title) ?? "",
       priceKobo: num(k.price_kobo) ?? 0,
+      deliverBy: str(k.deliver_by) ?? "",
+      brief: str(k.brief) ?? "",
+      deliverables: list(k.deliverables).flatMap((d) => {
+        if (!isObject(d)) return [];
+        const platform = str(d.platform);
+        const quantity = num(d.quantity);
+        return platform && isPlatform(platform) && quantity
+          ? [{ platform, kind: str(d.kind) as DeliverableKind, quantity }]
+          : [];
+      }),
     },
     creator: {
       id: str(c.id) ?? "",
@@ -380,5 +417,10 @@ export async function getEngagementDetails(
       slug: str(c.slug),
     },
     business: { id: str(b.id) ?? "", name: str(b.name) ?? "" },
+    round: num(data.round),
+    reviewDeadlineAt: str(data.review_deadline_at),
+    roundsLeft: num(data.rounds_left) ?? 0,
+    openDisputeId: str(data.open_dispute_id),
+    disputeAllowedFrom: str(data.dispute_allowed_from),
   };
 }

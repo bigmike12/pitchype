@@ -253,9 +253,9 @@ set local role anon;
 select throws_ok($$ select public.settle_engagement('5e000000-0000-0000-0000-0000000e0002', 'refund', null, 'x') $$,
   '42501', null, 'anon cannot settle');
 reset role;
-select ok(not has_function_privilege('authenticated', 'public.settle_engagement_internal(uuid, text, bigint, text, uuid)', 'execute')
-          and not has_function_privilege('service_role', 'public.settle_engagement_internal(uuid, text, bigint, text, uuid)', 'execute')
-          and not has_function_privilege('anon', 'public.settle_engagement_internal(uuid, text, bigint, text, uuid)', 'execute'),
+select ok(not has_function_privilege('authenticated', 'public.settle_engagement_internal(uuid, text, bigint, text, uuid, public.engagement_status)', 'execute')
+          and not has_function_privilege('service_role', 'public.settle_engagement_internal(uuid, text, bigint, text, uuid, public.engagement_status)', 'execute')
+          and not has_function_privilege('anon', 'public.settle_engagement_internal(uuid, text, bigint, text, uuid, public.engagement_status)', 'execute'),
   'settle_engagement_internal is internal: no role may call it');
 select is((select count(*)::integer from public.ledger_entries
             where engagement_id in ('5e000000-0000-0000-0000-0000000e0002', '5e000000-0000-0000-0000-0000000e0003')
