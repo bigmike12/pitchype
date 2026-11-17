@@ -11,12 +11,18 @@
 //     is already past its deadline, and orphan clean-up is last because
 //     nothing depends on it.
 //   - Any failed step makes the cron answer 500 so the scheduler's log shows
-//     it. Logs carry the step and the error class, never messages.
+//     it, and so does any hire the release step couldn't settle (each is
+//     rolled back on its own, the rest are still released, and the next run
+//     retries it). Logs carry the step and the error class, or the count of
+//     failed hires, never messages.
 //
 // The database comes in through `deps`, so node tests pass fakes.
 
 export type ReviewDeadlineDeps = {
-  releaseOverdueSubmissions: () => Promise<number>;
+  releaseOverdueSubmissions: () => Promise<{
+    released: number;
+    failed: number;
+  }>;
   sendReviewReminders: () => Promise<number>;
   deleteOrphanProofFiles: () => Promise<string[]>;
 };
@@ -24,6 +30,8 @@ export type ReviewDeadlineDeps = {
 /** Each count, or null when that step failed. */
 export type ReviewDeadlinesResult = {
   released: number | null;
+  /** Overdue hires that couldn't be released this run. */
+  releaseFailed: number | null;
   reminded: number | null;
   orphans: number | null;
 };
@@ -55,6 +63,8 @@ async function attempt<T>(
 export function cronStatus(result: ReviewDeadlinesResult): 200 | 500 {
   const failed =
     result.released === null ||
+    result.releaseFailed === null ||
+    result.releaseFailed > 0 ||
     result.reminded === null ||
     result.orphans === null;
   return failed ? 500 : 200;
@@ -64,10 +74,13 @@ export async function runReviewDeadlines(
   deps?: ReviewDeadlineDeps,
 ): Promise<ReviewDeadlinesResult> {
   const d = deps ?? (await realDeps());
-  const released = await attempt(
+  const release = await attempt(
     "auto-release failed",
     d.releaseOverdueSubmissions,
   );
+  if (release && release.failed > 0) {
+    console.error("auto-release failed for hires", release.failed);
+  }
   const reminded = await attempt(
     "review reminders failed",
     d.sendReviewReminders,
@@ -77,5 +90,10 @@ export async function runReviewDeadlines(
     "orphan proof files failed",
     async () => (await d.deleteOrphanProofFiles()).length,
   );
-  return { released, reminded, orphans };
+  return {
+    released: release?.released ?? null,
+    releaseFailed: release?.failed ?? null,
+    reminded,
+    orphans,
+  };
 }

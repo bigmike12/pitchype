@@ -1,7 +1,8 @@
 -- Proves the daily review-deadline job from the auto_release migration:
 -- release_overdue_submissions() releases only submitted hires past their
 -- review deadline (a deadline of exactly now counts, one second later does
--- not), once; a business acting after the deadline gets the release instead;
+-- not), once, and a hire that can't settle neither stops the others nor is
+-- half-released; a business acting after the deadline gets the release instead;
 -- send_review_reminders() tells the business once at 3 days and once at 1 day
 -- left (only the 1-day one when both are due); delete_orphan_proof_files()
 -- removes unattached files older than a day and nothing else; only the server
@@ -12,7 +13,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(51);
+select plan(57);
 
 -- Ada is a business, creators 7a101..7a108 are hired by Ada.
 insert into public.users (id, auth_user_id, email, role) values
@@ -120,7 +121,7 @@ reset role;
 
 -- Releasing overdue work ------------------------------------------------------------------------------------
 set local role service_role;
-select is(public.release_overdue_submissions(), 1,
+select is((select array[released, failed] from public.release_overdue_submissions()), array[1, 0],
   'one hire is released: not the one still in time, not the denied one');
 reset role;
 
@@ -144,7 +145,7 @@ select is((select status from public.submissions where engagement_id = '7a000000
 create temporary table ledger_before on commit drop as
 select count(*)::integer as n from public.ledger_entries;
 set local role service_role;
-select is(public.release_overdue_submissions(), 0, 'running it again releases nothing');
+select is((select array[released, failed] from public.release_overdue_submissions()), array[0, 0], 'running it again releases nothing');
 reset role;
 select is((select count(*)::integer from public.ledger_entries), (select n from ledger_before),
   'and writes no ledger rows');
@@ -220,7 +221,7 @@ select ok((select status = 'auto_accepted' and denial_reasons is null from publi
             where engagement_id = '7a000000-0000-0000-0000-0000000e0006'),
   'the late denial left no reasons');
 set local role service_role;
-select is(public.release_overdue_submissions(), 0, 'the job finds nothing left to release');
+select is((select array[released, failed] from public.release_overdue_submissions()), array[0, 0], 'the job finds nothing left to release');
 reset role;
 
 -- The deadline boundary (hires 4 and 5) ------------------------------------------------------------------------
@@ -229,12 +230,45 @@ update public.submissions set review_deadline_at = now()
 update public.submissions set review_deadline_at = now() + interval '1 second'
  where engagement_id = '7a000000-0000-0000-0000-0000000e0005';
 set local role service_role;
-select is(public.release_overdue_submissions(), 1, 'one hire is released at the boundary');
+select is((select array[released, failed] from public.release_overdue_submissions()), array[1, 0], 'one hire is released at the boundary');
 reset role;
 select is((select status::text from public.engagements where id = '7a000000-0000-0000-0000-0000000e0004'),
   'auto_released', 'a deadline of exactly now is past');
 select is((select status::text from public.engagements where id = '7a000000-0000-0000-0000-0000000e0005'),
   'submitted', 'a deadline one second from now is not');
+
+-- One broken hire doesn't stop the others (hires 2 and 5) -----------------------------------------------------
+-- A correction takes ₦1 out of hire 2's escrow, so settle_money() refuses it
+-- with escrow_mismatch; hire 5 is overdue too.
+select public.post_ledger_group('correction', null, 'test: break hire 2''s escrow',
+  '7a000000-0000-0000-0000-0000000e0002', null, null, null, null,
+  '[{"account": "escrow", "amount": 100}, {"account": "platform_revenue", "amount": -100}]');
+update public.submissions set review_deadline_at = now() - interval '1 minute'
+ where engagement_id in ('7a000000-0000-0000-0000-0000000e0002', '7a000000-0000-0000-0000-0000000e0005');
+set local role service_role;
+select is((select array[released, failed] from public.release_overdue_submissions()), array[1, 1],
+  'one hire released, one failed, in the same run');
+reset role;
+select is((select status::text from public.engagements where id = '7a000000-0000-0000-0000-0000000e0005'),
+  'auto_released', 'hire 5 is released despite hire 2');
+select is((select array[g.status::text, s.status] from public.engagements g
+             join public.submissions s on s.engagement_id = g.id and s.round = 1
+            where g.id = '7a000000-0000-0000-0000-0000000e0002'),
+  array['submitted', 'pending_review'], 'hire 2''s own work is rolled back: still submitted and waiting');
+select is((select count(*)::integer from public.ledger_entries
+            where engagement_id = '7a000000-0000-0000-0000-0000000e0002' and event_type = 'hire_settled'), 0,
+  'and nothing was settled for it');
+
+-- Reversed, the next run releases it.
+select public.post_ledger_group('correction', null, 'test: restore hire 2''s escrow',
+  '7a000000-0000-0000-0000-0000000e0002', null, null, null, null,
+  '[{"account": "escrow", "amount": -100}, {"account": "platform_revenue", "amount": 100}]');
+set local role service_role;
+select is((select array[released, failed] from public.release_overdue_submissions()), array[1, 0],
+  'the next run retries hire 2 and releases it');
+reset role;
+select is((select status::text from public.engagements where id = '7a000000-0000-0000-0000-0000000e0002'),
+  'auto_released', 'hire 2 is auto-released');
 
 -- Proof files: the owner's folder ----------------------------------------------------------------------------
 set local role service_role;

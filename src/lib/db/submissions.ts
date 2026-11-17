@@ -9,13 +9,22 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 // The daily job ------------------------------------------------------------------------------
 
-/** Releases submitted work past its review deadline; returns how many hires. */
-export async function releaseOverdueSubmissions(): Promise<number> {
+/**
+ * Releases submitted work past its review deadline: how many hires were
+ * released, and how many couldn't be (each rolled back on its own and
+ * retried by the next run).
+ */
+export async function releaseOverdueSubmissions(): Promise<{
+  released: number;
+  failed: number;
+}> {
   const { data, error } = await createAdminClient().rpc(
     "release_overdue_submissions",
   );
   if (error) throw new Error(`auto-release failed (${error.code})`);
-  return data;
+  const row = data?.[0];
+  if (!row) throw new Error("auto-release returned no counts");
+  return { released: row.released, failed: row.failed };
 }
 
 /** Sends the 3-day and 1-day review reminders that are due; returns how many. */

@@ -1962,7 +1962,13 @@ export type Database = {
         Args: { e: Database["public"]["Tables"]["engagements"]["Row"] }
         Returns: boolean
       }
-      release_overdue_submissions: { Args: never; Returns: number }
+      release_overdue_submissions: {
+        Args: never
+        Returns: {
+          failed: number
+          released: number
+        }[]
+      }
       report_campaign: {
         Args: {
           campaign: string

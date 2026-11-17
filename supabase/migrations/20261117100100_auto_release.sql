@@ -11,7 +11,8 @@
 --   2. Only a submitted hire whose waiting submission's stored deadline is at
 --      or before now is released. A denied or disputed hire is not (the clock
 --      stopped). Safe to run twice or late: release_if_overdue() re-checks
---      under the locks, and settling a settled hire writes nothing.
+--      under the locks, and settling a settled hire writes nothing. One hire
+--      failing to settle never stops the others (a subtransaction per hire).
 --   3. Lock order, as everywhere: the business's users row, then the
 --      engagement, then the submission.
 --   4. Each reminder is sent once: the reminded_* column is set by the same
@@ -28,10 +29,13 @@
 
 -- Releasing overdue work ----------------------------------------------------------------------------------
 
--- Returns how many hires it released. One transaction: if a release fails the
--- whole run fails and the cron answers 500; the next run retries everything.
+-- Returns how many hires it released and how many failed. Auto-release is the
+-- creator's guarantee, so each hire is released in its own subtransaction: a
+-- hire that can't settle (escrow_mismatch, say) rolls back only its own work,
+-- is logged with its id and SQLSTATE, and is counted in `failed` so the cron
+-- answers 500. The next run retries it.
 create function public.release_overdue_submissions()
-returns integer
+returns table (released integer, failed integer)
 language plpgsql
 volatile
 security definer
@@ -40,8 +44,9 @@ as $$
 declare
   due record;
   e public.engagements;
-  released integer := 0;
 begin
+  released := 0;
+  failed := 0;
   for due in
     select g.id, g.business_id
       from public.engagements g
@@ -50,13 +55,18 @@ begin
        and s.review_deadline_at <= now()
      order by g.business_id, g.id
   loop
-    perform 1 from public.users u where u.id = due.business_id for no key update;
-    select * into e from public.engagements x where x.id = due.id for update;
-    if public.release_if_overdue(e) then
-      released := released + 1;
-    end if;
+    begin
+      perform 1 from public.users u where u.id = due.business_id for no key update;
+      select * into e from public.engagements x where x.id = due.id for update;
+      if public.release_if_overdue(e) then
+        released := released + 1;
+      end if;
+    exception when others then
+      failed := failed + 1;
+      raise warning 'auto-release failed for engagement % (%)', due.id, sqlstate;
+    end;
   end loop;
-  return released;
+  return next;
 end;
 $$;
 
