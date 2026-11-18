@@ -262,6 +262,11 @@ Design: `docs/superpowers/specs/2026-11-10-stage-5-applications-chat-design.md`.
 - [ ] **You:** send one test email on the live site (for example send a chat
       message to a second test account and wait 15 minutes) and check the
       inbox and the spam folder.
+- [ ] **You:** the email's logo header is `public/email/header.jpg`, served
+      from the site itself, so it shows only after this branch is deployed
+      (until then mail apps show the "Pitchype" text in its place). It was
+      rendered once from the brand mark and Bricolage Grotesque over the
+      aurora tints; if the logo changes, render it again at 1200 x 296.
 - [ ] **You (local development):** blank `RESEND_API_KEY` in `.env.local`, or
       use a Resend test key, so local test accounts don't get real emails.
       Clear the local queue with `update public.notifications set
