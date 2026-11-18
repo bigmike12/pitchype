@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { TextAreaField, TextField } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 import { MAX_NOTE_LENGTH } from "@/lib/applications";
-import { creatorReceivesKobo } from "@/lib/campaign";
+import { creatorReceivesKobo, type PaymentModel } from "@/lib/campaign";
 import { formatNaira, KOBO_PER_NAIRA } from "@/lib/money";
 
 import { applyAction, type ApplyState } from "./actions";
@@ -18,10 +18,12 @@ import { applyAction, type ApplyState } from "./actions";
 export function ApplyForm({
   campaignId,
   campaignPriceKobo,
+  paymentModel = "fixed",
   application,
 }: {
   campaignId: string;
   campaignPriceKobo: number;
+  paymentModel?: PaymentModel;
   application?: {
     id: string;
     proposedPriceKobo: number | null;
@@ -42,17 +44,24 @@ export function ApplyForm({
       {application && (
         <input type="hidden" name="applicationId" value={application.id} />
       )}
-      <TextField
-        label="Your price (₦)"
-        name="price"
-        inputMode="numeric"
-        defaultValue={
-          values.price ?? (priceKobo / KOBO_PER_NAIRA).toLocaleString("en-NG")
-        }
-        hint={`The campaign pays ${formatNaira(campaignPriceKobo)} (you’d receive ${formatNaira(creatorReceivesKobo(campaignPriceKobo))} after our 5% fee). Change it to propose your own price; the business decides.`}
-        error={errors.price}
-        className="max-w-xs"
-      />
+      {paymentModel === "per_click" ? (
+        <p className="text-sm text-muted">
+          The price per click is fixed on this campaign, so there’s no price to
+          propose.
+        </p>
+      ) : (
+        <TextField
+          label="Your price (₦)"
+          name="price"
+          inputMode="numeric"
+          defaultValue={
+            values.price ?? (priceKobo / KOBO_PER_NAIRA).toLocaleString("en-NG")
+          }
+          hint={`The campaign pays ${formatNaira(campaignPriceKobo)} (you’d receive ${formatNaira(creatorReceivesKobo(campaignPriceKobo))} after our 5% fee). Change it to propose your own price; the business decides.`}
+          error={errors.price}
+          className="max-w-xs"
+        />
+      )}
       <TextAreaField
         label="Note to the business"
         name="note"

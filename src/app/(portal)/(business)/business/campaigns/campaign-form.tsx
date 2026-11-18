@@ -15,16 +15,21 @@ import { FormMessage } from "@/components/ui/form-message";
 import { SectionCard } from "@/components/ui/section-card";
 import {
   BRIEF_MAX,
+  CHANNEL_LABELS,
+  CHANNELS,
   DELIVERABLE_KINDS,
   GUIDELINES_MAX,
   MAX_CAMPAIGN_NICHES,
   MAX_DELIVERABLE_LINES,
   MAX_PLACES,
   MAX_QUANTITY,
+  MIN_CPC_NAIRA,
   MIN_PRICE_NAIRA,
   kindLabel,
+  maxClicks,
   maxSpend,
   type CampaignInput,
+  type PaymentModel,
 } from "@/lib/campaign";
 import {
   MIN_FOLLOWER_LABELS,
@@ -94,6 +99,16 @@ export function CampaignForm({
   const [places, setPlaces] = useState(
     campaign ? String(campaign.places) : "1",
   );
+  const [paymentModel, setPaymentModel] = useState<PaymentModel>(
+    campaign?.paymentModel ?? "fixed",
+  );
+  const [cpc, setCpc] = useState(
+    campaign?.cpcKobo ? String(campaign.cpcKobo / KOBO_PER_NAIRA) : "",
+  );
+  const [blocked, setBlocked] = useState<string[]>(
+    campaign?.blockedChannels ?? [],
+  );
+  const perClick = paymentModel === "per_click";
 
   const usedPlatforms = PLATFORMS.filter((p) =>
     rows.some((r) => r.platform === p),
@@ -464,13 +479,128 @@ export function CampaignForm({
 
       <SectionCard id="pay-title" title="Pay" padded>
         <div className="space-y-5">
+          <fieldset>
+            <legend className="text-sm font-medium text-ink">
+              How you pay
+            </legend>
+            <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1">
+              {(
+                [
+                  ["fixed", "A fixed price per creator"],
+                  ["per_click", "Per click on your link"],
+                ] as const
+              ).map(([value, label]) => (
+                <label
+                  key={value}
+                  className="flex min-h-11 cursor-pointer items-center gap-2.5 text-ink"
+                >
+                  <input
+                    type="radio"
+                    name="payment_model"
+                    value={value}
+                    checked={paymentModel === value}
+                    onChange={() => setPaymentModel(value)}
+                    className="size-5 accent-ink"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          {perClick && (
+            <div className="space-y-5">
+              <TextField
+                label="Link you want people to visit"
+                name="destination_url"
+                type="url"
+                inputMode="url"
+                placeholder="https://www.yourshop.com/sale"
+                hint="Each creator gets their own short link to this page. It can’t change once the campaign is live."
+                defaultValue={
+                  values.destinationUrl ?? campaign?.destinationUrl ?? ""
+                }
+                error={errors.destinationUrl}
+              />
+              <TextField
+                label="You pay per click (₦)"
+                name="cpc"
+                inputMode="numeric"
+                placeholder="50"
+                hint={`At least ₦${MIN_CPC_NAIRA}. Only real, unique visits count: link previews, bots and repeat visits within 24 hours don’t.`}
+                value={cpc}
+                onChange={(e) => setCpc(e.target.value)}
+                error={errors.cpc}
+              />
+              <label className="flex min-h-11 cursor-pointer items-start gap-2.5 text-ink">
+                <input
+                  type="checkbox"
+                  name="utm_tags"
+                  defaultChecked={campaign?.utmTags ?? true}
+                  className="mt-0.5 size-5 accent-ink"
+                />
+                <span>
+                  Add tracking tags to my link
+                  <span className="block text-sm text-muted">
+                    Adds utm_source=pitchype, so your own analytics see these
+                    visits and any sales they bring. Untick it if your site
+                    breaks on extra link parameters.
+                  </span>
+                </span>
+              </label>
+              <fieldset>
+                <legend className="text-sm font-medium text-ink">
+                  Don’t share my link on
+                </legend>
+                <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
+                  {CHANNELS.map((c) => (
+                    <label
+                      key={c}
+                      className="flex min-h-10 cursor-pointer items-center gap-2.5 text-sm text-ink"
+                    >
+                      <input
+                        type="checkbox"
+                        name="blocked_channels"
+                        value={c}
+                        checked={blocked.includes(c)}
+                        onChange={(e) =>
+                          setBlocked((current) =>
+                            e.target.checked
+                              ? [...current, c]
+                              : current.filter((x) => x !== c),
+                          )
+                        }
+                        className="size-4 accent-ink"
+                      />
+                      {CHANNEL_LABELS[c]}
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-2 text-sm text-muted">
+                  Paid ads and click-for-reward groups are never allowed. Clicks
+                  we can trace to a blocked channel aren’t paid for.
+                </p>
+                <FieldMessages
+                  id="blocked_channels"
+                  error={errors.blockedChannels}
+                />
+              </fieldset>
+            </div>
+          )}
+
           <div className="grid gap-5 sm:grid-cols-2">
             <TextField
-              label="Price per creator (₦)"
+              label={
+                perClick ? "Budget per creator (₦)" : "Price per creator (₦)"
+              }
               name="price"
               inputMode="numeric"
-              placeholder="50,000"
-              hint={`At least ${formatNaira(MIN_PRICE_NAIRA * KOBO_PER_NAIRA)}. Creators can suggest a different price when they apply.`}
+              placeholder={perClick ? "25,000" : "50,000"}
+              hint={
+                perClick
+                  ? `At least ${formatNaira(MIN_PRICE_NAIRA * KOBO_PER_NAIRA)}. The most one creator can earn; what isn’t earned comes back to you.`
+                  : `At least ${formatNaira(MIN_PRICE_NAIRA * KOBO_PER_NAIRA)}. Creators can suggest a different price when they apply.`
+              }
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               error={errors.price}
@@ -487,7 +617,11 @@ export function CampaignForm({
               error={errors.places}
             />
           </div>
-          <SpendSummary price={price} places={places} />
+          <SpendSummary
+            price={price}
+            places={places}
+            cpc={perClick ? cpc : null}
+          />
         </div>
       </SectionCard>
 
@@ -504,7 +638,16 @@ export function CampaignForm({
   );
 }
 
-function SpendSummary({ price, places }: { price: string; places: string }) {
+function SpendSummary({
+  price,
+  places,
+  cpc,
+}: {
+  price: string;
+  places: string;
+  /** The price per click as typed, for a per-click campaign. */
+  cpc: string | null;
+}) {
   const naira = Number(price.replace(/[₦,\s]/g, ""));
   const count = Number(places);
   if (
@@ -515,9 +658,25 @@ function SpendSummary({ price, places }: { price: string; places: string }) {
   ) {
     return null;
   }
+  const cpcNaira = cpc === null ? null : Number(cpc.replace(/[₦,\s]/g, ""));
+  if (
+    cpcNaira !== null &&
+    (!Number.isInteger(cpcNaira) || cpcNaira < MIN_CPC_NAIRA)
+  ) {
+    return null;
+  }
   const spend = maxSpend(naira * KOBO_PER_NAIRA, count);
   return (
     <div role="status" className="rounded-card bg-surface-card p-5 text-ink">
+      {cpcNaira !== null && (
+        <p className="mb-1">
+          Up to{" "}
+          <strong>
+            {maxClicks(naira, cpcNaira).toLocaleString("en-NG")} clicks
+          </strong>{" "}
+          per creator at {formatNaira(cpcNaira * KOBO_PER_NAIRA)} each.
+        </p>
+      )}
       <p>
         Each creator: {formatNaira(naira * KOBO_PER_NAIRA)} plus our{" "}
         {formatNaira(spend.feePerCreatorKobo)} fee ={" "}
@@ -528,8 +687,9 @@ function SpendSummary({ price, places }: { price: string; places: string }) {
         <strong>{formatNaira(spend.totalKobo)}</strong>.
       </p>
       <p className="mt-2 text-sm text-muted">
-        Nothing is charged now. You pay for each creator when you accept them,
-        and the money is held until their work is approved.
+        {cpcNaira !== null
+          ? "Nothing is charged now. You pay each creator’s budget when you accept them; it’s held, and after the campaign you pay only for the clicks they sent. The rest comes back to your wallet."
+          : "Nothing is charged now. You pay for each creator when you accept them, and the money is held until their work is approved."}
       </p>
     </div>
   );

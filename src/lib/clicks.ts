@@ -114,8 +114,14 @@ export function destinationWithTags(
 
 // Keyed hashes: the IPv4 space is small enough to reverse a plain hash, and raw
 // IPs are never stored (NDPR).
-export function hashVisitor(secret: string, ip: string, userAgent: string): string {
-  return createHmac("sha256", secret).update(`${ip}|${userAgent}`).digest("hex");
+export function hashVisitor(
+  secret: string,
+  ip: string,
+  userAgent: string,
+): string {
+  return createHmac("sha256", secret)
+    .update(`${ip}|${userAgent}`)
+    .digest("hex");
 }
 
 export function hashUserAgent(secret: string, userAgent: string): string {

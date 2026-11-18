@@ -136,15 +136,25 @@ test("a per-click campaign form", () => {
 
 test("per click: at least ₦50 a click, whole naira", () => {
   for (const cpc of ["49", "50.5", "", "abc"]) {
-    const parsed = parseCampaignForm(form(perClickWith("cpc", cpc)), NICHES, TODAY);
+    const parsed = parseCampaignForm(
+      form(perClickWith("cpc", cpc)),
+      NICHES,
+      TODAY,
+    );
     assert.equal(parsed.ok, false, cpc);
     assert.ok(!parsed.ok && parsed.errors.cpc, cpc);
   }
 });
 
 test("per click: the budget per creator is a whole number of clicks", () => {
-  const parsed = parseCampaignForm(form(perClickWith("price", "25,020")), NICHES, TODAY);
-  assert.ok(!parsed.ok && parsed.errors.price?.includes("whole number of clicks"));
+  const parsed = parseCampaignForm(
+    form(perClickWith("price", "25,020")),
+    NICHES,
+    TODAY,
+  );
+  assert.ok(
+    !parsed.ok && parsed.errors.price?.includes("whole number of clicks"),
+  );
 });
 
 test("per click: blocked channels come from the list", () => {

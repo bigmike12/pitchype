@@ -9,12 +9,15 @@
 import { cacheLife } from "next/cache";
 
 import {
+  isChannel,
   type CampaignAction,
   type CampaignInput,
+  type Channel,
   type CampaignStatus,
   type Deliverable,
   type DeliverableKind,
   type LiveEdit,
+  type PaymentModel,
   type Problem,
 } from "@/lib/campaign";
 import {
@@ -91,7 +94,7 @@ export async function getOwnCampaign(
   const { data, error } = await supabase
     .from("campaigns")
     .select(
-      "id, status, title, brief, guidelines, niches, states, verified_only, price_kobo, places, applications_close_on, post_from, deliver_by, review_note, removed_reason, published_at, campaign_platforms (platform, min_followers, campaign_deliverables (position, platform, kind, quantity)), campaign_revisions (created_at)",
+      "id, status, title, brief, guidelines, niches, states, verified_only, price_kobo, places, applications_close_on, post_from, deliver_by, payment_model, cpc_kobo, destination_url, utm_tags, blocked_channels, review_note, removed_reason, published_at, campaign_platforms (platform, min_followers, campaign_deliverables (position, platform, kind, quantity)), campaign_revisions (created_at)",
     )
     .eq("id", campaignId)
     .eq("business_id", businessId)
@@ -108,8 +111,13 @@ export async function getOwnCampaign(
     niches: data.niches,
     states: data.states as NigerianState[],
     verifiedOnly: data.verified_only,
-    // Only fixed-price campaigns exist so far, so there is always a price.
+    // Both payment models have a price: per creator, or the budget per creator.
     priceKobo: data.price_kobo ?? 0,
+    paymentModel: data.payment_model,
+    cpcKobo: data.cpc_kobo,
+    destinationUrl: data.destination_url,
+    utmTags: data.utm_tags,
+    blockedChannels: data.blocked_channels.filter(isChannel),
     places: data.places,
     applicationsCloseOn: data.applications_close_on,
     postFrom: data.post_from,
@@ -174,6 +182,11 @@ export async function saveCampaignDraft(
       min_followers: p.minFollowers,
     })),
     deliverables: input.deliverables,
+    payment_model: input.paymentModel,
+    cpc_kobo: nullable<number>(input.cpcKobo),
+    destination_url: nullable<string>(input.destinationUrl),
+    utm_tags: input.utmTags,
+    blocked_channels: input.blockedChannels,
   });
   if (error?.code === "P0002") return "not_a_draft";
   if (error) throw new Error(`campaign save failed (${error.code})`);
@@ -267,7 +280,14 @@ export type CampaignListing = {
   niches: string[];
   states: NigerianState[];
   verifiedOnly: boolean;
+  /** Per creator; for per-click campaigns, the budget per creator. */
   priceKobo: number | null;
+  paymentModel: PaymentModel;
+  cpcKobo: number | null;
+  /** Only the host is shown to creators. */
+  destinationHost: string | null;
+  utmTags: boolean;
+  blockedChannels: Channel[];
   places: number;
   /** Places held by hires; null if the database doesn't say. */
   placesTaken: number | null;
@@ -286,6 +306,8 @@ export type CampaignDetail = CampaignListing & {
   removedReason: string | null;
   /** When the wording last changed after going live, if it has. */
   revisedAt: string | null;
+  /** The full destination, for admins only. */
+  destinationUrl: string | null;
 };
 
 export const CAMPAIGNS_PAGE_SIZE = 24;
@@ -336,6 +358,7 @@ export async function getCampaign(
     removedReason:
       typeof data.removed_reason === "string" ? data.removed_reason : null,
     revisedAt: typeof data.revised_at === "string" ? data.revised_at : null,
+    destinationUrl: str(data.destination_url),
   };
 }
 
@@ -490,6 +513,13 @@ function toListing(value: Json): CampaignListing | null {
     ),
     verifiedOnly: value.verified_only === true,
     priceKobo: num(value.price_kobo),
+    paymentModel: value.payment_model === "per_click" ? "per_click" : "fixed",
+    cpcKobo: num(value.cpc_kobo),
+    destinationHost: str(value.destination_host),
+    utmTags: value.utm_tags !== false,
+    blockedChannels: list(value.blocked_channels).filter(
+      (c): c is Channel => typeof c === "string" && isChannel(c),
+    ),
     places: num(value.places) ?? 0,
     placesTaken: num(value.places_taken),
     applicationsCloseOn: str(value.applications_close_on) ?? "",

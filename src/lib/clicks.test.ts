@@ -19,20 +19,43 @@ test("link previews, bots and people", () => {
   assert.equal(classifyClient("HEAD", SAFARI, NO_PREFETCH), "preview");
   assert.equal(classifyClient("GET", null, NO_PREFETCH), "bot");
   assert.equal(classifyClient("GET", "", NO_PREFETCH), "bot");
-  assert.equal(classifyClient("GET", "WhatsApp/2.23.20.0 A", NO_PREFETCH), "preview");
-  assert.equal(classifyClient("GET", "TelegramBot (like TwitterBot)", NO_PREFETCH), "preview");
   assert.equal(
-    classifyClient("GET", "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)", NO_PREFETCH),
+    classifyClient("GET", "WhatsApp/2.23.20.0 A", NO_PREFETCH),
+    "preview",
+  );
+  assert.equal(
+    classifyClient("GET", "TelegramBot (like TwitterBot)", NO_PREFETCH),
+    "preview",
+  );
+  assert.equal(
+    classifyClient(
+      "GET",
+      "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+      NO_PREFETCH,
+    ),
     "preview",
   );
   assert.equal(classifyClient("GET", "Twitterbot/1.0", NO_PREFETCH), "preview");
   assert.equal(
-    classifyClient("GET", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)", NO_PREFETCH),
+    classifyClient(
+      "GET",
+      "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+      NO_PREFETCH,
+    ),
     "bot",
   );
   assert.equal(classifyClient("GET", "curl/8.4.0", NO_PREFETCH), "bot");
-  assert.equal(classifyClient("GET", SAFARI, { purpose: "prefetch", secPurpose: null }), "preview");
-  assert.equal(classifyClient("GET", SAFARI, { purpose: null, secPurpose: "prefetch;prerender" }), "preview");
+  assert.equal(
+    classifyClient("GET", SAFARI, { purpose: "prefetch", secPurpose: null }),
+    "preview",
+  );
+  assert.equal(
+    classifyClient("GET", SAFARI, {
+      purpose: null,
+      secPurpose: "prefetch;prerender",
+    }),
+    "preview",
+  );
   assert.equal(classifyClient("GET", SAFARI, NO_PREFETCH), "human");
 });
 
@@ -64,7 +87,10 @@ test("where a click came from", () => {
 });
 
 test("only the referrer's host is kept", () => {
-  assert.equal(referrerHost("https://l.facebook.com/l.php?u=secret"), "l.facebook.com");
+  assert.equal(
+    referrerHost("https://l.facebook.com/l.php?u=secret"),
+    "l.facebook.com",
+  );
   assert.equal(referrerHost(null), null);
   assert.equal(referrerHost("not a url"), null);
 });

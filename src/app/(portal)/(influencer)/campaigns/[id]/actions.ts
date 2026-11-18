@@ -134,7 +134,11 @@ export async function applyAction(
   if (!campaign || campaign.priceKobo === null) {
     return { status: "error", message: refusalText("campaign_closed"), values };
   }
-  const parsed = parseApplicationForm(form, campaign.priceKobo);
+  const parsed = parseApplicationForm(
+    form,
+    campaign.priceKobo,
+    campaign.paymentModel,
+  );
   if (!parsed.ok) {
     return { status: "error", errors: parsed.errors, values: parsed.values };
   }

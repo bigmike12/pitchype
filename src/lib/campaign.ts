@@ -273,9 +273,12 @@ export function checkDestinationUrl(
   raw: string,
 ): { url: string } | { error: string } {
   const value = raw.trim();
-  if (value === "") return { error: "Enter the link you want people to visit." };
+  if (value === "")
+    return { error: "Enter the link you want people to visit." };
   if (value.length > MAX_DESTINATION_LENGTH) {
-    return { error: `Use a link of ${MAX_DESTINATION_LENGTH} characters or fewer.` };
+    return {
+      error: `Use a link of ${MAX_DESTINATION_LENGTH} characters or fewer.`,
+    };
   }
   let url: URL;
   try {
@@ -290,14 +293,14 @@ export function checkDestinationUrl(
     return { error: "Use a plain link, without a port or a login." };
   }
   const host = url.hostname.toLowerCase();
-  const isIp =
-    /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.startsWith("[");
+  const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.startsWith("[");
   if (isIp || host === "localhost" || !host.includes(".")) {
     return { error: "Use your website's address, not an IP address." };
   }
   if (SHORTENERS.has(host.replace(/^www\./, ""))) {
     return {
-      error: "Use the full link, not a shortened one. Pitchype makes each creator's short link.",
+      error:
+        "Use the full link, not a shortened one. Pitchype makes each creator's short link.",
     };
   }
   return { url: value };
@@ -319,7 +322,9 @@ function parseCpc(raw: string): { kobo: number } | { error: string } {
     return { error: `The lowest price per click is ₦${MIN_CPC_NAIRA}.` };
   }
   if (naira > MAX_PRICE_NAIRA) {
-    return { error: `Enter ${formatNaira(MAX_PRICE_NAIRA * KOBO_PER_NAIRA)} or less.` };
+    return {
+      error: `Enter ${formatNaira(MAX_PRICE_NAIRA * KOBO_PER_NAIRA)} or less.`,
+    };
   }
   return { kobo: naira * KOBO_PER_NAIRA };
 }
@@ -357,7 +362,9 @@ function perClickTerms(
   if ("error" in destination) errors.destinationUrl = destination.error;
 
   const posted = [
-    ...new Set(form.getAll("blocked_channels").filter((v) => typeof v === "string")),
+    ...new Set(
+      form.getAll("blocked_channels").filter((v) => typeof v === "string"),
+    ),
   ];
   if (posted.some((v) => !isChannel(v))) {
     errors.blockedChannels = "Choose channels from the list.";
@@ -587,7 +594,11 @@ export function parseCampaignForm(
   const price = parsePrice(text(form, "price"));
   if ("error" in price) errors.price = price.error;
   const placeCount = places(form, errors);
-  const terms = perClickTerms(form, "kobo" in price ? price.kobo : null, errors);
+  const terms = perClickTerms(
+    form,
+    "kobo" in price ? price.kobo : null,
+    errors,
+  );
 
   const applicationsCloseOn = text(form, "applicationsCloseOn");
   const postFromRaw = text(form, "postFrom");

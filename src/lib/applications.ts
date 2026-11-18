@@ -3,7 +3,7 @@
 // rules that protect places, prices and standing live in
 // supabase/migrations/20261110100100_create_applications.sql.
 
-import { parsePrice } from "./campaign.ts";
+import { parsePrice, type PaymentModel } from "./campaign.ts";
 import { findContactDetails } from "./contact-details.ts";
 import { text, type FieldErrors, type Parsed } from "./form-data.ts";
 
@@ -39,9 +39,12 @@ export type ApplicationInput = {
 export function parseApplicationForm(
   form: FormData,
   campaignPriceKobo: number,
+  paymentModel: PaymentModel = "fixed",
 ): Parsed<ApplicationInput, ApplicationField> {
   const errors: FieldErrors<ApplicationField> = {};
-  const rawPrice = text(form, "price").trim();
+  // A per-click campaign's price per click and cap are the terms; nothing to propose.
+  const rawPrice =
+    paymentModel === "per_click" ? "" : text(form, "price").trim();
   const note = text(form, "note").trim();
 
   let proposedPriceKobo: number | null = null;
@@ -86,7 +89,10 @@ export function applicationBucket(application: {
   status: string;
   engagement: { status: string; fundedAt: string | null } | null;
 }): ApplicationBucket {
-  if (application.status === "submitted" || application.status === "shortlisted") {
+  if (
+    application.status === "submitted" ||
+    application.status === "shortlisted"
+  ) {
     return "waiting";
   }
   if (hireEndedUnpaid(application)) return "waiting";

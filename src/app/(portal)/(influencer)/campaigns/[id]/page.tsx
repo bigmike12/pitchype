@@ -12,6 +12,7 @@ import { Suspense } from "react";
 
 import {
   DeliverableList,
+  PerClickTerms,
   RequirementList,
   StatusPill,
 } from "@/components/campaigns/campaign-facts";
@@ -117,18 +118,32 @@ async function Campaign({ params }: { params: Params }) {
       <div className="mt-6 grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-3 xl:order-2 xl:sticky xl:top-0">
           <dl className="grid gap-4 rounded-card p-4 panel sm:grid-cols-3 sm:p-5 xl:grid-cols-1">
-            {campaign.priceKobo !== null && (
+            {campaign.paymentModel === "per_click" &&
+            campaign.cpcKobo !== null &&
+            campaign.priceKobo !== null ? (
               <div>
-                <dt className="text-sm text-muted">Pay per creator</dt>
+                <dt className="text-sm text-muted">Pay per click</dt>
                 <dd className="mt-1 font-display text-[1.75rem] leading-none font-semibold tracking-[-0.03em] text-ink tabular-nums">
-                  {formatNaira(campaign.priceKobo)}
+                  {formatNaira(campaign.cpcKobo)}
                 </dd>
                 <dd className="mt-1.5 text-[0.8125rem] text-muted">
-                  You receive{" "}
-                  {formatNaira(creatorReceivesKobo(campaign.priceKobo))} after
-                  our 5% fee
+                  Up to {formatNaira(campaign.priceKobo)}, less our 5% fee
                 </dd>
               </div>
+            ) : (
+              campaign.priceKobo !== null && (
+                <div>
+                  <dt className="text-sm text-muted">Pay per creator</dt>
+                  <dd className="mt-1 font-display text-[1.75rem] leading-none font-semibold tracking-[-0.03em] text-ink tabular-nums">
+                    {formatNaira(campaign.priceKobo)}
+                  </dd>
+                  <dd className="mt-1.5 text-[0.8125rem] text-muted">
+                    You receive{" "}
+                    {formatNaira(creatorReceivesKobo(campaign.priceKobo))} after
+                    our 5% fee
+                  </dd>
+                </div>
+              )
             )}
             <div>
               <dt className="flex items-center gap-1.5 text-sm text-muted">
@@ -157,7 +172,10 @@ async function Campaign({ params }: { params: Params }) {
 
           {isCreator &&
             (application ? (
-              <ApplicationPanel application={application} />
+              <ApplicationPanel
+                application={application}
+                paymentModel={campaign.paymentModel}
+              />
             ) : places?.left === 0 ? (
               <Callout
                 tone="info"
@@ -185,6 +203,7 @@ async function Campaign({ params }: { params: Params }) {
                 <ApplyForm
                   campaignId={campaign.id}
                   campaignPriceKobo={campaign.priceKobo}
+                  paymentModel={campaign.paymentModel}
                 />
               </section>
             ) : (
@@ -209,6 +228,24 @@ async function Campaign({ params }: { params: Params }) {
             ))}
         </div>
         <div className="space-y-3 xl:order-1">
+          {campaign.paymentModel === "per_click" &&
+            campaign.cpcKobo !== null &&
+            campaign.priceKobo !== null && (
+              <SectionCard id="clicks-title" title="Pay per click" padded>
+                <PerClickTerms
+                  cpcKobo={campaign.cpcKobo}
+                  budgetKobo={campaign.priceKobo}
+                  destination={campaign.destinationHost}
+                  blockedChannels={campaign.blockedChannels}
+                  deliverBy={campaign.deliverBy}
+                />
+                <p className="mt-3 text-sm text-muted">
+                  You get your own short link when you start. Only real, unique
+                  visits count; link previews, bots and repeat visits within 24
+                  hours don’t.
+                </p>
+              </SectionCard>
+            )}
           <SectionCard id="posts-title" title="What you post" padded>
             <div>
               <DeliverableList
