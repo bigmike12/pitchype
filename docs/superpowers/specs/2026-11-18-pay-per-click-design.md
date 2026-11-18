@@ -137,6 +137,8 @@ What we can and can't enforce, said plainly in the UI so nobody is misled:
 
 ## 8. Part 3: dashboards and summary
 
+> Built 2026-11-21 (plan `docs/superpowers/plans/2026-11-20-pay-per-click-part-3.md`). Differences: the chart and sources stack under the counts (the cards are too narrow side by side); the summary counts only paid hires; in the CSV a settled hire shows "Running" until every hire on the campaign has settled. Added by the owner on 2026-11-20: once clicks have stopped, the business can't move the end date.
+
 - **Business campaign page, "Clicks" tab:** a total (billable clicks, filtered hits, spent, remaining budget across funded places); a per-creator table (billable, filtered, filter reasons, spent, % of cap, proof added or not, a warning for any blocked-channel shares); clicks per day (simple bar chart, CSS or SVG, no new library); clicks by source.
 - **Creator hire page:** the same for their own link, plus earned, our fee and what they'll receive.
 - **End-of-campaign summary**, on both sides once every hire is settled: total clicks, spent, refunded, fees, and per-creator results. CSV export for the business (reuse the ledger CSV approach).

@@ -137,14 +137,16 @@ Decisions: `docs/campaign-spec-decisions.md`.
 
 - [ ] Campaign images: none for now. Later, one product photo reusing the
       profile photo pipeline; a business logo is the cheaper first image.
-- [ ] Pay-per-click campaigns (design
+- [x] Pay-per-click campaigns (design
       `docs/superpowers/specs/2026-11-18-pay-per-click-design.md`, goal
       2026-11-30). Part 1 done 2026-11-19: per-click terms, tracked links,
       click recording and filtering, counts on the hire and campaign pages.
       Part 2 done 2026-11-20: settlement (fee on spent, floors), the 72-hour
       hold and settle-clicks cron, withdrawal, cancel, disputes during the
-      hold, proof for the record, notifications, per-click wording. Part 3:
-      dashboards by day and source, end-of-campaign summary, CSV.
+      hold, proof for the record, notifications, per-click wording. Part 3
+      done 2026-11-21: clicks per day and by source, the end-of-campaign
+      summary, the business CSV, admin click views, and the end-date lock
+      once clicks stop.
 - [ ] **You:** set `CLICK_HASH_SECRET` (`openssl rand -hex 32`) on Vercel
       Production and Preview before any per-click campaign goes live; don't
       change it while a campaign runs. Don't push the pay-per-click
