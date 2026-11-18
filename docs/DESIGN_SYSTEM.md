@@ -297,6 +297,22 @@ the need before adding it (CLAUDE.md §2).
   callouts, pills, icon tiles and quiet boxes. Status is a `Callout`, empty
   lists an `EmptyState`, quick actions `ActionCard`s. Filter forms are a
   `FilterBar`.
+- **Campaign builder** (`/business/campaigns/new` and editing a draft;
+  `campaigns/campaign-form.tsx`, rebuilt 2026-11-21): the one form split into
+  four steps (Basics; Posts and creators; Pay; Dates and review), each a
+  `rounded-panel panel` card headed by a `ClayTile`, a `text-display-md`
+  title and one line of why. A segmented progress bar sits above (a step
+  name under each segment from 640px, "Step 2 of 4: …" on phones); finished
+  steps can be reopened. Continue checks the current step's fields in the
+  browser (`required`, `minLength`) before moving on; every field stays in
+  the form, so one save sends them all, and a refused save opens the first
+  step with an error. Decisions are `ChoiceGroup` cards (how you pay); rules
+  that bite later are `Callout`s (locked once live, review before going
+  live). A sticky "Your campaign so far" panel sits beside the steps from
+  1024px (below them on phones) with the most the business could spend. The
+  last step shows "What creators will see" before Save draft. These two
+  pages use `max-w-6xl` (the summary column needs it); the live-edit form
+  keeps `max-w-3xl`.
 - **Home pages** (`/home`, rebuilt 2026-11-16): `HomeGreeting`, any
   `Callout`s, then cards built only from the person's own records.
   **Creator:** four `StatCard`s (wallet balance as the ink `emphasis` card,
