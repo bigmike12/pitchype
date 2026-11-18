@@ -339,6 +339,29 @@ update public.campaigns set status = 'open' where id = ${lit(hire.campaign)};`);
   return hire;
 }
 
+// A started per-click hire whose click window ended 4 days ago, so its 72-hour
+// hold is over and the daily job settles it.
+export async function heldClickHire(billable = 0) {
+  const hire = await startedClickHire(billable);
+  await run(`
+update public.campaigns set status = 'draft' where id = ${lit(hire.campaign)};
+update public.campaigns set applications_close_on = public.lagos_today() - 4,
+       deliver_by = public.lagos_today() - 4
+ where id = ${lit(hire.campaign)};
+update public.campaigns set status = 'open' where id = ${lit(hire.campaign)};`);
+  return hire;
+}
+
+// How many settlement groups a hire has, and what it released.
+export async function clickHireFacts(hire) {
+  return json(`select jsonb_build_object(
+      'status', e.status, 'released', e.released_kobo, 'settled', e.settled_at is not null,
+      'groups', (select count(distinct l.group_id) from public.ledger_entries l
+                  where l.engagement_id = e.id and l.event_type = 'hire_settled'),
+      'billable', (select t.billable_clicks from public.tracked_links t where t.engagement_id = e.id))
+    from public.engagements e where e.id = ${lit(hire.id)}`);
+}
+
 export function clickCall(hire, visitor) {
   return `public.record_click(${lit(hire.code)}, ${lit(visitor)}, null, null, 'unknown', 'human') ->> 'reason'`;
 }

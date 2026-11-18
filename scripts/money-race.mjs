@@ -29,6 +29,8 @@ import {
   RUN,
   as,
   clickCall,
+  clickHireFacts,
+  heldClickHire,
   startedClickHire,
   attempt,
   charge,
@@ -1403,18 +1405,20 @@ async function clickVsHireEnding(c) {
   // withdrawal always goes through, and nothing errors or deadlocks.
   const seen = [];
   // The click is usually first to its row, so later rounds hold it back.
-  const clickLateBy = [0, 1, 2, 3, 4, 0, 1, 2, 3, 4];
-  for (let round = 1; round <= clickLateBy.length; round++) {
+  // A per-click withdrawal only stops the clicks (no money moves), so it is
+  // quicker than a click: holding the withdrawal back lets the click win too.
+  const withdrawLateBy = [0, 0, 1, 2, 3, 0, 1, 2, 3, 4];
+  for (let round = 1; round <= withdrawLateBy.length; round++) {
     const hire = await startedClickHire();
     const [click, withdraw] = await racePair(
       {
         who: as.service,
         call: clickCall(hire, `v${round}`),
-        delayMs: clickLateBy[round - 1],
       },
       {
         who: as.user(hire.creator),
         call: `public.withdraw_from_engagement(${lit(hire.id)})`,
+        delayMs: withdrawLateBy[round - 1],
       },
       round % 2 === 0,
     );
@@ -1427,6 +1431,139 @@ async function clickVsHireEnding(c) {
     );
   }
   c.winners("click vs withdraw", seen);
+  return seen.join(", ");
+}
+
+const REASON = "These clicks look wrong to me, please check them.";
+const settleJob = "public.settle_due_click_hires() ->> 'failed'";
+
+async function settleJobTwice(c) {
+  // Two daily runs at once: every due hire settles exactly once.
+  for (let round = 1; round <= 3; round++) {
+    const hires = [
+      await heldClickHire(10),
+      await heldClickHire(0),
+      await heldClickHire(500),
+    ];
+    const [a, b] = await racePair(
+      { who: as.service, call: settleJob },
+      { who: as.service, call: settleJob },
+      round % 2 === 0,
+    );
+    c.eq(`round ${round}: no failures`, [a, b], ["0", "0"]);
+    for (const [i, hire] of hires.entries()) {
+      const f = await clickHireFacts(hire);
+      c.eq(
+        `round ${round} hire ${i + 1}: settled once`,
+        [f.settled, f.groups],
+        [true, 1],
+      );
+    }
+  }
+  return "3 rounds";
+}
+
+async function settleJobVsOpenDispute(c) {
+  // The job settles a held hire or the business disputes it first; never both.
+  const seen = [];
+  const lateBy = [0, 1, 2, 3, 4, 0];
+  for (let round = 1; round <= lateBy.length; round++) {
+    const hire = await heldClickHire(20);
+    const [, disputed] = await racePair(
+      { who: as.service, call: settleJob },
+      {
+        who: as.user(hire.business),
+        call: `case when public.open_dispute(${lit(hire.id)}, ${lit(REASON)}, '{}', '{}') is not null then 'ok' end`,
+        delayMs: lateBy[round - 1],
+      },
+      round % 2 === 0,
+    );
+    const f = await clickHireFacts(hire);
+    if (disputed === "ok") {
+      seen.push("dispute first");
+      c.eq(
+        `round ${round}: disputed, not settled`,
+        [f.status, f.settled, f.groups],
+        ["disputed", false, 0],
+      );
+    } else {
+      seen.push("settle first");
+      c.eq(
+        `round ${round}: settled, dispute refused`,
+        [f.settled, f.groups, disputed],
+        [true, 1, "error:engagement_locked"],
+      );
+    }
+  }
+  c.winners("settle vs dispute", seen);
+  return seen.join(", ");
+}
+
+async function settleJobVsDecide(c) {
+  // An admin decides a disputed held hire while the job runs: one settlement.
+  const admin = await newAdmin();
+  for (let round = 1; round <= 4; round++) {
+    const hire = await heldClickHire(30);
+    await must(
+      as.user(hire.business),
+      `public.open_dispute(${lit(hire.id)}, ${lit(REASON)}, '{}', '{}')`,
+    );
+    const dispute = await run(
+      `select id from public.disputes where engagement_id = ${lit(hire.id)};`,
+    );
+    const [job, decided] = await racePair(
+      { who: as.service, call: settleJob },
+      {
+        who: as.user(admin),
+        call: `public.decide_dispute(${lit(dispute)}, 'split', 100000::bigint, 'race test')`,
+      },
+      round % 2 === 0,
+    );
+    const f = await clickHireFacts(hire);
+    c.eq(`round ${round}: job and decision`, [job, decided], ["0", "ok"]);
+    c.eq(
+      `round ${round}: one settlement of ₦1,000`,
+      [f.groups, f.released],
+      [1, 100000],
+    );
+  }
+  return "4 rounds";
+}
+
+async function clickVsSettlement(c) {
+  // A click and the settlement on the same hire: the amount released always
+  // matches the final count, so no click counts after settlement read it.
+  const seen = [];
+  const clickLateBy = [0, 1, 2, 3, 0, 1, 2, 3];
+  for (let round = 1; round <= clickLateBy.length; round++) {
+    const hire = await startedClickHire(10);
+    const [click, settled] = await racePair(
+      {
+        who: as.service,
+        call: clickCall(hire, `s${round}`),
+        delayMs: clickLateBy[round - 1],
+      },
+      {
+        who: as.postgres,
+        call: `public.settle_click_hire(${lit(hire.id)}, null, 'race test')`,
+      },
+      round % 2 === 0,
+    );
+    const f = await clickHireFacts(hire);
+    seen.push(click === "ok" ? "click first" : "settle first");
+    c.eq(
+      `round ${round}: click result`,
+      ["ok", "hire_ended"].includes(click),
+      true,
+    );
+    c.eq(`round ${round}: settled`, settled, "true");
+    c.eq(
+      `round ${round}: released matches the count`,
+      f.released,
+      Math.min(f.billable * 5000, 500000),
+    );
+  }
+  c.winners("click vs settlement", seen);
   return seen.join(", ");
 }
 
@@ -1457,6 +1594,10 @@ const scenarios = [
   ["22 two claims at once", twoClaimsAtOnce],
   ["23 two clicks at the cap", twoClicksAtTheCap],
   ["24 click vs hire ending", clickVsHireEnding],
+  ["25 settle job twice at once", settleJobTwice],
+  ["26 settle job vs open dispute", settleJobVsOpenDispute],
+  ["27 settle job vs decide dispute", settleJobVsDecide],
+  ["28 click vs settlement", clickVsSettlement],
 ];
 
 async function runOnce(scenario) {
