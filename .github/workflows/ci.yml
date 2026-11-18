@@ -32,6 +32,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Next.js writes the global PageProps and LayoutProps types into .next/
+      # on build; a fresh checkout has none, so generate them first.
+      - name: Generate Next.js route types
+        run: npx next typegen
+
       - name: Type-check
         run: npm run typecheck
 
