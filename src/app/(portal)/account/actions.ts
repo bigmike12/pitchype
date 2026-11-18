@@ -3,8 +3,10 @@
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth";
+import { saveMyEmailPreferences } from "@/lib/db/notification-emails";
 import { createProfile, updateProfile } from "@/lib/db/profiles";
 import type { FormState } from "@/lib/form-data";
+import { parseEmailPreferences } from "@/lib/notification-email";
 import { parseProfileForm, type ProfileField } from "@/lib/profile";
 
 export type ProfileState = FormState<ProfileField>;
@@ -69,6 +71,30 @@ export async function updateProfileAction(
     message: "Saved.",
     values: valuesOf(form),
   };
+}
+
+export async function updateEmailPreferencesAction(
+  _previous: FormState<never>,
+  form: FormData,
+): Promise<FormState<never>> {
+  const user = await requireUser();
+  // Admins have no bell and receive no notifications, so nothing to switch.
+  if (user.role === "admin") redirect("/home");
+
+  try {
+    await saveMyEmailPreferences(parseEmailPreferences(form));
+  } catch (error) {
+    console.error(
+      "account: email preferences save failed",
+      error instanceof Error ? error.message : error,
+    );
+    return {
+      status: "error",
+      message:
+        "We couldn’t save your email settings just now. Please try again in a minute.",
+    };
+  }
+  return { status: "success", message: "Saved." };
 }
 
 function valuesOf(form: FormData): ProfileState["values"] {

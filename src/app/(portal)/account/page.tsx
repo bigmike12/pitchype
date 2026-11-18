@@ -9,11 +9,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
 import { requireUser } from "@/lib/auth";
 import { listMyBlocks } from "@/lib/db/moderation";
+import { getMyEmailPreferences } from "@/lib/db/notification-emails";
 import { getProfile } from "@/lib/db/profiles";
 
 import { signOutAction } from "../actions";
 import { updateProfileAction } from "./actions";
 import { BlockControl } from "./block-control";
+import { EmailPreferencesForm } from "./email-preferences-form";
 import { ProfileForm } from "./profile-form";
 import {
   FormSkeleton,
@@ -52,9 +54,10 @@ export default function AccountPage() {
 // /profile), and signing out.
 async function Account() {
   const user = await requireUser();
-  const [profile, blocks] = await Promise.all([
+  const [profile, blocks, emailPreferences] = await Promise.all([
     getProfile(user),
     user.role === "admin" ? Promise.resolve([]) : listMyBlocks(),
+    user.role === "admin" ? Promise.resolve(null) : getMyEmailPreferences(),
   ]);
   if (!profile && user.role !== "admin") redirect("/onboarding");
 
@@ -112,6 +115,16 @@ async function Account() {
             >
               Edit your profile
             </Link>
+          </Section>
+        )}
+
+        {emailPreferences && (
+          <Section id="emails" title="Emails">
+            <p className="mb-5 max-w-xl">
+              We email you when something needs you or money moves. Those emails
+              always send.
+            </p>
+            <EmailPreferencesForm initial={emailPreferences} />
           </Section>
         )}
 
