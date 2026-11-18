@@ -3,8 +3,10 @@ import { connection } from "next/server";
 
 import { listIndexableCreators } from "@/lib/db/creators";
 import { SITE_URL } from "@/lib/site";
+import { BUSINESS_PAGE, CREATOR_PAGE } from "@/lib/signup-link";
 
-// The landing page, the creator directory, and each creator who may be indexed.
+// The landing page, the two audience pages, the creator directory, and each
+// creator who may be indexed.
 // Built per request so a newly published profile shows up straight away.
 // /privacy and /terms are drafts marked noindex; add them once they're
 // published.
@@ -30,6 +32,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // find it from the start (docs/TODO.md).
   return [
     home,
+    ...[BUSINESS_PAGE, CREATOR_PAGE].map((page) => ({
+      url: `${SITE_URL}${page}`,
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    })),
     { url: `${SITE_URL}/creators`, changeFrequency: "daily", priority: 0.8 },
     ...creators.map((creator) => ({
       url: `${SITE_URL}/creators/${creator.slug}`,

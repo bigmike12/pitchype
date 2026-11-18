@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { ForBusinesses, ForCreators } from "@/components/landing/audiences";
+import { AudienceSplit } from "@/components/landing/audience-split";
 import { CreatorsBand } from "@/components/landing/creators-band";
 import { Faq } from "@/components/landing/faq";
 import { Features } from "@/components/landing/features";
@@ -33,8 +33,7 @@ export default function HomePage() {
       <Hero />
       <CreatorsBand />
       <WhyPitchype />
-      <ForCreators />
-      <ForBusinesses />
+      <AudienceSplit />
       <HowItWorks />
       <Features />
       <Pricing />

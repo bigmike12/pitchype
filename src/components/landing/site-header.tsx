@@ -1,15 +1,17 @@
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
+import { BUSINESS_PAGE, CREATOR_PAGE } from "@/lib/signup-link";
 
+import { HeaderCta } from "./header-cta";
 import { MobileMenu, type NavLink } from "./mobile-menu";
 import { Wordmark } from "@/components/brand/wordmark";
 
 // Root-relative anchors so the same header works on /privacy and /terms.
 const NAV_LINKS: NavLink[] = [
   { href: "/#why", label: "Why Pitchype" },
-  { href: "/#for-creators", label: "For creators" },
-  { href: "/#for-businesses", label: "For businesses" },
+  { href: CREATOR_PAGE, label: "For creators" },
+  { href: BUSINESS_PAGE, label: "For businesses" },
   { href: "/#how-it-works", label: "How it works" },
   { href: "/#pricing", label: "Pricing" },
 ];
@@ -58,9 +60,7 @@ export function SiteHeader() {
           >
             Log in
           </Link>
-          <Link href="/signup" className={buttonVariants()}>
-            Get started
-          </Link>
+          <HeaderCta />
           <MobileMenu links={NAV_LINKS} />
         </div>
       </div>

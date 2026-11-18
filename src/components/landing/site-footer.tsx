@@ -2,14 +2,15 @@ import { cacheLife } from "next/cache";
 import Link from "next/link";
 
 import { CONTACT_EMAIL, SOCIAL_PROFILES } from "@/lib/site";
+import { BUSINESS_PAGE, CREATOR_PAGE } from "@/lib/signup-link";
 
 import { Wordmark } from "@/components/brand/wordmark";
 
 const PRODUCT_LINKS = [
   { href: "/#why", label: "Why Pitchype" },
   { href: "/#how-it-works", label: "How it works" },
-  { href: "/#for-businesses", label: "For businesses" },
-  { href: "/#for-creators", label: "For creators" },
+  { href: BUSINESS_PAGE, label: "For businesses" },
+  { href: CREATOR_PAGE, label: "For creators" },
   { href: "/#pricing", label: "Pricing" },
   { href: "/#faq", label: "FAQ" },
 ];

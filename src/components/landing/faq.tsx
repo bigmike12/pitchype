@@ -8,7 +8,9 @@ const creatorFee = formatRate(INFLUENCER_FEE_BPS);
 
 // Keep answers short and true. No legal promises; refund and cancellation
 // rules belong in the Terms, not here.
-const QUESTIONS = [
+export type FaqItem = { question: string; answer: string };
+
+const QUESTIONS: FaqItem[] = [
   {
     question: "What is Pitchype?",
     answer:
@@ -48,7 +50,13 @@ const QUESTIONS = [
   },
 ];
 
-export function Faq() {
+export function Faq({
+  items = QUESTIONS,
+  title = "Questions, answered",
+}: {
+  items?: FaqItem[];
+  title?: string;
+}) {
   return (
     <section
       id="faq"
@@ -57,7 +65,7 @@ export function Faq() {
     >
       <div className="lg:col-span-4">
         <h2 id="faq-title" className="text-display-lg reveal">
-          Questions, answered
+          {title}
         </h2>
         <p className="mt-4 text-lg">
           Something else on your mind? Email{" "}
@@ -69,7 +77,7 @@ export function Faq() {
       </div>
 
       <div className="space-y-2 lg:col-span-8">
-        {QUESTIONS.map(({ question, answer }) => (
+        {items.map(({ question, answer }) => (
           <details
             key={question}
             className="group rounded-card px-5 panel reveal open:shadow-lift sm:px-6"

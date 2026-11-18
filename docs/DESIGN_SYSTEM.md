@@ -228,13 +228,26 @@ the need before adding it (CLAUDE.md §2).
   that preselect the account type, then the product window), the niches
   marquee and "Built for micro and nano creators", "Why Pitchype" (a
   usual-way-against-Pitchype table: rows on phones, three columns from
-  768px), For creators (`aurora-warm` frame: pitch, ticks, the earnings
-  calculator, then four sourced figures) and For businesses (`aurora`,
-  mirrored, with the budget splitter), How it works (segmented tabs), a
+  768px), a two-card split (`AudienceSplit`: one `aurora-warm` and one
+  `aurora` card, each linking to its audience page; the calculators and
+  sourced figures live there, see "Audience pages"), How it works (segmented tabs), a
   bento of features, pricing receipts, FAQ (one `panel` per question), the
   closing aurora band (join as a business or a creator, or log in), and the
   footer signing off with the name in giant faded type. The header holds
   Log in and Get started; its links collapse into the menu below 1024px.
+- **Audience pages** (`/for-business`, `/for-creators`; `app/(marketing)/`):
+  one in-depth page per side, so each side learns what Pitchype does for it
+  and the home page stays a front door. Built from `AudienceHero` (the home
+  hero's aurora and entrance, one sign-up button for that side, no
+  illustration), `AudienceWhy` (the usual-way-against-Pitchype
+  `ComparisonTable`, for one side), the shared "How it works" `StepList`,
+  page-specific sections co-located in the page's `sections.tsx` (icon
+  `ClayTile` cards with sample `ProductFragment`s), the side's audience
+  section with its calculator and sourced figures (`landing/audiences.tsx`),
+  a `FeeReceipt`, a `Faq` with that side's questions, and `AudienceCta`.
+  Every sign-up button on the page carries `?role=` (the header's too, via
+  `signupHrefFor`), so sign-up doesn't ask which side again. Copy covers only
+  what is built. A new product (UGC first) adds a section to the right page.
 - **Figures from outside sources** (`landing/stats.tsx`, `StatGrid`): big
   number, one sentence, and a "Source:" link under each, plus a line saying
   they're global or US figures. Every number needs a public source and the

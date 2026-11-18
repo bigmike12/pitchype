@@ -17,6 +17,15 @@ export function isSignupRole(value: string): value is SignupRole {
   return (SIGNUP_ROLES as readonly string[]).includes(value);
 }
 
+// The sign-up page's ?role= (a string, or an array if it was repeated). A
+// valid role means the visitor already chose a side, so the form skips the
+// question; anything else shows it.
+export function signupRoleFromParam(
+  value: string | string[] | undefined,
+): SignupRole | undefined {
+  return typeof value === "string" && isSignupRole(value) ? value : undefined;
+}
+
 function emailProblem(email: string): string | null {
   if (email === "") return "Enter your email address.";
   if (email.length > 254 || !EMAIL_PATTERN.test(email)) {

@@ -14,7 +14,7 @@ import { formatNaira } from "@/lib/money";
 // the decided fees (CLAUDE.md §6.1).
 const job = feeExample(EXAMPLE_PRICE_KOBO);
 
-type Receipt = {
+export type Receipt = {
   title: string;
   rate: string;
   rateNote: string;
@@ -23,42 +23,79 @@ type Receipt = {
   total: string;
 };
 
-const RECEIPTS: Receipt[] = [
-  {
-    title: "Businesses",
-    rate: formatRate(BUSINESS_FEE_BPS),
-    rateNote: "service fee, on top of the agreed price",
-    lines: [
-      { label: "Agreed price", amount: formatNaira(job.agreedPriceKobo) },
-      {
-        label: `Service fee (${formatRate(BUSINESS_FEE_BPS)})`,
-        amount: `+${formatNaira(job.businessFeeKobo)}`,
-      },
-    ],
-    totalLabel: "You pay",
-    total: formatNaira(job.businessPaysKobo),
-  },
-  {
-    title: "Creators",
-    rate: formatRate(INFLUENCER_FEE_BPS),
-    rateNote: "of what you earn",
-    lines: [
-      { label: "Agreed price", amount: formatNaira(job.agreedPriceKobo) },
-      {
-        label: `Pitchype fee (${formatRate(INFLUENCER_FEE_BPS)})`,
-        amount: `−${formatNaira(job.influencerFeeKobo)}`,
-      },
-    ],
-    totalLabel: "You receive",
-    total: formatNaira(job.influencerReceivesKobo),
-  },
-];
+export const BUSINESS_RECEIPT: Receipt = {
+  title: "Businesses",
+  rate: formatRate(BUSINESS_FEE_BPS),
+  rateNote: "service fee, on top of the agreed price",
+  lines: [
+    { label: "Agreed price", amount: formatNaira(job.agreedPriceKobo) },
+    {
+      label: `Service fee (${formatRate(BUSINESS_FEE_BPS)})`,
+      amount: `+${formatNaira(job.businessFeeKobo)}`,
+    },
+  ],
+  totalLabel: "You pay",
+  total: formatNaira(job.businessPaysKobo),
+};
 
-const NOTES = [
+export const CREATOR_RECEIPT: Receipt = {
+  title: "Creators",
+  rate: formatRate(INFLUENCER_FEE_BPS),
+  rateNote: "of what you earn",
+  lines: [
+    { label: "Agreed price", amount: formatNaira(job.agreedPriceKobo) },
+    {
+      label: `Pitchype fee (${formatRate(INFLUENCER_FEE_BPS)})`,
+      amount: `−${formatNaira(job.influencerFeeKobo)}`,
+    },
+  ],
+  totalLabel: "You receive",
+  total: formatNaira(job.influencerReceivesKobo),
+};
+
+export const FEE_NOTES = [
   "No monthly fees. No fee to join.",
   `Fees are at least ${formatNaira(MIN_FEE_KOBO)} per job on each side, so very small jobs pay the minimum.`,
   "Cashing out to your bank? The bank transfer fee is passed on at cost, and you see it before you confirm.",
 ];
+
+/** One side's fee receipt for the example job. */
+export function FeeReceipt({ receipt }: { receipt: Receipt }) {
+  return (
+    <article
+      aria-labelledby={`pricing-${receipt.title}`}
+      className="relative isolate overflow-hidden rounded-panel p-6 panel reveal sm:p-8"
+    >
+      <div
+        aria-hidden="true"
+        className="absolute -top-32 -left-20 -z-10 size-80 rounded-full bg-brand-lilac/60 blur-3xl"
+      />
+      <h3 id={`pricing-${receipt.title}`} className="text-lg font-semibold">
+        {receipt.title}
+      </h3>
+      <p className="mt-3 text-ink">
+        <span className="inline-block text-display-xl text-gradient">
+          {receipt.rate}
+        </span>
+        <span className="mt-1 block text-lg">{receipt.rateNote}</span>
+      </p>
+      <dl className="mt-8 rounded-card bg-surface-soft p-5 text-ink ring-1 ring-hairline">
+        {receipt.lines.map((line) => (
+          <div key={line.label} className="flex justify-between gap-4 py-1.5">
+            <dt>{line.label}</dt>
+            <dd className="tabular-nums">{line.amount}</dd>
+          </div>
+        ))}
+        <div className="mt-2 flex items-baseline justify-between gap-4 border-t border-dashed border-field pt-3">
+          <dt className="font-semibold">{receipt.totalLabel}</dt>
+          <dd className="font-display text-2xl tabular-nums">
+            {receipt.total}
+          </dd>
+        </div>
+      </dl>
+    </article>
+  );
+}
 
 export function Pricing() {
   return (
@@ -76,52 +113,13 @@ export function Pricing() {
       </p>
 
       <div className="mt-10 grid gap-4 md:grid-cols-2">
-        {RECEIPTS.map((receipt) => (
-          <article
-            key={receipt.title}
-            aria-labelledby={`pricing-${receipt.title}`}
-            className="relative isolate overflow-hidden rounded-panel p-6 panel reveal sm:p-8"
-          >
-            <div
-              aria-hidden="true"
-              className="absolute -top-32 -left-20 -z-10 size-80 rounded-full bg-brand-lilac/60 blur-3xl"
-            />
-            <h3
-              id={`pricing-${receipt.title}`}
-              className="text-lg font-semibold"
-            >
-              {receipt.title}
-            </h3>
-            <p className="mt-3 text-ink">
-              <span className="inline-block text-display-xl text-gradient">
-                {receipt.rate}
-              </span>
-              <span className="mt-1 block text-lg">{receipt.rateNote}</span>
-            </p>
-
-            <dl className="mt-8 rounded-card bg-surface-soft p-5 text-ink ring-1 ring-hairline">
-              {receipt.lines.map((line) => (
-                <div
-                  key={line.label}
-                  className="flex justify-between gap-4 py-1.5"
-                >
-                  <dt>{line.label}</dt>
-                  <dd className="tabular-nums">{line.amount}</dd>
-                </div>
-              ))}
-              <div className="mt-2 flex items-baseline justify-between gap-4 border-t border-dashed border-field pt-3">
-                <dt className="font-semibold">{receipt.totalLabel}</dt>
-                <dd className="font-display text-2xl tabular-nums">
-                  {receipt.total}
-                </dd>
-              </div>
-            </dl>
-          </article>
+        {[BUSINESS_RECEIPT, CREATOR_RECEIPT].map((receipt) => (
+          <FeeReceipt key={receipt.title} receipt={receipt} />
         ))}
       </div>
 
       <ul className="mt-8 grid gap-4 lg:grid-cols-3">
-        {NOTES.map((note) => (
+        {FEE_NOTES.map((note) => (
           <li key={note} className="flex gap-3 text-[0.9375rem] reveal">
             <Check
               className="mt-0.5 size-5 shrink-0 text-brand-green"

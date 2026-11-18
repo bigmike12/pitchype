@@ -36,7 +36,14 @@ test("a signed-out visitor is sent to log in from the portal", async ({
 });
 
 test("no page scrolls sideways", async ({ page }) => {
-  for (const path of ["/", "/login", "/signup", "/terms"]) {
+  for (const path of [
+    "/",
+    "/login",
+    "/signup",
+    "/terms",
+    "/for-business",
+    "/for-creators",
+  ]) {
     await page.goto(path);
     const overflow = await page.evaluate(
       () =>

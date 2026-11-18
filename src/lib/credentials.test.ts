@@ -6,6 +6,7 @@ import {
   parseLoginForm,
   parseNewPasswordForm,
   parseSignUpForm,
+  signupRoleFromParam,
 } from "./credentials.ts";
 
 function form(fields: Record<string, string>): FormData {
@@ -107,4 +108,20 @@ test("email-only and new-password forms", () => {
   assert.equal(parseEmailForm(form({ email: "nope" })).ok, false);
   assert.equal(parseNewPasswordForm(form({ password: "12345678" })).ok, true);
   assert.equal(parseNewPasswordForm(form({ password: "1234" })).ok, false);
+});
+
+test("signupRoleFromParam accepts only a single, exact role", () => {
+  assert.equal(signupRoleFromParam("business"), "business");
+  assert.equal(signupRoleFromParam("influencer"), "influencer");
+  // Anything else falls back to the picker.
+  for (const value of [
+    undefined,
+    "",
+    "Business",
+    "admin",
+    "creator",
+    ["influencer", "business"],
+  ]) {
+    assert.equal(signupRoleFromParam(value), undefined, String(value));
+  }
 });

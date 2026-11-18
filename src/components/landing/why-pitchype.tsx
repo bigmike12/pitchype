@@ -46,6 +46,67 @@ const ROWS = [
   },
 ];
 
+export type ComparisonRow = { topic: string; usual: string; pitchype: string };
+
+/** "The usual way" against Pitchype, one row per topic. */
+export function ComparisonTable({ rows }: { rows: ComparisonRow[] }) {
+  return (
+    <div className="mt-10 overflow-hidden rounded-frame panel reveal">
+      {/* Column heads, for sighted users from 768px; each cell also
+          carries its own label for phones and screen readers. */}
+      <div
+        aria-hidden="true"
+        className="hidden grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1.15fr)] border-b border-hairline md:grid"
+      >
+        <span className="px-6 py-4" />
+        <span className="px-6 py-4 text-sm font-semibold text-muted">
+          The usual way
+        </span>
+        <span className="flex items-center gap-2 bg-[linear-gradient(135deg,rgb(221_210_255/0.45),rgb(250_211_230/0.35))] px-6 py-4 text-sm font-semibold text-ink">
+          <PitchypeMark className="size-5" />
+          With Pitchype
+        </span>
+      </div>
+
+      <ul className="divide-y divide-hairline">
+        {rows.map((row) => (
+          <li
+            key={row.topic}
+            className="grid gap-3 p-5 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1.15fr)] md:gap-0 md:p-0"
+          >
+            <h3 className="text-base font-semibold text-ink md:px-6 md:py-5">
+              {row.topic}
+            </h3>
+            <p className="flex gap-2.5 text-[0.9375rem] text-muted md:px-6 md:py-5">
+              <X
+                className="mt-1 size-4 shrink-0 text-muted"
+                aria-hidden="true"
+              />
+              <span>
+                <span className="font-semibold md:sr-only">
+                  The usual way:{" "}
+                </span>
+                {row.usual}
+              </span>
+            </p>
+            <p className="flex gap-2.5 rounded-xl bg-[linear-gradient(135deg,rgb(221_210_255/0.3),rgb(250_211_230/0.22))] p-3 text-[0.9375rem] text-ink md:rounded-none md:px-6 md:py-5">
+              <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-ink text-white">
+                <Check className="size-3" aria-hidden="true" />
+              </span>
+              <span>
+                <span className="font-semibold md:sr-only">
+                  With Pitchype:{" "}
+                </span>
+                {row.pitchype}
+              </span>
+            </p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function WhyPitchype() {
   return (
     <section
@@ -66,59 +127,7 @@ export function WhyPitchype() {
         </p>
       </div>
 
-      <div className="mt-10 overflow-hidden rounded-frame panel reveal">
-        {/* Column heads, for sighted users from 768px; each cell also
-            carries its own label for phones and screen readers. */}
-        <div
-          aria-hidden="true"
-          className="hidden grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1.15fr)] border-b border-hairline md:grid"
-        >
-          <span className="px-6 py-4" />
-          <span className="px-6 py-4 text-sm font-semibold text-muted">
-            The usual way
-          </span>
-          <span className="flex items-center gap-2 bg-[linear-gradient(135deg,rgb(221_210_255/0.45),rgb(250_211_230/0.35))] px-6 py-4 text-sm font-semibold text-ink">
-            <PitchypeMark className="size-5" />
-            With Pitchype
-          </span>
-        </div>
-
-        <ul className="divide-y divide-hairline">
-          {ROWS.map((row) => (
-            <li
-              key={row.topic}
-              className="grid gap-3 p-5 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1.15fr)] md:gap-0 md:p-0"
-            >
-              <h3 className="text-base font-semibold text-ink md:px-6 md:py-5">
-                {row.topic}
-              </h3>
-              <p className="flex gap-2.5 text-[0.9375rem] text-muted md:px-6 md:py-5">
-                <X
-                  className="mt-1 size-4 shrink-0 text-muted"
-                  aria-hidden="true"
-                />
-                <span>
-                  <span className="font-semibold md:sr-only">
-                    The usual way:{" "}
-                  </span>
-                  {row.usual}
-                </span>
-              </p>
-              <p className="flex gap-2.5 rounded-xl bg-[linear-gradient(135deg,rgb(221_210_255/0.3),rgb(250_211_230/0.22))] p-3 text-[0.9375rem] text-ink md:rounded-none md:px-6 md:py-5">
-                <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-ink text-white">
-                  <Check className="size-3" aria-hidden="true" />
-                </span>
-                <span>
-                  <span className="font-semibold md:sr-only">
-                    With Pitchype:{" "}
-                  </span>
-                  {row.pitchype}
-                </span>
-              </p>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <ComparisonTable rows={ROWS} />
     </section>
   );
 }

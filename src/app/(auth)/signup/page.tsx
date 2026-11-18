@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { AuthAlternative, AuthHeading } from "@/components/shells/auth-shell";
-import { isSignupRole } from "@/lib/credentials";
+import { signupRoleFromParam } from "@/lib/credentials";
 
 import { SignUpForm } from "./signup-form";
 
@@ -12,11 +12,9 @@ export const metadata: Metadata = { title: "Create your account" };
 export default function SignUpPage({ searchParams }: PageProps<"/signup">) {
   return (
     <>
-      <AuthHeading title="Create your account">
-        Free to join. Tell us how you’ll use Pitchype.
-      </AuthHeading>
-      {/* The form paints at once; the landing page's ?role= link then
-          preselects the account type. */}
+      <AuthHeading title="Create your account">Free to join.</AuthHeading>
+      {/* The form paints at once; a valid ?role= from the landing or audience
+          pages then fixes the account type and hides the picker. */}
       <Suspense fallback={<SignUpForm />}>
         <FormWithRole searchParams={searchParams} />
       </Suspense>
@@ -36,7 +34,5 @@ async function FormWithRole({
   searchParams: PageProps<"/signup">["searchParams"];
 }) {
   const { role } = await searchParams;
-  const initialRole =
-    typeof role === "string" && isSignupRole(role) ? role : undefined;
-  return <SignUpForm initialRole={initialRole} />;
+  return <SignUpForm initialRole={signupRoleFromParam(role)} />;
 }

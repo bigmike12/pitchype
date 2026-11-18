@@ -36,7 +36,7 @@ const ROLES = [
 export function SignUpForm({
   initialRole,
 }: {
-  /** From the landing page's "I'm a business / creator" links. */
+  /** From the "I'm a business / creator" links and the audience pages: the account type is already chosen. */
   initialRole?: SignupRole;
 }) {
   const [state, formAction, pending] = useActionState<SignUpState, FormData>(
@@ -65,15 +65,33 @@ export function SignUpForm({
 
   return (
     <form action={formAction} className="space-y-5">
-      <ChoiceGroup
-        legend="I’m joining as"
-        name="role"
-        options={ROLES}
-        variant="cards"
-        defaultValue={state.values?.role ?? initialRole}
-        required
-        error={state.errors?.role}
-      />
+      {initialRole ? (
+        <>
+          {/* A plain hidden field, so the role is submitted even before
+              JavaScript has loaded. The server still validates it. */}
+          <input type="hidden" name="role" value={initialRole} />
+          <p className="text-lg text-ink">
+            Signing up as{" "}
+            <strong>
+              {initialRole === "business" ? "a business" : "a creator"}
+            </strong>
+            .{" "}
+            <Link href="/signup" className="link">
+              Change
+            </Link>
+          </p>
+        </>
+      ) : (
+        <ChoiceGroup
+          legend="I’m joining as"
+          name="role"
+          options={ROLES}
+          variant="cards"
+          defaultValue={state.values?.role}
+          required
+          error={state.errors?.role}
+        />
+      )}
 
       <TextField
         label="Email address"

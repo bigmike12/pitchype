@@ -13,7 +13,7 @@ type Step = { title: string; text: string; fragment: ReactNode };
 const job = feeExample(EXAMPLE_PRICE_KOBO);
 const price = formatNaira(job.agreedPriceKobo);
 
-const BUSINESS_STEPS: Step[] = [
+export const BUSINESS_STEPS: Step[] = [
   {
     title: "Post a campaign",
     text: "Describe the job, who you’re looking for, and what you’ll pay each creator.",
@@ -89,7 +89,7 @@ const BUSINESS_STEPS: Step[] = [
   },
 ];
 
-const CREATOR_STEPS: Step[] = [
+export const CREATOR_STEPS: Step[] = [
   {
     title: "Create your profile",
     text: "Add your platforms, niche, city and audience so the right brands can find you.",
@@ -109,14 +109,14 @@ const CREATOR_STEPS: Step[] = [
   },
   {
     title: "Find campaigns",
-    text: "Browse open campaigns and filter by niche, platform, location and budget.",
+    text: "Browse open campaigns, filter by niche and platform, or see only the ones you qualify for.",
     fragment: (
-      <ProductFragment label="campaign filters for food and drink, in Lagos, paying ₦20,000 or more">
+      <ProductFragment label="campaign filters for food and drink on TikTok, showing only campaigns the creator qualifies for">
         <p className="font-semibold">Filters</p>
         <div className="mt-2 flex flex-wrap gap-1">
           <Chip className="border-ink bg-ink text-white">Food &amp; drink</Chip>
-          <Chip className="border-ink bg-ink text-white">Lagos</Chip>
-          <Chip>₦20,000+</Chip>
+          <Chip className="border-ink bg-ink text-white">TikTok</Chip>
+          <Chip>Qualified only</Chip>
         </div>
       </ProductFragment>
     ),
@@ -157,7 +157,7 @@ const CREATOR_STEPS: Step[] = [
   },
 ];
 
-function StepList({ steps }: { steps: Step[] }) {
+export function StepList({ steps }: { steps: Step[] }) {
   return (
     <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {steps.map((step, index) => (
