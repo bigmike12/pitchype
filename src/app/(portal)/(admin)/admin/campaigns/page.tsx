@@ -64,11 +64,11 @@ async function CampaignReview({
     <>
       <PageHeader
         title="Campaigns to review"
-        lead="A business’s first campaign waits here. Later campaigns from an approved business go live without review."
+        lead="A business’s first campaign waits here, and every pay-per-click campaign: check its link belongs to the business. Later fixed-price campaigns from an approved business go live without review."
       />
       <QueueCard
         id="campaign-review-title"
-        title="First campaigns"
+        title="Waiting for review"
         note="Read it, then approve it or send it back with a note the business sees."
         empty="Nothing waiting."
         paged={pageOf(campaigns, parsePage(query.page), QUEUE_PAGE_SIZE)}

@@ -1,4 +1,5 @@
 import {
+  CircleAlert,
   CircleCheck,
   CircleSlash,
   Clock,
@@ -13,6 +14,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { ClickProofList } from "@/components/clicks/click-proof-list";
+import { ClickSummary } from "@/components/clicks/click-summary";
 import { DisputeForm } from "@/components/engagement/dispute-form";
 import { Rounds } from "@/components/engagement/rounds";
 import { buttonVariants } from "@/components/ui/button";
@@ -28,6 +31,8 @@ import {
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
 import { getEngagementDetails } from "@/lib/db/applications";
+import { listClickProofs } from "@/lib/db/click-proofs";
+import { getEngagementClicks } from "@/lib/db/clicks";
 import { getLatestDisputeId } from "@/lib/db/disputes";
 import { listSubmissions } from "@/lib/db/submissions";
 import { feeExample } from "@/lib/fees";
@@ -87,13 +92,29 @@ async function Engagement({ params }: { params: Params }) {
   const toReview = rounds.find((round) => round.status === "pending_review");
   // Kept after the dispute ends, so either person can read how it went.
   const disputeId = await getLatestDisputeId(engagement.id);
+  // Null unless this is a per-click hire.
+  const clicks = await getEngagementClicks(engagement.id);
+  const proofs = clicks ? await listClickProofs(engagement.id) : [];
+  const clicksOver =
+    clicks?.clicksEndAt !== null &&
+    clicks?.clicksEndAt !== undefined &&
+    new Date(clicks.clicksEndAt) <= new Date();
 
   const feeKobo =
     engagement.businessFeeKobo ??
     feeExample(engagement.agreedPriceKobo).businessFeeKobo;
+  const clickTiming =
+    clicks && clicks.clicksEndAt && clicks.settlesAt
+      ? {
+          endsAt: clicks.clicksEndAt,
+          settlesAt: clicks.settlesAt,
+          stoppedAt: clicks.clicksStoppedAt,
+        }
+      : null;
   const status = describeHireStatus(
     { ...engagement, creatorName: engagement.creator.name },
     new Date(),
+    clickTiming,
   );
   const showReview = status.canReview && toReview !== undefined;
   const applicationsHref = `/business/campaigns/${engagement.campaign.id}/applications`;
@@ -162,7 +183,7 @@ async function Engagement({ params }: { params: Params }) {
         <div className="xl:col-start-2 xl:row-span-2 xl:row-start-1">
           <dl className="space-y-3 rounded-card p-4 text-sm panel sm:p-5">
             <div className="flex justify-between gap-4">
-              <dt>Agreed price</dt>
+              <dt>{clicks ? "Budget for this creator" : "Agreed price"}</dt>
               <dd className="font-semibold text-ink tabular-nums">
                 {formatNaira(engagement.agreedPriceKobo)}
               </dd>
@@ -188,6 +209,26 @@ async function Engagement({ params }: { params: Params }) {
           </dl>
         </div>
         <div className="space-y-4 xl:col-start-1">
+          {clicks && (
+            <SectionCard id="clicks-title" title="Clicks" padded>
+              <ClickSummary
+                stats={clicks}
+                viewer="business"
+                settled={engagement.settledAt !== null}
+              />
+            </SectionCard>
+          )}
+          {clicks && proofs.length > 0 && (
+            <SectionCard id="posts-title" title="Where they posted">
+              <ClickProofList proofs={proofs} />
+            </SectionCard>
+          )}
+          {clicks && proofs.length === 0 && clicksOver && (
+            <Callout tone="attention" icon={CircleAlert} title="No posts added">
+              The creator hasn’t shown where they posted the link. If that’s a
+              problem, raise it before the job settles.
+            </Callout>
+          )}
           {showReview && (
             <SectionCard id="review-title" title="Work to review">
               <Rounds rounds={[toReview]} />
@@ -252,9 +293,11 @@ async function Engagement({ params }: { params: Params }) {
               engagementId={engagement.id}
               action={openDisputeAction}
               intro={
-                engagement.status === "denied"
-                  ? `If you and ${engagement.creator.name} can’t agree about the work, open a dispute. An admin will read both sides and decide how the money is paid out. You and ${engagement.creator.name} can each add statements while it is open.`
-                  : `The delivery date has passed and ${engagement.creator.name} hasn’t sent in the work. Open a dispute and an admin will decide how the money is paid out. You and ${engagement.creator.name} can each add statements while it is open.`
+                clicks
+                  ? `If the clicks look wrong (a click farm, a blocked channel, posts you didn’t agree to), open a dispute before this settles. An admin will read both sides and decide how the money is paid out. Nothing settles while it is open.`
+                  : engagement.status === "denied"
+                    ? `If you and ${engagement.creator.name} can’t agree about the work, open a dispute. An admin will read both sides and decide how the money is paid out. You and ${engagement.creator.name} can each add statements while it is open.`
+                    : `The delivery date has passed and ${engagement.creator.name} hasn’t sent in the work. Open a dispute and an admin will decide how the money is paid out. You and ${engagement.creator.name} can each add statements while it is open.`
               }
             />
           )}
@@ -263,6 +306,7 @@ async function Engagement({ params }: { params: Params }) {
               engagementId={engagement.id}
               priceKobo={engagement.agreedPriceKobo}
               feeKobo={feeKobo}
+              perClick={clicks !== null}
             />
           )}
           {engagement.status === "in_progress" && (

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
+import { getEngagementClicks } from "@/lib/db/clicks";
 import {
   countEscrowEngagements,
   ESCROW_LIST_CAP,
@@ -57,6 +58,19 @@ async function Escrow({ searchParams }: { searchParams: SearchParams }) {
     countEscrowEngagements(),
     searchParams,
   ]);
+  // Per-click hires release what their counted clicks are worth, so the
+  // preview needs that figure (null for a fixed-price hire).
+  const clicks = new Map(
+    await Promise.all(
+      escrow.hires.map(
+        async (hire) =>
+          [
+            hire.id,
+            (await getEngagementClicks(hire.id))?.earnedKobo ?? null,
+          ] as const,
+      ),
+    ),
+  );
 
   return (
     <>
@@ -84,7 +98,13 @@ async function Escrow({ searchParams }: { searchParams: SearchParams }) {
         noun={["hire", "hires"]}
         hrefFor={(page) => pagedHref("/admin/money/escrow", {}, page)}
       >
-        {(hire) => <EscrowItem key={hire.id} hire={hire} />}
+        {(hire) => (
+          <EscrowItem
+            key={hire.id}
+            hire={hire}
+            clickEarnedKobo={clicks.get(hire.id) ?? null}
+          />
+        )}
       </QueueCard>
     </>
   );
@@ -98,7 +118,14 @@ const STATUS_WORDS: Record<EscrowEngagement["status"], string> = {
   disputed: "In dispute",
 };
 
-function EscrowItem({ hire }: { hire: EscrowEngagement }) {
+function EscrowItem({
+  hire,
+  clickEarnedKobo,
+}: {
+  hire: EscrowEngagement;
+  /** Per-click hires: what the counted clicks are worth; null otherwise. */
+  clickEarnedKobo: number | null;
+}) {
   // The fee snapshot is written when the hire is funded, so it is always
   // there for a hire in escrow; if it somehow isn't, nothing is settled blind.
   const settleHere = hire.status === "funded" || hire.status === "in_progress";
@@ -112,6 +139,7 @@ function EscrowItem({ hire }: { hire: EscrowEngagement }) {
           creatorFeeBps: hire.creatorFeeBps,
           creatorMinFeeKobo: hire.creatorMinFeeKobo,
           paystackChargeKobo: hire.paystackChargeKobo,
+          clickEarnedKobo,
         }
       : null;
   return (

@@ -3,7 +3,10 @@ import { test } from "node:test";
 
 import {
   addDays,
+  checkDestinationUrl,
+  clickWindowEnded,
   deliverableText,
+  maxClicks,
   lagosToday,
   maxSpend,
   creatorReceivesKobo,
@@ -88,8 +91,153 @@ test("a complete campaign form", () => {
         { platform: "instagram", kind: "reel", quantity: 2 },
         { platform: "tiktok", kind: "video", quantity: 1 },
       ],
+      paymentModel: "fixed",
+      cpcKobo: null,
+      destinationUrl: null,
+      utmTags: true,
+      blockedChannels: [],
     },
   });
+});
+
+// Pay per click ------------------------------------------------------------------------
+
+const PER_CLICK: [string, string][] = [
+  ...COMPLETE.filter(([n]) => n !== "price"),
+  ["payment_model", "per_click"],
+  ["cpc", "50"],
+  ["price", "25,000"],
+  ["destination_url", "https://www.konga.com/xmas?ref=a"],
+  ["blocked_channels", "whatsapp"],
+  ["blocked_channels", "telegram"],
+];
+const perClickWith = (name: string, value: string | null) => {
+  const rest = PER_CLICK.filter(([n]) => n !== name);
+  return value === null ? rest : [...rest, [name, value] as [string, string]];
+};
+
+test("a per-click campaign form", () => {
+  const parsed = parseCampaignForm(
+    form([...PER_CLICK, ["utm_tags", "on"]]),
+    NICHES,
+    TODAY,
+  );
+  assert.equal(parsed.ok, true);
+  if (!parsed.ok) return;
+  assert.equal(parsed.value.paymentModel, "per_click");
+  assert.equal(parsed.value.cpcKobo, 5_000);
+  assert.equal(parsed.value.priceKobo, 2_500_000);
+  assert.equal(parsed.value.destinationUrl, "https://www.konga.com/xmas?ref=a");
+  assert.deepEqual(parsed.value.blockedChannels, ["whatsapp", "telegram"]);
+  assert.equal(parsed.value.utmTags, true);
+
+  const noTags = parseCampaignForm(form(PER_CLICK), NICHES, TODAY);
+  assert.equal(noTags.ok && noTags.value.utmTags, false);
+});
+
+test("per click: at least ₦50 a click, whole naira", () => {
+  for (const cpc of ["49", "50.5", "", "abc"]) {
+    const parsed = parseCampaignForm(
+      form(perClickWith("cpc", cpc)),
+      NICHES,
+      TODAY,
+    );
+    assert.equal(parsed.ok, false, cpc);
+    assert.ok(!parsed.ok && parsed.errors.cpc, cpc);
+  }
+});
+
+test("per click: the budget per creator is a whole number of clicks", () => {
+  const parsed = parseCampaignForm(
+    form(perClickWith("price", "25,020")),
+    NICHES,
+    TODAY,
+  );
+  assert.ok(
+    !parsed.ok && parsed.errors.price?.includes("whole number of clicks"),
+  );
+});
+
+test("per click: blocked channels come from the list", () => {
+  const parsed = parseCampaignForm(
+    form([...PER_CLICK, ["blocked_channels", "signal"]]),
+    NICHES,
+    TODAY,
+  );
+  assert.ok(!parsed.ok && parsed.errors.blockedChannels);
+});
+
+test("per click: a bad destination is refused", () => {
+  const parsed = parseCampaignForm(
+    form(perClickWith("destination_url", "http://konga.com")),
+    NICHES,
+    TODAY,
+  );
+  assert.ok(!parsed.ok && parsed.errors.destinationUrl);
+});
+
+test("fixed price ignores posted per-click fields", () => {
+  const parsed = parseCampaignForm(
+    form([
+      ...COMPLETE,
+      ["payment_model", "fixed"],
+      ["cpc", "50"],
+      ["destination_url", "https://www.konga.com/"],
+      ["blocked_channels", "whatsapp"],
+    ]),
+    NICHES,
+    TODAY,
+  );
+  assert.equal(parsed.ok, true);
+  if (!parsed.ok) return;
+  assert.equal(parsed.value.paymentModel, "fixed");
+  assert.equal(parsed.value.cpcKobo, null);
+  assert.equal(parsed.value.destinationUrl, null);
+  assert.deepEqual(parsed.value.blockedChannels, []);
+});
+
+test("destination links: https, a real host, no shorteners", () => {
+  assert.deepEqual(checkDestinationUrl("https://www.konga.com/xmas?ref=a"), {
+    url: "https://www.konga.com/xmas?ref=a",
+  });
+  for (const bad of [
+    "http://konga.com",
+    "https://127.0.0.1/x",
+    "https://[::1]/x",
+    "https://localhost/x",
+    "https://konga.com:8443/",
+    "https://u:p@konga.com/",
+    "javascript:alert(1)",
+    "https://bit.ly/abc",
+    "https://tinyurl.com/x",
+    "https://t.co/x",
+    "https://konga.com/" + "a".repeat(2_000),
+    "",
+  ]) {
+    const result = checkDestinationUrl(bad);
+    assert.ok("error" in result && result.error.length > 0, bad);
+  }
+});
+
+test("destination links are stored normalised", () => {
+  assert.deepEqual(checkDestinationUrl("https://jumia.com.ng/₦-deals"), {
+    url: "https://jumia.com.ng/%E2%82%A6-deals",
+  });
+  for (const spelling of [
+    "HTTPS://konga.com/x",
+    "https:konga.com/x",
+    "https:\\konga.com/x",
+  ]) {
+    const result = checkDestinationUrl(spelling);
+    assert.ok(
+      "url" in result && result.url.startsWith("https://konga.com/"),
+      spelling,
+    );
+  }
+});
+
+test("clicks per creator from the budget", () => {
+  assert.equal(maxClicks(2_500_000, 5_000), 500);
 });
 
 test("anywhere in Nigeria ignores ticked states", () => {
@@ -314,4 +462,15 @@ test("creators read how many places are left", () => {
   // Nothing taken, or the database didn't say: how many creators are wanted.
   assert.equal(placesLeftText(3, 0), "3 creators");
   assert.equal(placesLeftText(1, null), "1 creator");
+});
+
+test("a per-click campaign's clicks stop at midnight Lagos after the end date", () => {
+  assert.equal(
+    clickWindowEnded("2026-12-24", new Date("2026-12-24T22:59:59Z")),
+    false,
+  );
+  assert.equal(
+    clickWindowEnded("2026-12-24", new Date("2026-12-24T23:00:00Z")),
+    true,
+  );
 });

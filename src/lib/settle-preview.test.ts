@@ -207,3 +207,42 @@ test("the form's preview line, problem and warning", () => {
     /couldn’t be found/,
   );
 });
+
+test("per click: a release pays the clicks counted, and most of the fee goes back", () => {
+  const facts = {
+    agreedPriceKobo: 2_500_000,
+    businessFeeKobo: 125_000,
+    creatorFeeBps: 500,
+    creatorMinFeeKobo: 50_000,
+    paystackChargeKobo: 53_078,
+    clickEarnedKobo: 1_000_000,
+  };
+  const release = settlePreview({
+    ...facts,
+    outcome: "release",
+    releaseKobo: null,
+  });
+  assert.deepEqual(
+    release.ok && [release.creatorGetsKobo, release.businessGetsBackKobo],
+    [950_000, 1_500_000 + 125_000 - 53_078],
+  );
+  const refund = settlePreview({
+    ...facts,
+    outcome: "refund",
+    releaseKobo: null,
+  });
+  assert.deepEqual(
+    refund.ok && refund.businessGetsBackKobo,
+    2_500_000 + 125_000 - 53_078,
+  );
+  const split = settlePreview({
+    ...facts,
+    outcome: "split",
+    releaseKobo: 400_000,
+  });
+  assert.deepEqual(
+    split.ok && split.businessGetsBackKobo,
+    2_100_000 + 125_000 - 53_078,
+  );
+  assert.deepEqual(split.ok && split.platformKeepsKobo, 53_078 + 50_000);
+});

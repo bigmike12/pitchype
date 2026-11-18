@@ -12,11 +12,14 @@ export function WithdrawForm({
   engagementId,
   businessName,
   afterStart,
+  perClick = false,
 }: {
   engagementId: string;
   businessName: string;
   /** Work has started: the business is refunded and the creator isn't paid. */
   afterStart: boolean;
+  /** A per-click job: withdrawing stops the link; clicks so far are still paid. */
+  perClick?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<JobActionState, FormData>(
     withdrawAction,
@@ -31,9 +34,11 @@ export function WithdrawForm({
       <form action={formAction} className="mt-3 max-w-md space-y-4">
         <input type="hidden" name="engagementId" value={engagementId} />
         <p>
-          {afterStart
-            ? "The business gets its money back and you won’t be paid for this job."
-            : `If you withdraw, the payment goes back to ${businessName}.`}{" "}
+          {afterStart && perClick
+            ? "Your link stops counting now. You’re paid for the clicks so far when the campaign settles."
+            : afterStart
+              ? "The business gets its money back and you won’t be paid for this job."
+              : `If you withdraw, the payment goes back to ${businessName}.`}{" "}
           This can’t be undone.
         </p>
         <label className="flex cursor-pointer items-start gap-3 rounded-card panel p-4">

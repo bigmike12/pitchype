@@ -25,6 +25,8 @@ export function LiveEditForm({
     places: number;
     applicationsCloseOn: string;
     deliverBy: string;
+    /** A per-click campaign whose clicks have stopped: its end date is final. */
+    deliverByLocked?: boolean;
   };
 }) {
   const [state, formAction, pending] = useActionState<
@@ -90,15 +92,35 @@ export function LiveEditForm({
             }
             error={errors.applicationsCloseOn}
           />
-          <TextField
-            label="Posts up by"
-            name="deliverBy"
-            type="date"
-            min={campaign.deliverBy}
-            hint="Later only."
-            defaultValue={values.deliverBy ?? campaign.deliverBy}
-            error={errors.deliverBy}
-          />
+          {campaign.deliverByLocked ? (
+            <>
+              <input
+                type="hidden"
+                name="deliverBy"
+                value={campaign.deliverBy}
+              />
+              <TextField
+                label="Posts up by"
+                // Disabled fields aren't sent; the hidden input above carries the value.
+                name="deliverByShown"
+                type="date"
+                disabled
+                hint="Clicks have stopped, so the end date can’t change. The campaign settles 72 hours after it ended."
+                error={errors.deliverBy}
+                defaultValue={campaign.deliverBy}
+              />
+            </>
+          ) : (
+            <TextField
+              label="Posts up by"
+              name="deliverBy"
+              type="date"
+              min={campaign.deliverBy}
+              hint="Later only."
+              defaultValue={values.deliverBy ?? campaign.deliverBy}
+              error={errors.deliverBy}
+            />
+          )}
         </div>
       </SectionCard>
       <FormMessage status={state.status} message={state.message} />

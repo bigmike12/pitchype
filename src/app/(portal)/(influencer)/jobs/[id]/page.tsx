@@ -13,6 +13,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { ClickProofList } from "@/components/clicks/click-proof-list";
+import { ClickSummary } from "@/components/clicks/click-summary";
 import { DisputeForm } from "@/components/engagement/dispute-form";
 import { Rounds } from "@/components/engagement/rounds";
 import { buttonVariants } from "@/components/ui/button";
@@ -28,6 +30,8 @@ import {
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
 import { getEngagementDetails } from "@/lib/db/applications";
+import { listClickProofs } from "@/lib/db/click-proofs";
+import { getEngagementClicks } from "@/lib/db/clicks";
 import { getLatestDisputeId } from "@/lib/db/disputes";
 import { listSubmissions } from "@/lib/db/submissions";
 import { formatRate, INFLUENCER_FEE_BPS, MIN_FEE_KOBO } from "@/lib/fees";
@@ -36,6 +40,7 @@ import { formatNaira } from "@/lib/money";
 import { CONTACT_EMAIL } from "@/lib/site";
 
 import { openDisputeAction } from "./actions";
+import { ClickProofForm } from "./click-proof-form";
 import { StartWorkForm } from "./start-form";
 import { SubmitForm } from "./submit-form";
 import { WithdrawForm } from "./withdraw-form";
@@ -100,16 +105,33 @@ async function Job({ params }: { params: Params }) {
   const rounds = (await listSubmissions(engagement.id)).reverse();
   // Kept after the dispute ends, so either person can read how it went.
   const disputeId = await getLatestDisputeId(engagement.id);
+  // Null unless this is a per-click hire: then the clicks are the work, and
+  // there is no proof to review (proof for the record comes in Part 2).
+  const clicks = await getEngagementClicks(engagement.id);
+  const proofs = clicks ? await listClickProofs(engagement.id) : [];
+  const clicksOver =
+    clicks?.clicksEndAt !== null &&
+    clicks?.clicksEndAt !== undefined &&
+    new Date(clicks.clicksEndAt) <= new Date();
 
   const business = engagement.business.name;
+  const clickTiming =
+    clicks && clicks.clicksEndAt && clicks.settlesAt
+      ? {
+          endsAt: clicks.clicksEndAt,
+          settlesAt: clicks.settlesAt,
+          stoppedAt: clicks.clicksStoppedAt,
+        }
+      : null;
   const status = describeJobStatus(
     { ...engagement, businessName: business },
     new Date(),
+    clickTiming,
   );
   const rate = formatRate(engagement.creatorFeeBps ?? INFLUENCER_FEE_BPS);
   // The full-price figure only applies until the job settles; after that the
   // callout says what actually reached the wallet.
-  const showEarnings = UNSETTLED.includes(engagement.status);
+  const showEarnings = !clicks && UNSETTLED.includes(engagement.status);
   const feeKobo = engagement.agreedPriceKobo - status.youReceiveKobo;
   const minFee = formatNaira(engagement.creatorMinFeeKobo ?? MIN_FEE_KOBO);
 
@@ -168,12 +190,66 @@ async function Job({ params }: { params: Params }) {
           )}
         </div>
         <div className="space-y-4 xl:col-start-1">
+          {clicks && (
+            <SectionCard id="clicks-title" title="Your clicks" padded>
+              {engagement.settledAt && engagement.releasedKobo !== null && (
+                <dl className="mb-5 grid grid-cols-2 gap-3 rounded-card bg-surface-soft p-4 sm:grid-cols-4">
+                  <div>
+                    <dt className="text-sm text-muted">Clicks counted</dt>
+                    <dd className="mt-1 font-semibold text-ink tabular-nums">
+                      {clicks.billable.toLocaleString("en-NG")}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-muted">Released</dt>
+                    <dd className="mt-1 font-semibold text-ink tabular-nums">
+                      {formatNaira(engagement.releasedKobo)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-muted">Our fee</dt>
+                    <dd className="mt-1 font-semibold text-ink tabular-nums">
+                      {formatNaira(
+                        engagement.releasedKobo -
+                          (engagement.creatorNetKobo ?? 0),
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-muted">You received</dt>
+                    <dd className="mt-1 font-semibold text-ink tabular-nums">
+                      {formatNaira(engagement.creatorNetKobo ?? 0)}
+                    </dd>
+                  </div>
+                </dl>
+              )}
+              <ClickSummary
+                stats={clicks}
+                viewer="creator"
+                settled={engagement.settledAt !== null}
+              />
+            </SectionCard>
+          )}
+          {clicks && proofs.length > 0 && (
+            <SectionCard id="posts-title" title="Where you posted">
+              <ClickProofList proofs={proofs} />
+            </SectionCard>
+          )}
+          {clicks && proofs.length === 0 && clicksOver && (
+            <p className="text-sm text-muted">No posts added yet.</p>
+          )}
+          {clicks &&
+            engagement.status === "in_progress" &&
+            !clicks.clicksStoppedAt &&
+            !engagement.settledAt && (
+              <ClickProofForm engagementId={engagement.id} />
+            )}
           {rounds.length > 0 && (
             <SectionCard id="rounds-title" title="Your submissions">
               <Rounds rounds={rounds} />
             </SectionCard>
           )}
-          {(status.canSubmit || status.canResubmit) && (
+          {!clicks && (status.canSubmit || status.canResubmit) && (
             <SubmitForm
               engagementId={engagement.id}
               deliverables={engagement.campaign.deliverables}
@@ -214,7 +290,11 @@ async function Job({ params }: { params: Params }) {
             <DisputeForm
               engagementId={engagement.id}
               action={openDisputeAction}
-              intro="If you think the business was wrong to send your work back, tell us why. An admin will read both sides and decide how the money is paid out. While a dispute is open you can’t send the work in again."
+              intro={
+                clicks
+                  ? "If the click count looks wrong, or something else needs sorting before you’re paid, tell us why. An admin will read both sides and decide how the money is paid out. Nothing settles while a dispute is open."
+                  : "If you think the business was wrong to send your work back, tell us why. An admin will read both sides and decide how the money is paid out. While a dispute is open you can’t send the work in again."
+              }
             />
           )}
           {status.canWithdraw && (
@@ -222,6 +302,7 @@ async function Job({ params }: { params: Params }) {
               engagementId={engagement.id}
               businessName={business}
               afterStart={engagement.status !== "funded"}
+              perClick={clicks !== null}
             />
           )}
           {engagement.status === "in_progress" && (

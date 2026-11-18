@@ -23,9 +23,12 @@ import { decideDisputeAction, type DecideState } from "./actions";
 export function DecideForm({
   disputeId,
   facts,
+  clicks = null,
 }: {
   disputeId: string;
   facts: SettleFacts;
+  /** A per-click hire's counted clicks and what they're worth. */
+  clicks?: { billable: number; earnedKobo: number } | null;
 }) {
   const [outcome, setOutcome] = useState("");
   const [amount, setAmount] = useState("");
@@ -54,11 +57,20 @@ export function DecideForm({
           A partial delivery is a{" "}
           <span className="font-semibold text-ink">split</span>.
         </p>
-        <p>
-          Work that met the brief is a{" "}
-          <span className="font-semibold text-ink">full release</span>, even if
-          the business changed its mind.
-        </p>
+        {clicks ? (
+          <p>
+            <span className="font-semibold text-ink">Pay per click:</span>{" "}
+            {clicks.billable.toLocaleString("en-NG")} clicks counted, worth{" "}
+            {formatNaira(clicks.earnedKobo)}. Releasing pays that, not the whole
+            budget. If some clicks look fake, split for the genuine ones.
+          </p>
+        ) : (
+          <p>
+            Work that met the brief is a{" "}
+            <span className="font-semibold text-ink">full release</span>, even
+            if the business changed its mind.
+          </p>
+        )}
       </div>
       <SelectField
         id="decide-outcome"

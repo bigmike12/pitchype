@@ -323,11 +323,14 @@ export type Database = {
           applications_close_on: string
           approved_at: string | null
           approved_by: string | null
+          blocked_channels: string[]
           brief: string
           business_id: string
           closed_at: string | null
+          cpc_kobo: number | null
           created_at: string
           deliver_by: string
+          destination_url: string | null
           guidelines: string | null
           id: string
           niches: string[]
@@ -343,17 +346,21 @@ export type Database = {
           submitted_at: string | null
           title: string
           updated_at: string
+          utm_tags: boolean
           verified_only: boolean
         }
         Insert: {
           applications_close_on: string
           approved_at?: string | null
           approved_by?: string | null
+          blocked_channels?: string[]
           brief: string
           business_id: string
           closed_at?: string | null
+          cpc_kobo?: number | null
           created_at?: string
           deliver_by: string
+          destination_url?: string | null
           guidelines?: string | null
           id?: string
           niches?: string[]
@@ -369,17 +376,21 @@ export type Database = {
           submitted_at?: string | null
           title: string
           updated_at?: string
+          utm_tags?: boolean
           verified_only?: boolean
         }
         Update: {
           applications_close_on?: string
           approved_at?: string | null
           approved_by?: string | null
+          blocked_channels?: string[]
           brief?: string
           business_id?: string
           closed_at?: string | null
+          cpc_kobo?: number | null
           created_at?: string
           deliver_by?: string
+          destination_url?: string | null
           guidelines?: string | null
           id?: string
           niches?: string[]
@@ -395,6 +406,7 @@ export type Database = {
           submitted_at?: string | null
           title?: string
           updated_at?: string
+          utm_tags?: boolean
           verified_only?: boolean
         }
         Relationships: [
@@ -411,6 +423,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "business_profiles"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      click_proofs: {
+        Row: {
+          author_id: string
+          created_at: string
+          engagement_id: string
+          id: string
+          links: string[]
+          note: string | null
+        }
+        Insert: {
+          author_id: string
+          created_at?: string
+          engagement_id: string
+          id?: string
+          links?: string[]
+          note?: string | null
+        }
+        Update: {
+          author_id?: string
+          created_at?: string
+          engagement_id?: string
+          id?: string
+          links?: string[]
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "click_proofs_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "click_proofs_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -613,6 +667,8 @@ export type Database = {
           cancel_fee_notice_seen_at: string | null
           cancel_reason: string | null
           cancelled_at: string | null
+          click_hold_notified_at: string | null
+          clicks_stopped_at: string | null
           creator_fee_bps: number | null
           creator_id: string
           creator_min_fee_kobo: number | null
@@ -638,6 +694,8 @@ export type Database = {
           cancel_fee_notice_seen_at?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
+          click_hold_notified_at?: string | null
+          clicks_stopped_at?: string | null
           creator_fee_bps?: number | null
           creator_id: string
           creator_min_fee_kobo?: number | null
@@ -663,6 +721,8 @@ export type Database = {
           cancel_fee_notice_seen_at?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
+          click_hold_notified_at?: string | null
+          clicks_stopped_at?: string | null
           creator_fee_bps?: number | null
           creator_id?: string
           creator_min_fee_kobo?: number | null
@@ -952,6 +1012,50 @@ export type Database = {
             columns: ["payout_id"]
             isOneToOne: false
             referencedRelation: "payouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      link_clicks: {
+        Row: {
+          created_at: string
+          filter_reason: string | null
+          id: number
+          is_billable: boolean
+          link_id: string
+          referrer_host: string | null
+          source: string
+          ua_hash: string | null
+          visitor_hash: string
+        }
+        Insert: {
+          created_at?: string
+          filter_reason?: string | null
+          id?: never
+          is_billable: boolean
+          link_id: string
+          referrer_host?: string | null
+          source: string
+          ua_hash?: string | null
+          visitor_hash: string
+        }
+        Update: {
+          created_at?: string
+          filter_reason?: string | null
+          id?: never
+          is_billable?: boolean
+          link_id?: string
+          referrer_host?: string | null
+          source?: string
+          ua_hash?: string | null
+          visitor_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "link_clicks_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "tracked_links"
             referencedColumns: ["id"]
           },
         ]
@@ -1432,6 +1536,7 @@ export type Database = {
       proof_files: {
         Row: {
           bytes: number
+          click_proof_id: string | null
           content_type: string
           created_at: string
           dispute_statement_id: string | null
@@ -1442,6 +1547,7 @@ export type Database = {
         }
         Insert: {
           bytes: number
+          click_proof_id?: string | null
           content_type: string
           created_at?: string
           dispute_statement_id?: string | null
@@ -1452,6 +1558,7 @@ export type Database = {
         }
         Update: {
           bytes?: number
+          click_proof_id?: string | null
           content_type?: string
           created_at?: string
           dispute_statement_id?: string | null
@@ -1461,6 +1568,13 @@ export type Database = {
           submission_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "proof_files_click_proof_id_fkey"
+            columns: ["click_proof_id"]
+            isOneToOne: false
+            referencedRelation: "click_proofs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "proof_files_dispute_statement_id_fkey"
             columns: ["dispute_statement_id"]
@@ -1584,6 +1698,71 @@ export type Database = {
             foreignKeyName: "submissions_engagement_id_fkey"
             columns: ["engagement_id"]
             isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tracked_links: {
+        Row: {
+          billable_clicks: number
+          business_id: string
+          campaign_id: string
+          code: string
+          created_at: string
+          creator_id: string
+          engagement_id: string
+          id: string
+          total_hits: number
+        }
+        Insert: {
+          billable_clicks?: number
+          business_id: string
+          campaign_id: string
+          code: string
+          created_at?: string
+          creator_id: string
+          engagement_id: string
+          id?: string
+          total_hits?: number
+        }
+        Update: {
+          billable_clicks?: number
+          business_id?: string
+          campaign_id?: string
+          code?: string
+          created_at?: string
+          creator_id?: string
+          engagement_id?: string
+          id?: string
+          total_hits?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracked_links_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracked_links_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracked_links_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracked_links_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: true
             referencedRelation: "engagements"
             referencedColumns: ["id"]
           },
@@ -1864,6 +2043,7 @@ export type Database = {
         }
         Returns: Json
       }
+      all_distinct: { Args: { items: string[] }; Returns: boolean }
       answer_appeal: {
         Args: { answer: string; appeal: string; decline: boolean }
         Returns: undefined
@@ -1896,6 +2076,8 @@ export type Database = {
         }
         Returns: Json
       }
+      campaign_click_results: { Args: { campaign: string }; Returns: Json }
+      campaign_click_summary: { Args: { campaign: string }; Returns: Json }
       campaign_problems: {
         Args: { campaign: string; creator: string }
         Returns: Json
@@ -1924,6 +2106,12 @@ export type Database = {
       }
       clean_note: { Args: { note: string }; Returns: string }
       clean_reason: { Args: { reason: string }; Returns: string }
+      click_settles_at: { Args: { deliver_by: string }; Returns: string }
+      click_window_end: { Args: { deliver_by: string }; Returns: string }
+      click_window_open: {
+        Args: { at: string; deliver_by: string }
+        Returns: boolean
+      }
       consume_rate_limit: {
         Args: { p_key: string; p_max: number; p_window_seconds: number }
         Returns: boolean
@@ -1998,11 +2186,13 @@ export type Database = {
         Args: { engagement: string; reasons: string[] }
         Returns: string
       }
+      destination_host: { Args: { url: string }; Returns: string }
       display_name_of: { Args: { person: string }; Returns: string }
       edit_application: {
         Args: { application: string; note: string; proposed_price_kobo: number }
         Returns: undefined
       }
+      engagement_click_summary: { Args: { engagement: string }; Returns: Json }
       engagement_details: { Args: { engagement: string }; Returns: Json }
       engagement_json: {
         Args: { e: Database["public"]["Tables"]["engagements"]["Row"] }
@@ -2079,6 +2269,13 @@ export type Database = {
         Args: { person: string; reason: string }
         Returns: undefined
       }
+      link_summary: {
+        Args: {
+          k: Database["public"]["Tables"]["campaigns"]["Row"]
+          link: Database["public"]["Tables"]["tracked_links"]["Row"]
+        }
+        Returns: Json
+      }
       list_open_campaigns: {
         Args: {
           niche_slug?: string
@@ -2101,6 +2298,7 @@ export type Database = {
       my_applications: { Args: never; Returns: Json }
       my_blocks: { Args: never; Returns: Json }
       my_conversations: { Args: never; Returns: Json }
+      new_link_code: { Args: never; Returns: string }
       new_verification_code: { Args: never; Returns: string }
       non_delivery_dispute_at: {
         Args: { e: Database["public"]["Tables"]["engagements"]["Row"] }
@@ -2155,6 +2353,26 @@ export type Database = {
           payload: Json
           paystack_fee_kobo: number
           reference: string
+        }
+        Returns: string
+      }
+      record_click: {
+        Args: {
+          client_class: string
+          code: string
+          referrer_host: string
+          source: string
+          ua_hash: string
+          visitor_hash: string
+        }
+        Returns: Json
+      }
+      record_click_proof: {
+        Args: {
+          engagement: string
+          file_ids: string[]
+          links: string[]
+          note: string
         }
         Returns: string
       }
@@ -2255,18 +2473,23 @@ export type Database = {
       save_campaign_draft: {
         Args: {
           applications_close_on: string
+          blocked_channels?: string[]
           brief: string
           campaign_id: string
+          cpc_kobo?: number
           deliver_by: string
           deliverables: Json
+          destination_url?: string
           guidelines: string
           niches: string[]
+          payment_model?: Database["public"]["Enums"]["payment_model"]
           places: number
           platforms: Json
           post_from: string
           price_kobo: number
           states: string[]
           title: string
+          utm_tags?: boolean
           verified_only: boolean
         }
         Returns: string
@@ -2309,6 +2532,11 @@ export type Database = {
         Args: { creator: string; reason: string }
         Returns: undefined
       }
+      settle_click_hire: {
+        Args: { actor: string; engagement: string; reason: string }
+        Returns: boolean
+      }
+      settle_due_click_hires: { Args: never; Returns: Json }
       settle_engagement: {
         Args: {
           engagement: string
@@ -2481,6 +2709,9 @@ export type Database = {
         | "dispute_opened"
         | "dispute_statement"
         | "dispute_withdrawn"
+        | "click_cap_reached"
+        | "click_hold_started"
+        | "clicks_stopped"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -2702,6 +2933,9 @@ export const Constants = {
         "dispute_opened",
         "dispute_statement",
         "dispute_withdrawn",
+        "click_cap_reached",
+        "click_hold_started",
+        "clicks_stopped",
       ],
       payment_model: ["fixed", "per_click"],
       report_reason: [

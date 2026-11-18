@@ -5,7 +5,8 @@ import { Suspense } from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth";
 import { lagosToday } from "@/lib/campaign";
-import { getOwnCampaign } from "@/lib/db/campaigns";
+import { clickWindowEnded } from "@/lib/campaign";
+import { getOwnCampaign, isTrustedBusiness } from "@/lib/db/campaigns";
 import { listNiches } from "@/lib/db/creators";
 
 import { CampaignForm } from "../../campaign-form";
@@ -22,7 +23,9 @@ type Params = Promise<{ id: string }>;
 
 export default function EditCampaignPage({ params }: { params: Params }) {
   return (
-    <div className="max-w-3xl">
+    // Wide enough for the campaign builder's summary column; the live-edit
+    // form keeps the reading width itself.
+    <div className="max-w-6xl">
       <Suspense
         fallback={
           <PageLoading label="Loading the campaign…">
@@ -68,10 +71,20 @@ async function EditCampaign({ params }: { params: Params }) {
             niches={await listNiches()}
             today={lagosToday()}
             campaign={campaign}
+            trusted={await isTrustedBusiness(user.id)}
           />
         </div>
       ) : (
-        <LiveEditForm campaign={campaign} />
+        <div className="max-w-3xl">
+          <LiveEditForm
+            campaign={{
+              ...campaign,
+              deliverByLocked:
+                campaign.paymentModel === "per_click" &&
+                clickWindowEnded(campaign.deliverBy),
+            }}
+          />
+        </div>
       )}
     </>
   );

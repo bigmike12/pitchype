@@ -236,3 +236,47 @@ test("what the creator would receive for the full price", () => {
   // The minimum fee applies to small jobs.
   assert.equal(words({ agreedPriceKobo: 500_000 }).youReceiveKobo, 450_000);
 });
+
+// Pay per click ----------------------------------------------------------------------------
+
+const counting = {
+  endsAt: "2026-11-20T00:00:00+01:00",
+  settlesAt: "2026-11-23T00:00:00+01:00",
+  stoppedAt: null,
+};
+const ended = {
+  endsAt: "2026-11-10T00:00:00+01:00",
+  settlesAt: "2026-11-13T23:00:00+01:00",
+  stoppedAt: null,
+};
+
+test("per click: clicks counting, then in, then withdrawn", () => {
+  const live = describeJobStatus(
+    { ...base, status: "in_progress" },
+    NOW,
+    counting,
+  );
+  assert.equal(live.title, "Clicks counting");
+  assert.match(live.body, /until/);
+  assert.equal(live.canSubmit, false);
+  assert.equal(live.canWithdraw, true);
+  assert.equal(live.canOpenDispute, false);
+
+  const held = describeJobStatus(
+    { ...base, status: "in_progress" },
+    NOW,
+    ended,
+  );
+  assert.equal(held.title, "Clicks are in");
+  assert.match(held.body, /You’ll be paid on/);
+  assert.equal(held.canOpenDispute, true);
+  assert.equal(held.canWithdraw, false);
+
+  const withdrew = describeJobStatus({ ...base, status: "in_progress" }, NOW, {
+    ...counting,
+    stoppedAt: "2026-11-12T10:00:00Z",
+  });
+  assert.equal(withdrew.title, "You withdrew");
+  assert.match(withdrew.body, /clicks so far/);
+  assert.equal(withdrew.canWithdraw, false);
+});

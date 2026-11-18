@@ -540,3 +540,51 @@ test("an automatic release reads differently from a settlement", () => {
 test("unknown kinds are skipped, not shown blank", () => {
   assert.equal(describeNotification(row("payment_received")), null);
 });
+
+// Pay per click ----------------------------------------------------------------------------
+
+test("the creator hears their link reached its cap", () => {
+  const d = describeNotification(
+    row("click_cap_reached", { ...hire, cap: 500, earned_kobo: 2500000 }),
+    "influencer",
+  );
+  assert.equal(d?.title, "Your link for “Zobo week” reached 500 clicks");
+  assert.match(d?.body ?? "", /₦25,000/);
+  assert.equal(d?.href, "/jobs/e1");
+});
+
+test("both sides hear the clicks are in, and when it settles", () => {
+  const facts = {
+    ...hire,
+    settles_at: "2026-12-28T00:00:00+01:00",
+    billable: 200,
+    earned_kobo: 1000000,
+  };
+  const creator = describeNotification(
+    row("click_hold_started", facts),
+    "influencer",
+  );
+  assert.equal(creator?.title, "Clicks are in for “Zobo week”");
+  assert.match(creator?.body ?? "", /200 clicks/);
+  assert.match(creator?.body ?? "", /You’ll be paid on/);
+  assert.equal(creator?.href, "/jobs/e1");
+
+  const business = describeNotification(
+    row("click_hold_started", facts),
+    "business",
+  );
+  assert.equal(business?.title, "Clicks are in for “Zobo week”");
+  assert.match(business?.body ?? "", /settles on/);
+  assert.match(business?.body ?? "", /raise it before then/i);
+  assert.equal(business?.href, "/business/engagements/e1");
+});
+
+test("the business hears a per-click creator withdrew", () => {
+  const d = describeNotification(
+    row("clicks_stopped", { ...hire, settles_at: "2026-12-28T00:00:00+01:00" }),
+    "business",
+  );
+  assert.equal(d?.title, "Ada Kitchen withdrew from “Zobo week”");
+  assert.match(d?.body ?? "", /stopped counting/);
+  assert.equal(d?.href, "/business/engagements/e1");
+});

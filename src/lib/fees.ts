@@ -106,7 +106,9 @@ export function pricePerCreatorWithin(
 function requireWholeKobo(label: string, kobo: number, min: 0 | 1): void {
   if (!Number.isInteger(kobo) || kobo < min) {
     const kind = min === 1 ? "a positive" : "a non-negative";
-    throw new Error(`${label} must be ${kind} whole number of kobo, got ${kobo}`);
+    throw new Error(
+      `${label} must be ${kind} whole number of kobo, got ${kobo}`,
+    );
   }
 }
 
@@ -172,7 +174,71 @@ export function faultRefund(
   requireWholeKobo("Price", priceKobo, 1);
   requireWholeKobo("Business fee", businessFeeKobo, 0);
   requireWholeKobo("Paystack fees", paystackFeesKobo, 0);
-  return priceKobo + businessFeeKobo - Math.min(paystackFeesKobo, businessFeeKobo);
+  return (
+    priceKobo + businessFeeKobo - Math.min(paystackFeesKobo, businessFeeKobo)
+  );
+}
+
+/**
+ * The business fee kept on a per-click hire (not at fault): 5% of what was
+ * released to the creator, but never less than the minimum fee or Paystack's
+ * charge on the payment that funded the hire, and never more than the fee
+ * paid. The same rule as settle_money()'s per-click branch
+ * (supabase/migrations/20261120100100_click_settlement.sql).
+ */
+export function clickFeeKept(input: {
+  releasedKobo: number;
+  businessFeeKobo: number;
+  paystackChargeKobo: number;
+  businessFeeBps?: number;
+  minFeeKobo?: number;
+}): number {
+  const bps = input.businessFeeBps ?? BUSINESS_FEE_BPS;
+  const min = input.minFeeKobo ?? MIN_FEE_KOBO;
+  requireWholeKobo("Released amount", input.releasedKobo, 0);
+  requireWholeKobo("Business fee", input.businessFeeKobo, 0);
+  requireWholeKobo("Paystack charge", input.paystackChargeKobo, 0);
+  const byRate = Math.round((input.releasedKobo * bps) / BPS_PER_WHOLE);
+  return Math.min(
+    input.businessFeeKobo,
+    Math.max(byRate, min, input.paystackChargeKobo),
+  );
+}
+
+/** Where a per-click hire's money goes when it settles for `billable` clicks. */
+export function clickSettlement(input: {
+  billable: number;
+  cpcKobo: number;
+  budgetKobo: number;
+  businessFeeKobo: number;
+  paystackChargeKobo: number;
+  creatorFeeBps?: number;
+  creatorMinFeeKobo?: number;
+}) {
+  const releasedKobo = Math.min(
+    input.billable * input.cpcKobo,
+    input.budgetKobo,
+  );
+  const creatorFeeKobo = creatorFee(
+    releasedKobo,
+    input.creatorFeeBps ?? INFLUENCER_FEE_BPS,
+    input.creatorMinFeeKobo ?? MIN_FEE_KOBO,
+  );
+  const businessFeeKeptKobo = clickFeeKept({
+    releasedKobo,
+    businessFeeKobo: input.businessFeeKobo,
+    paystackChargeKobo: input.paystackChargeKobo,
+  });
+  return {
+    releasedKobo,
+    creatorFeeKobo,
+    creatorNetKobo: releasedKobo - creatorFeeKobo,
+    businessFeeKeptKobo,
+    businessBackKobo:
+      input.budgetKobo -
+      releasedKobo +
+      (input.businessFeeKobo - businessFeeKeptKobo),
+  };
 }
 
 // Paystack's Nigerian transfer fee by amount, paid by the influencer at cost.

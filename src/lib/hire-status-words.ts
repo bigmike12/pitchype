@@ -2,6 +2,7 @@
 // No framework imports, so node tests cover the wording.
 
 import { formatDateTime } from "./creator-profile.ts";
+import type { ClickTiming } from "./job-status-words.ts";
 import { formatNaira } from "./money.ts";
 
 /** The facts about a hire that its status line is worded from. */
@@ -15,6 +16,8 @@ export type HireFacts = {
   releasedKobo: number | null;
   refundedKobo: number | null;
   businessFeeKobo: number | null;
+  /** The agreed price (the budget, per click); used for per-click refund words. */
+  agreedPriceKobo?: number;
   // Stage 7: where the review stands (from EngagementDetails).
   round: number | null;
   /** When the round waiting for review is released on its own. */
@@ -60,7 +63,11 @@ const running = (
   canOpenDispute: actions.canOpenDispute ?? false,
 });
 
-export function describeHireStatus(e: HireFacts, now: Date): HireStatusWords {
+export function describeHireStatus(
+  e: HireFacts,
+  now: Date,
+  clicks?: ClickTiming | null,
+): HireStatusWords {
   const creator = e.creatorName;
   const refunded = formatNaira(e.refundedKobo ?? 0);
   const released = formatNaira(e.releasedKobo ?? 0);
@@ -68,6 +75,13 @@ export function describeHireStatus(e: HireFacts, now: Date): HireStatusWords {
   // The refund when the creator is at fault is price plus our fee, less what
   // the card charged us (CLAUDE.md §6.2), so it is never "the whole fee".
   const backWithFee = `${refunded} is back in your wallet, including our fee, less the card charge.`;
+  // Per click, the fee is kept only on what was spent, so most of it comes
+  // back: what's back beyond the unspent budget is the fee returned.
+  const feeKeptKobo =
+    (e.businessFeeKobo ?? 0) -
+    ((e.refundedKobo ?? 0) -
+      ((e.agreedPriceKobo ?? 0) - (e.releasedKobo ?? 0)));
+  const clickRefundWords = `${refunded} is back in your wallet, including our fee less the ${formatNaira(feeKeptKobo)} we keep.`;
 
   switch (e.status) {
     case "awaiting_payment":
@@ -91,6 +105,28 @@ export function describeHireStatus(e: HireFacts, now: Date): HireStatusWords {
         `Waiting for ${creator} to start. The money is held by Pitchype until the job is done.`,
       );
     case "in_progress": {
+      if (clicks) {
+        const over = Date.parse(clicks.endsAt) <= now.getTime();
+        const settles = formatDateTime(clicks.settlesAt);
+        if (clicks.stoppedAt) {
+          return running(
+            `${creator} withdrew`,
+            `Their link stopped counting. This settles on ${settles} for the clicks so far; the rest comes back to your wallet.`,
+            { canOpenDispute: over },
+          );
+        }
+        if (!over) {
+          return running(
+            "Clicks counting",
+            `${creator}’s link counts clicks until ${formatDateTime(clicks.endsAt)}. You pay only for counted clicks; the rest comes back to your wallet on ${settles}.`,
+          );
+        }
+        return running(
+          "Clicks are in",
+          `This settles on ${settles}. If something looks wrong, open a dispute before then.`,
+          { canOpenDispute: true },
+        );
+      }
       // The date is set only for work that is overdue; see non_delivery_dispute_at.
       const canOpenDispute =
         e.disputeAllowedFrom !== null &&
@@ -148,7 +184,9 @@ export function describeHireStatus(e: HireFacts, now: Date): HireStatusWords {
         e.cancelReason === "cancelled_by_creator" ||
           e.settleOutcome === "refund_creator_fault"
           ? `${creator} pulled out. ${backWithFee}`
-          : `You cancelled. ${refunded} is back in your wallet. Our fee of ${fee} isn’t refunded.`,
+          : clicks
+            ? `You cancelled. ${clickRefundWords}`
+            : `You cancelled. ${refunded} is back in your wallet. Our fee of ${fee} isn’t refunded.`,
       );
     default:
       // accepted, auto_released, paid_out, refunded: money has moved.
@@ -162,7 +200,9 @@ export function describeHireStatus(e: HireFacts, now: Date): HireStatusWords {
         case "refund":
           return ended(
             "Refunded",
-            `${refunded} is back in your wallet. Our fee of ${fee} isn’t refunded.`,
+            clicks
+              ? `No clicks were counted. ${clickRefundWords}`
+              : `${refunded} is back in your wallet. Our fee of ${fee} isn’t refunded.`,
           );
         case "refund_creator_fault":
           return ended("Refunded", backWithFee);

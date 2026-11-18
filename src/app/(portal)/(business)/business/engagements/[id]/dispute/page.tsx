@@ -36,8 +36,7 @@ export default async function HireDisputePage({
   // missing work has no rounds, so there is nothing to accept (the database
   // refuses that too).
   const canAccept =
-    dispute.status === "open" &&
-    rounds[rounds.length - 1]?.status === "denied";
+    dispute.status === "open" && rounds[rounds.length - 1]?.status === "denied";
 
   return (
     <div className="max-w-3xl">

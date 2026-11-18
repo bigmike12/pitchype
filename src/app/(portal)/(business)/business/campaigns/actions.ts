@@ -100,6 +100,16 @@ export async function liveEditAction(
         values: typed(form),
       };
     }
+    if (outcome === "window_closed") {
+      return {
+        status: "error",
+        errors: {
+          deliverBy:
+            "Clicks have stopped, so the end date can’t change. The campaign settles 72 hours after it ended.",
+        },
+        values: typed(form),
+      };
+    }
   } catch (error) {
     logFailure("live edit", error);
     return { status: "error", message: SAVE_FAILED, values: typed(form) };

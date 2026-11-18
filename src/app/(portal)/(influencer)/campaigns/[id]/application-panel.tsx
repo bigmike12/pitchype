@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { hireEndedUnpaid } from "@/lib/applications";
+import type { PaymentModel } from "@/lib/campaign";
 import { formatDate } from "@/lib/creator-profile";
 import type { MyApplication } from "@/lib/db/applications";
 import { formatNaira } from "@/lib/money";
@@ -23,8 +24,10 @@ type Tone = "info" | "attention" | "success" | "danger";
 /** Where the creator's application stands, and what they can still do. */
 export function ApplicationPanel({
   application,
+  paymentModel,
 }: {
   application: MyApplication;
+  paymentModel: PaymentModel;
 }) {
   const { status, engagement, campaign } = application;
   const price = formatNaira(
@@ -116,6 +119,7 @@ export function ApplicationPanel({
           <ApplyForm
             campaignId={campaign.id}
             campaignPriceKobo={campaign.priceKobo}
+            paymentModel={paymentModel}
           />
         </div>
       )}

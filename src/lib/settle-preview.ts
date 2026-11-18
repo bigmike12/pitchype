@@ -5,7 +5,7 @@
 // tests cover it.
 
 import type { SettleOutcome } from "./db/money.ts";
-import { creatorFee, faultRefund } from "./fees.ts";
+import { clickFeeKept, creatorFee, faultRefund } from "./fees.ts";
 import { KOBO_PER_NAIRA, formatNaira } from "./money.ts";
 
 export const SETTLE_OUTCOMES: { value: SettleOutcome; label: string }[] = [
@@ -67,13 +67,23 @@ export function settlePreview(input: {
    * was paid from the wallet); null when that payment can't be found.
    */
   paystackChargeKobo: number | null;
+  /**
+   * For a per-click hire, what its counted clicks are worth: "release" pays
+   * that, and the business fee is kept only on what's spent (settle_money()'s
+   * per-click branch). Absent or null for a fixed-price hire.
+   */
+  clickEarnedKobo?: number | null;
 }): SettlePreview {
   const price = input.agreedPriceKobo;
+  const perClick =
+    input.clickEarnedKobo !== undefined && input.clickEarnedKobo !== null;
 
   let releasedKobo: number;
   switch (input.outcome) {
     case "release":
-      releasedKobo = price;
+      releasedKobo = perClick
+        ? Math.min(input.clickEarnedKobo ?? 0, price)
+        : price;
       break;
     case "refund":
     case "refund_creator_fault":
@@ -104,14 +114,25 @@ export function settlePreview(input: {
   const creatorGetsKobo = releasedKobo - feeKobo;
 
   const fault = input.outcome === "refund_creator_fault";
+  // Per click (not at fault): the fee is kept only on what's spent.
+  const clickKeptKobo =
+    perClick && !fault
+      ? clickFeeKept({
+          releasedKobo,
+          businessFeeKobo: input.businessFeeKobo,
+          paystackChargeKobo: input.paystackChargeKobo ?? 0,
+        })
+      : null;
   const businessGetsBackKobo = fault
     ? faultRefund(price, input.businessFeeKobo, input.paystackChargeKobo ?? 0)
-    : price - releasedKobo;
+    : clickKeptKobo !== null
+      ? price - releasedKobo + (input.businessFeeKobo - clickKeptKobo)
+      : price - releasedKobo;
   // Whatever of the business fee is not handed back stays with Pitchype
   // (on a fault refund that is only the card charge Paystack kept).
   const businessFeeKeptKobo = fault
     ? input.businessFeeKobo - (businessGetsBackKobo - price)
-    : input.businessFeeKobo;
+    : (clickKeptKobo ?? input.businessFeeKobo);
 
   let warning: string | null = null;
   if (releasedKobo > 0 && creatorGetsKobo === 0) {
@@ -139,6 +160,8 @@ export type SettleFacts = {
   creatorMinFeeKobo: number;
   /** The funding payment's charge; null if that payment can't be found. */
   paystackChargeKobo: number | null;
+  /** Per-click hires only: what the counted clicks are worth. */
+  clickEarnedKobo?: number | null;
 };
 
 /**

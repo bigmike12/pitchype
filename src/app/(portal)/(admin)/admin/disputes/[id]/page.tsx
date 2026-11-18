@@ -4,8 +4,10 @@ import { notFound } from "next/navigation";
 
 import { DisputeThread } from "@/components/engagement/dispute-thread";
 import { PageHeader } from "@/components/ui/page-header";
+import { ClickSummary } from "@/components/clicks/click-summary";
 import { SectionCard } from "@/components/ui/section-card";
 import { requireRole } from "@/lib/auth";
+import { getEngagementClicks } from "@/lib/db/clicks";
 import { getEngagementDetails } from "@/lib/db/applications";
 import { getDispute } from "@/lib/db/disputes";
 import { getEscrowEngagement } from "@/lib/db/money";
@@ -33,6 +35,9 @@ export default async function AdminDisputePage({
   // The fee snapshot and the funding charge the decision is previewed from.
   const escrow =
     dispute.status === "open" ? await getEscrowEngagement(hire.id) : null;
+  // A per-click hire is paid for its counted clicks; the decision previews that.
+  const clicks =
+    dispute.status === "open" ? await getEngagementClicks(hire.id) : null;
 
   return (
     <div className="max-w-3xl">
@@ -56,6 +61,11 @@ export default async function AdminDisputePage({
         viewer={{ id: user.id, role: "admin" }}
         statementAction={addAdminStatementAction}
       />
+      {clicks && (
+        <SectionCard id="clicks-title" title="Clicks" padded className="mt-4">
+          <ClickSummary stats={clicks} viewer="admin" />
+        </SectionCard>
+      )}
       {dispute.status === "open" && (
         <SectionCard
           id="decide-title"
@@ -76,7 +86,13 @@ export default async function AdminDisputePage({
                 creatorFeeBps: escrow.creatorFeeBps,
                 creatorMinFeeKobo: escrow.creatorMinFeeKobo,
                 paystackChargeKobo: escrow.paystackChargeKobo,
+                clickEarnedKobo: clicks?.earnedKobo ?? null,
               }}
+              clicks={
+                clicks
+                  ? { billable: clicks.billable, earnedKobo: clicks.earnedKobo }
+                  : null
+              }
             />
           ) : (
             <p className="text-sm text-danger">

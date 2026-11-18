@@ -12,8 +12,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 
+import { CampaignClicks } from "@/components/clicks/campaign-clicks";
+import { ClickResults } from "@/components/clicks/click-results";
 import {
   DeliverableList,
+  PerClickTerms,
   RequirementList,
   StatusPill,
 } from "@/components/campaigns/campaign-facts";
@@ -36,6 +39,7 @@ import {
   isTrustedBusiness,
   type OwnCampaign,
 } from "@/lib/db/campaigns";
+import { getCampaignClickResults, getCampaignClicks } from "@/lib/db/clicks";
 import { listNiches } from "@/lib/db/creators";
 import { formatNaira } from "@/lib/money";
 
@@ -80,14 +84,24 @@ async function Campaign({ params }: { params: Params }) {
   const live = ["draft", "pending_review", "open", "paused"].includes(
     campaign.status,
   );
-  const [niches, trusted, qualifying, counts] = await Promise.all([
-    listNiches(),
-    campaign.status === "draft"
-      ? isTrustedBusiness(user.id)
-      : Promise.resolve(true),
-    live ? countQualifyingCreators(campaign.id) : Promise.resolve(null),
-    getApplicationCounts(),
-  ]);
+  const [niches, trusted, qualifying, counts, clicks, results] =
+    await Promise.all([
+      listNiches(),
+      // Per-click campaigns always go to review, trusted business or not.
+      campaign.status !== "draft"
+        ? Promise.resolve(true)
+        : campaign.paymentModel === "per_click"
+          ? Promise.resolve(false)
+          : isTrustedBusiness(user.id),
+      live ? countQualifyingCreators(campaign.id) : Promise.resolve(null),
+      getApplicationCounts(),
+      campaign.paymentModel === "per_click" && campaign.status !== "draft"
+        ? getCampaignClicks(campaign.id)
+        : Promise.resolve(null),
+      campaign.paymentModel === "per_click" && campaign.status !== "draft"
+        ? getCampaignClickResults(campaign.id)
+        : Promise.resolve(null),
+    ]);
   const applications = counts.get(campaign.id) ?? {
     total: 0,
     waiting: 0,
@@ -174,7 +188,11 @@ async function Campaign({ params }: { params: Params }) {
               />
             )}
             <Stat
-              label="Per creator, with our fee"
+              label={
+                campaign.paymentModel === "per_click"
+                  ? "Budget per creator, with our fee"
+                  : "Per creator, with our fee"
+              }
               value={formatNaira(spend.perCreatorKobo)}
               note={`${formatNaira(campaign.priceKobo)} + ${formatNaira(spend.feePerCreatorKobo)} fee`}
             />
@@ -199,6 +217,32 @@ async function Campaign({ params }: { params: Params }) {
           )}
         </div>
         <div className="space-y-3 xl:order-1">
+          {campaign.paymentModel === "per_click" &&
+            campaign.cpcKobo !== null && (
+              <SectionCard id="clicks-title" title="Pay per click" padded>
+                <PerClickTerms
+                  cpcKobo={campaign.cpcKobo}
+                  budgetKobo={campaign.priceKobo}
+                  destination={campaign.destinationUrl}
+                  blockedChannels={campaign.blockedChannels}
+                  deliverBy={campaign.deliverBy}
+                />
+              </SectionCard>
+            )}
+          {results && (
+            <SectionCard id="click-results-title" title="How it went" padded>
+              <ClickResults results={results} />
+            </SectionCard>
+          )}
+          {clicks && clicks.hires.length > 0 && (
+            <SectionCard id="click-counts-title" title="Clicks" padded>
+              <CampaignClicks
+                clicks={clicks}
+                campaignId={campaign.id}
+                deliverBy={campaign.deliverBy}
+              />
+            </SectionCard>
+          )}
           <SectionCard id="posts-title" title="What each creator posts" padded>
             <div>
               <DeliverableList
@@ -334,7 +378,9 @@ function StatusNotice({
       >
         {trusted
           ? "Publishing makes it visible to creators straight away."
-          : "We check a business’s first campaign before it goes live, usually within a working day."}
+          : campaign.paymentModel === "per_click"
+            ? "We check every pay-per-click campaign before it goes live, to confirm the link is yours. Usually within a working day."
+            : "We check a business’s first campaign before it goes live, usually within a working day."}
       </Callout>
     );
   }
@@ -343,7 +389,11 @@ function StatusNotice({
       <Callout
         tone="attention"
         icon={Clock}
-        title="We’re checking your first campaign"
+        title={
+          campaign.paymentModel === "per_click"
+            ? "We’re checking your campaign and its link"
+            : "We’re checking your first campaign"
+        }
         className={className}
       >
         Usually within a working day. To change it, withdraw it first.

@@ -29,7 +29,7 @@ const COLUMNS = [
 // Characters that make a spreadsheet read a cell as a formula.
 const FORMULA_START = /^[=+\-@\t\r]/;
 
-function textCell(value: string | null): string {
+export function textCell(value: string | null): string {
   if (value === null || value === "") return "";
   const safe = FORMULA_START.test(value) ? `'${value}` : value;
   return /[",\r\n]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe;

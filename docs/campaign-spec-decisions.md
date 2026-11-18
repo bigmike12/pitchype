@@ -37,7 +37,7 @@ Deliverables describe what the creator posts. How they are paid is a separate ch
 
 **Payment models**
 1. Fixed price (Stage 4 onward)
-2. Pay per click (decided; built after Stage 6, see "Build order")
+2. Pay per click (decided; Part 1, links and counting, built 2026-11-19; design and the numbers in `docs/superpowers/specs/2026-11-18-pay-per-click-design.md`)
 3. Fixed + per-click bonus (later)
 
 Stage 4 stores `payment_model` on the campaign (default fixed) so pay per click
@@ -50,6 +50,9 @@ can be added without a migration of existing campaigns.
 - Creators can propose a different price when they apply (Stage 5). Because each accepted creator can then have a different price, nothing is escrowed at publish. Escrow happens per engagement when the business accepts the creator and funds it (CLAUDE.md §5 and §6), with the fee calculated on the agreed price.
 
 **Pay per click**
+
+> Built differently from the notes below, as decided on 2026-11-18 (design doc §3): the budget is split equally per place and each creator's share is funded per hire at approval, not escrowed whole at go-live; each hire settles once after a 72-hour hold, not in weekly batches; there is no daily click cap; every per-click campaign is admin-reviewed until domain verification exists; the business can block channels.
+
 - The business supplies a destination link, a cost per click (with a minimum), and a total click budget. Creators accept the terms by applying.
 - The whole click budget is escrowed when the campaign goes live. Unspent budget is refunded when the campaign ends. Whether the fee on unspent budget is refunded follows §6.2 and is decided when this is built.
 - Creators are paid in batches (weekly or at campaign end) with a minimum payout threshold. Per-click payouts are too small to send individually, and transfer fees would eat them.

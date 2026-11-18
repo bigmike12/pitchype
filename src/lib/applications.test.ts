@@ -26,6 +26,20 @@ test("no price, or the campaign price, means accepting the campaign price", () =
   }
 });
 
+test("a per-click campaign takes no proposed price, even a bad one", () => {
+  for (const price of ["9,000", "abc"]) {
+    const parsed = parseApplicationForm(
+      form({ price, note: "" }),
+      2_500_000,
+      "per_click",
+    );
+    assert.deepEqual(parsed, {
+      ok: true,
+      value: { proposedPriceKobo: null, note: null },
+    });
+  }
+});
+
 test("a different price is a proposal in whole naira, from ₦5,000", () => {
   const ok = parseApplicationForm(form({ price: "65,000" }), CAMPAIGN);
   assert.deepEqual(ok, {
@@ -75,9 +89,15 @@ test("a hire has ended unpaid only when it lapsed or was cancelled before paymen
   // Still waiting for payment, paid, or finished: nothing to apply for.
   assert.equal(hireEndedUnpaid(ended("awaiting_payment")), false);
   assert.equal(hireEndedUnpaid(ended("funded", "2026-11-13T10:00:00Z")), false);
-  assert.equal(hireEndedUnpaid(ended("in_progress", "2026-11-13T10:00:00Z")), false);
+  assert.equal(
+    hireEndedUnpaid(ended("in_progress", "2026-11-13T10:00:00Z")),
+    false,
+  );
   // Cancelled after payment: money was involved, so no.
-  assert.equal(hireEndedUnpaid(ended("cancelled", "2026-11-13T10:00:00Z")), false);
+  assert.equal(
+    hireEndedUnpaid(ended("cancelled", "2026-11-13T10:00:00Z")),
+    false,
+  );
   // Other application states never reopen.
   for (const status of ["submitted", "shortlisted", "rejected", "withdrawn"]) {
     assert.equal(
@@ -90,7 +110,10 @@ test("a hire has ended unpaid only when it lapsed or was cancelled before paymen
     );
   }
   // An approved application with no hire row at all (should not happen) stays closed.
-  assert.equal(hireEndedUnpaid({ status: "approved", engagement: null }), false);
+  assert.equal(
+    hireEndedUnpaid({ status: "approved", engagement: null }),
+    false,
+  );
 });
 
 test("a hire that ended unpaid goes back to the business's to-decide list, not under Hired", () => {
@@ -98,18 +121,48 @@ test("a hire that ended unpaid goes back to the business's to-decide list, not u
     engagement: { status, fundedAt },
   });
   // Waiting for a decision.
-  assert.equal(applicationBucket({ status: "submitted", engagement: null }), "waiting");
-  assert.equal(applicationBucket({ status: "shortlisted", engagement: null }), "waiting");
+  assert.equal(
+    applicationBucket({ status: "submitted", engagement: null }),
+    "waiting",
+  );
+  assert.equal(
+    applicationBucket({ status: "shortlisted", engagement: null }),
+    "waiting",
+  );
   // A live or paid hire is Hired.
-  assert.equal(applicationBucket({ status: "approved", ...hire("awaiting_payment") }), "hired");
-  assert.equal(applicationBucket({ status: "approved", ...hire("funded", "2026-11-13T10:00:00Z") }), "hired");
-  assert.equal(applicationBucket({ status: "approved", ...hire("cancelled", "2026-11-13T10:00:00Z") }), "hired");
+  assert.equal(
+    applicationBucket({ status: "approved", ...hire("awaiting_payment") }),
+    "hired",
+  );
+  assert.equal(
+    applicationBucket({
+      status: "approved",
+      ...hire("funded", "2026-11-13T10:00:00Z"),
+    }),
+    "hired",
+  );
+  assert.equal(
+    applicationBucket({
+      status: "approved",
+      ...hire("cancelled", "2026-11-13T10:00:00Z"),
+    }),
+    "hired",
+  );
   // Lapsed or cancelled before payment: the place is open again and the
   // business decides again. It must not read as a filled place.
-  assert.equal(applicationBucket({ status: "approved", ...hire("cancelled") }), "waiting");
+  assert.equal(
+    applicationBucket({ status: "approved", ...hire("cancelled") }),
+    "waiting",
+  );
   // Passed over or withdrawn.
-  assert.equal(applicationBucket({ status: "rejected", engagement: null }), "closed");
-  assert.equal(applicationBucket({ status: "withdrawn", engagement: null }), "closed");
+  assert.equal(
+    applicationBucket({ status: "rejected", engagement: null }),
+    "closed",
+  );
+  assert.equal(
+    applicationBucket({ status: "withdrawn", engagement: null }),
+    "closed",
+  );
 });
 
 test("a hire holds a place unless it was cancelled, refunded or has lapsed unpaid", () => {

@@ -5,6 +5,7 @@ import { refresh } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { getEngagementDetails } from "@/lib/db/applications";
 import { cancelFundedEngagement, startEngagement } from "@/lib/db/money";
+import { recordClickProof } from "@/lib/db/click-proofs";
 import { submitWork, withdrawFromEngagement } from "@/lib/db/submissions";
 import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { text, type FormState } from "@/lib/form-data";
@@ -164,6 +165,67 @@ export async function submitWorkAction(
   }
   sendEmailsAfterResponse();
   return { status: "success", message: "Your work has been sent in." };
+}
+
+/**
+ * A per-click creator records where they posted their link: links and
+ * screenshots for the record, no review. Same order as submitWorkAction:
+ * authenticate, validate, rate limit, save the pictures, then record.
+ */
+export async function recordClickProofAction(
+  _previous: SubmitState,
+  form: FormData,
+): Promise<SubmitState> {
+  const user = await requireRole("influencer");
+  const engagementId = text(form, "engagementId");
+  if (!UUID.test(engagementId)) {
+    return { status: "error", message: refusalText("no_such_engagement") };
+  }
+
+  const files = screenshotFiles(form);
+  if (files.length > MAX_PROOF_FILES) {
+    return { status: "error", errors: { screenshots: TOO_MANY_SCREENSHOTS } };
+  }
+  const links = parseProofLinks(text(form, "links"), files.length);
+  const note = parseProofNote(text(form, "note"));
+  if (!links.ok || !note.ok) {
+    return {
+      status: "error",
+      errors: {
+        links: links.ok ? undefined : links.message,
+        note: note.ok ? undefined : note.message,
+      },
+    };
+  }
+  if (await isSubmitLimited(user.id)) {
+    return { status: "error", message: SUBMIT_LIMITED_MESSAGE };
+  }
+
+  let fileIds: string[] = [];
+  if (files.length > 0) {
+    try {
+      const stored = await storeScreenshots(user.id, files);
+      if (!stored.ok) {
+        return { status: "error", errors: { screenshots: stored.message } };
+      }
+      fileIds = stored.fileIds;
+    } catch (error) {
+      console.error("proof upload failed", error);
+      return { status: "error", message: SAVE_FAILED };
+    }
+  }
+
+  const result = await recordClickProof(
+    engagementId,
+    note.note,
+    links.links,
+    fileIds,
+  );
+  refresh();
+  if (!result.ok) {
+    return { status: "error", message: refusalText(result.reason) };
+  }
+  return { status: "success", message: "Saved. The business can see it." };
 }
 
 /** The creator opens a dispute on work the business sent back. */
