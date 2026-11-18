@@ -164,3 +164,23 @@ export async function getCampaignClicks(
     }),
   };
 }
+
+// The daily job ---------------------------------------------------------------------------
+
+/** Sends due hold notices and settles hires past the hold (service role). */
+export async function settleDueClickHires(): Promise<{
+  notified: number;
+  settled: number;
+  failed: number;
+}> {
+  const { data, error } = await createAdminClient().rpc(
+    "settle_due_click_hires",
+  );
+  if (error) throw new Error(`click settlement failed (${error.code})`);
+  const counts = isObject(data) ? data : {};
+  return {
+    notified: num(counts.notified) ?? 0,
+    settled: num(counts.settled) ?? 0,
+    failed: num(counts.failed) ?? 0,
+  };
+}
