@@ -178,3 +178,36 @@ test("every status has words", () => {
     assert.ok(w.title.length > 0 && w.body.length > 0, status);
   }
 });
+
+// Pay per click ----------------------------------------------------------------------------
+
+test("per click: the business sees clicks counting, then in, then a withdrawal", () => {
+  const counting = {
+    endsAt: "2026-11-20T00:00:00+01:00",
+    settlesAt: "2026-11-23T00:00:00+01:00",
+    stoppedAt: null,
+  };
+  const live = describeHireStatus(
+    { ...base, status: "in_progress" },
+    NOW,
+    counting,
+  );
+  assert.equal(live.title, "Clicks counting");
+  assert.match(live.body, /only for counted clicks/);
+  assert.equal(live.canOpenDispute, false);
+
+  const held = describeHireStatus({ ...base, status: "in_progress" }, NOW, {
+    ...counting,
+    endsAt: "2026-11-10T00:00:00+01:00",
+  });
+  assert.equal(held.title, "Clicks are in");
+  assert.match(held.body, /settles on/);
+  assert.equal(held.canOpenDispute, true);
+
+  const withdrew = describeHireStatus({ ...base, status: "in_progress" }, NOW, {
+    ...counting,
+    stoppedAt: "2026-11-12T10:00:00Z",
+  });
+  assert.match(withdrew.title, /withdrew/);
+  assert.equal(withdrew.canOpenDispute, false);
+});

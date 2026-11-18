@@ -10,6 +10,7 @@ import {
   filterReasonText,
 } from "@/lib/click-words";
 import type { LinkStats } from "@/lib/db/clicks";
+import { formatRate, INFLUENCER_FEE_BPS, MIN_FEE_KOBO } from "@/lib/fees";
 import { formatNaira } from "@/lib/money";
 import { SITE_URL } from "@/lib/site";
 
@@ -81,7 +82,7 @@ export function ClickSummary({
         {formatNaira(stats.cpcKobo)} per click, up to{" "}
         {formatNaira(stats.capKobo)}.
         {viewer === "creator" &&
-          " Our 5% fee comes off when the money is released after the campaign."}{" "}
+          ` Our fee (${formatRate(stats.creatorFeeBps ?? INFLUENCER_FEE_BPS)}, at least ${formatNaira(stats.creatorMinFeeKobo ?? MIN_FEE_KOBO)}) comes off when the money is released after the campaign.`}{" "}
         Counts are as of when you opened this page.
       </p>
       {stats.blockedShares.map((channel) => (

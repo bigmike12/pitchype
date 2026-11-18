@@ -2,6 +2,7 @@
 // No framework imports, so node tests cover the wording.
 
 import { formatDateTime } from "./creator-profile.ts";
+import type { ClickTiming } from "./job-status-words.ts";
 import { formatNaira } from "./money.ts";
 
 /** The facts about a hire that its status line is worded from. */
@@ -60,7 +61,11 @@ const running = (
   canOpenDispute: actions.canOpenDispute ?? false,
 });
 
-export function describeHireStatus(e: HireFacts, now: Date): HireStatusWords {
+export function describeHireStatus(
+  e: HireFacts,
+  now: Date,
+  clicks?: ClickTiming | null,
+): HireStatusWords {
   const creator = e.creatorName;
   const refunded = formatNaira(e.refundedKobo ?? 0);
   const released = formatNaira(e.releasedKobo ?? 0);
@@ -91,6 +96,28 @@ export function describeHireStatus(e: HireFacts, now: Date): HireStatusWords {
         `Waiting for ${creator} to start. The money is held by Pitchype until the job is done.`,
       );
     case "in_progress": {
+      if (clicks) {
+        const over = Date.parse(clicks.endsAt) <= now.getTime();
+        const settles = formatDateTime(clicks.settlesAt);
+        if (clicks.stoppedAt) {
+          return running(
+            `${creator} withdrew`,
+            `Their link stopped counting. This settles on ${settles} for the clicks so far; the rest comes back to your wallet.`,
+            { canOpenDispute: over },
+          );
+        }
+        if (!over) {
+          return running(
+            "Clicks counting",
+            `${creator}’s link counts clicks until ${formatDateTime(clicks.endsAt)}. You pay only for counted clicks; the rest comes back to your wallet on ${settles}.`,
+          );
+        }
+        return running(
+          "Clicks are in",
+          `This settles on ${settles}. If something looks wrong, open a dispute before then.`,
+          { canOpenDispute: true },
+        );
+      }
       // The date is set only for work that is overdue; see non_delivery_dispute_at.
       const canOpenDispute =
         e.disputeAllowedFrom !== null &&

@@ -27,8 +27,10 @@ const describes = (kind: string) =>
 // The kinds describeNotification names in its case labels, read from the
 // source so a new kind added there without a policy here fails this test.
 const handledKinds = [
-  ...readFileSync(new URL("./notifications.ts", import.meta.url), "utf8")
-    .matchAll(/case "([a-z_]+)":/g),
+  ...readFileSync(
+    new URL("./notifications.ts", import.meta.url),
+    "utf8",
+  ).matchAll(/case "([a-z_]+)":/g),
 ].map((match) => match[1]);
 
 test("every kind describeNotification handles has a policy", () => {
@@ -62,6 +64,8 @@ test("money and deadline kinds always send", () => {
     "verification_approved",
     "profile_hidden",
     "appeal_answered",
+    "click_cap_reached",
+    "click_hold_started",
   ];
   for (const kind of always) {
     assert.equal(wantsEmail(kind, ALL_OFF), true, kind);
@@ -72,11 +76,7 @@ test("switches control their group", () => {
   const only = (group: keyof typeof ALL_OFF) => ({ ...ALL_OFF, [group]: true });
 
   const groups = {
-    applications: [
-      "application_received",
-      "work_started",
-      "hire_cancelled",
-    ],
+    applications: ["application_received", "work_started", "hire_cancelled"],
     campaigns: ["campaign_approved", "campaign_sent_back"],
     messages: ["new_message"],
   } as const;

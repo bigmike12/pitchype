@@ -13,8 +13,10 @@ import {
   PanelSkeleton,
 } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth";
+import { maxClicks } from "@/lib/campaign";
 import { formatDateTime } from "@/lib/creator-profile";
 import { getEngagementDetails } from "@/lib/db/applications";
+import { getEngagementClicks } from "@/lib/db/clicks";
 import { getWalletBalance } from "@/lib/db/money";
 import { feeExample } from "@/lib/fees";
 import { formatNaira } from "@/lib/money";
@@ -60,6 +62,9 @@ async function Pay({ params }: { params: Params }) {
   if (view === "paid") redirect(`/business/engagements/${engagement.id}`);
 
   const fees = feeExample(engagement.agreedPriceKobo);
+  // Non-null for a per-click hire: the budget pays for clicks, and the fee is
+  // kept only on what's spent.
+  const clicks = await getEngagementClicks(engagement.id);
   const walletKobo = await getWalletBalance(user.id, "business_wallet");
   const walletAppliedKobo = Math.min(walletKobo, fees.businessPaysKobo);
   const cardAmountKobo = fees.businessPaysKobo - walletAppliedKobo;
@@ -85,7 +90,11 @@ async function Pay({ params }: { params: Params }) {
         <>
           <dl className="space-y-3 rounded-card panel p-5 sm:p-6">
             <div className="flex justify-between gap-4">
-              <dt>Agreed price (held by Pitchype until the job is done)</dt>
+              <dt>
+                {clicks
+                  ? `Budget: up to ${maxClicks(clicks.capKobo, clicks.cpcKobo).toLocaleString("en-NG")} clicks at ${formatNaira(clicks.cpcKobo)} (held by Pitchype)`
+                  : "Agreed price (held by Pitchype until the job is done)"}
+              </dt>
               <dd className="font-semibold text-ink tabular-nums">
                 {formatNaira(fees.agreedPriceKobo)}
               </dd>
@@ -131,16 +140,25 @@ async function Pay({ params }: { params: Params }) {
               Pay by {formatDateTime(engagement.payBy)} (Lagos time), or the
               hire lapses and the place goes back on offer.
             </Callout>
-            <Callout tone="info" icon={Lock} title="Our fee isn’t refundable">
-              If you cancel after paying, before work starts, you get the{" "}
-              {formatNaira(fees.agreedPriceKobo)} back, not the{" "}
-              {formatNaira(fees.businessFeeKobo)} fee.
-            </Callout>
+            {clicks ? (
+              <Callout tone="info" icon={Lock} title="You pay only for clicks">
+                After the campaign, you pay for the clicks counted. The rest of
+                the budget comes back to your wallet. We keep 5% of what’s
+                spent, at least ₦500 or the card charge.
+              </Callout>
+            ) : (
+              <Callout tone="info" icon={Lock} title="Our fee isn’t refundable">
+                If you cancel after paying, before work starts, you get the{" "}
+                {formatNaira(fees.agreedPriceKobo)} back, not the{" "}
+                {formatNaira(fees.businessFeeKobo)} fee.
+              </Callout>
+            )}
           </div>
 
           <PayForm
             engagementId={engagement.id}
             cardAmountKobo={cardAmountKobo}
+            perClick={clicks !== null}
           />
 
           <CancelHireForm engagementId={engagement.id} />

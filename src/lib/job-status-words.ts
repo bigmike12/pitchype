@@ -52,7 +52,18 @@ export type JobStatusWords = {
   youReceiveKobo: number;
 };
 
-export function describeJobStatus(e: JobFacts, now: Date): JobStatusWords {
+/** A per-click hire's timing (engagement_click_summary); absent for fixed price. */
+export type ClickTiming = {
+  endsAt: string;
+  settlesAt: string;
+  stoppedAt: string | null;
+};
+
+export function describeJobStatus(
+  e: JobFacts,
+  now: Date,
+  clicks?: ClickTiming | null,
+): JobStatusWords {
   const business = e.businessName;
   const bps = e.creatorFeeBps ?? INFLUENCER_FEE_BPS;
   const minKobo = e.creatorMinFeeKobo ?? MIN_FEE_KOBO;
@@ -102,6 +113,29 @@ export function describeJobStatus(e: JobFacts, now: Date): JobStatusWords {
         { canStart: true, canWithdraw: true },
       );
     case "in_progress":
+      if (clicks) {
+        const over = Date.parse(clicks.endsAt) <= now.getTime();
+        const paidOn = formatDateTime(clicks.settlesAt);
+        if (clicks.stoppedAt) {
+          return words(
+            "You withdrew",
+            `Your link stopped counting. You’ll be paid for the clicks so far on ${paidOn}, less our fee.`,
+            { canOpenDispute: over },
+          );
+        }
+        if (!over) {
+          return words(
+            "Clicks counting",
+            `Your link counts clicks until ${formatDateTime(clicks.endsAt)}. You’ll be paid for them on ${paidOn}, less our fee.`,
+            { canWithdraw: true },
+          );
+        }
+        return words(
+          "Clicks are in",
+          `Your link stopped counting on ${formatDateTime(clicks.endsAt)}. You’ll be paid on ${paidOn}. If something looks wrong, open a dispute before then.`,
+          { canOpenDispute: true },
+        );
+      }
       return words(
         "Work in progress",
         "The payment is held by Pitchype until the job is done.",

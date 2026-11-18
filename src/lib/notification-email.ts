@@ -51,6 +51,8 @@ export const EMAIL_POLICY: Record<string, EmailPolicy> = {
   payout_failed: "always",
   payout_rejected: "always",
   payment_stranded: "always",
+  click_cap_reached: "always",
+  click_hold_started: "always",
   campaign_taken_down: "always",
   verification_approved: "always",
   verification_rejected: "always",

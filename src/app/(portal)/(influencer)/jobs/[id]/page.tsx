@@ -115,9 +115,18 @@ async function Job({ params }: { params: Params }) {
     new Date(clicks.clicksEndAt) <= new Date();
 
   const business = engagement.business.name;
+  const clickTiming =
+    clicks && clicks.clicksEndAt && clicks.settlesAt
+      ? {
+          endsAt: clicks.clicksEndAt,
+          settlesAt: clicks.settlesAt,
+          stoppedAt: clicks.clicksStoppedAt,
+        }
+      : null;
   const status = describeJobStatus(
     { ...engagement, businessName: business },
     new Date(),
+    clickTiming,
   );
   const rate = formatRate(engagement.creatorFeeBps ?? INFLUENCER_FEE_BPS);
   // The full-price figure only applies until the job settles; after that the
@@ -246,7 +255,11 @@ async function Job({ params }: { params: Params }) {
             <DisputeForm
               engagementId={engagement.id}
               action={openDisputeAction}
-              intro="If you think the business was wrong to send your work back, tell us why. An admin will read both sides and decide how the money is paid out. While a dispute is open you can’t send the work in again."
+              intro={
+                clicks
+                  ? "If the click count looks wrong, or something else needs sorting before you’re paid, tell us why. An admin will read both sides and decide how the money is paid out. Nothing settles while a dispute is open."
+                  : "If you think the business was wrong to send your work back, tell us why. An admin will read both sides and decide how the money is paid out. While a dispute is open you can’t send the work in again."
+              }
             />
           )}
           {status.canWithdraw && (
@@ -254,6 +267,7 @@ async function Job({ params }: { params: Params }) {
               engagementId={engagement.id}
               businessName={business}
               afterStart={engagement.status !== "funded"}
+              perClick={clicks !== null}
             />
           )}
           {engagement.status === "in_progress" && (

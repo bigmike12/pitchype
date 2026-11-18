@@ -242,6 +242,33 @@ export function describeNotification(
         body: text(d.decision_reason),
         href: "/wallet",
       };
+    case "click_cap_reached": {
+      const cap = typeof d.cap === "number" ? d.cap : null;
+      const earned = kobo(d.earned_kobo);
+      return {
+        title: `Your link for ${theirs} reached ${cap === null ? "its limit" : `${cap.toLocaleString("en-NG")} clicks`}`,
+        body: `That’s the most this job pays${earned === null ? "" : `: ${formatNaira(earned)} before our fee`}. Your link still works, but more clicks won’t count.`,
+        href: creatorJob,
+      };
+    }
+    case "click_hold_started": {
+      const settles = text(d.settles_at);
+      const when = settles ? formatDateTime(settles) : "in 3 days";
+      const billable = typeof d.billable === "number" ? d.billable : null;
+      const earned = kobo(d.earned_kobo);
+      const counted =
+        billable === null
+          ? ""
+          : `${billable.toLocaleString("en-NG")} ${billable === 1 ? "click" : "clicks"} counted${earned === null ? "" : `, worth ${formatNaira(earned)}`}. `;
+      return {
+        title: `Clicks are in for ${role === "business" ? quoted : theirs}`,
+        body:
+          role === "business"
+            ? `${counted}It settles on ${when}. If something looks wrong, raise it before then.`
+            : `${counted}You’ll be paid on ${when}, less our fee.`,
+        href: role === "business" ? businessHire : creatorJob,
+      };
+    }
     case "payment_stranded": {
       const amount = kobo(d.amount_kobo);
       return {

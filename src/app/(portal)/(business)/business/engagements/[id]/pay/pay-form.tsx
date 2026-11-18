@@ -15,9 +15,12 @@ import { payAction, type PayState } from "./actions";
 export function PayForm({
   engagementId,
   cardAmountKobo,
+  perClick = false,
 }: {
   engagementId: string;
   cardAmountKobo: number;
+  /** A per-click hire: the fee is kept only on what's spent. */
+  perClick?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<PayState, FormData>(
     payAction,
@@ -36,7 +39,9 @@ export function PayForm({
           className="mt-1 size-5 accent-ink"
         />
         <span className="text-ink">
-          I understand Pitchype’s fee isn’t refundable if I cancel after paying.
+          {perClick
+            ? "I understand Pitchype keeps 5% of what’s spent, at least ₦500 or the card charge."
+            : "I understand Pitchype’s fee isn’t refundable if I cancel after paying."}
         </span>
       </label>
       <FormMessage status={state.status} message={state.message} />

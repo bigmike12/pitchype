@@ -103,9 +103,18 @@ async function Engagement({ params }: { params: Params }) {
   const feeKobo =
     engagement.businessFeeKobo ??
     feeExample(engagement.agreedPriceKobo).businessFeeKobo;
+  const clickTiming =
+    clicks && clicks.clicksEndAt && clicks.settlesAt
+      ? {
+          endsAt: clicks.clicksEndAt,
+          settlesAt: clicks.settlesAt,
+          stoppedAt: clicks.clicksStoppedAt,
+        }
+      : null;
   const status = describeHireStatus(
     { ...engagement, creatorName: engagement.creator.name },
     new Date(),
+    clickTiming,
   );
   const showReview = status.canReview && toReview !== undefined;
   const applicationsHref = `/business/campaigns/${engagement.campaign.id}/applications`;
@@ -280,9 +289,11 @@ async function Engagement({ params }: { params: Params }) {
               engagementId={engagement.id}
               action={openDisputeAction}
               intro={
-                engagement.status === "denied"
-                  ? `If you and ${engagement.creator.name} can’t agree about the work, open a dispute. An admin will read both sides and decide how the money is paid out. You and ${engagement.creator.name} can each add statements while it is open.`
-                  : `The delivery date has passed and ${engagement.creator.name} hasn’t sent in the work. Open a dispute and an admin will decide how the money is paid out. You and ${engagement.creator.name} can each add statements while it is open.`
+                clicks
+                  ? `If the clicks look wrong (a click farm, a blocked channel, posts you didn’t agree to), open a dispute before this settles. An admin will read both sides and decide how the money is paid out. Nothing settles while it is open.`
+                  : engagement.status === "denied"
+                    ? `If you and ${engagement.creator.name} can’t agree about the work, open a dispute. An admin will read both sides and decide how the money is paid out. You and ${engagement.creator.name} can each add statements while it is open.`
+                    : `The delivery date has passed and ${engagement.creator.name} hasn’t sent in the work. Open a dispute and an admin will decide how the money is paid out. You and ${engagement.creator.name} can each add statements while it is open.`
               }
             />
           )}
@@ -291,6 +302,7 @@ async function Engagement({ params }: { params: Params }) {
               engagementId={engagement.id}
               priceKobo={engagement.agreedPriceKobo}
               feeKobo={feeKobo}
+              perClick={clicks !== null}
             />
           )}
           {engagement.status === "in_progress" && (
