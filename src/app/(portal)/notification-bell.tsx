@@ -10,6 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { shouldRefreshBell } from "@/lib/bell-refresh";
 import { createBrowserClient } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,8 @@ export type BellItem = {
   body: string | null;
   /** Already formatted on the server, so it can't differ after hydration. */
   at: string;
+  /** ISO time the entry last changed; lets the bell tell a real bump from a queue update. */
+  occurredAt: string;
   unread: boolean;
 };
 
@@ -46,6 +49,11 @@ export function NotificationBell({
   const [open, setOpen] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  // Each row's last `occurred_at`, to tell a new event from an email-queue update.
+  const seen = useRef(new Map<string, number>());
+  useEffect(() => {
+    for (const n of items) seen.current.set(n.id, Date.parse(n.occurredAt));
+  }, [items]);
 
   useEffect(() => {
     const supabase = createBrowserClient();
@@ -66,13 +74,18 @@ export function NotificationBell({
             filter: `user_id=eq.${userId}`,
           },
           (change) => {
-            // New, or a grouped entry made unread again by a new message.
-            // Rows being marked read come from this person's own actions,
-            // which refresh the page themselves.
-            const row = change.new as { read_at?: string | null };
-            if (change.eventType === "INSERT" || row.read_at === null) {
-              router.refresh();
-            }
+            // New, or a grouped entry bumped by a new message. Not the email
+            // queue's own updates, nor rows marked read (this person's own
+            // actions, which refresh the page themselves).
+            const shouldRefresh = shouldRefreshBell(seen.current, {
+              eventType: change.eventType,
+              row: change.new as {
+                id?: string;
+                read_at?: string | null;
+                occurred_at?: string;
+              },
+            });
+            if (shouldRefresh) router.refresh();
           },
         )
         .subscribe();

@@ -82,6 +82,7 @@ async function Notifications({ role }: { role: "business" | "influencer" }) {
             title: view.title,
             body: view.body,
             at: formatDateTime(n.occurredAt),
+            occurredAt: n.occurredAt,
             unread: n.readAt === null,
           },
         ]
