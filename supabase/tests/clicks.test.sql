@@ -8,7 +8,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(42);
+select plan(46);
 
 -- Ada (business), Chidi and Dayo (creators), Bola (another business).
 insert into public.users (id, auth_user_id, email, role) values
@@ -157,6 +157,16 @@ select ok(public.click_window_open(date '2026-12-24', timestamptz '2026-12-24 23
 select ok(not public.click_window_open(date '2026-12-24', timestamptz '2026-12-25 00:00:00+01'),
   'the window is closed at midnight Lagos after it');
 
+-- Days by Lagos date: 22:30 UTC on 1 Dec is 23:30 Lagos (1 Dec); 23:30 UTC is 00:30 Lagos (2 Dec).
+insert into public.link_clicks (link_id, created_at, visitor_hash, source, is_billable, filter_reason)
+select id, timestamptz '2026-12-01 22:30:00+00', 'day1', 'instagram', true, null
+  from public.tracked_links where code = current_setting('test.code');
+insert into public.link_clicks (link_id, created_at, visitor_hash, source, is_billable, filter_reason)
+select id, timestamptz '2026-12-01 23:30:00+00', 'day2', 'whatsapp', false, 'preview'
+  from public.tracked_links where code = current_setting('test.code');
+insert into public.click_proofs (engagement_id, author_id, links)
+values ('ce000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000ce011', array['https://instagram.com/p/1']);
+
 -- Append-only and grants ----------------------------------------------------------------------
 select throws_ok($$ update public.link_clicks set is_billable = true $$, 'P0001', 'clicks_append_only',
   'clicks cannot be updated, even by the owner');
@@ -185,6 +195,16 @@ select is(
   (public.engagement_click_summary('ce000000-0000-0000-0000-0000000000e1'))->>'earnedKobo',
   '500000', 'earnings stop at the cap');
 select is(
+  (select d ->> 'billable' || '/' || (d ->> 'hits') from jsonb_array_elements(
+     (public.engagement_click_summary('ce000000-0000-0000-0000-0000000000e1'))->'days') d
+    where d ->> 'day' = '2026-12-01'),
+  '1/1', 'a click at 23:30 Lagos counts on that Lagos day');
+select is(
+  (select d ->> 'billable' || '/' || (d ->> 'hits') from jsonb_array_elements(
+     (public.engagement_click_summary('ce000000-0000-0000-0000-0000000000e1'))->'days') d
+    where d ->> 'day' = '2026-12-02'),
+  '0/1', 'a hit at 00:30 Lagos counts on the next day');
+select is(
   (public.engagement_click_summary('ce000000-0000-0000-0000-0000000000e1'))->'blockedChannels',
   '["whatsapp"]'::jsonb, 'the creator is told which channels are blocked, beside the link');
 select throws_ok(
@@ -207,6 +227,12 @@ set local request.jwt.claims = '{"sub": "cececece-0000-0000-0000-0000000ce001"}'
 select is(
   (public.campaign_click_summary('ce000000-0000-0000-0000-000000000001'))->'totals'->>'spentKobo',
   '500000', 'the business sees what it has spent');
+select ok(
+  ((public.campaign_click_summary('ce000000-0000-0000-0000-000000000001'))->'totals'->'sources'->>'instagram')::int >= 1,
+  'the campaign totals count clicks by source');
+select is(
+  (public.campaign_click_summary('ce000000-0000-0000-0000-000000000001'))->'hires'->0->>'proofCount',
+  '1', 'each creator row says how many posts they added');
 
 set local request.jwt.claims = '{"sub": "cececece-0000-0000-0000-0000000ce002"}';
 select is(public.engagement_click_summary('ce000000-0000-0000-0000-0000000000e1'), null,
