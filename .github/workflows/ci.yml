@@ -48,6 +48,27 @@ jobs:
       - name: Dependency audit (production, high and critical)
         run: npm audit --omit=dev --audit-level=high
 
+      # The build renders some pages ahead of time, and those read Supabase
+      # settings and the database, so start the local stack for it. Same setup as
+      # the end-to-end job below.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.65.5
+
+      - name: Start local Supabase
+        run: supabase start
+
+      - name: Point the build at the local stack
+        run: |
+          status="$(supabase status -o env)"
+          value() { echo "$status" | grep "^$1=" | cut -d= -f2- | tr -d '"'; }
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$(value API_URL)"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$(value PUBLISHABLE_KEY)"
+            echo "SUPABASE_SECRET_KEY=$(value SECRET_KEY)"
+            echo "NEXT_PUBLIC_APP_URL=http://localhost:3030"
+          } >> "$GITHUB_ENV"
+
       - name: Build
         run: npm run build
 
