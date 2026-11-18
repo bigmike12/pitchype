@@ -17,7 +17,7 @@
 - `notify()` stays the one writer of notification rows. Emails come only from `notifications`; no second system (CLAUDE.md §8).
 - Money and deadline kinds always send, whatever the preferences.
 - A send never runs inside a money transaction, and a failed send never fails the action that caused it.
-- 50 rows per claim, at most 5 attempts per row, 5 minutes between attempts, chat email due 15 minutes after the message, at most one email per row per hour.
+- 15 rows per claim (worst case 15 x 15 s stays under the 5-minute hide), at most 5 attempts per row, 5 minutes between attempts, chat email due 15 minutes after the message, at most one email per row per hour.
 - Copy comes from `describeNotification`; never write separate email advice (an email must never tell a creator to start work before payment).
 - Emails go to `public.users.email`. Never log bodies, addresses or the API key; log a step and an error class only.
 - TypeScript strict, no `any` without a comment. Tested TS files import siblings with the `.ts` extension and must not import `server-only`, `next/*` or the Supabase clients at module top level (node tests can't load them; see `src/lib/review-deadlines.ts` for the `deps` pattern).
@@ -259,7 +259,7 @@ Expected: PASS.
   - `export function sendEmailsStatus(result: SendEmailsResult): 200 | 500` (500 when `failed > 0`)
   - `export async function sendDueEmailsSafely(): Promise<void>` (never throws; logs `send-emails: <error class>` only)
 
-Rules inside `sendDueEmails` (each is a test below): claim 50; for each row, in order: unknown kind or `role === "admin"` → `finishEmail(id, false)`, skipped; `!wantsEmail(kind, preferences)` → skipped; kind `new_message` with `notification.readAt` set → skipped; `describeNotification(notification, role)` null → skipped; otherwise render and `sendEmail` with `idempotencyKey = `${id}:${occurredAt}``, then `finishEmail(id, true)`. If `sendEmail` throws, do not call `finishEmail`, count `failed`, and when the row's `attempts` is 5 log one line `send-emails: gave up after 5 attempts` (no address, no body). One row failing never stops the others.
+Rules inside `sendDueEmails` (each is a test below): claim 15; for each row, in order: unknown kind or `role === "admin"` → `finishEmail(id, false)`, skipped; `!wantsEmail(kind, preferences)` → skipped; kind `new_message` with `notification.readAt` set → skipped; `describeNotification(notification, role)` null → skipped; otherwise render and `sendEmail` with `idempotencyKey = `${id}:${occurredAt}``, then `finishEmail(id, true)`. If `sendEmail` throws, do not call `finishEmail`, count `failed`, and when the row's `attempts` is 5 log one line `send-emails: gave up after 5 attempts` (no address, no body). One row failing never stops the others.
 
 - [ ] **Step 1: Write the failing tests** with fake deps recording calls:
   - `sends a due money email and marks it sent`: one `hire_funded` row; `sendEmail` called once with `to` the row's address and subject equal to the described title; `finishEmail(id, true)`.

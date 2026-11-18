@@ -142,7 +142,7 @@ overlapping calls never send the same email twice.
 
 ### The send run (`sendDueEmails()`)
 
-1. `claim_due_emails(50)`. (The route wrapper first does the bearer check
+1. `claim_due_emails(15)`: the number is chosen so a run's worst case (15 sends at the 15 s Resend timeout, one at a time) stays under the 5-minute hide. (The route wrapper first does the bearer check
    with the existing `authorised()` helper and `CRON_SECRET`.)
 3. For each row: look up its policy. Skip it, and clear its due time so it
    is not picked again (without counting it as sent, so a skipped email

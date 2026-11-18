@@ -86,7 +86,7 @@ function fakes(
 test("sends a due money email and marks it sent", async () => {
   const { deps, sent, finished, claimed } = fakes([due({})]);
   const result = await sendDueEmails(deps);
-  assert.deepEqual(claimed, [50]);
+  assert.deepEqual(claimed, [15]);
   assert.equal(sent.length, 1);
   assert.equal(sent[0].to, "ada@example.com");
   assert.ok(sent[0].subject.length > 0);

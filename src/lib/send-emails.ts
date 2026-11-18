@@ -6,9 +6,12 @@
 //   - A row is sent at most once. The claim hides it from other runs for 5
 //     minutes, and Resend's idempotency key (`id:occurred_at`) covers a crash
 //     between Resend accepting the email and finishEmail(id, true).
-//   - Rows are sent one at a time, never in parallel, and a run takes at most
-//     50: each send is capped at 15 s by the Resend wrapper, so a run stays
-//     far under the 5-minute hide and a row is never re-claimed mid-send.
+//   - Rows are sent one at a time, never in parallel, and a run claims at most
+//     MAX_PER_RUN. Each send is capped at 15 s by the Resend wrapper, so a
+//     run's worst case (claim size x 15 s = 225 s) stays under the 5-minute
+//     hide and a row is not re-claimed while it waits its turn. If that ever
+//     failed (a slower wrapper timeout, a bigger claim), the idempotency key
+//     is the guard against a double email, not the hide.
 //   - A failed send leaves the row alone. It comes due again after the push-out
 //     and the SQL stops claiming it after 5 attempts; `attempts` is the count
 //     including this claim, so 5 is the last try and is logged once.
@@ -29,8 +32,9 @@ import { wantsEmail } from "./notification-email.ts";
 import { renderEmail } from "./email-template.ts";
 import type { EmailMessage } from "./resend.ts";
 
-// One run's cap; with one send at a time this keeps a run to a few minutes.
-const MAX_PER_RUN = 50;
+// One run's cap. Worst case is MAX_PER_RUN x the 15 s Resend timeout, which must
+// stay under the queue's 5-minute hide: 15 x 15 s = 225 s.
+const MAX_PER_RUN = 15;
 const LAST_ATTEMPT = 5;
 
 export type SendEmailsDeps = {
