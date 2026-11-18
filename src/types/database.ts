@@ -968,6 +968,50 @@ export type Database = {
           },
         ]
       }
+      link_clicks: {
+        Row: {
+          created_at: string
+          filter_reason: string | null
+          id: number
+          is_billable: boolean
+          link_id: string
+          referrer_host: string | null
+          source: string
+          ua_hash: string | null
+          visitor_hash: string
+        }
+        Insert: {
+          created_at?: string
+          filter_reason?: string | null
+          id?: never
+          is_billable: boolean
+          link_id: string
+          referrer_host?: string | null
+          source: string
+          ua_hash?: string | null
+          visitor_hash: string
+        }
+        Update: {
+          created_at?: string
+          filter_reason?: string | null
+          id?: never
+          is_billable?: boolean
+          link_id?: string
+          referrer_host?: string | null
+          source?: string
+          ua_hash?: string | null
+          visitor_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "link_clicks_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "tracked_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           body: string
@@ -1601,6 +1645,71 @@ export type Database = {
           },
         ]
       }
+      tracked_links: {
+        Row: {
+          billable_clicks: number
+          business_id: string
+          campaign_id: string
+          code: string
+          created_at: string
+          creator_id: string
+          engagement_id: string
+          id: string
+          total_hits: number
+        }
+        Insert: {
+          billable_clicks?: number
+          business_id: string
+          campaign_id: string
+          code: string
+          created_at?: string
+          creator_id: string
+          engagement_id: string
+          id?: string
+          total_hits?: number
+        }
+        Update: {
+          billable_clicks?: number
+          business_id?: string
+          campaign_id?: string
+          code?: string
+          created_at?: string
+          creator_id?: string
+          engagement_id?: string
+          id?: string
+          total_hits?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracked_links_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracked_links_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracked_links_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracked_links_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: true
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_blocks: {
         Row: {
           blocked_id: string
@@ -1909,6 +2018,7 @@ export type Database = {
         }
         Returns: Json
       }
+      campaign_click_summary: { Args: { campaign: string }; Returns: Json }
       campaign_problems: {
         Args: { campaign: string; creator: string }
         Returns: Json
@@ -1937,6 +2047,10 @@ export type Database = {
       }
       clean_note: { Args: { note: string }; Returns: string }
       clean_reason: { Args: { reason: string }; Returns: string }
+      click_window_open: {
+        Args: { at: string; deliver_by: string }
+        Returns: boolean
+      }
       consume_rate_limit: {
         Args: { p_key: string; p_max: number; p_window_seconds: number }
         Returns: boolean
@@ -2017,6 +2131,7 @@ export type Database = {
         Args: { application: string; note: string; proposed_price_kobo: number }
         Returns: undefined
       }
+      engagement_click_summary: { Args: { engagement: string }; Returns: Json }
       engagement_details: { Args: { engagement: string }; Returns: Json }
       engagement_json: {
         Args: { e: Database["public"]["Tables"]["engagements"]["Row"] }
@@ -2093,6 +2208,13 @@ export type Database = {
         Args: { person: string; reason: string }
         Returns: undefined
       }
+      link_summary: {
+        Args: {
+          k: Database["public"]["Tables"]["campaigns"]["Row"]
+          link: Database["public"]["Tables"]["tracked_links"]["Row"]
+        }
+        Returns: Json
+      }
       list_open_campaigns: {
         Args: {
           niche_slug?: string
@@ -2115,6 +2237,7 @@ export type Database = {
       my_applications: { Args: never; Returns: Json }
       my_blocks: { Args: never; Returns: Json }
       my_conversations: { Args: never; Returns: Json }
+      new_link_code: { Args: never; Returns: string }
       new_verification_code: { Args: never; Returns: string }
       non_delivery_dispute_at: {
         Args: { e: Database["public"]["Tables"]["engagements"]["Row"] }
@@ -2171,6 +2294,17 @@ export type Database = {
           reference: string
         }
         Returns: string
+      }
+      record_click: {
+        Args: {
+          client_class: string
+          code: string
+          referrer_host: string
+          source: string
+          ua_hash: string
+          visitor_hash: string
+        }
+        Returns: Json
       }
       record_reconciliation: {
         Args: { paystack_balance_kobo: number }
