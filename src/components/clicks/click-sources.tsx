@@ -13,8 +13,8 @@ export function ClickSources({ sources }: { sources: Record<string, number> }) {
         {rows.map((row) => (
           <li key={row.source} className="text-sm">
             <div className="flex justify-between gap-4 text-ink">
-              <span>{row.label}</span>
-              <span className="tabular-nums">
+              <span className="min-w-0">{row.label}</span>
+              <span className="shrink-0 tabular-nums">
                 {row.count.toLocaleString("en-NG")}
                 <span className="text-muted"> · {row.share}%</span>
               </span>

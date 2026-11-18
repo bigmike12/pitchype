@@ -3,17 +3,30 @@
 
 import { Ban, TriangleAlert } from "lucide-react";
 
-import { CHANNEL_LABELS, maxClicks, type Channel } from "@/lib/campaign";
+import {
+  CHANNEL_LABELS,
+  lagosToday,
+  maxClicks,
+  type Channel,
+} from "@/lib/campaign";
+import { fillDays } from "@/lib/click-chart";
 import {
   blockedShareWarning,
   FILTER_REASONS,
   filterReasonText,
 } from "@/lib/click-words";
 import type { LinkStats } from "@/lib/db/clicks";
-import { formatRate, INFLUENCER_FEE_BPS, MIN_FEE_KOBO } from "@/lib/fees";
+import {
+  creatorFee,
+  formatRate,
+  INFLUENCER_FEE_BPS,
+  MIN_FEE_KOBO,
+} from "@/lib/fees";
 import { formatNaira } from "@/lib/money";
 import { SITE_URL } from "@/lib/site";
 
+import { ClickDayChart } from "./click-day-chart";
+import { ClickSources } from "./click-sources";
 import { CopyLink } from "./copy-link";
 
 export function ClickSummary({
@@ -41,6 +54,28 @@ export function ClickSummary({
 
   const notCounted = FILTER_REASONS.filter((r) => (stats.filtered[r] ?? 0) > 0);
   const filteredTotal = stats.totalHits - stats.billable;
+  // The chart runs from the first hit to today, or to the last day clicks
+  // counted if that has passed.
+  const today = lagosToday();
+  const lastDay = stats.clicksEndAt
+    ? lagosToday(new Date(Date.parse(stats.clicksEndAt) - 1))
+    : today;
+  const chartDays =
+    stats.days.length > 0
+      ? fillDays(
+          stats.days,
+          stats.days[0].day,
+          lastDay < today ? lastDay : today,
+        )
+      : [];
+  const yourFee =
+    viewer === "creator" && stats.earnedKobo > 0
+      ? creatorFee(
+          stats.earnedKobo,
+          stats.creatorFeeBps ?? INFLUENCER_FEE_BPS,
+          stats.creatorMinFeeKobo ?? MIN_FEE_KOBO,
+        )
+      : null;
   return (
     <div className="space-y-4">
       {viewer === "creator" && (
@@ -97,6 +132,23 @@ export function ClickSummary({
           {blockedShareWarning(channel)}
         </p>
       ))}
+      {yourFee !== null && (
+        <p className="rounded-card bg-surface-soft p-3 text-sm text-ink">
+          At this count you’d receive{" "}
+          <strong className="tabular-nums">
+            {formatNaira(stats.earnedKobo - yourFee)}
+          </strong>{" "}
+          after our {formatNaira(yourFee)} fee.
+        </p>
+      )}
+      {(chartDays.length > 0 || Object.keys(stats.sources).length > 0) && (
+        <div className="grid gap-5 border-t border-hairline pt-4">
+          <div className="min-w-0">
+            <ClickDayChart days={chartDays} />
+          </div>
+          <ClickSources sources={stats.sources} />
+        </div>
+      )}
       {notCounted.length > 0 && (
         <details className="text-sm">
           <summary className="cursor-pointer font-medium text-ink">
