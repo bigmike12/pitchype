@@ -1407,7 +1407,7 @@ async function clickVsHireEnding(c) {
   // The click is usually first to its row, so later rounds hold it back.
   // A per-click withdrawal only stops the clicks (no money moves), so it is
   // quicker than a click: holding the withdrawal back lets the click win too.
-  const withdrawLateBy = [0, 0, 1, 2, 3, 0, 1, 2, 3, 4];
+  const withdrawLateBy = [0, 0, 1, 1, 2, 0, 1, 1, 2, 2];
   for (let round = 1; round <= withdrawLateBy.length; round++) {
     const hire = await startedClickHire();
     const [click, withdraw] = await racePair(
