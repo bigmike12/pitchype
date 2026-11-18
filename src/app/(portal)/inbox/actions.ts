@@ -14,6 +14,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAX_MESSAGE_LENGTH = 2000;
 
 const isMessageLimited = createRateLimiter({
+  name: "message",
   maxAttempts: 20,
   windowMs: 60 * 1000,
 });
@@ -48,7 +49,7 @@ export async function sendMessageAction(
       values,
     };
   }
-  if (isMessageLimited(user.id)) {
+  if (await isMessageLimited(user.id)) {
     return {
       status: "error",
       message: "You’re sending messages very fast. Wait a moment.",

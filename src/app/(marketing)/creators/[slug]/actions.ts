@@ -10,6 +10,7 @@ export type ReportState = FormState<"reason" | "note">;
 
 // Anyone can report, signed in or not, so slow down a single noisy source.
 const isRateLimited = createRateLimiter({
+  name: "creator-report",
   maxAttempts: 5,
   windowMs: 10 * 60 * 1000,
 });
@@ -39,7 +40,7 @@ export async function reportCreatorAction(
       values,
     };
   }
-  if (isRateLimited(await clientIp())) {
+  if (await isRateLimited(await clientIp())) {
     return {
       status: "error",
       message:

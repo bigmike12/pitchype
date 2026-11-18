@@ -91,7 +91,7 @@ export async function checkBankAccountAction(
   form: FormData,
 ): Promise<BankState> {
   const user = await requireRole("influencer");
-  if (isBankCheckLimited(user.id)) {
+  if (await isBankCheckLimited(user.id)) {
     return { status: "error", message: BANK_CHECK_LIMITED_MESSAGE };
   }
   try {
@@ -126,7 +126,7 @@ export async function saveBankAccountAction(
   form: FormData,
 ): Promise<BankState> {
   const user = await requireRole("influencer");
-  if (isBankCheckLimited(user.id)) {
+  if (await isBankCheckLimited(user.id)) {
     return { status: "error", message: BANK_CHECK_LIMITED_MESSAGE };
   }
   try {
@@ -174,7 +174,7 @@ export async function requestPayoutAction(
   form: FormData,
 ): Promise<PayoutState> {
   const user = await requireRole("influencer");
-  if (isPayoutLimited(user.id)) {
+  if (await isPayoutLimited(user.id)) {
     return { status: "error", message: PAYOUT_LIMITED_MESSAGE };
   }
   const amount = parsePayoutAmount(text(form, "amount"));

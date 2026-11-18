@@ -61,7 +61,7 @@ export async function addStatementFromForm(
       },
     };
   }
-  if (isStatementLimited(userId)) {
+  if (await isStatementLimited(userId)) {
     return { status: "error", message: STATEMENT_LIMITED_MESSAGE };
   }
 

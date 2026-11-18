@@ -9,6 +9,7 @@ import { createRateLimiter } from "@/lib/rate-limit";
 export type ForgotPasswordState = FormState<"email">;
 
 const isRateLimited = createRateLimiter({
+  name: "forgot-password",
   maxAttempts: 3,
   windowMs: 10 * 60 * 1000,
 });
@@ -23,7 +24,7 @@ export async function forgotPasswordAction(
   }
 
   const { email } = parsed.value;
-  if (isRateLimited(await clientIp())) {
+  if (await isRateLimited(await clientIp())) {
     return {
       status: "error",
       message: "Too many tries. Wait a few minutes, then try again.",

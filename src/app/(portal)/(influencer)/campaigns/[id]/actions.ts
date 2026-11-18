@@ -33,6 +33,7 @@ const REASONS: CampaignReportReason[] = [
 ];
 
 const isRateLimited = createRateLimiter({
+  name: "campaign-report",
   maxAttempts: 5,
   windowMs: 10 * 60 * 1000,
 });
@@ -60,7 +61,7 @@ export async function reportCampaignAction(
       values,
     };
   }
-  if (isRateLimited(user.id)) {
+  if (await isRateLimited(user.id)) {
     return {
       status: "error",
       message: "That’s a lot of reports. Wait a few minutes, then try again.",
@@ -103,6 +104,7 @@ export async function reportCampaignAction(
 export type ApplyState = FormState<ApplicationField>;
 
 const isApplyLimited = createRateLimiter({
+  name: "apply",
   maxAttempts: 10,
   windowMs: 10 * 60 * 1000,
 });
@@ -121,7 +123,7 @@ export async function applyAction(
   const applicationId = text(form, "applicationId");
   const values = { price: text(form, "price"), note: text(form, "note") };
 
-  if (isApplyLimited(user.id)) {
+  if (await isApplyLimited(user.id)) {
     return {
       status: "error",
       message: "Too many tries. Wait a few minutes, then try again.",

@@ -99,6 +99,7 @@ export async function removePlatformAction(form: FormData): Promise<void> {
 // Codes are cheap to make but each one replaces the last; this stops a stuck
 // button from churning them.
 const isVerificationRateLimited = createRateLimiter({
+  name: "verification",
   maxAttempts: 10,
   windowMs: 60 * 60 * 1000,
 });
@@ -106,7 +107,7 @@ const isVerificationRateLimited = createRateLimiter({
 export async function requestVerificationAction(form: FormData): Promise<void> {
   const user = await requireRole("influencer");
   const platform = text(form, "platform");
-  if (!isPlatform(platform) || isVerificationRateLimited(user.id)) return;
+  if (!isPlatform(platform) || await isVerificationRateLimited(user.id)) return;
   await requestVerification(platform);
   refresh();
 }
@@ -148,6 +149,7 @@ export async function setIndexingAction(form: FormData): Promise<void> {
 // Photos ------------------------------------------------------------------------------
 
 const isUploadRateLimited = createRateLimiter({
+  name: "photo-upload",
   maxAttempts: 10,
   windowMs: 10 * 60 * 1000,
 });
@@ -167,7 +169,7 @@ export async function uploadPhotoAction(
   if (!(file instanceof File) || file.size === 0) {
     return { status: "error", errors: { photo: "Choose a photo first." } };
   }
-  if (isUploadRateLimited(user.id)) {
+  if (await isUploadRateLimited(user.id)) {
     return {
       status: "error",
       errors: {
