@@ -1460,6 +1460,16 @@ console.log(
     `shortest time all of a race's calls were running together: ${overall.marginMs.toFixed(1)} ms ` +
     "(includes one client round trip of measuring).",
 );
+// A dev server with a real Resend key would otherwise try to email these
+// fake addresses. Notifications are not append-only, so clearing is allowed.
+try {
+  await run(
+    "update public.notifications n set email_due_at = null from public.users u " +
+      "where u.id = n.user_id and u.email like '%@race.pitchype.test' and n.emailed_at is null;",
+  );
+} catch (error) {
+  console.log(`Could not clear the email queue for race people: ${error.message}`);
+}
 console.log(
   "Note: the ledger is append-only, so this run's rows (people @race.pitchype.test) stay in the local database.",
 );
