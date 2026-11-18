@@ -49,8 +49,9 @@ switched off.
   caused them (see "When a send runs"). A Supabase `pg_cron` + `pg_net` call
   every minute is only a backstop for the chat delay and for retries; the
   scheduler only triggers a plain route handler (CLAUDE.md §2a). If it is
-  not set up, emails still go out immediately and the daily jobs sweep up
-  the rest.
+  not set up, emails still go out immediately; chat emails and retries wait
+  for the next action or the daily calls, and each call sends at most 15 due
+  emails, so a larger backlog waits for the next action or the backstop.
 - A send never runs inside a money transaction, and a failed send never
   fails the action that caused it.
 - Resend is a provider boundary: only `src/lib/resend.ts` may call it, and
@@ -111,13 +112,15 @@ Placement of the borderline kinds (`application_hired`, `work_started`,
   ago, change nothing. That is the one-email-per-thread-per-hour cap.
 - `notification_preferences (user_id pk → users, email_applications,
   email_campaigns, email_messages, all boolean default true)`. No row means
-  all on. RLS: a person reads and writes only their own row.
+  all on. RLS: a person can read only their own row; writes go only through
+  the security-definer `save_email_preferences` (no direct table writes).
 - `claim_due_emails(max int)` (service role only). Selects due, unsent,
   under-5-attempts rows with `for update skip locked`, adds 1 to attempts,
   pushes `email_due_at` out 5 minutes (so an overlapping run skips them and
   a failure retries with a delay), and returns each row with the recipient's
-  `users.email` and `users.role` and their preferences. `mark_email_sent(id)`
-  (service role only) sets `emailed_at`.
+  `users.email` and `users.role` and their preferences. `finish_email(id,
+  was_sent)` (service role only) records the result: sent sets `emailed_at`;
+  not sent (skipped) clears the due time.
 - Reading is unaffected: people keep reading only their own rows.
 
 ### When a send runs
@@ -132,7 +135,8 @@ sending. It is called from four places:
    result), also in `after()`.
 3. **At the end of each existing daily job** (expire-engagements,
    review-deadlines, money-checks), which covers lapses, auto-releases and
-   review reminders.
+   review reminders. Each call sends up to 15 due emails, so a larger
+   backlog waits for the next action or the backstop.
 4. **The backstop:** `/api/cron/send-emails`, called every minute by
    `pg_cron` (and daily by Vercel Cron as a second net). It sends chat
    emails once their 15 minutes pass and retries failures.
@@ -144,17 +148,17 @@ overlapping calls never send the same email twice.
 
 1. `claim_due_emails(15)`: the number is chosen so a run's worst case (15 sends at the 15 s Resend timeout, one at a time) stays under the 5-minute hide. (The route wrapper first does the bearer check
    with the existing `authorised()` helper and `CRON_SECRET`.)
-3. For each row: look up its policy. Skip it, and clear its due time so it
+2. For each row: look up its policy. Skip it, and clear its due time so it
    is not picked again (without counting it as sent, so a skipped email
    doesn't use up the one-per-hour cap), if its group is switched off, if it
    is a message and the thread was read in the meantime (`read_at` set), or
    if `describeNotification` returns null. Otherwise render and send.
-4. Send with `lib/resend.ts` using an idempotency key built from the
+3. Send with `lib/resend.ts` using an idempotency key built from the
    notification id and `occurred_at`, so a crash between Resend accepting and
-   `mark_email_sent` does not double-send. On success `mark_email_sent`; on a
+   `finish_email` does not double-send. On success `finish_email(id, true)`; on a
    Resend error leave the row (it is due again in 5 minutes, up to 5
    attempts, then `console.error` once and give up).
-5. The route responds 500 if any send failed, like the other cron routes.
+4. The route responds 500 if any send failed, like the other cron routes.
 
 Preferences are read at send time, so switching a group off also stops
 emails already waiting.
@@ -178,7 +182,7 @@ copy.
 
 A section "Emails" on `/account` with three switches and a line saying
 money and deadline emails always send. A Server Action
-(authenticate, validate three booleans, save through `lib/db/notifications.ts`).
+(authenticate, validate three booleans, save through `lib/db/notification-emails.ts`).
 
 ### Scheduling and setup
 
@@ -187,7 +191,8 @@ money and deadline emails always send. A Server Action
   `<app>/api/cron/send-emails` with the bearer secret. The URL and secret
   come from Supabase Vault, not the migration. The Vault entries are a
   manual step on each environment, listed in `docs/TODO.md`. Launch can
-  happen before this is on.
+  happen before this is on; until then chat emails and retries wait for the
+  next action or the 03:45 UTC daily call.
 - A partial index on `notifications (email_due_at)` where `emailed_at is
   null` keeps the per-minute check cheap.
 - `vercel.json` adds a daily call to the send route as a second net.
@@ -201,7 +206,9 @@ money and deadline emails always send. A Server Action
   the one-per-hour cap; old rows not queued; `claim_due_emails` skips locked
   rows, respects the attempts cap and pushes the due time; grants (service
   role only); preferences RLS.
-- Unit: a failing send inside `after()` never fails the action; policy
+- Unit: `sendDueEmailsSafely` swallows a claim failure, so a failing send
+  never fails the action (`email-after.ts` imports `next/server`, so node
+  tests can't load it); policy
   table covers every kind; rendering and escaping; a run with a
   fake Resend (sent, skipped for preference, skipped for read thread, failure
   retried, idempotency key).
