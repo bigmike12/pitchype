@@ -9,6 +9,7 @@
 import "server-only";
 
 import { isChannel, type Channel } from "@/lib/campaign";
+import type { ClickDay } from "@/lib/click-chart";
 import { isFilterReason, type FilterReason } from "@/lib/click-words";
 import type { ClickSource, ClientClass } from "@/lib/clicks";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -94,14 +95,45 @@ export type LinkStats = {
   /** The creator fee snapshot (null before the hire is paid). */
   creatorFeeBps: number | null;
   creatorMinFeeKobo: number | null;
+  /** Hits per Lagos day that had any, oldest first. */
+  days: ClickDay[];
+  /** Hits by source. */
+  sources: Record<string, number>;
 };
 
 export type CampaignClicks = {
   billable: number;
   totalHits: number;
   spentKobo: number;
-  hires: (LinkStats & { engagementId: string; creatorName: string })[];
+  sources: Record<string, number>;
+  days: ClickDay[];
+  hires: (LinkStats & {
+    engagementId: string;
+    creatorName: string;
+    proofCount: number;
+  })[];
 };
+
+function toDays(value: Json | undefined): ClickDay[] {
+  return list(value ?? null).flatMap((d) => {
+    if (!isObject(d)) return [];
+    const day = str(d.day);
+    return day
+      ? [{ day, billable: num(d.billable) ?? 0, hits: num(d.hits) ?? 0 }]
+      : [];
+  });
+}
+
+function toCounts(value: Json | undefined): Record<string, number> {
+  const counts: Record<string, number> = {};
+  const source = value ?? null;
+  if (isObject(source)) {
+    for (const [key, n] of Object.entries(source)) {
+      if (typeof n === "number") counts[key] = n;
+    }
+  }
+  return counts;
+}
 
 function toStats(value: Json): LinkStats | null {
   if (!isObject(value)) return null;
@@ -133,6 +165,8 @@ function toStats(value: Json): LinkStats | null {
     clicksStoppedAt: str(value.clicksStoppedAt),
     creatorFeeBps: num(value.creatorFeeBps),
     creatorMinFeeKobo: num(value.creatorMinFeeKobo),
+    days: toDays(value.days),
+    sources: toCounts(value.sources),
   };
 }
 
@@ -162,6 +196,8 @@ export async function getCampaignClicks(
     billable: num(data.totals.billable) ?? 0,
     totalHits: num(data.totals.totalHits) ?? 0,
     spentKobo: num(data.totals.spentKobo) ?? 0,
+    sources: toCounts(data.totals.sources),
+    days: toDays(data.days),
     hires: list(data.hires).flatMap((h) => {
       const stats = toStats(h);
       if (!stats || !isObject(h)) return [];
@@ -172,6 +208,7 @@ export async function getCampaignClicks(
               ...stats,
               engagementId,
               creatorName: str(h.creatorName) ?? "A creator",
+              proofCount: num(h.proofCount) ?? 0,
             },
           ]
         : [];
