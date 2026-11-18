@@ -155,7 +155,15 @@ The transfer fee tiers and stamp duty in `fee_config` and `src/lib/fees.ts`
 were taken from Paystack's support article on transfers on 2026-11-13. Check
 them again against the live rates before launch.
 
-## Not used yet
+## Resend (transactional email)
 
-Resend beyond the auth SMTP above (transactional email, Stage 8) will get a
-section here, with its boundary module, when it is introduced.
+Auth emails also go through Resend, but as SMTP configured in Supabase (see
+Supabase Auth above). This section covers the notification emails the app
+sends itself (Stage 8). One provider, no abstraction over it (CLAUDE.md §2).
+
+| What | Where | Provider-specific? | To replace |
+|---|---|---|---|
+| Sending one email | `src/lib/resend.ts` (`sendEmail`), the only file that calls Resend. Plain `fetch` to `POST https://api.resend.com/emails`, 15 second timeout, no retries; the `Idempotency-Key` header is the message's `idempotencyKey`; errors (`ResendError`, with the HTTP status or 0) never carry the API key or an email address | Yes | Rewrite this file for the new provider (or SMTP), keeping `sendEmail(message)` and the `ResendError` it throws. Callers don't change |
+| Retrying | The email queue over the `notifications` table, not this file: a thrown `ResendError` leaves the row to be tried again | No | Nothing to change |
+| Environment variables | `RESEND_API_KEY` (server-only, never a `NEXT_PUBLIC_` name) and `FROM_EMAIL` (the sender, e.g. `Pitchype <hello@yourdomain>`, on a domain verified in Resend) | Yes | The new provider's credential and a verified sender |
+| Dashboard setup (once per environment) | Verify the sending domain (SPF and DKIM) and create an API key limited to sending | Yes | The same domain checks at the new provider |
