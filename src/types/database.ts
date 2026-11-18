@@ -1864,6 +1864,7 @@ export type Database = {
       approve_payout: { Args: { payout: string }; Returns: Json }
       audit_name: { Args: { person: string }; Returns: string }
       block_user: { Args: { other: string }; Returns: undefined }
+      call_send_emails_route: { Args: never; Returns: undefined }
       campaign_application_counts: {
         Args: never
         Returns: {
