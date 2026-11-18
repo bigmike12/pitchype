@@ -9,6 +9,8 @@ import {
   TRANSFER_FEE_TIERS,
   TRANSFER_STAMP_DUTY_KOBO,
   TRANSFER_STAMP_DUTY_FROM_KOBO,
+  clickFeeKept,
+  clickSettlement,
   creatorFee,
   faultRefund,
   feeExample,
@@ -211,7 +213,9 @@ test("transferFee: rejects amounts that aren't positive whole kobo", () => {
 test("TRANSFER_FEE_TIERS is ordered, ends open-ended", () => {
   assert.equal(TRANSFER_FEE_TIERS.at(-1)?.upToKobo, Infinity);
   for (let i = 1; i < TRANSFER_FEE_TIERS.length; i++) {
-    assert.ok(TRANSFER_FEE_TIERS[i].upToKobo > TRANSFER_FEE_TIERS[i - 1].upToKobo);
+    assert.ok(
+      TRANSFER_FEE_TIERS[i].upToKobo > TRANSFER_FEE_TIERS[i - 1].upToKobo,
+    );
   }
 });
 
@@ -225,4 +229,96 @@ test("business fee covers Paystack charge for every price", () => {
       `at ${formatNaira(price)} the fee ${formatNaira(businessFeeKobo)} must cover Paystack's ${formatNaira(charge)}`,
     );
   }
+});
+
+// Pay per click -------------------------------------------------------------------------
+
+test("per click: the fee kept is the largest of 5% of spent, ₦500 and the card charge", () => {
+  // ₦10,000 spent of a ₦25,000 budget paid by card (₦26,250, charge ₦530.78).
+  assert.equal(
+    clickFeeKept({
+      releasedKobo: 1_000_000,
+      businessFeeKobo: 125_000,
+      paystackChargeKobo: 53_078,
+    }),
+    53_078,
+  );
+  assert.equal(
+    clickFeeKept({
+      releasedKobo: 2_500_000,
+      businessFeeKobo: 125_000,
+      paystackChargeKobo: 53_078,
+    }),
+    125_000,
+  );
+  // Paid from the wallet: no card charge.
+  assert.equal(
+    clickFeeKept({
+      releasedKobo: 0,
+      businessFeeKobo: 125_000,
+      paystackChargeKobo: 0,
+    }),
+    50_000,
+  );
+  assert.equal(
+    clickFeeKept({
+      releasedKobo: 2_000_000,
+      businessFeeKobo: 125_000,
+      paystackChargeKobo: 0,
+    }),
+    100_000,
+  );
+  // Never more than the fee paid.
+  assert.equal(
+    clickFeeKept({
+      releasedKobo: 0,
+      businessFeeKobo: 50_000,
+      paystackChargeKobo: 60_000,
+    }),
+    50_000,
+  );
+});
+
+test("per click: the fee kept always covers the card charge and never exceeds the fee", () => {
+  for (let naira = 5_000; naira <= 1_000_000; naira += 5_000) {
+    const budget = naira * 100;
+    const fee = feeExample(budget).businessFeeKobo;
+    const charge = paystackCharge(budget + fee);
+    for (const released of [0, Math.floor(budget / 200) * 100, budget]) {
+      const kept = clickFeeKept({
+        releasedKobo: released,
+        businessFeeKobo: fee,
+        paystackChargeKobo: charge,
+      });
+      assert.ok(kept >= charge, `budget ${naira}, released ${released}`);
+      assert.ok(kept <= fee, `budget ${naira}, released ${released}`);
+    }
+  }
+});
+
+test("per click: a settlement pays the clicks and returns the rest", () => {
+  assert.deepEqual(
+    clickSettlement({
+      billable: 600,
+      cpcKobo: 5_000,
+      budgetKobo: 5_000_000,
+      businessFeeKobo: 250_000,
+      paystackChargeKobo: 95_406,
+    }),
+    {
+      releasedKobo: 3_000_000,
+      creatorFeeKobo: 150_000,
+      creatorNetKobo: 2_850_000,
+      businessFeeKeptKobo: 150_000,
+      businessBackKobo: 2_100_000,
+    },
+  );
+  const capped = clickSettlement({
+    billable: 2_000,
+    cpcKobo: 5_000,
+    budgetKobo: 5_000_000,
+    businessFeeKobo: 250_000,
+    paystackChargeKobo: 95_406,
+  });
+  assert.equal(capped.releasedKobo, 5_000_000);
 });
