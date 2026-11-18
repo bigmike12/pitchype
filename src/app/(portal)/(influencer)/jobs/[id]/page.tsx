@@ -192,7 +192,42 @@ async function Job({ params }: { params: Params }) {
         <div className="space-y-4 xl:col-start-1">
           {clicks && (
             <SectionCard id="clicks-title" title="Your clicks" padded>
-              <ClickSummary stats={clicks} viewer="creator" />
+              {engagement.settledAt && engagement.releasedKobo !== null && (
+                <dl className="mb-5 grid grid-cols-2 gap-3 rounded-card bg-surface-soft p-4 sm:grid-cols-4">
+                  <div>
+                    <dt className="text-sm text-muted">Clicks counted</dt>
+                    <dd className="mt-1 font-semibold text-ink tabular-nums">
+                      {clicks.billable.toLocaleString("en-NG")}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-muted">Released</dt>
+                    <dd className="mt-1 font-semibold text-ink tabular-nums">
+                      {formatNaira(engagement.releasedKobo)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-muted">Our fee</dt>
+                    <dd className="mt-1 font-semibold text-ink tabular-nums">
+                      {formatNaira(
+                        engagement.releasedKobo -
+                          (engagement.creatorNetKobo ?? 0),
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-muted">You received</dt>
+                    <dd className="mt-1 font-semibold text-ink tabular-nums">
+                      {formatNaira(engagement.creatorNetKobo ?? 0)}
+                    </dd>
+                  </div>
+                </dl>
+              )}
+              <ClickSummary
+                stats={clicks}
+                viewer="creator"
+                settled={engagement.settledAt !== null}
+              />
             </SectionCard>
           )}
           {clicks && proofs.length > 0 && (

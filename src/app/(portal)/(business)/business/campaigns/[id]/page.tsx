@@ -13,6 +13,7 @@ import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 
 import { CampaignClicks } from "@/components/clicks/campaign-clicks";
+import { ClickResults } from "@/components/clicks/click-results";
 import {
   DeliverableList,
   PerClickTerms,
@@ -38,7 +39,7 @@ import {
   isTrustedBusiness,
   type OwnCampaign,
 } from "@/lib/db/campaigns";
-import { getCampaignClicks } from "@/lib/db/clicks";
+import { getCampaignClickResults, getCampaignClicks } from "@/lib/db/clicks";
 import { listNiches } from "@/lib/db/creators";
 import { formatNaira } from "@/lib/money";
 
@@ -83,20 +84,24 @@ async function Campaign({ params }: { params: Params }) {
   const live = ["draft", "pending_review", "open", "paused"].includes(
     campaign.status,
   );
-  const [niches, trusted, qualifying, counts, clicks] = await Promise.all([
-    listNiches(),
-    // Per-click campaigns always go to review, trusted business or not.
-    campaign.status !== "draft"
-      ? Promise.resolve(true)
-      : campaign.paymentModel === "per_click"
-        ? Promise.resolve(false)
-        : isTrustedBusiness(user.id),
-    live ? countQualifyingCreators(campaign.id) : Promise.resolve(null),
-    getApplicationCounts(),
-    campaign.paymentModel === "per_click" && campaign.status !== "draft"
-      ? getCampaignClicks(campaign.id)
-      : Promise.resolve(null),
-  ]);
+  const [niches, trusted, qualifying, counts, clicks, results] =
+    await Promise.all([
+      listNiches(),
+      // Per-click campaigns always go to review, trusted business or not.
+      campaign.status !== "draft"
+        ? Promise.resolve(true)
+        : campaign.paymentModel === "per_click"
+          ? Promise.resolve(false)
+          : isTrustedBusiness(user.id),
+      live ? countQualifyingCreators(campaign.id) : Promise.resolve(null),
+      getApplicationCounts(),
+      campaign.paymentModel === "per_click" && campaign.status !== "draft"
+        ? getCampaignClicks(campaign.id)
+        : Promise.resolve(null),
+      campaign.paymentModel === "per_click" && campaign.status !== "draft"
+        ? getCampaignClickResults(campaign.id)
+        : Promise.resolve(null),
+    ]);
   const applications = counts.get(campaign.id) ?? {
     total: 0,
     waiting: 0,
@@ -224,6 +229,11 @@ async function Campaign({ params }: { params: Params }) {
                 />
               </SectionCard>
             )}
+          {results && (
+            <SectionCard id="click-results-title" title="How it went" padded>
+              <ClickResults results={results} />
+            </SectionCard>
+          )}
           {clicks && clicks.hires.length > 0 && (
             <SectionCard id="click-counts-title" title="Clicks" padded>
               <CampaignClicks

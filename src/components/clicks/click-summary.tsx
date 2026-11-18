@@ -32,9 +32,12 @@ import { CopyLink } from "./copy-link";
 export function ClickSummary({
   stats,
   viewer,
+  settled = false,
 }: {
   stats: LinkStats;
   viewer: "creator" | "business";
+  /** The hire has settled: show the final counts, not the running ones. */
+  settled?: boolean;
 }) {
   const cap = maxClicks(stats.capKobo, stats.cpcKobo);
   if (stats.code === null) {
@@ -69,7 +72,7 @@ export function ClickSummary({
         )
       : [];
   const yourFee =
-    viewer === "creator" && stats.earnedKobo > 0
+    viewer === "creator" && !settled && stats.earnedKobo > 0
       ? creatorFee(
           stats.earnedKobo,
           stats.creatorFeeBps ?? INFLUENCER_FEE_BPS,
@@ -100,7 +103,13 @@ export function ClickSummary({
         </div>
         <div>
           <dt className="text-sm text-muted">
-            {viewer === "creator" ? "Earned so far" : "Spent so far"}
+            {settled
+              ? viewer === "creator"
+                ? "Earned"
+                : "Spent"
+              : viewer === "creator"
+                ? "Earned so far"
+                : "Spent so far"}
           </dt>
           <dd className="mt-1 text-xl font-semibold text-ink tabular-nums">
             {formatNaira(stats.earnedKobo)}
@@ -117,6 +126,7 @@ export function ClickSummary({
         {formatNaira(stats.cpcKobo)} per click, up to{" "}
         {formatNaira(stats.capKobo)}.
         {viewer === "creator" &&
+          !settled &&
           ` Our fee (${formatRate(stats.creatorFeeBps ?? INFLUENCER_FEE_BPS)}, at least ${formatNaira(stats.creatorMinFeeKobo ?? MIN_FEE_KOBO)}) comes off when the money is released after the campaign.`}{" "}
         Counts are as of when you opened this page.
       </p>

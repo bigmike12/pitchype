@@ -211,7 +211,11 @@ async function Engagement({ params }: { params: Params }) {
         <div className="space-y-4 xl:col-start-1">
           {clicks && (
             <SectionCard id="clicks-title" title="Clicks" padded>
-              <ClickSummary stats={clicks} viewer="business" />
+              <ClickSummary
+                stats={clicks}
+                viewer="business"
+                settled={engagement.settledAt !== null}
+              />
             </SectionCard>
           )}
           {clicks && proofs.length > 0 && (

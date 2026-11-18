@@ -8,7 +8,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(56);
+select plan(59);
 
 -- Ada (business), creators c1..c8 (one hire each).
 insert into public.users (id, auth_user_id, email, role) values
@@ -284,6 +284,25 @@ select throws_ok($$ update public.campaigns set deliver_by = deliver_by + 5
 set local role service_role;
 select is(public.settle_due_click_hires() - 'failed', '{"notified": 0, "settled": 0}'::jsonb,
   'a later run settles nothing early and tells nobody twice');
+reset role;
+
+-- The end-of-campaign summary ----------------------------------------------------------------
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "cfcfcfcf-0000-0000-0000-0000000cf001"}';
+select is(public.campaign_click_results('cf000000-0000-0000-0000-000000000001'), null,
+  'no summary while a hire on the campaign (10) is still running');
+reset role;
+select public.settle_click_hire('cf000000-0000-0000-0000-000000000e10', null, 'test');
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "cfcfcfcf-0000-0000-0000-0000000cf001"}';
+select ok(public.campaign_click_results('cf000000-0000-0000-0000-000000000001') is not null,
+  'once every hire has settled, the summary is there');
+select is(
+  (select ((r->'totals'->>'spentKobo')::bigint + (r->'totals'->>'backKobo')::bigint + (r->'totals'->>'feeKeptKobo')::bigint)
+     from (select public.campaign_click_results('cf000000-0000-0000-0000-000000000001') as r) x),
+  (select sum(agreed_price_kobo + business_fee_kobo)::bigint from public.engagements
+    where campaign_id = 'cf000000-0000-0000-0000-000000000001' and funded_at is not null),
+  'spent, back and our fees add up to everything the business paid');
 reset role;
 
 select * from finish();

@@ -2076,6 +2076,7 @@ export type Database = {
         }
         Returns: Json
       }
+      campaign_click_results: { Args: { campaign: string }; Returns: Json }
       campaign_click_summary: { Args: { campaign: string }; Returns: Json }
       campaign_problems: {
         Args: { campaign: string; creator: string }

@@ -235,3 +235,58 @@ export async function settleDueClickHires(): Promise<{
     failed: num(counts.failed) ?? 0,
   };
 }
+
+// The end-of-campaign summary ----------------------------------------------------------------
+
+export type ClickResultsHire = {
+  engagementId: string;
+  creatorName: string;
+  billable: number;
+  releasedKobo: number;
+  backKobo: number;
+  feeKeptKobo: number;
+  status: string;
+};
+
+export type ClickResults = {
+  billable: number;
+  spentKobo: number;
+  backKobo: number;
+  feeKeptKobo: number;
+  hires: ClickResultsHire[];
+};
+
+/** How a per-click campaign went, once every paid hire has settled; null before. */
+export async function getCampaignClickResults(
+  campaignId: string,
+): Promise<ClickResults | null> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase.rpc("campaign_click_results", {
+    campaign: campaignId,
+  });
+  if (error) throw new Error(`click results failed (${error.code})`);
+  if (!isObject(data) || !isObject(data.totals)) return null;
+  return {
+    billable: num(data.totals.billable) ?? 0,
+    spentKobo: num(data.totals.spentKobo) ?? 0,
+    backKobo: num(data.totals.backKobo) ?? 0,
+    feeKeptKobo: num(data.totals.feeKeptKobo) ?? 0,
+    hires: list(data.hires).flatMap((h) => {
+      if (!isObject(h)) return [];
+      const engagementId = str(h.engagementId);
+      return engagementId
+        ? [
+            {
+              engagementId,
+              creatorName: str(h.creatorName) ?? "A creator",
+              billable: num(h.billable) ?? 0,
+              releasedKobo: num(h.releasedKobo) ?? 0,
+              backKobo: num(h.backKobo) ?? 0,
+              feeKeptKobo: num(h.feeKeptKobo) ?? 0,
+              status: str(h.status) ?? "",
+            },
+          ]
+        : [];
+    }),
+  };
+}
