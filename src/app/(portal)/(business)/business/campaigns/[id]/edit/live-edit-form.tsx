@@ -106,6 +106,7 @@ export function LiveEditForm({
                 type="date"
                 disabled
                 hint="Clicks have stopped, so the end date can’t change. The campaign settles 72 hours after it ended."
+                error={errors.deliverBy}
                 defaultValue={campaign.deliverBy}
               />
             </>

@@ -99,18 +99,30 @@ export type LinkStats = {
   days: ClickDay[];
   /** Hits by source. */
   sources: Record<string, number>;
+  /** Set once the hire has settled; then releasedKobo is what was paid out. */
+  settledAt: string | null;
+  releasedKobo: number | null;
 };
 
 export type CampaignClicks = {
   billable: number;
   totalHits: number;
   spentKobo: number;
+  /** What paid hires that are still running (not settled, not withdrawn) can still earn. */
+  budgetLeftKobo: number;
   sources: Record<string, number>;
   days: ClickDay[];
+  /** One per paid hire, started or not. */
   hires: (LinkStats & {
     engagementId: string;
     creatorName: string;
     proofCount: number;
+    /** Released once settled; what the clicks are worth while running. */
+    spentKobo: number;
+    refundedKobo: number | null;
+    /** The creator withdrew: the link stopped counting. */
+    stopped: boolean;
+    status: string;
   })[];
 };
 
@@ -167,6 +179,8 @@ function toStats(value: Json): LinkStats | null {
     creatorMinFeeKobo: num(value.creatorMinFeeKobo),
     days: toDays(value.days),
     sources: toCounts(value.sources),
+    settledAt: str(value.settledAt),
+    releasedKobo: num(value.releasedKobo),
   };
 }
 
@@ -196,6 +210,7 @@ export async function getCampaignClicks(
     billable: num(data.totals.billable) ?? 0,
     totalHits: num(data.totals.totalHits) ?? 0,
     spentKobo: num(data.totals.spentKobo) ?? 0,
+    budgetLeftKobo: num(data.totals.budgetLeftKobo) ?? 0,
     sources: toCounts(data.totals.sources),
     days: toDays(data.days),
     hires: list(data.hires).flatMap((h) => {
@@ -209,6 +224,10 @@ export async function getCampaignClicks(
               engagementId,
               creatorName: str(h.creatorName) ?? "A creator",
               proofCount: num(h.proofCount) ?? 0,
+              spentKobo: num(h.spentKobo) ?? 0,
+              refundedKobo: num(h.refundedKobo),
+              stopped: h.stopped === true,
+              status: str(h.status) ?? "",
             },
           ]
         : [];

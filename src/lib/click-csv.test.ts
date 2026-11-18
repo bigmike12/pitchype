@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { clicksToCsv } from "./click-csv.ts";
+import { clickCsvRows, clicksToCsv } from "./click-csv.ts";
 
 const HEADER =
   "Creator,Link,Clicks counted,Visits not counted,Spent (NGN),Back to you (NGN),Status";
@@ -79,4 +79,65 @@ test("commas and new lines in names are quoted", () => {
     },
   ]);
   assert.ok(csv.includes('"Obi, Ada\nLagos"'));
+});
+
+test("rows come from each paid hire's own settlement", () => {
+  const rows = clickCsvRows([
+    {
+      creatorName: "Ada",
+      code: "k7Xq2ab",
+      billable: 180,
+      totalHits: 190,
+      spentKobo: 900_000,
+      settledAt: "2026-11-20T10:00:00Z",
+      refundedKobo: 1_671_922,
+    },
+    {
+      creatorName: "Bola",
+      code: null,
+      billable: 0,
+      totalHits: 0,
+      spentKobo: 0,
+      settledAt: "2026-11-19T10:00:00Z",
+      refundedKobo: 2_571_922,
+    },
+    {
+      creatorName: "Chidi",
+      code: "aaaaaaa",
+      billable: 40,
+      totalHits: 41,
+      spentKobo: 200_000,
+      settledAt: null,
+      refundedKobo: null,
+    },
+  ]);
+  assert.deepEqual(rows, [
+    {
+      creatorName: "Ada",
+      code: "k7Xq2ab",
+      billable: 180,
+      notCounted: 10,
+      spentKobo: 900_000,
+      backKobo: 1_671_922,
+      status: "Settled",
+    },
+    {
+      creatorName: "Bola",
+      code: null,
+      billable: 0,
+      notCounted: 0,
+      spentKobo: 0,
+      backKobo: 2_571_922,
+      status: "Settled",
+    },
+    {
+      creatorName: "Chidi",
+      code: "aaaaaaa",
+      billable: 40,
+      notCounted: 1,
+      spentKobo: 200_000,
+      backKobo: null,
+      status: "Running",
+    },
+  ]);
 });

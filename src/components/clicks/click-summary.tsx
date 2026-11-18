@@ -115,7 +115,11 @@ export function ClickSummary({
                   : "Spent so far"}
           </dt>
           <dd className="mt-1 text-xl font-semibold text-ink tabular-nums">
-            {formatNaira(stats.earnedKobo)}
+            {formatNaira(
+              settled
+                ? (stats.releasedKobo ?? stats.earnedKobo)
+                : stats.earnedKobo,
+            )}
           </dd>
         </div>
         <div>

@@ -1,6 +1,6 @@
 import { getSignedInUser } from "@/lib/auth";
-import { clicksToCsv, type ClickCsvRow } from "@/lib/click-csv";
-import { getCampaignClickResults, getCampaignClicks } from "@/lib/db/clicks";
+import { clickCsvRows, clicksToCsv } from "@/lib/click-csv";
+import { getCampaignClicks } from "@/lib/db/clicks";
 import { lagosDateStamp } from "@/lib/ledger-filter";
 
 // A per-click campaign's clicks as a CSV, for the business that owns it. The
@@ -21,25 +21,9 @@ export async function GET(
   const { id } = await params;
   if (!UUID.test(id)) return new Response("Not found.", { status: 404 });
 
-  const [clicks, results] = await Promise.all([
-    getCampaignClicks(id),
-    getCampaignClickResults(id),
-  ]);
+  const clicks = await getCampaignClicks(id);
   if (!clicks) return new Response("Not found.", { status: 404 });
-
-  const settled = new Map(results?.hires.map((h) => [h.engagementId, h]));
-  const rows: ClickCsvRow[] = clicks.hires.map((h) => {
-    const result = settled.get(h.engagementId);
-    return {
-      creatorName: h.creatorName,
-      code: h.code,
-      billable: h.billable,
-      notCounted: h.totalHits - h.billable,
-      spentKobo: result ? result.releasedKobo : h.earnedKobo,
-      backKobo: result ? result.backKobo : null,
-      status: result ? "Settled" : "Running",
-    };
-  });
+  const rows = clickCsvRows(clicks.hires);
 
   return new Response(clicksToCsv(rows), {
     headers: {

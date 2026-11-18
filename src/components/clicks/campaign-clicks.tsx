@@ -16,6 +16,15 @@ import { formatNaira } from "@/lib/money";
 import { ClickDayChart } from "./click-day-chart";
 import { ClickSources } from "./click-sources";
 
+/** A word for a hire that isn't simply running, or null. */
+function hireState(h: Clicks["hires"][number]): string | null {
+  if (h.settledAt)
+    return h.code === null ? "Refunded before starting" : "Settled";
+  if (h.stopped) return "Withdrew";
+  if (h.code === null) return "Not started";
+  return null;
+}
+
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-card bg-surface-soft p-3">
@@ -36,7 +45,6 @@ export function CampaignClicks({
   campaignId: string;
   deliverBy: string;
 }) {
-  const budgetKobo = clicks.hires.reduce((sum, h) => sum + h.capKobo, 0);
   const today = lagosToday();
   const chartDays =
     clicks.days.length > 0
@@ -58,10 +66,7 @@ export function CampaignClicks({
           value={(clicks.totalHits - clicks.billable).toLocaleString("en-NG")}
         />
         <Stat label="Spent so far" value={formatNaira(clicks.spentKobo)} />
-        <Stat
-          label="Budget left"
-          value={formatNaira(Math.max(budgetKobo - clicks.spentKobo, 0))}
-        />
+        <Stat label="Budget left" value={formatNaira(clicks.budgetLeftKobo)} />
       </dl>
 
       {(chartDays.length > 0 || Object.keys(clicks.sources).length > 0) && (
@@ -97,6 +102,11 @@ export function CampaignClicks({
                   >
                     {h.creatorName}
                   </Link>
+                  {hireState(h) && (
+                    <span className="ml-2 rounded-full bg-surface-soft px-2 py-0.5 text-xs text-ink">
+                      {hireState(h)}
+                    </span>
+                  )}
                   {h.blockedShares.map((channel) => (
                     <p
                       key={channel}
@@ -126,7 +136,7 @@ export function CampaignClicks({
                 </div>
                 <div className="text-sm text-ink tabular-nums">
                   <span className="text-muted md:hidden">Spent: </span>
-                  {formatNaira(h.earnedKobo)}
+                  {formatNaira(h.spentKobo)}
                 </div>
                 <div className="text-sm text-ink">
                   <span className="text-muted md:hidden">Posts added: </span>

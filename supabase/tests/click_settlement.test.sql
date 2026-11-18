@@ -8,7 +8,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(59);
+select plan(65);
 
 -- Ada (business), creators c1..c8 (one hire each).
 insert into public.users (id, auth_user_id, email, role) values
@@ -287,22 +287,42 @@ select is(public.settle_due_click_hires() - 'failed', '{"notified": 0, "settled"
 reset role;
 
 -- The end-of-campaign summary ----------------------------------------------------------------
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "cfcfcfcf-0000-0000-0000-0000000cf001"}';
-select is(public.campaign_click_results('cf000000-0000-0000-0000-000000000001'), null,
-  'no summary while a hire on the campaign (10) is still running');
 reset role;
 select public.settle_click_hire('cf000000-0000-0000-0000-000000000e10', null, 'test');
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "cfcfcfcf-0000-0000-0000-0000000cf001"}';
-select ok(public.campaign_click_results('cf000000-0000-0000-0000-000000000001') is not null,
-  'once every hire has settled, the summary is there');
+select is(public.campaign_click_results('cf000000-0000-0000-0000-000000000001'), null,
+  'no summary while the campaign''s clicks are still counting, even if every paid hire has settled');
+select is((public.campaign_click_summary('cf000000-0000-0000-0000-000000000003'))->'totals'->>'budgetLeftKobo',
+  '2500000', 'budget left counts only hires still earning (8, with no clicks yet)');
+select is(public.campaign_click_results('cf000000-0000-0000-0000-000000000003'), null,
+  'no summary while a paid hire (8) is unsettled');
+reset role;
+select public.settle_click_hire('cf000000-0000-0000-0000-000000000e08', null, 'test');
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "cfcfcfcf-0000-0000-0000-0000000cf001"}';
+select ok(public.campaign_click_results('cf000000-0000-0000-0000-000000000003') is not null,
+  'once clicks have stopped and every paid hire has settled, the summary is there');
+select is((public.campaign_click_summary('cf000000-0000-0000-0000-000000000003'))->'totals'->>'budgetLeftKobo',
+  '0', 'nothing is left to spend once every hire has settled');
 select is(
   (select ((r->'totals'->>'spentKobo')::bigint + (r->'totals'->>'backKobo')::bigint + (r->'totals'->>'feeKeptKobo')::bigint)
-     from (select public.campaign_click_results('cf000000-0000-0000-0000-000000000001') as r) x),
+     from (select public.campaign_click_results('cf000000-0000-0000-0000-000000000003') as r) x),
   (select sum(agreed_price_kobo + business_fee_kobo)::bigint from public.engagements
-    where campaign_id = 'cf000000-0000-0000-0000-000000000001' and funded_at is not null),
+    where campaign_id = 'cf000000-0000-0000-0000-000000000003' and funded_at is not null),
   'spent, back and our fees add up to everything the business paid');
+select is(
+  (select h->>'code' is null and (h->>'spentKobo')::bigint = 0 and h->>'settledAt' is not null
+     from jsonb_array_elements((public.campaign_click_summary('cf000000-0000-0000-0000-000000000001'))->'hires') h
+    where h->>'engagementId' = 'cf000000-0000-0000-0000-000000000e05'),
+  true, 'a paid hire cancelled before it started is listed, with nothing spent');
+select is(
+  (select (h->>'spentKobo')::bigint
+     from jsonb_array_elements((public.campaign_click_summary('cf000000-0000-0000-0000-000000000001'))->'hires') h
+    where h->>'engagementId' = 'cf000000-0000-0000-0000-000000000e03'),
+  2500000::bigint, 'a settled hire''s spend is what was released');
+select is((public.engagement_click_summary('cf000000-0000-0000-0000-000000000e12'))->>'releasedKobo',
+  '400000', 'a settled hire''s summary carries what was actually released (an admin''s split)');
 reset role;
 
 select * from finish();

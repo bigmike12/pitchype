@@ -217,7 +217,7 @@ set local request.jwt.claims = '{"sub": "cececece-0000-0000-0000-0000000ce012"}'
 select is((select count(*)::int from public.link_clicks), 0, 'another creator sees no clicks');
 select is(
   public.engagement_click_summary('ce000000-0000-0000-0000-0000000000e4')
-    - array['clicksEndAt', 'settlesAt', 'clicksStoppedAt', 'creatorFeeBps', 'creatorMinFeeKobo'],
+    - array['clicksEndAt', 'settlesAt', 'clicksStoppedAt', 'creatorFeeBps', 'creatorMinFeeKobo', 'settledAt', 'releasedKobo'],
   jsonb_build_object('code', null, 'cpcKobo', 5000, 'capKobo', 500000, 'blockedChannels', '["whatsapp"]'::jsonb),
   'before the start, a per-click hire shows its terms and no link');
 select is(public.engagement_click_summary('ce000000-0000-0000-0000-0000000000e1'), null,

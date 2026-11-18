@@ -42,3 +42,29 @@ export function clicksToCsv(rows: ClickCsvRow[]): string {
   }
   return `${lines.join("\r\n")}\r\n`;
 }
+
+/**
+ * One row per paid hire, from its own settlement: a settled hire shows what
+ * was released and refunded; a running one what its clicks are worth so far.
+ */
+export function clickCsvRows(
+  hires: {
+    creatorName: string;
+    code: string | null;
+    billable: number;
+    totalHits: number;
+    spentKobo: number;
+    settledAt: string | null;
+    refundedKobo: number | null;
+  }[],
+): ClickCsvRow[] {
+  return hires.map((h) => ({
+    creatorName: h.creatorName,
+    code: h.code,
+    billable: h.billable,
+    notCounted: h.totalHits - h.billable,
+    spentKobo: h.spentKobo,
+    backKobo: h.settledAt ? (h.refundedKobo ?? 0) : null,
+    status: h.settledAt ? "Settled" : "Running",
+  }));
+}
