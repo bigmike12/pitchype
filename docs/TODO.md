@@ -137,12 +137,25 @@ Decisions: `docs/campaign-spec-decisions.md`.
 
 - [ ] Campaign images: none for now. Later, one product photo reusing the
       profile photo pipeline; a business logo is the cheaper first image.
-- [ ] Pay-per-click campaigns, after Stage 6: tracked links, click logging
-      and filtering (link previews, bots, repeats), click budget escrow,
-      batched payouts, click dashboards, destination domain verification.
+- [ ] Pay-per-click campaigns (design
+      `docs/superpowers/specs/2026-11-18-pay-per-click-design.md`, goal
+      2026-11-30). Part 1 done 2026-11-19: per-click terms, tracked links,
+      click recording and filtering, counts on the hire and campaign pages.
+      Part 2: settlement (fee on spent, floors), the 72-hour hold and cron,
+      proof for the record, disputes during the hold, notifications. Part 3:
+      dashboards by day and source, end-of-campaign summary, CSV.
+- [ ] **You:** set `CLICK_HASH_SECRET` (`openssl rand -hex 32`) on Vercel
+      Production and Preview before any per-click campaign goes live; don't
+      change it while a campaign runs. Don't push the pay-per-click
+      migrations to the hosted project until Part 2 is merged.
+- [ ] Pay-per-click follow-ups after launch: a "pay for all approved
+      creators" button, destination domain verification (a DNS TXT code)
+      replacing admin review, a Google Safe Browsing check, a daily click
+      rollup if the dashboards get slow, and the business applications list
+      saying "budget" rather than "your price" on per-click campaigns.
 - [ ] **You:** decide the banned campaign types for the terms (gambling and
-      betting are the open question) and the pay-per-click numbers
-      (CLAUDE.md §12, open items 10 and 11).
+      betting are the open question; CLAUDE.md §12, open item 10). The
+      pay-per-click numbers (item 11) were decided 2026-11-18.
 - [x] Check Paystack's current transfer fees on small payouts before setting
       the minimum payout and minimum cost per click. Done 2026-11-13: tiers and
       the ₦50 stamp duty are from Paystack's support article (`src/lib/fees.ts`);
