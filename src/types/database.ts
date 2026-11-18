@@ -625,6 +625,8 @@ export type Database = {
           cancel_fee_notice_seen_at: string | null
           cancel_reason: string | null
           cancelled_at: string | null
+          click_hold_notified_at: string | null
+          clicks_stopped_at: string | null
           creator_fee_bps: number | null
           creator_id: string
           creator_min_fee_kobo: number | null
@@ -650,6 +652,8 @@ export type Database = {
           cancel_fee_notice_seen_at?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
+          click_hold_notified_at?: string | null
+          clicks_stopped_at?: string | null
           creator_fee_bps?: number | null
           creator_id: string
           creator_min_fee_kobo?: number | null
@@ -675,6 +679,8 @@ export type Database = {
           cancel_fee_notice_seen_at?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
+          click_hold_notified_at?: string | null
+          clicks_stopped_at?: string | null
           creator_fee_bps?: number | null
           creator_id?: string
           creator_min_fee_kobo?: number | null
@@ -2047,6 +2053,8 @@ export type Database = {
       }
       clean_note: { Args: { note: string }; Returns: string }
       clean_reason: { Args: { reason: string }; Returns: string }
+      click_settles_at: { Args: { deliver_by: string }; Returns: string }
+      click_window_end: { Args: { deliver_by: string }; Returns: string }
       click_window_open: {
         Args: { at: string; deliver_by: string }
         Returns: boolean
@@ -2462,6 +2470,11 @@ export type Database = {
         Args: { creator: string; reason: string }
         Returns: undefined
       }
+      settle_click_hire: {
+        Args: { actor: string; engagement: string; reason: string }
+        Returns: boolean
+      }
+      settle_due_click_hires: { Args: never; Returns: Json }
       settle_engagement: {
         Args: {
           engagement: string
@@ -2634,6 +2647,8 @@ export type Database = {
         | "dispute_opened"
         | "dispute_statement"
         | "dispute_withdrawn"
+        | "click_cap_reached"
+        | "click_hold_started"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -2855,6 +2870,8 @@ export const Constants = {
         "dispute_opened",
         "dispute_statement",
         "dispute_withdrawn",
+        "click_cap_reached",
+        "click_hold_started",
       ],
       payment_model: ["fixed", "per_click"],
       report_reason: [
