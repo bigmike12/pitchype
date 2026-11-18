@@ -110,15 +110,30 @@ export function CampaignCard({
       </div>
 
       <div className="mt-auto flex items-end justify-between gap-3 border-t border-hairline bg-surface-soft/60 px-4 py-3">
-        {campaign.priceKobo !== null && (
+        {campaign.paymentModel === "per_click" &&
+        campaign.cpcKobo !== null &&
+        campaign.priceKobo !== null ? (
           <p>
             <span className="block font-display text-xl leading-none font-semibold tracking-[-0.02em] text-ink tabular-nums">
-              {formatNaira(campaign.priceKobo)}
+              {formatNaira(campaign.cpcKobo)}
+              <span className="text-sm font-normal text-muted"> a click</span>
             </span>
             <span className="mt-1.5 block text-xs text-muted">
-              You receive {formatNaira(creatorReceivesKobo(campaign.priceKobo))}
+              Up to {formatNaira(campaign.priceKobo)}
             </span>
           </p>
+        ) : (
+          campaign.priceKobo !== null && (
+            <p>
+              <span className="block font-display text-xl leading-none font-semibold tracking-[-0.02em] text-ink tabular-nums">
+                {formatNaira(campaign.priceKobo)}
+              </span>
+              <span className="mt-1.5 block text-xs text-muted">
+                You receive{" "}
+                {formatNaira(creatorReceivesKobo(campaign.priceKobo))}
+              </span>
+            </p>
+          )
         )}
         <p className="ml-auto space-y-1 text-right text-xs text-muted">
           <span className="flex items-center justify-end gap-1">

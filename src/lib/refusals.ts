@@ -14,6 +14,8 @@ const REFUSAL_TEXT = {
   profile_not_listed:
     "Publish your profile first, so the business can see who’s applying.",
   price_invalid: "Enter a whole number of naira, ₦5,000 or more.",
+  per_click_no_review:
+    "This job is paid by its clicks, so there’s no work to send for review.",
   price_fixed_per_click:
     "The price per click is fixed on this campaign, so there’s no price to propose.",
   note_too_long: "Keep your note to 500 characters or fewer.",

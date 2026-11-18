@@ -138,3 +138,33 @@ test("link codes are seven letters or digits", () => {
     assert.ok(!LINK_CODE.test(bad), bad);
   }
 });
+
+test("non-ASCII destinations come out as a valid header value", () => {
+  for (const utmTags of [false, true]) {
+    const out = destinationWithTags("https://jumia.com.ng/₦-deals", {
+      utmTags,
+      campaignId: "c1",
+      code: "k7Xq2ab",
+    });
+    assert.ok(/^[\x21-\x7e]+$/.test(out), out);
+    assert.doesNotThrow(() => new Headers({ Location: out }));
+  }
+});
+
+test("Android app referrers name their app", () => {
+  const cases: [string, string][] = [
+    ["android-app://com.whatsapp/", "whatsapp"],
+    ["android-app://com.whatsapp.w4b/", "whatsapp"],
+    ["android-app://org.telegram.messenger/", "telegram"],
+    ["android-app://com.facebook.katana/", "facebook"],
+    ["android-app://com.instagram.android/", "instagram"],
+    ["android-app://com.zhiliaoapp.musically/", "tiktok"],
+    ["android-app://com.twitter.android/", "x"],
+    ["android-app://com.google.android.youtube/", "youtube"],
+    ["android-app://com.snapchat.android/", "snapchat"],
+    ["android-app://com.some.other.app/", "other_site"],
+  ];
+  for (const [referrer, want] of cases) {
+    assert.equal(clickSource(referrer, null), want, referrer);
+  }
+});

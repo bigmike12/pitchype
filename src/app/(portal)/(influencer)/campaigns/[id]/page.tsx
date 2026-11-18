@@ -235,7 +235,10 @@ async function Campaign({ params }: { params: Params }) {
                 <PerClickTerms
                   cpcKobo={campaign.cpcKobo}
                   budgetKobo={campaign.priceKobo}
-                  destination={campaign.destinationHost}
+                  // Admins reviewing it see the whole link; creators the host.
+                  destination={
+                    campaign.destinationUrl ?? campaign.destinationHost
+                  }
                   blockedChannels={campaign.blockedChannels}
                   deliverBy={campaign.deliverBy}
                 />

@@ -69,6 +69,24 @@ const AGENT_CHANNELS: [RegExp, Channel][] = [
   [/Twitterbot/i, "x"],
 ];
 
+// Chrome on Android reports a link opened from an app as
+// android-app://<package>/, with no web referrer.
+const ANDROID_APPS: Record<string, Channel> = {
+  "com.whatsapp": "whatsapp",
+  "com.whatsapp.w4b": "whatsapp",
+  "org.telegram.messenger": "telegram",
+  "org.thunderdog.challegram": "telegram",
+  "com.facebook.katana": "facebook",
+  "com.facebook.lite": "facebook",
+  "com.facebook.orca": "facebook",
+  "com.instagram.android": "instagram",
+  "com.zhiliaoapp.musically": "tiktok",
+  "com.ss.android.ugc.trill": "tiktok",
+  "com.twitter.android": "x",
+  "com.google.android.youtube": "youtube",
+  "com.snapchat.android": "snapchat",
+};
+
 /** Only the host of the referrer is kept, never its path or query. */
 export function referrerHost(referrer: string | null): string | null {
   if (!referrer) return null;
@@ -85,6 +103,9 @@ export function clickSource(
   userAgent: string | null,
 ): ClickSource {
   const host = referrerHost(referrer);
+  if (host && referrer?.toLowerCase().startsWith("android-app:")) {
+    return ANDROID_APPS[host] ?? "other_site";
+  }
   if (host) {
     const match = REFERRER_CHANNELS.find(
       ([suffix]) => host === suffix || host.endsWith(`.${suffix}`),
@@ -103,8 +124,9 @@ export function destinationWithTags(
   destination: string,
   opts: { utmTags: boolean; campaignId: string; code: string },
 ): string {
-  if (!opts.utmTags) return destination;
   const url = new URL(destination);
+  // href is percent-encoded, so it is always a valid Location header.
+  if (!opts.utmTags) return url.href;
   url.searchParams.set("utm_source", "pitchype");
   url.searchParams.set("utm_medium", "creator");
   url.searchParams.set("utm_campaign", opts.campaignId);

@@ -19,6 +19,7 @@ test("every reason a click didn't count has words", () => {
 test("a share on a blocked channel is named", () => {
   assert.equal(
     blockedShareWarning("whatsapp"),
-    "Shared on WhatsApp, which this campaign blocks",
+    "A WhatsApp link preview opened this link, and this campaign blocks WhatsApp",
   );
+  assert.ok(blockedShareWarning("instagram").startsWith("An Instagram"));
 });

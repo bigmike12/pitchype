@@ -160,7 +160,7 @@ CLAUDE.md §5 (per-click hire lifecycle), §6 (the per-click fee rule), §12 (it
 - If recording fails, the redirect still happens.
 - No proposed price on per-click applications.
 - The budget per place must be a whole number of clicks.
-- Per-IP limit of 20 hits a minute, above which hits are not billable (still redirected).
+- A limit of 20 hits a minute per visitor (IP and browser together, as confirmed by the owner), above which hits are not billable (still redirected). Not per IP alone: on Nigerian mobile networks thousands of people share one IP, so a per-IP limit would refuse real clicks on a popular post. The cost: a script that rotates browser names from one IP gets past it; the filters, the cap and disputes during the hold are the backstop.
 - Counts refresh on page load; no Realtime.
 - A creator withdrawal is paid for the clicks already sent.
 - Blocked channels are a fixed checkbox list. Paid ads and click-for-reward groups are banned on every per-click campaign. A blocked channel's preview is a warning and dispute evidence; it doesn't cancel other clicks automatically.

@@ -86,12 +86,19 @@ export async function handleLinkHit(
   }
   if (!target) return { status: 404 };
 
-  return {
-    status: 302,
-    location: destinationWithTags(target.destination, {
-      utmTags: target.utmTags,
-      campaignId: target.campaignId,
-      code: req.code,
-    }),
-  };
+  try {
+    return {
+      status: 302,
+      location: destinationWithTags(target.destination, {
+        utmTags: target.utmTags,
+        campaignId: target.campaignId,
+        code: req.code,
+      }),
+    };
+  } catch {
+    deps.log(
+      `tracked link ${req.code}: the stored destination isn't a valid URL`,
+    );
+    return { status: 404 };
+  }
 }

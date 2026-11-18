@@ -35,6 +35,12 @@ export function filterReasonText(reason: FilterReason): string {
   return REASON_TEXT[reason];
 }
 
+/**
+ * Worded as what we saw, not as proof: a preview fetch names its app in the
+ * user agent, which anyone can fake.
+ */
 export function blockedShareWarning(channel: Channel): string {
-  return `Shared on ${CHANNEL_LABELS[channel]}, which this campaign blocks`;
+  const name = CHANNEL_LABELS[channel];
+  const article = /^[AEIOU]/.test(name) ? "An" : "A";
+  return `${article} ${name} link preview opened this link, and this campaign blocks ${name}`;
 }

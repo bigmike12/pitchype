@@ -84,6 +84,7 @@ export type LinkStats = {
   earnedKobo: number;
   filtered: Partial<Record<FilterReason, number>>;
   blockedShares: Channel[];
+  blockedChannels: Channel[];
 };
 
 export type CampaignClicks = {
@@ -113,6 +114,9 @@ function toStats(value: Json): LinkStats | null {
     earnedKobo: num(value.earnedKobo) ?? 0,
     filtered,
     blockedShares: list(value.blockedShares).filter(
+      (c): c is Channel => typeof c === "string" && isChannel(c),
+    ),
+    blockedChannels: list(value.blockedChannels).filter(
       (c): c is Channel => typeof c === "string" && isChannel(c),
     ),
   };

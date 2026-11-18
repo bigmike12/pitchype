@@ -1,9 +1,9 @@
 // A per-click hire's counts, for the creator's job page and the business's
 // hire page. Counts are as of page load (no live updates).
 
-import { TriangleAlert } from "lucide-react";
+import { Ban, TriangleAlert } from "lucide-react";
 
-import { maxClicks } from "@/lib/campaign";
+import { CHANNEL_LABELS, maxClicks, type Channel } from "@/lib/campaign";
 import {
   blockedShareWarning,
   FILTER_REASONS,
@@ -25,13 +25,16 @@ export function ClickSummary({
   const cap = maxClicks(stats.capKobo, stats.cpcKobo);
   if (stats.code === null) {
     return (
-      <p className="text-ink">
-        {viewer === "creator"
-          ? "Your link appears when you start."
-          : "The creator’s link appears when they start."}{" "}
-        {formatNaira(stats.cpcKobo)} per click, up to{" "}
-        {cap.toLocaleString("en-NG")} clicks ({formatNaira(stats.capKobo)}).
-      </p>
+      <div className="space-y-2">
+        <p className="text-ink">
+          {viewer === "creator"
+            ? "Your link appears when you start."
+            : "The creator’s link appears when they start."}{" "}
+          {formatNaira(stats.cpcKobo)} per click, up to{" "}
+          {cap.toLocaleString("en-NG")} clicks ({formatNaira(stats.capKobo)}).
+        </p>
+        <SharingRules blocked={stats.blockedChannels} />
+      </div>
     );
   }
 
@@ -43,6 +46,9 @@ export function ClickSummary({
         <div>
           <p className="mb-2 text-sm font-medium text-ink">Your link</p>
           <CopyLink url={`${SITE_URL}/r/${stats.code}`} />
+          <div className="mt-2">
+            <SharingRules blocked={stats.blockedChannels} />
+          </div>
         </div>
       )}
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -106,5 +112,24 @@ export function ClickSummary({
         </details>
       )}
     </div>
+  );
+}
+
+/** Where the link must not go: the business's blocked channels and the two rules that always apply. */
+function SharingRules({ blocked }: { blocked: Channel[] }) {
+  const names = blocked.map((c) => CHANNEL_LABELS[c]);
+  const list =
+    names.length <= 1
+      ? names.join("")
+      : `${names.slice(0, -1).join(", ")} or ${names.at(-1)}`;
+  return (
+    <p className="flex items-start gap-2 text-sm text-ink">
+      <Ban className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+      <span>
+        {names.length > 0 &&
+          `Don’t share it on ${list}: those clicks aren’t paid. `}
+        No paid ads or click-for-reward groups.
+      </span>
+    </p>
   );
 }

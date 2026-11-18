@@ -8,7 +8,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(40);
+select plan(42);
 
 -- Ada (business), Chidi and Dayo (creators), Bola (another business).
 insert into public.users (id, auth_user_id, email, role) values
@@ -184,12 +184,20 @@ select is(
 select is(
   (public.engagement_click_summary('ce000000-0000-0000-0000-0000000000e1'))->>'earnedKobo',
   '500000', 'earnings stop at the cap');
+select is(
+  (public.engagement_click_summary('ce000000-0000-0000-0000-0000000000e1'))->'blockedChannels',
+  '["whatsapp"]'::jsonb, 'the creator is told which channels are blocked, beside the link');
+select throws_ok(
+  $$ select public.submit_work('ce000000-0000-0000-0000-0000000000e1', null,
+       array['https://example.com/post']::text[], array[]::uuid[]) $$,
+  'P0001', 'per_click_no_review',
+  'a per-click hire is paid by its clicks, so work is not submitted for review');
 
 set local request.jwt.claims = '{"sub": "cececece-0000-0000-0000-0000000ce012"}';
 select is((select count(*)::int from public.link_clicks), 0, 'another creator sees no clicks');
 select is(
   public.engagement_click_summary('ce000000-0000-0000-0000-0000000000e4'),
-  jsonb_build_object('code', null, 'cpcKobo', 5000, 'capKobo', 500000),
+  jsonb_build_object('code', null, 'cpcKobo', 5000, 'capKobo', 500000, 'blockedChannels', '["whatsapp"]'::jsonb),
   'before the start, a per-click hire shows its terms and no link');
 select is(public.engagement_click_summary('ce000000-0000-0000-0000-0000000000e1'), null,
   'another creator sees nothing of Chidi''s hire');

@@ -303,7 +303,15 @@ export function checkDestinationUrl(
         "Use the full link, not a shortened one. Pitchype makes each creator's short link.",
     };
   }
-  return { url: value };
+  // Stored as the parser writes it: percent-encoded (so it's a valid
+  // Location header) and with the scheme spelled https://, which the database
+  // constraint checks.
+  if (url.href.length > MAX_DESTINATION_LENGTH) {
+    return {
+      error: `Use a link of ${MAX_DESTINATION_LENGTH} characters or fewer.`,
+    };
+  }
+  return { url: url.href };
 }
 
 /** How many clicks a creator's budget pays for. */

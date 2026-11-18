@@ -218,6 +218,23 @@ test("destination links: https, a real host, no shorteners", () => {
   }
 });
 
+test("destination links are stored normalised", () => {
+  assert.deepEqual(checkDestinationUrl("https://jumia.com.ng/₦-deals"), {
+    url: "https://jumia.com.ng/%E2%82%A6-deals",
+  });
+  for (const spelling of [
+    "HTTPS://konga.com/x",
+    "https:konga.com/x",
+    "https:\\konga.com/x",
+  ]) {
+    const result = checkDestinationUrl(spelling);
+    assert.ok(
+      "url" in result && result.url.startsWith("https://konga.com/"),
+      spelling,
+    );
+  }
+});
+
 test("clicks per creator from the budget", () => {
   assert.equal(maxClicks(2_500_000, 5_000), 500);
 });
