@@ -120,6 +120,8 @@ What we can and can't enforce, said plainly in the UI so nobody is misled:
 
 ## 7. Part 2: click money
 
+> Built 2026-11-20 (plan `docs/superpowers/plans/2026-11-19-pay-per-click-part-2.md`). Differences: the cancel form states the per-click rule rather than an exact refund figure, since the page doesn't load the card charge; `settle_click_hire()` returns whether it settled and skips (not refuses) a hire that a dispute took out of `in_progress` mid-run.
+
 - **Funding:** unchanged code. The engagement's `agreed_price_kobo` is the budget per place; `business_fee_kobo` is 5% of it, minimum ₦500, snapshotted as today.
 - **Settlement:** a new function `settle_click_hire(engagement, actor, reason)`, internal only, with no grant to any role, like `settle_engagement_internal`. It is called by the cron (service role, through a `security definer` wrapper) and by `decide_dispute()` for per-click hires.
   - released = `least(billable_clicks × cpc_kobo, agreed_price_kobo)`, read under the link and engagement locks.

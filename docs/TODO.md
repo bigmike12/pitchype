@@ -141,8 +141,9 @@ Decisions: `docs/campaign-spec-decisions.md`.
       `docs/superpowers/specs/2026-11-18-pay-per-click-design.md`, goal
       2026-11-30). Part 1 done 2026-11-19: per-click terms, tracked links,
       click recording and filtering, counts on the hire and campaign pages.
-      Part 2: settlement (fee on spent, floors), the 72-hour hold and cron,
-      proof for the record, disputes during the hold, notifications. Part 3:
+      Part 2 done 2026-11-20: settlement (fee on spent, floors), the 72-hour
+      hold and settle-clicks cron, withdrawal, cancel, disputes during the
+      hold, proof for the record, notifications, per-click wording. Part 3:
       dashboards by day and source, end-of-campaign summary, CSV.
 - [ ] **You:** set `CLICK_HASH_SECRET` (`openssl rand -hex 32`) on Vercel
       Production and Preview before any per-click campaign goes live; don't
