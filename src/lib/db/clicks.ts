@@ -85,6 +85,15 @@ export type LinkStats = {
   filtered: Partial<Record<FilterReason, number>>;
   blockedShares: Channel[];
   blockedChannels: Channel[];
+  /** When the link stops counting (end of the deliver-by day, Lagos). */
+  clicksEndAt: string | null;
+  /** When the hire settles: 72 hours after clicksEndAt. */
+  settlesAt: string | null;
+  /** When the creator withdrew and the link stopped counting. */
+  clicksStoppedAt: string | null;
+  /** The creator fee snapshot (null before the hire is paid). */
+  creatorFeeBps: number | null;
+  creatorMinFeeKobo: number | null;
 };
 
 export type CampaignClicks = {
@@ -119,6 +128,11 @@ function toStats(value: Json): LinkStats | null {
     blockedChannels: list(value.blockedChannels).filter(
       (c): c is Channel => typeof c === "string" && isChannel(c),
     ),
+    clicksEndAt: str(value.clicksEndAt),
+    settlesAt: str(value.settlesAt),
+    clicksStoppedAt: str(value.clicksStoppedAt),
+    creatorFeeBps: num(value.creatorFeeBps),
+    creatorMinFeeKobo: num(value.creatorMinFeeKobo),
   };
 }
 

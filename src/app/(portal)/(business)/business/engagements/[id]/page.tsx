@@ -1,4 +1,5 @@
 import {
+  CircleAlert,
   CircleCheck,
   CircleSlash,
   Clock,
@@ -13,6 +14,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { ClickProofList } from "@/components/clicks/click-proof-list";
 import { ClickSummary } from "@/components/clicks/click-summary";
 import { DisputeForm } from "@/components/engagement/dispute-form";
 import { Rounds } from "@/components/engagement/rounds";
@@ -29,6 +31,7 @@ import {
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
 import { getEngagementDetails } from "@/lib/db/applications";
+import { listClickProofs } from "@/lib/db/click-proofs";
 import { getEngagementClicks } from "@/lib/db/clicks";
 import { getLatestDisputeId } from "@/lib/db/disputes";
 import { listSubmissions } from "@/lib/db/submissions";
@@ -91,6 +94,11 @@ async function Engagement({ params }: { params: Params }) {
   const disputeId = await getLatestDisputeId(engagement.id);
   // Null unless this is a per-click hire.
   const clicks = await getEngagementClicks(engagement.id);
+  const proofs = clicks ? await listClickProofs(engagement.id) : [];
+  const clicksOver =
+    clicks?.clicksEndAt !== null &&
+    clicks?.clicksEndAt !== undefined &&
+    new Date(clicks.clicksEndAt) <= new Date();
 
   const feeKobo =
     engagement.businessFeeKobo ??
@@ -196,6 +204,17 @@ async function Engagement({ params }: { params: Params }) {
             <SectionCard id="clicks-title" title="Clicks" padded>
               <ClickSummary stats={clicks} viewer="business" />
             </SectionCard>
+          )}
+          {clicks && proofs.length > 0 && (
+            <SectionCard id="posts-title" title="Where they posted">
+              <ClickProofList proofs={proofs} />
+            </SectionCard>
+          )}
+          {clicks && proofs.length === 0 && clicksOver && (
+            <Callout tone="attention" icon={CircleAlert} title="No posts added">
+              The creator hasn’t shown where they posted the link. If that’s a
+              problem, raise it before the job settles.
+            </Callout>
           )}
           {showReview && (
             <SectionCard id="review-title" title="Work to review">

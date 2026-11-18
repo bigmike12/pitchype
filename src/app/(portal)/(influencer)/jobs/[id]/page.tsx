@@ -13,6 +13,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { ClickProofList } from "@/components/clicks/click-proof-list";
 import { ClickSummary } from "@/components/clicks/click-summary";
 import { DisputeForm } from "@/components/engagement/dispute-form";
 import { Rounds } from "@/components/engagement/rounds";
@@ -29,6 +30,7 @@ import {
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
 import { getEngagementDetails } from "@/lib/db/applications";
+import { listClickProofs } from "@/lib/db/click-proofs";
 import { getEngagementClicks } from "@/lib/db/clicks";
 import { getLatestDisputeId } from "@/lib/db/disputes";
 import { listSubmissions } from "@/lib/db/submissions";
@@ -38,6 +40,7 @@ import { formatNaira } from "@/lib/money";
 import { CONTACT_EMAIL } from "@/lib/site";
 
 import { openDisputeAction } from "./actions";
+import { ClickProofForm } from "./click-proof-form";
 import { StartWorkForm } from "./start-form";
 import { SubmitForm } from "./submit-form";
 import { WithdrawForm } from "./withdraw-form";
@@ -105,6 +108,11 @@ async function Job({ params }: { params: Params }) {
   // Null unless this is a per-click hire: then the clicks are the work, and
   // there is no proof to review (proof for the record comes in Part 2).
   const clicks = await getEngagementClicks(engagement.id);
+  const proofs = clicks ? await listClickProofs(engagement.id) : [];
+  const clicksOver =
+    clicks?.clicksEndAt !== null &&
+    clicks?.clicksEndAt !== undefined &&
+    new Date(clicks.clicksEndAt) <= new Date();
 
   const business = engagement.business.name;
   const status = describeJobStatus(
@@ -178,6 +186,20 @@ async function Job({ params }: { params: Params }) {
               <ClickSummary stats={clicks} viewer="creator" />
             </SectionCard>
           )}
+          {clicks && proofs.length > 0 && (
+            <SectionCard id="posts-title" title="Where you posted">
+              <ClickProofList proofs={proofs} />
+            </SectionCard>
+          )}
+          {clicks && proofs.length === 0 && clicksOver && (
+            <p className="text-sm text-muted">No posts added yet.</p>
+          )}
+          {clicks &&
+            engagement.status === "in_progress" &&
+            !clicks.clicksStoppedAt &&
+            !engagement.settledAt && (
+              <ClickProofForm engagementId={engagement.id} />
+            )}
           {rounds.length > 0 && (
             <SectionCard id="rounds-title" title="Your submissions">
               <Rounds rounds={rounds} />

@@ -426,6 +426,48 @@ export type Database = {
           },
         ]
       }
+      click_proofs: {
+        Row: {
+          author_id: string
+          created_at: string
+          engagement_id: string
+          id: string
+          links: string[]
+          note: string | null
+        }
+        Insert: {
+          author_id: string
+          created_at?: string
+          engagement_id: string
+          id?: string
+          links?: string[]
+          note?: string | null
+        }
+        Update: {
+          author_id?: string
+          created_at?: string
+          engagement_id?: string
+          id?: string
+          links?: string[]
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "click_proofs_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "click_proofs_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_reads: {
         Row: {
           conversation_id: string
@@ -1494,6 +1536,7 @@ export type Database = {
       proof_files: {
         Row: {
           bytes: number
+          click_proof_id: string | null
           content_type: string
           created_at: string
           dispute_statement_id: string | null
@@ -1504,6 +1547,7 @@ export type Database = {
         }
         Insert: {
           bytes: number
+          click_proof_id?: string | null
           content_type: string
           created_at?: string
           dispute_statement_id?: string | null
@@ -1514,6 +1558,7 @@ export type Database = {
         }
         Update: {
           bytes?: number
+          click_proof_id?: string | null
           content_type?: string
           created_at?: string
           dispute_statement_id?: string | null
@@ -1523,6 +1568,13 @@ export type Database = {
           submission_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "proof_files_click_proof_id_fkey"
+            columns: ["click_proof_id"]
+            isOneToOne: false
+            referencedRelation: "click_proofs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "proof_files_dispute_statement_id_fkey"
             columns: ["dispute_statement_id"]
@@ -2313,6 +2365,15 @@ export type Database = {
           visitor_hash: string
         }
         Returns: Json
+      }
+      record_click_proof: {
+        Args: {
+          engagement: string
+          file_ids: string[]
+          links: string[]
+          note: string
+        }
+        Returns: string
       }
       record_reconciliation: {
         Args: { paystack_balance_kobo: number }
