@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { DisputeThread } from "@/components/engagement/dispute-thread";
 import { PageHeader } from "@/components/ui/page-header";
+import { ClickSummary } from "@/components/clicks/click-summary";
 import { SectionCard } from "@/components/ui/section-card";
 import { requireRole } from "@/lib/auth";
 import { getEngagementClicks } from "@/lib/db/clicks";
@@ -60,6 +61,11 @@ export default async function AdminDisputePage({
         viewer={{ id: user.id, role: "admin" }}
         statementAction={addAdminStatementAction}
       />
+      {clicks && (
+        <SectionCard id="clicks-title" title="Clicks" padded className="mt-4">
+          <ClickSummary stats={clicks} viewer="admin" />
+        </SectionCard>
+      )}
       {dispute.status === "open" && (
         <SectionCard
           id="decide-title"

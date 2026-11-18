@@ -3,8 +3,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { ClickSummary } from "@/components/clicks/click-summary";
 import { Callout } from "@/components/ui/callout";
 import { PageHeader } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/section-card";
 import {
   HeaderSkeleton,
   PageLoading,
@@ -13,6 +15,7 @@ import {
 } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
+import { getEngagementClicks } from "@/lib/db/clicks";
 import { getEngagementTrail, type EngagementTrail } from "@/lib/db/money";
 import { isUuid } from "@/lib/form-data";
 import { formatNaira } from "@/lib/money";
@@ -65,6 +68,8 @@ async function Trail({ params }: { params: Promise<{ id: string }> }) {
 
   const { engagement: e } = trail;
   const check = checkTrail(trail);
+  // Null unless this is a per-click hire.
+  const clicks = await getEngagementClicks(id);
 
   return (
     <>
@@ -93,6 +98,15 @@ async function Trail({ params }: { params: Promise<{ id: string }> }) {
             ))}
           </ul>
         </Callout>
+      )}
+      {clicks && (
+        <SectionCard id="clicks-title" title="Clicks" padded className="mt-4">
+          <ClickSummary
+            stats={clicks}
+            viewer="admin"
+            settled={e.status === "accepted" || e.status === "refunded"}
+          />
+        </SectionCard>
       )}
 
       <section

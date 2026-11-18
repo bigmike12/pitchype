@@ -35,7 +35,8 @@ export function ClickSummary({
   settled = false,
 }: {
   stats: LinkStats;
-  viewer: "creator" | "business";
+  /** "admin" reads neutrally: counts and what they're worth. */
+  viewer: "creator" | "business" | "admin";
   /** The hire has settled: show the final counts, not the running ones. */
   settled?: boolean;
 }) {
@@ -103,13 +104,15 @@ export function ClickSummary({
         </div>
         <div>
           <dt className="text-sm text-muted">
-            {settled
-              ? viewer === "creator"
-                ? "Earned"
-                : "Spent"
-              : viewer === "creator"
-                ? "Earned so far"
-                : "Spent so far"}
+            {viewer === "admin"
+              ? "Worth"
+              : settled
+                ? viewer === "creator"
+                  ? "Earned"
+                  : "Spent"
+                : viewer === "creator"
+                  ? "Earned so far"
+                  : "Spent so far"}
           </dt>
           <dd className="mt-1 text-xl font-semibold text-ink tabular-nums">
             {formatNaira(stats.earnedKobo)}
