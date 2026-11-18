@@ -402,6 +402,14 @@ export function lagosToday(now = new Date()): string {
   return isoDate.format(now);
 }
 
+/**
+ * Whether a per-click campaign's clicks have stopped: they count until the
+ * end of the deliver-by day, Lagos time (click_window_end() in the database).
+ */
+export function clickWindowEnded(deliverBy: string, now = new Date()): boolean {
+  return lagosToday(now) > deliverBy;
+}
+
 export function addDays(day: string, days: number): string {
   const date = new Date(`${day}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);

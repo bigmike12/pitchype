@@ -230,7 +230,8 @@ async function Campaign({ params }: { params: Params }) {
             <SectionCard id="click-counts-title" title="Clicks so far" padded>
               <p className="text-ink">
                 <strong>{clicks.billable.toLocaleString("en-NG")}</strong>{" "}
-                {clicks.billable === 1 ? "click" : "clicks"} counted across {clicks.hires.length}{" "}
+                {clicks.billable === 1 ? "click" : "clicks"} counted across{" "}
+                {clicks.hires.length}{" "}
                 {clicks.hires.length === 1 ? "creator" : "creators"}, worth{" "}
                 <strong>{formatNaira(clicks.spentKobo)}</strong>.{" "}
                 {(clicks.totalHits - clicks.billable).toLocaleString("en-NG")}{" "}

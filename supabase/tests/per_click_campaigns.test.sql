@@ -6,7 +6,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(26);
+select plan(28);
 
 -- Ada is a trusted business (an admin approved one of her campaigns before);
 -- Chidi is a listed creator; Efe is an admin.
@@ -154,6 +154,19 @@ select throws_ok($$
 select lives_ok($$
   select public.apply_to_campaign(current_setting('test.ppc')::uuid, null, null) $$,
   'a creator applies at the fixed terms');
+
+-- Once clicks have stopped, the end date can't move ---------------------------------------------
+reset role;
+insert into public.campaigns (business_id, status, title, brief, payment_model, cpc_kobo, price_kobo,
+                              destination_url, places, applications_close_on, deliver_by)
+values ('00000000-0000-0000-0000-0000000dc001', 'open', 'Clicks stopped', 'A brief that is long enough for the checks.',
+        'per_click', 5000, 500000, 'https://shop.example.com/x', 2, public.lagos_today() - 1, public.lagos_today() - 1),
+       ('00000000-0000-0000-0000-0000000dc001', 'open', 'Fixed ended', 'A brief that is long enough for the checks.',
+        'fixed', null, 500000, null, 2, public.lagos_today() - 1, public.lagos_today() - 1);
+select throws_ok($$ update public.campaigns set deliver_by = deliver_by + 3 where title = 'Clicks stopped' $$,
+  '42501', 'the click window has ended', 'a per-click campaign can''t be extended once clicks have stopped');
+select lives_ok($$ update public.campaigns set deliver_by = deliver_by + 3 where title = 'Fixed ended' $$,
+  'a fixed-price campaign can still move its date later');
 
 select * from finish();
 rollback;

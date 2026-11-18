@@ -8,7 +8,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(55);
+select plan(56);
 
 -- Ada (business), creators c1..c8 (one hire each).
 insert into public.users (id, auth_user_id, email, role) values
@@ -278,10 +278,12 @@ select is(pg_temp.moved('cf000000-0000-0000-0000-000000000e12', 'business_wallet
   'the business keeps its fee only as the per-click rule says');
 
 -- The deliver-by date moves later after the notice: no settling, no second notice.
-update public.campaigns set deliver_by = deliver_by + 5 where id = 'cf000000-0000-0000-0000-000000000003';
+select throws_ok($$ update public.campaigns set deliver_by = deliver_by + 5
+                    where id = 'cf000000-0000-0000-0000-000000000003' $$,
+  '42501', 'the click window has ended', 'the end date can''t move once clicks have stopped');
 set local role service_role;
 select is(public.settle_due_click_hires() - 'failed', '{"notified": 0, "settled": 0}'::jsonb,
-  'a moved deliver-by date: nothing settles and nobody is told twice');
+  'a later run settles nothing early and tells nobody twice');
 reset role;
 
 select * from finish();

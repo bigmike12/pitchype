@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   addDays,
   checkDestinationUrl,
+  clickWindowEnded,
   deliverableText,
   maxClicks,
   lagosToday,
@@ -461,4 +462,15 @@ test("creators read how many places are left", () => {
   // Nothing taken, or the database didn't say: how many creators are wanted.
   assert.equal(placesLeftText(3, 0), "3 creators");
   assert.equal(placesLeftText(1, null), "1 creator");
+});
+
+test("a per-click campaign's clicks stop at midnight Lagos after the end date", () => {
+  assert.equal(
+    clickWindowEnded("2026-12-24", new Date("2026-12-24T22:59:59Z")),
+    false,
+  );
+  assert.equal(
+    clickWindowEnded("2026-12-24", new Date("2026-12-24T23:00:00Z")),
+    true,
+  );
 });

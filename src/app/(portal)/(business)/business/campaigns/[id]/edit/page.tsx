@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth";
 import { lagosToday } from "@/lib/campaign";
+import { clickWindowEnded } from "@/lib/campaign";
 import { getOwnCampaign } from "@/lib/db/campaigns";
 import { listNiches } from "@/lib/db/creators";
 
@@ -71,7 +72,14 @@ async function EditCampaign({ params }: { params: Params }) {
           />
         </div>
       ) : (
-        <LiveEditForm campaign={campaign} />
+        <LiveEditForm
+          campaign={{
+            ...campaign,
+            deliverByLocked:
+              campaign.paymentModel === "per_click" &&
+              clickWindowEnded(campaign.deliverBy),
+          }}
+        />
       )}
     </>
   );

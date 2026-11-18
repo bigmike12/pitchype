@@ -196,7 +196,7 @@ export async function saveCampaignDraft(
 export async function updateLiveCampaign(
   campaignId: string,
   edit: LiveEdit,
-): Promise<"saved" | "locked"> {
+): Promise<"saved" | "locked" | "window_closed"> {
   const supabase = await createSessionClient();
   const { error } = await supabase
     .from("campaigns")
@@ -209,7 +209,14 @@ export async function updateLiveCampaign(
       deliver_by: edit.deliverBy,
     })
     .eq("id", campaignId);
-  // The database refuses edits the campaign's status doesn't allow.
+  // The database refuses edits the campaign's status doesn't allow, and a
+  // per-click end date once its clicks have stopped.
+  if (
+    error?.code === "42501" &&
+    error.message === "the click window has ended"
+  ) {
+    return "window_closed";
+  }
   if (error?.code === "42501") return "locked";
   if (error) throw new Error(`campaign update failed (${error.code})`);
   return "saved";
