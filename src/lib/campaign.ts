@@ -204,6 +204,174 @@ export function parsePrice(raw: string): { kobo: number } | { error: string } {
   return { kobo: naira * KOBO_PER_NAIRA };
 }
 
+// Pay per click -----------------------------------------------------------------------
+// Mirrors supabase/migrations/20261119100000_per_click_campaigns.sql; decisions
+// in docs/superpowers/specs/2026-11-18-pay-per-click-design.md.
+
+export type PaymentModel = "fixed" | "per_click";
+
+/** Where a creator may be told not to share a tracked link. */
+export type Channel =
+  | "whatsapp"
+  | "telegram"
+  | "facebook"
+  | "instagram"
+  | "tiktok"
+  | "x"
+  | "youtube"
+  | "snapchat";
+
+export const CHANNELS: readonly Channel[] = [
+  "whatsapp",
+  "telegram",
+  "facebook",
+  "instagram",
+  "tiktok",
+  "x",
+  "youtube",
+  "snapchat",
+];
+
+export const CHANNEL_LABELS: Record<Channel, string> = {
+  whatsapp: "WhatsApp",
+  telegram: "Telegram",
+  facebook: "Facebook",
+  instagram: "Instagram",
+  tiktok: "TikTok",
+  x: "X",
+  youtube: "YouTube",
+  snapchat: "Snapchat",
+};
+
+export function isChannel(value: string): value is Channel {
+  return (CHANNELS as readonly string[]).includes(value);
+}
+
+export const MIN_CPC_NAIRA = 50;
+const MAX_DESTINATION_LENGTH = 2_000;
+
+// Shorteners hide where a link really goes, so they can't be a destination.
+const SHORTENERS = new Set([
+  "bit.ly",
+  "tinyurl.com",
+  "t.co",
+  "goo.gl",
+  "is.gd",
+  "cutt.ly",
+  "rebrand.ly",
+  "ow.ly",
+  "buff.ly",
+  "shorturl.at",
+  "rb.gy",
+  "tiny.cc",
+  "s.id",
+  "t.ly",
+]);
+
+/** A destination a business may promote: https, a real host, no shortener. */
+export function checkDestinationUrl(
+  raw: string,
+): { url: string } | { error: string } {
+  const value = raw.trim();
+  if (value === "") return { error: "Enter the link you want people to visit." };
+  if (value.length > MAX_DESTINATION_LENGTH) {
+    return { error: `Use a link of ${MAX_DESTINATION_LENGTH} characters or fewer.` };
+  }
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return { error: "Enter a full link, starting with https://" };
+  }
+  if (url.protocol !== "https:") {
+    return { error: "Use a secure link, starting with https://" };
+  }
+  if (url.username !== "" || url.password !== "" || url.port !== "") {
+    return { error: "Use a plain link, without a port or a login." };
+  }
+  const host = url.hostname.toLowerCase();
+  const isIp =
+    /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.startsWith("[");
+  if (isIp || host === "localhost" || !host.includes(".")) {
+    return { error: "Use your website's address, not an IP address." };
+  }
+  if (SHORTENERS.has(host.replace(/^www\./, ""))) {
+    return {
+      error: "Use the full link, not a shortened one. Pitchype makes each creator's short link.",
+    };
+  }
+  return { url: value };
+}
+
+/** How many clicks a creator's budget pays for. */
+export function maxClicks(budgetKobo: number, cpcKobo: number): number {
+  return Math.floor(budgetKobo / cpcKobo);
+}
+
+function parseCpc(raw: string): { kobo: number } | { error: string } {
+  const cleaned = raw.replace(/[₦,\s]/g, "");
+  if (cleaned === "") return { error: "Enter what you pay per click." };
+  if (!/^\d+$/.test(cleaned)) {
+    return { error: "Enter a whole number of naira, like 50." };
+  }
+  const naira = Number(cleaned);
+  if (naira < MIN_CPC_NAIRA) {
+    return { error: `The lowest price per click is ₦${MIN_CPC_NAIRA}.` };
+  }
+  if (naira > MAX_PRICE_NAIRA) {
+    return { error: `Enter ${formatNaira(MAX_PRICE_NAIRA * KOBO_PER_NAIRA)} or less.` };
+  }
+  return { kobo: naira * KOBO_PER_NAIRA };
+}
+
+type PerClickTerms = {
+  paymentModel: PaymentModel;
+  cpcKobo: number | null;
+  destinationUrl: string | null;
+  utmTags: boolean;
+  blockedChannels: Channel[];
+};
+
+function perClickTerms(
+  form: FormData,
+  priceKobo: number | null,
+  errors: FieldErrors<CampaignField>,
+): PerClickTerms {
+  if (text(form, "payment_model") !== "per_click") {
+    return {
+      paymentModel: "fixed",
+      cpcKobo: null,
+      destinationUrl: null,
+      utmTags: true,
+      blockedChannels: [],
+    };
+  }
+
+  const cpc = parseCpc(text(form, "cpc"));
+  if ("error" in cpc) errors.cpc = cpc.error;
+  else if (priceKobo !== null && !errors.price && priceKobo % cpc.kobo !== 0) {
+    errors.price = `Make the budget a whole number of clicks: a multiple of ${formatNaira(cpc.kobo)}.`;
+  }
+
+  const destination = checkDestinationUrl(text(form, "destination_url"));
+  if ("error" in destination) errors.destinationUrl = destination.error;
+
+  const posted = [
+    ...new Set(form.getAll("blocked_channels").filter((v) => typeof v === "string")),
+  ];
+  if (posted.some((v) => !isChannel(v))) {
+    errors.blockedChannels = "Choose channels from the list.";
+  }
+
+  return {
+    paymentModel: "per_click",
+    cpcKobo: "kobo" in cpc ? cpc.kobo : null,
+    destinationUrl: "url" in destination ? destination.url : null,
+    utmTags: text(form, "utm_tags") === "on",
+    blockedChannels: posted.filter(isChannel),
+  };
+}
+
 // Dates -------------------------------------------------------------------------------
 // Campaign dates are calendar days in Lagos, kept as "YYYY-MM-DD" strings.
 
@@ -268,9 +436,18 @@ export type CampaignInput = {
   deliverBy: string;
   platforms: { platform: Platform; minFollowers: FollowerRange | null }[];
   deliverables: Deliverable[];
+  /** For per-click campaigns `priceKobo` is the budget per creator. */
+  paymentModel: PaymentModel;
+  cpcKobo: number | null;
+  destinationUrl: string | null;
+  utmTags: boolean;
+  blockedChannels: Channel[];
 };
 
 export type CampaignField =
+  | "cpc"
+  | "destinationUrl"
+  | "blockedChannels"
   | "title"
   | "brief"
   | "guidelines"
@@ -410,6 +587,7 @@ export function parseCampaignForm(
   const price = parsePrice(text(form, "price"));
   if ("error" in price) errors.price = price.error;
   const placeCount = places(form, errors);
+  const terms = perClickTerms(form, "kobo" in price ? price.kobo : null, errors);
 
   const applicationsCloseOn = text(form, "applicationsCloseOn");
   const postFromRaw = text(form, "postFrom");
@@ -448,6 +626,9 @@ export function parseCampaignForm(
     applicationsCloseOn,
     postFrom: postFromRaw,
     deliverBy,
+    cpc: text(form, "cpc").trim(),
+    destinationUrl: text(form, "destination_url").trim(),
+    blockedChannels: terms.blockedChannels.join(","),
   };
   if (Object.keys(errors).length > 0 || "error" in price) {
     return { ok: false, errors, values };
@@ -468,6 +649,7 @@ export function parseCampaignForm(
       deliverBy,
       platforms,
       deliverables,
+      ...terms,
     },
   };
 }
