@@ -8,7 +8,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(38);
+select plan(40);
 
 -- Ada (business), Chidi and Dayo (creators), Bola (another business).
 insert into public.users (id, auth_user_id, email, role) values
@@ -47,7 +47,8 @@ insert into public.campaigns (id, business_id, status, title, brief, price_kobo,
 insert into public.applications (id, campaign_id, creator_id, status) values
   ('ce000000-0000-0000-0000-0000000000a1', 'ce000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000ce011', 'approved'),
   ('ce000000-0000-0000-0000-0000000000a2', 'ce000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000ce011', 'approved'),
-  ('ce000000-0000-0000-0000-0000000000a3', 'ce000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-0000000ce011', 'approved');
+  ('ce000000-0000-0000-0000-0000000000a3', 'ce000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-0000000ce011', 'approved'),
+  ('ce000000-0000-0000-0000-0000000000a4', 'ce000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000ce012', 'approved');
 
 -- Funded hires (the fee snapshot is what funding writes).
 insert into public.engagements (id, application_id, campaign_id, business_id, creator_id, status, agreed_price_kobo,
@@ -59,6 +60,13 @@ select ('ce000000-0000-0000-0000-0000000000e' || n)::uuid,
        'funded', 500000, now() + interval '48 hours', now(), 50000, 500, 50000,
        (select id from public.fee_config order by created_at limit 1)
   from generate_series(1, 3) n;
+-- Dayo's per-click hire is paid but not started.
+insert into public.engagements (id, application_id, campaign_id, business_id, creator_id, status, agreed_price_kobo,
+                                pay_by, funded_at, business_fee_kobo, creator_fee_bps, creator_min_fee_kobo, fee_config_id)
+values ('ce000000-0000-0000-0000-0000000000e4', 'ce000000-0000-0000-0000-0000000000a4',
+        'ce000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000ce001',
+        '00000000-0000-0000-0000-0000000ce012', 'funded', 500000, now() + interval '48 hours', now(),
+        50000, 500, 50000, (select id from public.fee_config order by created_at limit 1));
 
 -- Chidi starts all three ---------------------------------------------------------------------
 set local role authenticated;
@@ -179,6 +187,12 @@ select is(
 
 set local request.jwt.claims = '{"sub": "cececece-0000-0000-0000-0000000ce012"}';
 select is((select count(*)::int from public.link_clicks), 0, 'another creator sees no clicks');
+select is(
+  public.engagement_click_summary('ce000000-0000-0000-0000-0000000000e4'),
+  jsonb_build_object('code', null, 'cpcKobo', 5000, 'capKobo', 500000),
+  'before the start, a per-click hire shows its terms and no link');
+select is(public.engagement_click_summary('ce000000-0000-0000-0000-0000000000e1'), null,
+  'another creator sees nothing of Chidi''s hire');
 
 set local request.jwt.claims = '{"sub": "cececece-0000-0000-0000-0000000ce001"}';
 select is(

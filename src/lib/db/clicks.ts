@@ -8,11 +8,14 @@
 
 import "server-only";
 
+import { isChannel, type Channel } from "@/lib/campaign";
+import { isFilterReason, type FilterReason } from "@/lib/click-words";
 import type { ClickSource, ClientClass } from "@/lib/clicks";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createSessionClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
 
-import { isObject, str } from "./json";
+import { isObject, list, num, str } from "./json";
 
 export type LinkTarget = {
   destination: string;
@@ -66,5 +69,94 @@ export async function lookupDestination(
     destination: data.campaigns.destination_url,
     utmTags: data.campaigns.utm_tags,
     campaignId: data.campaign_id,
+  };
+}
+
+// The hire and campaign pages ---------------------------------------------------------------
+
+export type LinkStats = {
+  /** Null while a per-click hire is paid but not started. */
+  code: string | null;
+  cpcKobo: number;
+  capKobo: number;
+  billable: number;
+  totalHits: number;
+  earnedKobo: number;
+  filtered: Partial<Record<FilterReason, number>>;
+  blockedShares: Channel[];
+};
+
+export type CampaignClicks = {
+  billable: number;
+  totalHits: number;
+  spentKobo: number;
+  hires: (LinkStats & { engagementId: string; creatorName: string })[];
+};
+
+function toStats(value: Json): LinkStats | null {
+  if (!isObject(value)) return null;
+  const cpcKobo = num(value.cpcKobo);
+  const capKobo = num(value.capKobo);
+  if (cpcKobo === null || capKobo === null) return null;
+  const filtered: Partial<Record<FilterReason, number>> = {};
+  if (isObject(value.filtered)) {
+    for (const [reason, n] of Object.entries(value.filtered)) {
+      if (isFilterReason(reason) && typeof n === "number") filtered[reason] = n;
+    }
+  }
+  return {
+    code: str(value.code),
+    cpcKobo,
+    capKobo,
+    billable: num(value.billable) ?? 0,
+    totalHits: num(value.totalHits) ?? 0,
+    earnedKobo: num(value.earnedKobo) ?? 0,
+    filtered,
+    blockedShares: list(value.blockedShares).filter(
+      (c): c is Channel => typeof c === "string" && isChannel(c),
+    ),
+  };
+}
+
+/** A hire's link and counts; null unless it is a per-click hire the caller is on. */
+export async function getEngagementClicks(
+  engagementId: string,
+): Promise<LinkStats | null> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase.rpc("engagement_click_summary", {
+    engagement: engagementId,
+  });
+  if (error) throw new Error(`click summary failed (${error.code})`);
+  return toStats(data);
+}
+
+/** Per-creator counts for the business's per-click campaign; null otherwise. */
+export async function getCampaignClicks(
+  campaignId: string,
+): Promise<CampaignClicks | null> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase.rpc("campaign_click_summary", {
+    campaign: campaignId,
+  });
+  if (error) throw new Error(`campaign clicks failed (${error.code})`);
+  if (!isObject(data) || !isObject(data.totals)) return null;
+  return {
+    billable: num(data.totals.billable) ?? 0,
+    totalHits: num(data.totals.totalHits) ?? 0,
+    spentKobo: num(data.totals.spentKobo) ?? 0,
+    hires: list(data.hires).flatMap((h) => {
+      const stats = toStats(h);
+      if (!stats || !isObject(h)) return [];
+      const engagementId = str(h.engagementId);
+      return engagementId
+        ? [
+            {
+              ...stats,
+              engagementId,
+              creatorName: str(h.creatorName) ?? "A creator",
+            },
+          ]
+        : [];
+    }),
   };
 }

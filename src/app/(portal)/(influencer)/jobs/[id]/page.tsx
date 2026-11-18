@@ -13,6 +13,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { ClickSummary } from "@/components/clicks/click-summary";
 import { DisputeForm } from "@/components/engagement/dispute-form";
 import { Rounds } from "@/components/engagement/rounds";
 import { buttonVariants } from "@/components/ui/button";
@@ -28,6 +29,7 @@ import {
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
 import { getEngagementDetails } from "@/lib/db/applications";
+import { getEngagementClicks } from "@/lib/db/clicks";
 import { getLatestDisputeId } from "@/lib/db/disputes";
 import { listSubmissions } from "@/lib/db/submissions";
 import { formatRate, INFLUENCER_FEE_BPS, MIN_FEE_KOBO } from "@/lib/fees";
@@ -100,6 +102,9 @@ async function Job({ params }: { params: Params }) {
   const rounds = (await listSubmissions(engagement.id)).reverse();
   // Kept after the dispute ends, so either person can read how it went.
   const disputeId = await getLatestDisputeId(engagement.id);
+  // Null unless this is a per-click hire: then the clicks are the work, and
+  // there is no proof to review (proof for the record comes in Part 2).
+  const clicks = await getEngagementClicks(engagement.id);
 
   const business = engagement.business.name;
   const status = describeJobStatus(
@@ -109,7 +114,7 @@ async function Job({ params }: { params: Params }) {
   const rate = formatRate(engagement.creatorFeeBps ?? INFLUENCER_FEE_BPS);
   // The full-price figure only applies until the job settles; after that the
   // callout says what actually reached the wallet.
-  const showEarnings = UNSETTLED.includes(engagement.status);
+  const showEarnings = !clicks && UNSETTLED.includes(engagement.status);
   const feeKobo = engagement.agreedPriceKobo - status.youReceiveKobo;
   const minFee = formatNaira(engagement.creatorMinFeeKobo ?? MIN_FEE_KOBO);
 
@@ -168,12 +173,17 @@ async function Job({ params }: { params: Params }) {
           )}
         </div>
         <div className="space-y-4 xl:col-start-1">
+          {clicks && (
+            <SectionCard id="clicks-title" title="Your clicks" padded>
+              <ClickSummary stats={clicks} viewer="creator" />
+            </SectionCard>
+          )}
           {rounds.length > 0 && (
             <SectionCard id="rounds-title" title="Your submissions">
               <Rounds rounds={rounds} />
             </SectionCard>
           )}
-          {(status.canSubmit || status.canResubmit) && (
+          {!clicks && (status.canSubmit || status.canResubmit) && (
             <SubmitForm
               engagementId={engagement.id}
               deliverables={engagement.campaign.deliverables}

@@ -4,6 +4,7 @@ import {
   Globe,
   Pause,
   PencilLine,
+  TriangleAlert,
   Undo2,
   Users,
 } from "lucide-react";
@@ -25,10 +26,12 @@ import { SectionCard } from "@/components/ui/section-card";
 import { requireRole } from "@/lib/auth";
 import {
   formatDay,
+  maxClicks,
   maxSpend,
   placesStatus,
   type CampaignAction,
 } from "@/lib/campaign";
+import { blockedShareWarning } from "@/lib/click-words";
 import { formatDateTime } from "@/lib/creator-profile";
 import { getApplicationCounts } from "@/lib/db/applications";
 import {
@@ -37,6 +40,7 @@ import {
   isTrustedBusiness,
   type OwnCampaign,
 } from "@/lib/db/campaigns";
+import { getCampaignClicks } from "@/lib/db/clicks";
 import { listNiches } from "@/lib/db/creators";
 import { formatNaira } from "@/lib/money";
 
@@ -81,7 +85,7 @@ async function Campaign({ params }: { params: Params }) {
   const live = ["draft", "pending_review", "open", "paused"].includes(
     campaign.status,
   );
-  const [niches, trusted, qualifying, counts] = await Promise.all([
+  const [niches, trusted, qualifying, counts, clicks] = await Promise.all([
     listNiches(),
     // Per-click campaigns always go to review, trusted business or not.
     campaign.status !== "draft"
@@ -91,6 +95,9 @@ async function Campaign({ params }: { params: Params }) {
         : isTrustedBusiness(user.id),
     live ? countQualifyingCreators(campaign.id) : Promise.resolve(null),
     getApplicationCounts(),
+    campaign.paymentModel === "per_click" && campaign.status !== "draft"
+      ? getCampaignClicks(campaign.id)
+      : Promise.resolve(null),
   ]);
   const applications = counts.get(campaign.id) ?? {
     total: 0,
@@ -219,6 +226,56 @@ async function Campaign({ params }: { params: Params }) {
                 />
               </SectionCard>
             )}
+          {clicks && clicks.hires.length > 0 && (
+            <SectionCard id="click-counts-title" title="Clicks so far" padded>
+              <p className="text-ink">
+                <strong>{clicks.billable.toLocaleString("en-NG")}</strong>{" "}
+                {clicks.billable === 1 ? "click" : "clicks"} counted across {clicks.hires.length}{" "}
+                {clicks.hires.length === 1 ? "creator" : "creators"}, worth{" "}
+                <strong>{formatNaira(clicks.spentKobo)}</strong>.{" "}
+                {(clicks.totalHits - clicks.billable).toLocaleString("en-NG")}{" "}
+                visits weren’t counted (previews, bots, repeats).
+              </p>
+              <ul className="mt-4 divide-y divide-hairline">
+                {clicks.hires.map((h) => {
+                  const cap = maxClicks(h.capKobo, h.cpcKobo);
+                  return (
+                    <li key={h.engagementId} className="py-3">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                        <Link
+                          href={`/business/engagements/${h.engagementId}`}
+                          className="link font-semibold"
+                        >
+                          {h.creatorName}
+                        </Link>
+                        <span className="text-sm text-ink tabular-nums">
+                          {h.billable.toLocaleString("en-NG")} of{" "}
+                          {cap.toLocaleString("en-NG")} clicks ·{" "}
+                          {formatNaira(h.earnedKobo)} (
+                          {Math.floor((h.billable / cap) * 100)}%)
+                        </span>
+                      </div>
+                      {h.blockedShares.map((channel) => (
+                        <p
+                          key={channel}
+                          className="mt-1 flex items-start gap-2 text-sm font-medium text-ink"
+                        >
+                          <TriangleAlert
+                            className="mt-0.5 size-4 shrink-0 text-danger"
+                            aria-hidden="true"
+                          />
+                          {blockedShareWarning(channel)}
+                        </p>
+                      ))}
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-3 text-sm text-muted">
+                As of when you opened this page.
+              </p>
+            </SectionCard>
+          )}
           <SectionCard id="posts-title" title="What each creator posts" padded>
             <div>
               <DeliverableList
