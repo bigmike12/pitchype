@@ -306,11 +306,13 @@ select is(
   (select removed_reason from public.campaigns where title = 'Zobo launch reels'),
   'Off-platform contact', 'the business sees why it was taken down');
 
--- Pay per click is decided but not built ---------------------------------------------------------
+-- Pay per click: always reviewed, terms locked once submitted (more in per_click_campaigns.test.sql)
 reset role;
-insert into public.campaigns (business_id, title, brief, payment_model, places, applications_close_on, deliver_by)
+insert into public.campaigns (business_id, title, brief, payment_model, cpc_kobo, price_kobo, destination_url,
+                              places, applications_close_on, deliver_by)
 values ('00000000-0000-0000-0000-0000000ca001', 'Click campaign', 'Send people to our new online shop.',
-        'per_click', 5, public.lagos_today() + 5, public.lagos_today() + 9);
+        'per_click', 5000, 500000, 'https://shop.example.com/new', 5,
+        public.lagos_today() + 5, public.lagos_today() + 9);
 insert into public.campaign_platforms (campaign_id, platform)
 select id, 'x' from public.campaigns where title = 'Click campaign';
 insert into public.campaign_deliverables (campaign_id, position, platform, kind, quantity)
@@ -318,12 +320,13 @@ select id, 1, 'x', 'post', 1 from public.campaigns where title = 'Click campaign
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "bbbbbbbb-0000-0000-0000-000000000001"}';
+select is(
+  public.transition_campaign((select id from public.campaigns where title = 'Click campaign'), 'submit'),
+  'pending_review'::public.campaign_status, 'a pay-per-click campaign waits for an admin even from a trusted business');
 select throws_ok(
-  $$ select public.transition_campaign((select id from public.campaigns where title = 'Click campaign'), 'submit') $$,
-  '0A000', null, 'pay-per-click campaigns cannot be published yet');
-select throws_ok(
-  $$ update public.campaigns set payment_model = 'fixed' where title = 'Click campaign' $$,
-  '42501', null, 'businesses cannot set the payment model directly');
+  $$ update public.campaigns set payment_model = 'fixed', cpc_kobo = null, destination_url = null
+      where title = 'Click campaign' $$,
+  '42501', null, 'the payment model is locked once submitted');
 
 -- Counting needs ownership --------------------------------------------------------------------------
 set local request.jwt.claims = '{"sub": "bbbbbbbb-0000-0000-0000-000000000002"}';

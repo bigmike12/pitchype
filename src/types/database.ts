@@ -323,11 +323,14 @@ export type Database = {
           applications_close_on: string
           approved_at: string | null
           approved_by: string | null
+          blocked_channels: string[]
           brief: string
           business_id: string
           closed_at: string | null
+          cpc_kobo: number | null
           created_at: string
           deliver_by: string
+          destination_url: string | null
           guidelines: string | null
           id: string
           niches: string[]
@@ -343,17 +346,21 @@ export type Database = {
           submitted_at: string | null
           title: string
           updated_at: string
+          utm_tags: boolean
           verified_only: boolean
         }
         Insert: {
           applications_close_on: string
           approved_at?: string | null
           approved_by?: string | null
+          blocked_channels?: string[]
           brief: string
           business_id: string
           closed_at?: string | null
+          cpc_kobo?: number | null
           created_at?: string
           deliver_by: string
+          destination_url?: string | null
           guidelines?: string | null
           id?: string
           niches?: string[]
@@ -369,17 +376,21 @@ export type Database = {
           submitted_at?: string | null
           title: string
           updated_at?: string
+          utm_tags?: boolean
           verified_only?: boolean
         }
         Update: {
           applications_close_on?: string
           approved_at?: string | null
           approved_by?: string | null
+          blocked_channels?: string[]
           brief?: string
           business_id?: string
           closed_at?: string | null
+          cpc_kobo?: number | null
           created_at?: string
           deliver_by?: string
+          destination_url?: string | null
           guidelines?: string | null
           id?: string
           niches?: string[]
@@ -395,6 +406,7 @@ export type Database = {
           submitted_at?: string | null
           title?: string
           updated_at?: string
+          utm_tags?: boolean
           verified_only?: boolean
         }
         Relationships: [
@@ -1864,6 +1876,7 @@ export type Database = {
         }
         Returns: Json
       }
+      all_distinct: { Args: { items: string[] }; Returns: boolean }
       answer_appeal: {
         Args: { answer: string; appeal: string; decline: boolean }
         Returns: undefined
@@ -1998,6 +2011,7 @@ export type Database = {
         Args: { engagement: string; reasons: string[] }
         Returns: string
       }
+      destination_host: { Args: { url: string }; Returns: string }
       display_name_of: { Args: { person: string }; Returns: string }
       edit_application: {
         Args: { application: string; note: string; proposed_price_kobo: number }
@@ -2255,18 +2269,23 @@ export type Database = {
       save_campaign_draft: {
         Args: {
           applications_close_on: string
+          blocked_channels?: string[]
           brief: string
           campaign_id: string
+          cpc_kobo?: number
           deliver_by: string
           deliverables: Json
+          destination_url?: string
           guidelines: string
           niches: string[]
+          payment_model?: Database["public"]["Enums"]["payment_model"]
           places: number
           platforms: Json
           post_from: string
           price_kobo: number
           states: string[]
           title: string
+          utm_tags?: boolean
           verified_only: boolean
         }
         Returns: string
