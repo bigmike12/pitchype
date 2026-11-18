@@ -6,10 +6,21 @@ import { requireUser } from "@/lib/auth";
 import { saveMyEmailPreferences } from "@/lib/db/notification-emails";
 import { createProfile, updateProfile } from "@/lib/db/profiles";
 import type { FormState } from "@/lib/form-data";
-import { parseEmailPreferences } from "@/lib/notification-email";
+import {
+  parseEmailPreferences,
+  type EmailPreferences,
+} from "@/lib/notification-email";
 import { parseProfileForm, type ProfileField } from "@/lib/profile";
 
 export type ProfileState = FormState<ProfileField>;
+
+// `values` is what the switches should show: the saved choices, or on a failed
+// save the submitted ones, so a retry keeps what the person picked.
+export type EmailPreferencesState = {
+  status: "idle" | "error" | "success";
+  message?: string;
+  values?: EmailPreferences;
+};
 
 const SAVE_FAILED =
   "We couldn’t save your profile just now. Please try again in a minute.";
@@ -74,15 +85,16 @@ export async function updateProfileAction(
 }
 
 export async function updateEmailPreferencesAction(
-  _previous: FormState<never>,
+  _previous: EmailPreferencesState,
   form: FormData,
-): Promise<FormState<never>> {
+): Promise<EmailPreferencesState> {
   const user = await requireUser();
   // Admins have no bell and receive no notifications, so nothing to switch.
   if (user.role === "admin") redirect("/home");
 
+  const preferences = parseEmailPreferences(form);
   try {
-    await saveMyEmailPreferences(parseEmailPreferences(form));
+    await saveMyEmailPreferences(preferences);
   } catch (error) {
     console.error(
       "account: email preferences save failed",
@@ -92,9 +104,10 @@ export async function updateEmailPreferencesAction(
       status: "error",
       message:
         "We couldn’t save your email settings just now. Please try again in a minute.",
+      values: preferences,
     };
   }
-  return { status: "success", message: "Saved." };
+  return { status: "success", message: "Saved.", values: preferences };
 }
 
 function valuesOf(form: FormData): ProfileState["values"] {
