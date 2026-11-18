@@ -28,7 +28,7 @@ export function ForCreators() {
       lead="You don’t need 10,000 followers to be worth paying. Businesses on Pitchype pay for posts, reviews and videos from creators their customers already trust, with the money held safely before you start."
       points={[
         "No follower minimum to join.",
-        "Browse open campaigns that match your niche and city, or get found in the directory.",
+        "Browse open campaigns by niche and platform, see only the ones you qualify for, or get found in the directory.",
         "Apply at the listed price or propose your own.",
         "Start once the business has paid, so the money is already there.",
         "Get paid when your work is approved, or automatically after 7 days of silence.",

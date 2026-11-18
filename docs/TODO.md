@@ -202,13 +202,22 @@ Design: `docs/DESIGN_SYSTEM.md` and CLAUDE.md §4a.
       recording once the Stage 5–6 screens exist (optional).
 - [ ] Dark mode isn't designed. The tokens would carry it; only build it if
       people ask.
-- [ ] The landing page's outside figures (`src/components/landing/stats.tsx`)
-      were checked on 2026-11-10. Recheck them every few months (TikTok's
+- [ ] The outside figures (`src/components/landing/stats.tsx`, shown on
+      `/for-business` and `/for-creators`) were checked on 2026-11-10. Recheck them every few months (TikTok's
       Creator Rewards countries change), and replace them with Pitchype's
       own numbers once there are enough.
 - [ ] Next for the landing page argument, from the positioning notes:
       creator performance analytics (reach, clicks, earnings per campaign) so
       "measurable" can be claimed with our own data.
+- [ ] Audience pages (2026-11-18): `/for-business` and `/for-creators` are
+      built and the home page is a front door that links to them. When UGC
+      (or any new product) ships, add a section to the right page and a line
+      to the home page's `AudienceSplit`; don't mention it before it exists.
+      Design: `docs/superpowers/specs/2026-11-18-audience-pages-design.md`.
+- [ ] Audience pages: the "How it works" steps on each page are the same four
+      steps as the home page's tabs. If the product grows, give the pages
+      their own, deeper steps. The home page's bento `Features` section was
+      left as it is (its tiles serve both sides).
 - [ ] `ChoiceGroup`'s `pills` variant lost its only user with the waitlist
       form. Remove it if nothing needs it by the next design pass.
 - [ ] `docs/design-inspiration-clay.md` still describes the old cream look;
