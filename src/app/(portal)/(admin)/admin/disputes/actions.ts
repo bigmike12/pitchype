@@ -8,6 +8,7 @@ import {
   addStatementFromForm,
   type StatementState,
 } from "@/lib/dispute-statement";
+import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { isUuid, text, type FormState } from "@/lib/form-data";
 import { refusalText } from "@/lib/refusals";
 import { isSettleOutcome, parseNairaAmount } from "@/lib/settle-preview";
@@ -24,7 +25,9 @@ export async function addAdminStatementAction(
   form: FormData,
 ): Promise<StatementState> {
   const user = await requireRole("admin");
-  return addStatementFromForm(user.id, form);
+  const state = await addStatementFromForm(user.id, form);
+  if (state.status === "success") sendEmailsAfterResponse();
+  return state;
 }
 
 export type DecideState = FormState<
@@ -99,5 +102,6 @@ export async function decideDisputeAction(
   if (!result.ok) {
     return { status: "error", message: refusalText(result.reason), values };
   }
+  sendEmailsAfterResponse();
   return { status: "success", message: "Decided. Both people are told." };
 }

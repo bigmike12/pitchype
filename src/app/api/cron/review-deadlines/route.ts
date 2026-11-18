@@ -1,4 +1,5 @@
 import { cronStatus, runReviewDeadlines } from "@/lib/review-deadlines";
+import { sendDueEmailsSafely } from "@/lib/send-emails";
 
 import { authorised } from "../authorised";
 
@@ -14,5 +15,6 @@ export async function GET(request: Request) {
     return Response.json({ error: "unauthorised" }, { status: 401 });
   }
   const result = await runReviewDeadlines();
+  await sendDueEmailsSafely();
   return Response.json(result, { status: cronStatus(result) });
 }

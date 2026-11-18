@@ -5,6 +5,7 @@ import { refresh } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { cancelFundedEngagement } from "@/lib/db/money";
 import { acceptSubmission, denySubmission } from "@/lib/db/submissions";
+import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { text, type FormState } from "@/lib/form-data";
 import { openDisputeFromForm, type DisputeState } from "@/lib/open-dispute";
 import { parseDenialReasons } from "@/lib/proof";
@@ -42,6 +43,7 @@ export async function cancelFundedAction(
     refresh();
     return { status: "error", message: refusalText(result.reason) };
   }
+  sendEmailsAfterResponse();
   refresh();
   return { status: "success", message: "The hire is cancelled." };
 }
@@ -66,6 +68,7 @@ export async function acceptSubmissionAction(
   if (!result.ok) {
     return { status: "error", message: refusalText(result.reason) };
   }
+  sendEmailsAfterResponse();
   return {
     status: "success",
     message:
@@ -99,6 +102,8 @@ export async function denySubmissionAction(
   if (!result.ok) {
     return { status: "error", message: refusalText(result.reason) };
   }
+  // Also for "review_closed": the database released the money instead.
+  sendEmailsAfterResponse();
   if (result.value === "review_closed") {
     return { status: "error", message: REVIEW_ENDED };
   }
@@ -114,5 +119,7 @@ export async function openDisputeAction(
   form: FormData,
 ): Promise<DisputeState> {
   const user = await requireRole("business");
-  return openDisputeFromForm(user.id, form);
+  const state = await openDisputeFromForm(user.id, form);
+  if (state.status === "success") sendEmailsAfterResponse();
+  return state;
 }

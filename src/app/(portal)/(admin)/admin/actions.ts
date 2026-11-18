@@ -11,6 +11,7 @@ import {
   setCreatorHidden,
 } from "@/lib/db/reports";
 import { reviewVerification } from "@/lib/db/verification";
+import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { text, type FormState } from "@/lib/form-data";
 import { answerAppeal, liftSuspension, voidStrike } from "@/lib/db/moderation";
 import { refusalText } from "@/lib/refusals";
@@ -65,6 +66,7 @@ export async function reviewVerificationAction(
         "This request isn’t waiting any more (already reviewed, or the creator changed the handle).",
     };
   }
+  sendEmailsAfterResponse();
   refresh();
   return { status: "success" };
 }
@@ -108,6 +110,7 @@ export async function hideReportedCreatorAction(form: FormData): Promise<void> {
     return;
   }
   await setCreatorHidden(creatorId, reason);
+  sendEmailsAfterResponse();
   await resolveReport(reportId);
   refresh();
 }
@@ -117,6 +120,7 @@ export async function unhideCreatorAction(form: FormData): Promise<void> {
   const creatorId = text(form, "creatorId");
   if (!UUID.test(creatorId)) return;
   await setCreatorHidden(creatorId, null);
+  sendEmailsAfterResponse();
   refresh();
 }
 
@@ -127,7 +131,8 @@ export async function approveCampaignAction(form: FormData): Promise<void> {
   const campaignId = text(form, "campaignId");
   if (!UUID.test(campaignId)) return;
   // "stale" (someone else got there first) needs nothing more than a refresh.
-  await transitionCampaign(campaignId, "approve");
+  const result = await transitionCampaign(campaignId, "approve");
+  if (result.ok) sendEmailsAfterResponse();
   refresh();
 }
 
@@ -136,7 +141,8 @@ export async function sendBackCampaignAction(form: FormData): Promise<void> {
   const campaignId = text(form, "campaignId");
   const note = text(form, "note").trim().replace(/\s+/g, " ");
   if (!UUID.test(campaignId) || note.length < 2 || note.length > 500) return;
-  await transitionCampaign(campaignId, "reject", note);
+  const result = await transitionCampaign(campaignId, "reject", note);
+  if (result.ok) sendEmailsAfterResponse();
   refresh();
 }
 
@@ -164,7 +170,8 @@ export async function takeDownCampaignAction(form: FormData): Promise<void> {
   ) {
     return;
   }
-  await transitionCampaign(campaignId, "take_down", reason);
+  const result = await transitionCampaign(campaignId, "take_down", reason);
+  if (result.ok) sendEmailsAfterResponse();
   await resolveCampaignReport(reportId);
   refresh();
 }
@@ -209,6 +216,7 @@ export async function standingDecisionAction(
   if (!result.ok) {
     return { status: "error", message: refusalText(result.reason), values };
   }
+  sendEmailsAfterResponse();
   refresh();
   return { status: "success", message: "Done." };
 }

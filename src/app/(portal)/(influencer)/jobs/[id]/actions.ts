@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/auth";
 import { getEngagementDetails } from "@/lib/db/applications";
 import { cancelFundedEngagement, startEngagement } from "@/lib/db/money";
 import { submitWork, withdrawFromEngagement } from "@/lib/db/submissions";
+import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { text, type FormState } from "@/lib/form-data";
 import { isSubmitLimited, SUBMIT_LIMITED_MESSAGE } from "@/lib/money-limits";
 import { openDisputeFromForm, type DisputeState } from "@/lib/open-dispute";
@@ -51,6 +52,7 @@ export async function startWorkAction(
   if (!result.ok) {
     return { status: "error", message: refusalText(result.reason) };
   }
+  sendEmailsAfterResponse();
   return { status: "success", message: "Work has started." };
 }
 
@@ -95,6 +97,7 @@ export async function withdrawAction(
   if (!result.ok) {
     return { status: "error", message: refusalText(result.reason) };
   }
+  sendEmailsAfterResponse();
   return { status: "success", message: "You’ve withdrawn from this job." };
 }
 
@@ -159,6 +162,7 @@ export async function submitWorkAction(
   if (!result.ok) {
     return { status: "error", message: refusalText(result.reason) };
   }
+  sendEmailsAfterResponse();
   return { status: "success", message: "Your work has been sent in." };
 }
 
@@ -168,5 +172,7 @@ export async function openDisputeAction(
   form: FormData,
 ): Promise<DisputeState> {
   const user = await requireRole("influencer");
-  return openDisputeFromForm(user.id, form);
+  const state = await openDisputeFromForm(user.id, form);
+  if (state.status === "success") sendEmailsAfterResponse();
+  return state;
 }
