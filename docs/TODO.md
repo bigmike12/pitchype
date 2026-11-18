@@ -58,6 +58,10 @@ Details: README, "Deploy to Vercel".
       only". They must cover accounts, public creator profiles and photos,
       verification and reports, reviewed by a lawyer. Then drop the draft
       banner and `noindex`, and add them to the sitemap.
+- [ ] **You:** name PostHog as a processor in the privacy notice (error reports
+      go to PostHog, see `docs/PROVIDERS.md`), and have the lawyer review the
+      cross-border transfer. Then create the PostHog project and set
+      `POSTHOG_PROJECT_API_KEY` and `POSTHOG_HOST` in Vercel.
 - [ ] **You:** confirm the `hello@pitchype.com` inbox exists. It's in the
       footer and in the message hidden creators see (`src/lib/site.ts`).
 - [x] Link sign-up and login from the site; swap the "Join the waitlist"
@@ -78,12 +82,18 @@ Details: README, "Deploy to Vercel".
 
 ## 4. Quality and tooling
 
-- [ ] CI: a GitHub Actions workflow running lint, type-check, unit tests and
-      the database tests on every PR. There is none yet; everything is run by
-      hand before each PR.
-- [ ] Keep the browser end-to-end tests in the repo. Today they're throwaway
-      scripts, run by hand each stage. Playwright would be a new dev
-      dependency (decide first).
+- [x] CI: `.github/workflows/ci.yml` runs lint, type-check, unit tests and
+      build, and pgTAP against a fresh local Supabase, on every PR and push to
+      `main` (added 2026-11-18, Stage 9), plus a production `npm audit` (high and
+      critical) and the Playwright job. Still to do: make it a required check
+      on `main`; add `scripts/money-race.mjs`.
+- [ ] Formatting: `npm run format:check` fails on 16 files. Format them in one
+      commit with no logic changes, then add `format:check` to CI.
+- [x] Browser end-to-end tests: Playwright (`@playwright/test` 1.65.1, pinned) in
+      `e2e/`, run by `npm run test:e2e` and in the CI `e2e` job against the local
+      Supabase stack. Smoke tests at desktop and 390px. Added 2026-11-18, Stage 9.
+      Still to do: the signed-in flows (hire, submit, dispute, payout) need test
+      accounts and seed data.
 - [ ] Try photo upload on real phones: iPhone (HEIC photos), Android, slow
       mobile data.
 - [ ] Update the Supabase CLI (2.65 → 3.x).
@@ -103,8 +113,12 @@ Details: README, "Deploy to Vercel".
 - [ ] Two accounts can list the same handle as self-reported (only verified
       handles are unique). Consider flagging duplicates to admins.
 - [ ] Spot phone numbers and emails in bios (anti-leakage, CLAUDE.md §10).
-- [ ] Rate limits live in each server's memory; move them to a shared store
-      if abuse shows up.
+- [x] Rate limits are shared across server instances: each attempt is a row in
+      `rate_limit_hits`, counted by `consume_rate_limit()` (migration
+      `20261118100200`, Stage 9; `src/lib/db/rate-limits.ts`). Rows older than
+      their window are deleted when their key is checked. Still to do: a
+      scheduled sweep for keys that are never checked again (cheap to add to a
+      daily job).
 - [ ] Profile pages stream their meta description to Googlebot (Lighthouse
       SEO 91; Google handles it). Revisit if search results look wrong.
 - [ ] Automated verification through official APIs (YouTube Data API, TikTok
@@ -403,8 +417,8 @@ Product and code follow-ups:
       enum value means rebuilding the type).
 - [ ] Cache `listBanks()`; it runs uncached, up to five pages, on every form
       render, name check and save.
-- [ ] Rate limits (bank checks, payout requests) are in memory per instance,
-      like the others (section 5).
+- [x] Rate limits (bank checks, payout requests) are shared now, like the
+      others (section 5, Stage 9).
 - [x] Stage 7 must call `settle_engagement_internal` for accept, auto-release
       and disputes, skip the actor in `engagements_money_notify`, and widen
       settlement to `submitted` and `disputed`.

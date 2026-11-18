@@ -133,7 +133,7 @@ export async function submitWorkAction(
       },
     };
   }
-  if (isSubmitLimited(user.id)) {
+  if (await isSubmitLimited(user.id)) {
     return { status: "error", message: SUBMIT_LIMITED_MESSAGE };
   }
 

@@ -169,3 +169,12 @@ sends itself (Stage 8). One provider, no abstraction over it (CLAUDE.md §2).
 | Retrying | The email queue over the `notifications` table, not this file: a thrown `ResendError` leaves the row to be tried again | No | Nothing to change |
 | Environment variables | `RESEND_API_KEY` (server-only, never a `NEXT_PUBLIC_` name) and `FROM_EMAIL` (the sender, e.g. `Pitchype <hello@yourdomain>`, on a domain verified in Resend) | Yes | The new provider's credential and a verified sender |
 | Dashboard setup (once per environment) | Verify the sending domain (SPF and DKIM) and create an API key limited to sending | Yes | The same domain checks at the new provider |
+
+## PostHog (error reporting)
+
+| What | Where | Provider-specific? | To replace |
+|---|---|---|---|
+| Reporting server errors: thrown errors (Next.js calls `onRequestError` for every request error) and the money-checks job's failed steps | `src/lib/observability.ts` (`reportServerError`), the only file that calls PostHog; hooked in `src/instrumentation.ts` and `src/app/api/cron/money-checks/route.ts`. Plain `fetch` to `POST <host>/capture/` with one `$exception` event, 5 second timeout, no retries; never throws | Yes | Rewrite `reportServerError` for the new service, keeping its signature. Callers don't change |
+| What is sent | Error name, message and stack, scrubbed of email addresses, numbers of nine or more digits and the server secrets. `distinct_id` is the fixed string `server`, and `$process_person_profile` is off: no person profiles, no session replay, no autocapture (none of those are enabled in the client) | Yes | Keep the same limits when replacing it |
+| Environment variables | `POSTHOG_PROJECT_API_KEY` (the `phc_` project key; unset means nothing is sent) and `POSTHOG_HOST` (defaults to `https://us.i.posthog.com`; use `https://eu.i.posthog.com` for the EU cloud) | Yes | The new service's key and host |
+| Dashboard setup (once per environment) | Create the project, copy the project key, and choose the region when creating it (it can't be moved later) | Yes | The same at the new provider |

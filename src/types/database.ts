@@ -1484,6 +1484,21 @@ export type Database = {
           },
         ]
       }
+      rate_limit_hits: {
+        Row: {
+          hit_at: string
+          key: string
+        }
+        Insert: {
+          hit_at?: string
+          key: string
+        }
+        Update: {
+          hit_at?: string
+          key?: string
+        }
+        Relationships: []
+      }
       reconciliation_runs: {
         Row: {
           difference_kobo: number
@@ -1909,6 +1924,10 @@ export type Database = {
       }
       clean_note: { Args: { note: string }; Returns: string }
       clean_reason: { Args: { reason: string }; Returns: string }
+      consume_rate_limit: {
+        Args: { p_key: string; p_max: number; p_window_seconds: number }
+        Returns: boolean
+      }
       contact_detail_kind: { Args: { body: string }; Returns: string }
       count_qualifying_creators: { Args: { campaign: string }; Returns: number }
       create_app_user: {

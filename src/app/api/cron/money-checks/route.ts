@@ -1,4 +1,5 @@
 import { cronStatus, runMoneyChecks } from "@/lib/money-checks";
+import { reportServerError } from "@/lib/observability";
 import { sendDueEmailsSafely } from "@/lib/send-emails";
 
 import { authorised } from "../authorised";
@@ -15,5 +16,13 @@ export async function GET(request: Request) {
   }
   const result = await runMoneyChecks();
   await sendDueEmailsSafely();
-  return Response.json(result, { status: cronStatus(result) });
+  const status = cronStatus(result);
+  if (status === 500) {
+    // The status is the only trace a failed step leaves, so report it here.
+    await reportServerError(
+      new Error("money-checks finished with a failed step"),
+      "GET /api/cron/money-checks",
+    );
+  }
+  return Response.json(result, { status });
 }

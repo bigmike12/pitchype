@@ -11,6 +11,7 @@ import { createRateLimiter } from "@/lib/rate-limit";
 export type LoginState = FormState<"email" | "password">;
 
 const isRateLimited = createRateLimiter({
+  name: "login",
   maxAttempts: 10,
   windowMs: 10 * 60 * 1000,
 });
@@ -26,7 +27,7 @@ export async function loginAction(
 
   const { email } = parsed.value;
   const values = { email };
-  if (isRateLimited(await clientIp())) {
+  if (await isRateLimited(await clientIp())) {
     return {
       status: "error",
       message: "Too many tries. Wait a few minutes, then try again.",

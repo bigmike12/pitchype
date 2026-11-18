@@ -62,7 +62,7 @@ export async function openDisputeFromForm(
       },
     };
   }
-  if (isDisputeOpenLimited(userId)) {
+  if (await isDisputeOpenLimited(userId)) {
     return { status: "error", message: DISPUTE_OPEN_LIMITED_MESSAGE };
   }
 

@@ -9,6 +9,7 @@ import { createRateLimiter } from "@/lib/rate-limit";
 export type SignUpState = FormState<"email" | "password" | "role">;
 
 const isRateLimited = createRateLimiter({
+  name: "signup",
   maxAttempts: 5,
   windowMs: 10 * 60 * 1000,
 });
@@ -33,7 +34,7 @@ export async function signUpAction(
   }
 
   const { email, role } = parsed.value;
-  if (isRateLimited(await clientIp())) {
+  if (await isRateLimited(await clientIp())) {
     return {
       status: "error",
       message: MESSAGES.rate_limited,

@@ -1,0 +1,147 @@
+name: CI
+
+# Runs on every PR and on every push to main. Secrets are deliberately not
+# used: the checks below run against a local Supabase and must not need live keys.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: Lint, types, unit tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # Next.js writes the global PageProps and LayoutProps types into .next/
+      # on build; a fresh checkout has none, so generate them first.
+      - name: Generate Next.js route types
+        run: npx next typegen
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      # Production dependencies only: the lint toolchain has known advisories
+      # that are tracked in docs/TODO.md, and blocking every PR on them helps no one.
+      - name: Dependency audit (production, high and critical)
+        run: npm audit --omit=dev --audit-level=high
+
+      # The build renders some pages ahead of time, and those read Supabase
+      # settings and the database, so start the local stack for it. Same setup as
+      # the end-to-end job below.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.65.5
+
+      - name: Start local Supabase
+        run: supabase start
+
+      - name: Point the build at the local stack
+        run: |
+          status="$(supabase status -o env)"
+          value() { echo "$status" | grep "^$1=" | cut -d= -f2- | tr -d '"'; }
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$(value API_URL)"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$(value PUBLISHABLE_KEY)"
+            echo "SUPABASE_SECRET_KEY=$(value SECRET_KEY)"
+            echo "NEXT_PUBLIC_APP_URL=http://localhost:3030"
+          } >> "$GITHUB_ENV"
+
+      - name: Build
+        run: npm run build
+
+  database:
+    name: Database tests (pgTAP)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Pinned to the CLI version used locally (2.65.x). Bump deliberately.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.65.5
+
+      # Starts a fresh local stack, applying every migration in
+      # supabase/migrations and the seed. A new runner has no state to reset.
+      - name: Start local Supabase
+        run: supabase start
+
+      - name: Run pgTAP tests
+        run: supabase test db
+
+  e2e:
+    name: End-to-end (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.65.5
+
+      - name: Start local Supabase
+        run: supabase start
+
+      # The app reads its Supabase settings from the environment. Point it at the
+      # local stack. These are the local development keys, not secrets.
+      - name: Point the app at the local stack
+        run: |
+          status="$(supabase status -o env)"
+          value() { echo "$status" | grep "^$1=" | cut -d= -f2- | tr -d '"'; }
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$(value API_URL)"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$(value PUBLISHABLE_KEY)"
+            echo "SUPABASE_SECRET_KEY=$(value SECRET_KEY)"
+            echo "NEXT_PUBLIC_APP_URL=http://localhost:3030"
+          } >> "$GITHUB_ENV"
+
+      - name: Build
+        run: npm run build
+
+      - run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: npx playwright test
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
