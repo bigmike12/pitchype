@@ -8,7 +8,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(48);
+select plan(55);
 
 -- Ada (business), creators c1..c8 (one hire each).
 insert into public.users (id, auth_user_id, email, role) values
@@ -154,13 +154,24 @@ select is(pg_temp.moved('cf000000-0000-0000-0000-000000000e05', 'business_wallet
 
 -- The daily job -------------------------------------------------------------------------------
 set local role service_role;
-select is((public.settle_due_click_hires())->>'settled', '2',
-  'the job settles the two hires past the hold (4 never started, 7 with 10 clicks)');
+select is((public.settle_due_click_hires())->>'settled', '1',
+  'the first run settles only the hire that never started (4); 7 was only just told');
 reset role;
 select is((select status::text from public.engagements where id = 'cf000000-0000-0000-0000-000000000e06'), 'disputed',
   'a hire in a dispute is left alone');
 select is((select status::text || ' ' || released_kobo from public.engagements where id = 'cf000000-0000-0000-0000-000000000e04'),
   'refunded 0', 'a hire that never started is refunded at the hold');
+select is((select count(*)::int from public.notifications
+            where kind = 'click_hold_started'
+              and data ->> 'engagement_id' = 'cf000000-0000-0000-0000-000000000e04'), 0,
+  'a hire that never started gets no "clicks are in" notice');
+select ok((select settled_at is null from public.engagements where id = 'cf000000-0000-0000-0000-000000000e07'),
+  'hire 7 does not settle in the run that first tells both sides');
+update public.engagements set click_hold_notified_at = now() - interval '73 hours'
+ where id = 'cf000000-0000-0000-0000-000000000e07';
+set local role service_role;
+select is((public.settle_due_click_hires())->>'settled', '1', 'a later run settles it');
+reset role;
 select is((select status::text || ' ' || released_kobo from public.engagements where id = 'cf000000-0000-0000-0000-000000000e07'),
   'accepted 50000', 'hire 7 is paid for its 10 clicks');
 select is((select count(*)::int from public.notifications
@@ -202,6 +213,10 @@ select is(public.settle_click_hire('cf000000-0000-0000-0000-000000000e09', null,
   'the withdrawn hire settles at the hold');
 select is((select released_kobo from public.engagements where id = 'cf000000-0000-0000-0000-000000000e09'), 35000::bigint,
   'for the 7 clicks before the withdrawal');
+select is((select count(*)::int from public.notifications
+            where kind = 'clicks_stopped' and user_id = '00000000-0000-0000-0000-0000000cf001'
+              and data ->> 'engagement_id' = 'cf000000-0000-0000-0000-000000000e09'), 1,
+  'the business hears the creator withdrew');
 
 -- The cap notice -------------------------------------------------------------------------------------
 update public.tracked_links set billable_clicks = 499, total_hits = 499 where engagement_id = 'cf000000-0000-0000-0000-000000000e10';
@@ -233,6 +248,22 @@ select lives_ok($$ select public.open_dispute('cf000000-0000-0000-0000-000000000
 select lives_ok($$ select public.withdraw_dispute(
     (select id from public.disputes where engagement_id = 'cf000000-0000-0000-0000-000000000e11')) $$,
   'and withdraws it, which puts the hire back in progress');
+reset role;
+update public.tracked_links set billable_clicks = 200, total_hits = 200 where engagement_id = 'cf000000-0000-0000-0000-000000000e11';
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "cfcfcfcf-0000-0000-0000-0000000cf001"}';
+select lives_ok($$ select public.open_dispute('cf000000-0000-0000-0000-000000000e11',
+    'These 200 clicks all look like one person, please check.', '{}', '{}') $$,
+  'the business disputes hire 11 (200 clicks)');
+set local request.jwt.claims = '{"sub": "cfcfcfcf-0000-0000-0000-0000000cf002"}';
+select lives_ok($$ select public.decide_dispute(
+    (select id from public.disputes where engagement_id = 'cf000000-0000-0000-0000-000000000e11' and status = 'open'),
+    'release', null, 'The clicks are genuine.') $$,
+  'an admin releases it');
+reset role;
+select is((select released_kobo from public.engagements where id = 'cf000000-0000-0000-0000-000000000e11'), 1000000::bigint,
+  'a release on a per-click hire pays the clicks counted, not the whole budget');
+set local role authenticated;
 set local request.jwt.claims = '{"sub": "cfcfcfcf-0000-0000-0000-0000000cf001"}';
 select lives_ok($$ select public.open_dispute('cf000000-0000-0000-0000-000000000e12',
     'These clicks look like a click farm, all within one hour.', '{}', '{}') $$,

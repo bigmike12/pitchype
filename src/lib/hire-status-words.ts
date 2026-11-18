@@ -16,6 +16,8 @@ export type HireFacts = {
   releasedKobo: number | null;
   refundedKobo: number | null;
   businessFeeKobo: number | null;
+  /** The agreed price (the budget, per click); used for per-click refund words. */
+  agreedPriceKobo?: number;
   // Stage 7: where the review stands (from EngagementDetails).
   round: number | null;
   /** When the round waiting for review is released on its own. */
@@ -73,6 +75,13 @@ export function describeHireStatus(
   // The refund when the creator is at fault is price plus our fee, less what
   // the card charged us (CLAUDE.md §6.2), so it is never "the whole fee".
   const backWithFee = `${refunded} is back in your wallet, including our fee, less the card charge.`;
+  // Per click, the fee is kept only on what was spent, so most of it comes
+  // back: what's back beyond the unspent budget is the fee returned.
+  const feeKeptKobo =
+    (e.businessFeeKobo ?? 0) -
+    ((e.refundedKobo ?? 0) -
+      ((e.agreedPriceKobo ?? 0) - (e.releasedKobo ?? 0)));
+  const clickRefundWords = `${refunded} is back in your wallet, including our fee less the ${formatNaira(feeKeptKobo)} we keep.`;
 
   switch (e.status) {
     case "awaiting_payment":
@@ -175,7 +184,9 @@ export function describeHireStatus(
         e.cancelReason === "cancelled_by_creator" ||
           e.settleOutcome === "refund_creator_fault"
           ? `${creator} pulled out. ${backWithFee}`
-          : `You cancelled. ${refunded} is back in your wallet. Our fee of ${fee} isn’t refunded.`,
+          : clicks
+            ? `You cancelled. ${clickRefundWords}`
+            : `You cancelled. ${refunded} is back in your wallet. Our fee of ${fee} isn’t refunded.`,
       );
     default:
       // accepted, auto_released, paid_out, refunded: money has moved.
@@ -189,7 +200,9 @@ export function describeHireStatus(
         case "refund":
           return ended(
             "Refunded",
-            `${refunded} is back in your wallet. Our fee of ${fee} isn’t refunded.`,
+            clicks
+              ? `No clicks were counted. ${clickRefundWords}`
+              : `${refunded} is back in your wallet. Our fee of ${fee} isn’t refunded.`,
           );
         case "refund_creator_fault":
           return ended("Refunded", backWithFee);

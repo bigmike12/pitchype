@@ -251,6 +251,14 @@ export function describeNotification(
         href: creatorJob,
       };
     }
+    case "clicks_stopped": {
+      const settles = text(d.settles_at);
+      return {
+        title: `${name} withdrew from ${quoted}`,
+        body: `Their link stopped counting. They’re paid for the clicks so far when this settles${settles ? ` on ${formatDateTime(settles)}` : ""}; the rest comes back to your wallet.`,
+        href: businessHire,
+      };
+    }
     case "click_hold_started": {
       const settles = text(d.settles_at);
       const when = settles ? formatDateTime(settles) : "in 3 days";

@@ -2710,6 +2710,7 @@ export type Database = {
         | "dispute_withdrawn"
         | "click_cap_reached"
         | "click_hold_started"
+        | "clicks_stopped"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -2933,6 +2934,7 @@ export const Constants = {
         "dispute_withdrawn",
         "click_cap_reached",
         "click_hold_started",
+        "clicks_stopped",
       ],
       payment_model: ["fixed", "per_click"],
       report_reason: [

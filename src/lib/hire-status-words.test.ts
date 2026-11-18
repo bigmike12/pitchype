@@ -211,3 +211,41 @@ test("per click: the business sees clicks counting, then in, then a withdrawal",
   assert.match(withdrew.title, /withdrew/);
   assert.equal(withdrew.canOpenDispute, false);
 });
+
+test("per click: a refund says most of the fee came back too", () => {
+  const timing = {
+    endsAt: "2026-11-10T00:00:00+01:00",
+    settlesAt: "2026-11-13T00:00:00+01:00",
+    stoppedAt: null,
+  };
+  const facts = {
+    ...base,
+    agreedPriceKobo: 2_500_000,
+    businessFeeKobo: 125_000,
+    releasedKobo: 0,
+    refundedKobo: 2_571_922,
+  };
+  const cancelled = describeHireStatus(
+    {
+      ...facts,
+      status: "cancelled",
+      cancelReason: "cancelled_by_business",
+      settleOutcome: "refund",
+    },
+    NOW,
+    timing,
+  );
+  assert.equal(
+    cancelled.body,
+    "You cancelled. ₦25,719.22 is back in your wallet, including our fee less the ₦530.78 we keep.",
+  );
+  const refunded = describeHireStatus(
+    { ...facts, status: "refunded", settleOutcome: "refund" },
+    NOW,
+    timing,
+  );
+  assert.equal(
+    refunded.body,
+    "No clicks were counted. ₦25,719.22 is back in your wallet, including our fee less the ₦530.78 we keep.",
+  );
+});

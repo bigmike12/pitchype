@@ -348,7 +348,10 @@ update public.campaigns set status = 'draft' where id = ${lit(hire.campaign)};
 update public.campaigns set applications_close_on = public.lagos_today() - 4,
        deliver_by = public.lagos_today() - 4
  where id = ${lit(hire.campaign)};
-update public.campaigns set status = 'open' where id = ${lit(hire.campaign)};`);
+update public.campaigns set status = 'open' where id = ${lit(hire.campaign)};
+-- Both people were told 73 hours ago, so the job may settle it.
+update public.engagements set click_hold_notified_at = now() - interval '73 hours'
+ where id = ${lit(hire.id)};`);
   return hire;
 }
 

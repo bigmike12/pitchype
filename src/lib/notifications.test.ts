@@ -578,3 +578,13 @@ test("both sides hear the clicks are in, and when it settles", () => {
   assert.match(business?.body ?? "", /raise it before then/i);
   assert.equal(business?.href, "/business/engagements/e1");
 });
+
+test("the business hears a per-click creator withdrew", () => {
+  const d = describeNotification(
+    row("clicks_stopped", { ...hire, settles_at: "2026-12-28T00:00:00+01:00" }),
+    "business",
+  );
+  assert.equal(d?.title, "Ada Kitchen withdrew from “Zobo week”");
+  assert.match(d?.body ?? "", /stopped counting/);
+  assert.equal(d?.href, "/business/engagements/e1");
+});
