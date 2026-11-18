@@ -7,6 +7,7 @@ import {
   type StatementState,
   type WithdrawDisputeState,
 } from "@/lib/dispute-statement";
+import { sendEmailsAfterResponse } from "@/lib/email-after";
 
 // Sign-in and the business role first, then the shared body (validate, rate
 // limit, store, write). The database checks that the person is on this
@@ -17,7 +18,9 @@ export async function addStatementAction(
   form: FormData,
 ): Promise<StatementState> {
   const user = await requireRole("business");
-  return addStatementFromForm(user.id, form);
+  const state = await addStatementFromForm(user.id, form);
+  if (state.status === "success") sendEmailsAfterResponse();
+  return state;
 }
 
 export async function withdrawDisputeAction(
@@ -25,5 +28,7 @@ export async function withdrawDisputeAction(
   form: FormData,
 ): Promise<WithdrawDisputeState> {
   await requireRole("business");
-  return withdrawDisputeFromForm(form);
+  const state = await withdrawDisputeFromForm(form);
+  if (state.status === "success") sendEmailsAfterResponse();
+  return state;
 }

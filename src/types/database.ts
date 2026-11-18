@@ -1128,9 +1128,41 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_preferences: {
+        Row: {
+          email_applications: boolean
+          email_campaigns: boolean
+          email_messages: boolean
+          user_id: string
+        }
+        Insert: {
+          email_applications?: boolean
+          email_campaigns?: boolean
+          email_messages?: boolean
+          user_id: string
+        }
+        Update: {
+          email_applications?: boolean
+          email_campaigns?: boolean
+          email_messages?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           data: Json
+          email_attempts: number
+          email_due_at: string | null
+          emailed_at: string | null
           group_key: string | null
           id: string
           kind: Database["public"]["Enums"]["notification_kind"]
@@ -1140,6 +1172,9 @@ export type Database = {
         }
         Insert: {
           data?: Json
+          email_attempts?: number
+          email_due_at?: string | null
+          emailed_at?: string | null
           group_key?: string | null
           id?: string
           kind: Database["public"]["Enums"]["notification_kind"]
@@ -1149,6 +1184,9 @@ export type Database = {
         }
         Update: {
           data?: Json
+          email_attempts?: number
+          email_due_at?: string | null
+          emailed_at?: string | null
           group_key?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["notification_kind"]
@@ -1826,6 +1864,7 @@ export type Database = {
       approve_payout: { Args: { payout: string }; Returns: Json }
       audit_name: { Args: { person: string }; Returns: string }
       block_user: { Args: { other: string }; Returns: undefined }
+      call_send_emails_route: { Args: never; Returns: undefined }
       campaign_application_counts: {
         Args: never
         Returns: {
@@ -1852,6 +1891,22 @@ export type Database = {
         Returns: undefined
       }
       check_standing: { Args: { person: string }; Returns: undefined }
+      claim_due_emails: {
+        Args: { max: number }
+        Returns: {
+          attempts: number
+          data: Json
+          email: string
+          email_applications: boolean
+          email_campaigns: boolean
+          email_messages: boolean
+          id: string
+          kind: string
+          occurred_at: string
+          read_at: string
+          role: string
+        }[]
+      }
       clean_note: { Args: { note: string }; Returns: string }
       clean_reason: { Args: { reason: string }; Returns: string }
       contact_detail_kind: { Args: { body: string }; Returns: string }
@@ -1945,6 +2000,10 @@ export type Database = {
       fee_kobo: {
         Args: { amount: number; bps: number; min_fee: number }
         Returns: number
+      }
+      finish_email: {
+        Args: { notification: string; was_sent: boolean }
+        Returns: undefined
       }
       finish_payout: {
         Args: {
@@ -2192,6 +2251,10 @@ export type Database = {
           verified_only: boolean
         }
         Returns: string
+      }
+      save_email_preferences: {
+        Args: { applications: boolean; campaigns: boolean; messages: boolean }
+        Returns: undefined
       }
       search_creators: {
         Args: {

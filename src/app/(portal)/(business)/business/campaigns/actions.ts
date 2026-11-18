@@ -20,6 +20,7 @@ import {
   updateLiveCampaign,
 } from "@/lib/db/campaigns";
 import { listNiches } from "@/lib/db/creators";
+import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { text, type FormState } from "@/lib/form-data";
 
 export type CampaignFormState = FormState<CampaignField>;
@@ -127,6 +128,7 @@ export async function campaignTransitionAction(
           : "This campaign changed since you opened it. Refresh the page and try again.",
     };
   }
+  sendEmailsAfterResponse();
   refresh();
   return { status: "idle" };
 }

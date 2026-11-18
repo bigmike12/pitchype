@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth";
 import { approveApplication, decideApplication } from "@/lib/db/applications";
+import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { text, type FormState } from "@/lib/form-data";
 import { refusalText } from "@/lib/refusals";
 
@@ -16,7 +17,12 @@ export type DecisionState = FormState<"note">;
 
 export async function shortlistAction(form: FormData): Promise<void> {
   await requireRole("business");
-  await decideApplication(text(form, "applicationId"), "shortlisted", null);
+  const result = await decideApplication(
+    text(form, "applicationId"),
+    "shortlisted",
+    null,
+  );
+  if (result.ok) sendEmailsAfterResponse();
   refresh();
 }
 
@@ -41,6 +47,7 @@ export async function rejectAction(
   if (!result.ok) {
     return { status: "error", message: refusalText(result.reason) };
   }
+  sendEmailsAfterResponse();
   refresh();
   return { status: "success", message: "Done." };
 }
@@ -68,5 +75,7 @@ export async function approveAction(
     refresh();
     return { status: "error", message: refusalText(result.reason) };
   }
+  // Before redirect(), which throws.
+  sendEmailsAfterResponse();
   redirect(`/business/engagements/${result.value}/pay`);
 }

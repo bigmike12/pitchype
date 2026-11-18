@@ -17,6 +17,7 @@ import {
   reportCampaign,
   type CampaignReportReason,
 } from "@/lib/db/campaigns";
+import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { text, type FormState } from "@/lib/form-data";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { refusalText } from "@/lib/refusals";
@@ -142,6 +143,7 @@ export async function applyAction(
   if (!result.ok) {
     return { status: "error", message: refusalText(result.reason), values };
   }
+  sendEmailsAfterResponse();
   refresh();
   return {
     status: "success",
@@ -154,6 +156,7 @@ export async function applyAction(
 
 export async function withdrawAction(form: FormData): Promise<void> {
   await requireRole("influencer");
-  await withdrawApplication(text(form, "applicationId"));
+  const result = await withdrawApplication(text(form, "applicationId"));
+  if (result.ok) sendEmailsAfterResponse();
   refresh();
 }

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { cancelEngagement } from "@/lib/db/applications";
 import { payFromWallet, startPayment } from "@/lib/db/money";
+import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { text, type FormState } from "@/lib/form-data";
 import { initializeTransaction, PaystackError } from "@/lib/paystack";
 import { refusalText } from "@/lib/refusals";
@@ -36,6 +37,7 @@ export async function cancelHireAction(
   if (!result.ok) {
     return { status: "error", message: refusalText(result.reason) };
   }
+  sendEmailsAfterResponse();
   return { status: "success", message: "The hire is cancelled." };
 }
 
@@ -66,6 +68,9 @@ export async function payAction(
     if (!paid.ok) {
       return { status: "error", message: refusalText(paid.reason) };
     }
+    // Before redirect(), which throws. A card payment is funded later, by the
+    // return page or the webhook, which send their own.
+    sendEmailsAfterResponse();
     redirect(`/business/engagements/${engagementId}`);
   }
   if (!started.ok) {

@@ -21,6 +21,7 @@ import {
 import { requireRole } from "@/lib/auth";
 import { getEngagementDetails } from "@/lib/db/applications";
 import { getPaymentsForEngagement } from "@/lib/db/money";
+import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { confirmCardPayment, type CardPaymentResult } from "@/lib/payments";
 import { PaystackError } from "@/lib/paystack";
 import { CONTACT_EMAIL } from "@/lib/site";
@@ -95,6 +96,9 @@ async function PaymentReturn({
     let result: CardPaymentResult | null = null;
     try {
       result = await confirmCardPayment(payment.reference);
+      // Funding or stranding writes a notification; the webhook may have done
+      // it first ("duplicate"), and then this is a harmless empty run.
+      sendEmailsAfterResponse();
     } catch (error) {
       // The webhook still records the payment when Paystack answers it.
       if (!(error instanceof PaystackError)) throw error;

@@ -88,14 +88,16 @@ Details: README, "Deploy to Vercel".
       mobile data.
 - [ ] Update the Supabase CLI (2.65 → 3.x).
 - [ ] Delete the merged branches `stage-1-landing` and `stage-2-auth`.
-- [ ] Remove the unused `RESEND_API_KEY` and `FROM_EMAIL` from the env files
-      (Supabase sends auth email), or keep them for Stage 8's own emails.
+- [x] `RESEND_API_KEY` and `FROM_EMAIL` stay in the env files: Stage 8's own
+      emails use them (`src/lib/resend.ts`).
 
 ## 5. Small follow-ups from Stage 3
 
-- [ ] Notifications (Stage 8): email creators when verified, rejected or
-      hidden; remind them to re-verify every few months; tell admins about
-      new verification requests and reports (today they check `/admin`).
+- [x] Notifications (Stage 8): email creators when verified, rejected or
+      hidden (built 2026-11-18, always sent).
+- [ ] Remind creators to re-verify every few months. Tell admins about new
+      verification requests and reports (today they check `/admin`; see
+      "admin notifications" in §11).
 - [ ] The directory lists newest profiles first. Revisit with a fair ranking
       and the "Featured" rules (CLAUDE.md §10).
 - [ ] Two accounts can list the same handle as self-reported (only verified
@@ -231,8 +233,48 @@ Design: `docs/superpowers/specs/2026-11-10-stage-5-applications-chat-design.md`.
 
 ## 11. From the notifications bell (2026-11-11)
 
-- [ ] Stage 8: email off the `notifications` table (Resend), with
+- [x] Stage 8: email off the `notifications` table (Resend), with
       per-person preferences; money-critical ones always send (CLAUDE.md §8).
+      Built 2026-11-18: queue columns on `notifications`, three switches in
+      `notification_preferences`, sent right after actions and by the
+      backstop routes.
+- [ ] **You:** add `RESEND_API_KEY` and `FROM_EMAIL` to `.env.production.local`
+      and to Vercel (Production and Preview). The domain is already verified
+      in Resend.
+- [ ] **You:** in Supabase (SQL editor) add the two Vault secrets the
+      per-minute backstop reads: `select vault.create_secret('<live site URL>',
+      'app_url');` and `select vault.create_secret('<same value as
+      CRON_SECRET>', 'cron_secret');`. Until both exist the job does nothing.
+- [ ] **You:** push migrations `20261118100000` (email queue) and
+      `20261118100100` (email schedule) to the live project. Ask first.
+- [ ] **You:** after pushing, check the job exists: `select jobname from
+      cron.job;` must show `send-notification-emails`. A failed `create
+      extension` or `cron.schedule` on hosted only prints a NOTICE during
+      `db push`, and without the job chat emails wait for the 03:45 UTC daily
+      call.
+- [ ] **You:** when `CRON_SECRET` rotates, update the Vault secret too: find
+      its id with `select id from vault.secrets where name = 'cron_secret';`,
+      then `select vault.update_secret('<id>', '<new secret>');`. Otherwise
+      the backstop gets 401 and fails silently.
+- [ ] **You:** prune `cron.job_run_details` periodically (about 1,440 rows a
+      day; `pg_cron` never prunes it), for example `delete from
+      cron.job_run_details where end_time < now() - interval '14 days';`.
+- [ ] **You:** send one test email on the live site (for example send a chat
+      message to a second test account and wait 15 minutes) and check the
+      inbox and the spam folder.
+- [ ] **You:** the email's logo header is `public/email/header.jpg`, served
+      from the site itself, so it shows only after this branch is deployed
+      (until then mail apps show the "Pitchype" text in its place). It was
+      rendered once from the brand mark and Bricolage Grotesque over the
+      aurora tints; if the logo changes, render it again at 1200 x 296.
+- [ ] **You (local development):** blank `RESEND_API_KEY` in `.env.local`, or
+      use a Resend test key, so local test accounts don't get real emails.
+      Clear the local queue with `update public.notifications set
+      email_due_at = null where emailed_at is null;`: run it before starting
+      a dev server on this branch, and after running `scripts/money-race.mjs`
+      (the script already clears its own people's rows at the end).
+- [ ] Paid features: paid campaign-alert emails and "Featured" placement
+      (CLAUDE.md §10) are not built; they need the entitlements check.
 - [x] Stage 7: add kinds for submissions and auto-release (a trigger plus a
       case in `src/lib/notifications.ts`). The payment, work started, paid
       cancellation, settlement and payout kinds were added in Stage 6.
@@ -240,8 +282,9 @@ Design: `docs/superpowers/specs/2026-11-10-stage-5-applications-chat-design.md`.
       people need older ones.
 - [ ] Notifications are never deleted. Prune read ones after a few months
       once the table grows.
-- [ ] Admins have no bell: they check `/admin`. Notify them of new
-      verification requests, reports and first campaigns (Stage 8).
+- [ ] Admin notifications: admins have no bell and get no email; they check
+      `/admin`. Notify them of new verification requests, reports and first
+      campaigns.
 
 ## 12. From building Stage 6 (money)
 
@@ -368,9 +411,9 @@ Product and code follow-ups:
 
 Deferred from Stage 7:
 
-- [ ] Email for the Stage 7 notices (work submitted, denied, review
-      reminders, auto-release, dispute opened/statement/withdrawn, decision):
-      in-app only today. Stage 8 sends them off the `notifications` table.
+- [x] Email for the Stage 7 notices (work submitted, denied, review
+      reminders, auto-release, dispute opened/statement/withdrawn, decision).
+      Built in Stage 8 (2026-11-18); all always send.
 - [ ] Build the hire terms snapshot decided in
       `docs/campaign-spec-decisions.md` (accepted creators keep the terms they
       agreed to). Stage 7 shows the current campaign, which is safe only

@@ -9,6 +9,7 @@ import {
   getPayoutReference,
   rejectPayout,
 } from "@/lib/db/payouts";
+import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { isUuid, text, type FormState } from "@/lib/form-data";
 import { confirmTransfer } from "@/lib/payments";
 import { PaystackError, initiateTransfer } from "@/lib/paystack";
@@ -142,6 +143,7 @@ export async function settleAction(
       values,
     };
   }
+  sendEmailsAfterResponse();
   refresh();
   return { status: "success", message: "Settled." };
 }
@@ -231,6 +233,7 @@ export async function rejectPayoutAction(
       values: { reason: text(form, "reason") },
     };
   }
+  sendEmailsAfterResponse();
   refresh();
   return {
     status: "success",
@@ -271,6 +274,9 @@ export async function checkPayoutAction(
     if (!(error instanceof PaystackError)) throw error;
     return { status: "error", message: PAYSTACK_UNREACHABLE };
   }
-  if (outcome.changed) refresh();
+  if (outcome.changed) {
+    sendEmailsAfterResponse();
+    refresh();
+  }
   return { status: outcome.status, message: outcome.message };
 }

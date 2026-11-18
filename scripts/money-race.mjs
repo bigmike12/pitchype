@@ -23,6 +23,8 @@
 //
 // How calls are made to overlap: see race() in money-race-lib.mjs.
 
+import { randomUUID } from "node:crypto";
+
 import {
   RUN,
   as,
@@ -40,6 +42,7 @@ import {
   fund,
   hireFacts,
   invariants,
+  json,
   lit,
   must,
   newAdmin,
@@ -1317,6 +1320,50 @@ async function decideVsWithdrawDispute(c) {
   return `winners ${fmt(tally(winners))}`;
 }
 
+// 22 ----------------------------------------------------------------------------------------------------
+
+async function twoClaimsAtOnce(c) {
+  // Two email sends running at once must never get the same notification, or a
+  // person would be emailed twice. A claim takes its rows with skip locked and
+  // counts the attempt in the same statement.
+  const person = await newAdmin();
+  const ids = times(20, () => randomUUID());
+  // Due long ago, so these 20 come first in the claim order even if other
+  // runs have left due rows in the local database.
+  await run(`
+insert into public.notifications (id, user_id, kind, data, email_due_at)
+values ${ids
+    .map(
+      (id) =>
+        `(${lit(id)}, ${lit(person.id)}, 'hire_funded', '{}', '2000-01-01')`,
+    )
+    .join(", ")};`);
+  const claim = `(select coalesce(string_agg(id::text, ',' order by id), '') from public.claim_due_emails(50))`;
+  const outcomes = await race([
+    { who: as.service, call: claim },
+    { who: as.service, call: claim },
+  ]);
+  // An empty claim reads back as "ok" (race() turns an empty result into ok).
+  const claimed = outcomes.map((o) => (o === "ok" ? [] : o.split(",")));
+  const mine = new Set(ids);
+  const [a, b] = claimed.map((list) => list.filter((id) => mine.has(id)));
+  c.eq(
+    "no row went to both claims",
+    a.filter((id) => b.includes(id)),
+    [],
+  );
+  c.eq(
+    "together they hold exactly the 20 rows",
+    [...a, ...b].sort(),
+    [...ids].sort(),
+  );
+  const attempts = await json(
+    `select jsonb_agg(distinct email_attempts) from public.notifications where user_id = ${lit(person.id)}`,
+  );
+  c.eq("every row was tried once", attempts, [1]);
+  return `claims of ${a.length} and ${b.length}`;
+}
+
 // Runner ------------------------------------------------------------------------------------------------
 
 const scenarios = [
@@ -1341,6 +1388,7 @@ const scenarios = [
   ["19 double submit", doubleSubmit],
   ["20 withdraw vs accept", withdrawVsAccept],
   ["21 decide dispute vs withdraw dispute", decideVsWithdrawDispute],
+  ["22 two claims at once", twoClaimsAtOnce],
 ];
 
 async function runOnce(scenario) {
@@ -1412,6 +1460,16 @@ console.log(
     `shortest time all of a race's calls were running together: ${overall.marginMs.toFixed(1)} ms ` +
     "(includes one client round trip of measuring).",
 );
+// A dev server with a real Resend key would otherwise try to email these
+// fake addresses. Notifications are not append-only, so clearing is allowed.
+try {
+  await run(
+    "update public.notifications n set email_due_at = null from public.users u " +
+      "where u.id = n.user_id and u.email like '%@race.pitchype.test' and n.emailed_at is null;",
+  );
+} catch (error) {
+  console.log(`Could not clear the email queue for race people: ${error.message}`);
+}
 console.log(
   "Note: the ledger is append-only, so this run's rows (people @race.pitchype.test) stay in the local database.",
 );
