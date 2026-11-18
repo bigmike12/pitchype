@@ -315,6 +315,34 @@ values (${lit(id)}, ${lit(application)}, ${lit(campaign)}, ${lit(business.id)}, 
   return { id, price, business, creator, campaign };
 }
 
+// A started per-click hire with its tracked link: ₦50 a click, a ₦5,000
+// budget, so the cap is 100 clicks. `billable` clicks are already counted
+// (the counters only; no rows), so a race can start one click below the cap.
+export async function startedClickHire(billable = 0) {
+  const hire = await newHire(500000);
+  // The terms are locked once a campaign is live, so set them as a draft.
+  await run(`
+update public.campaigns set status = 'draft' where id = ${lit(hire.campaign)};
+update public.campaigns set payment_model = 'per_click', cpc_kobo = 5000,
+       destination_url = 'https://shop.example.com/race'
+ where id = ${lit(hire.campaign)};
+update public.campaigns set status = 'open' where id = ${lit(hire.campaign)};`);
+  await fund(hire);
+  await must(as.user(hire.creator), `public.start_engagement(${lit(hire.id)})`);
+  hire.code = await run(
+    `select code from public.tracked_links where engagement_id = ${lit(hire.id)};`,
+  );
+  if (billable > 0) {
+    await run(`update public.tracked_links set billable_clicks = ${billable}, total_hits = ${billable}
+                where engagement_id = ${lit(hire.id)};`);
+  }
+  return hire;
+}
+
+export function clickCall(hire, visitor) {
+  return `public.record_click(${lit(hire.code)}, ${lit(visitor)}, null, null, 'unknown', 'human') ->> 'reason'`;
+}
+
 export function eventKey(label) {
   return `race-${RUN}-${label}-${randomUUID().slice(0, 8)}`;
 }

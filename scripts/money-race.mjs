@@ -28,6 +28,8 @@ import { randomUUID } from "node:crypto";
 import {
   RUN,
   as,
+  clickCall,
+  startedClickHire,
   attempt,
   charge,
   checker,
@@ -1364,6 +1366,70 @@ values ${ids
   return `claims of ${a.length} and ${b.length}`;
 }
 
+async function twoClicksAtTheCap(c) {
+  // One click below the cap, two visitors click at once: the link row lock
+  // means exactly one counts and the other is over the cap.
+  for (let round = 1; round <= 10; round++) {
+    const hire = await startedClickHire(99);
+    const outcomes = await racePair(
+      { who: as.service, call: clickCall(hire, `a${round}`) },
+      { who: as.service, call: clickCall(hire, `b${round}`) },
+      round % 2 === 0,
+    );
+    c.eq(
+      `round ${round}: one billable (no reason), one over the cap`,
+      [...outcomes].sort(),
+      ["cap_reached", "ok"],
+    );
+    const counts = await json(`select jsonb_build_object(
+        'billable', t.billable_clicks, 'hits', t.total_hits,
+        'rowsBillable', (select count(*) filter (where l.is_billable) from public.link_clicks l where l.link_id = t.id),
+        'rows', (select count(*) from public.link_clicks l where l.link_id = t.id))
+      from public.tracked_links t where t.code = ${lit(hire.code)}`);
+    // jsonb orders keys shortest first.
+    c.eq(`round ${round}: counters`, counts, {
+      hits: 101,
+      rows: 2,
+      billable: 100,
+      rowsBillable: 1,
+    });
+  }
+  return "10 rounds";
+}
+
+async function clickVsHireEnding(c) {
+  // A click while the creator withdraws: the click either counts (it read the
+  // hire before the withdrawal committed) or is refused as hire_ended. The
+  // withdrawal always goes through, and nothing errors or deadlocks.
+  const seen = [];
+  // The click is usually first to its row, so later rounds hold it back.
+  const clickLateBy = [0, 1, 2, 3, 4, 0, 1, 2, 3, 4];
+  for (let round = 1; round <= clickLateBy.length; round++) {
+    const hire = await startedClickHire();
+    const [click, withdraw] = await racePair(
+      {
+        who: as.service,
+        call: clickCall(hire, `v${round}`),
+        delayMs: clickLateBy[round - 1],
+      },
+      {
+        who: as.user(hire.creator),
+        call: `public.withdraw_from_engagement(${lit(hire.id)})`,
+      },
+      round % 2 === 0,
+    );
+    seen.push(click === "ok" ? "click first" : "withdraw first");
+    c.eq(`round ${round}: withdrawal`, withdraw, "ok");
+    c.eq(
+      `round ${round}: click outcome is billable or hire_ended`,
+      ["ok", "hire_ended"].includes(click),
+      true,
+    );
+  }
+  c.winners("click vs withdraw", seen);
+  return seen.join(", ");
+}
+
 // Runner ------------------------------------------------------------------------------------------------
 
 const scenarios = [
@@ -1389,6 +1455,8 @@ const scenarios = [
   ["20 withdraw vs accept", withdrawVsAccept],
   ["21 decide dispute vs withdraw dispute", decideVsWithdrawDispute],
   ["22 two claims at once", twoClaimsAtOnce],
+  ["23 two clicks at the cap", twoClicksAtTheCap],
+  ["24 click vs hire ending", clickVsHireEnding],
 ];
 
 async function runOnce(scenario) {
@@ -1468,7 +1536,9 @@ try {
       "where u.id = n.user_id and u.email like '%@race.pitchype.test' and n.emailed_at is null;",
   );
 } catch (error) {
-  console.log(`Could not clear the email queue for race people: ${error.message}`);
+  console.log(
+    `Could not clear the email queue for race people: ${error.message}`,
+  );
 }
 console.log(
   "Note: the ledger is append-only, so this run's rows (people @race.pitchype.test) stay in the local database.",
