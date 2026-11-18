@@ -17,7 +17,13 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
-import { startTransition, useActionState, useRef, useState } from "react";
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { ClayTile } from "@/components/brand/stickers";
 
@@ -45,6 +51,7 @@ import {
   MIN_CPC_NAIRA,
   MIN_PRICE_NAIRA,
   deliverableText,
+  formatDay,
   isDeliverableKind,
   kindLabel,
   maxClicks,
@@ -183,19 +190,17 @@ export function CampaignForm({
   const [step, setStep] = useState(0);
   const [furthest, setFurthest] = useState(campaign ? STEPS.length - 1 : 0);
   // The typed title and brief, read when the review step opens.
-  const [snapshot, setSnapshot] = useState<{ title: string; brief: string }>({
-    title: campaign?.title ?? "",
-    brief: campaign?.brief ?? "",
-  });
+  const [snapshot, setSnapshot] = useState<Snapshot>(EMPTY_SNAPSHOT);
+
+  /** Reads the uncontrolled fields the review shows from the form itself. */
+  function refreshSnapshot() {
+    if (formRef.current) {
+      setSnapshot(readSnapshot(new FormData(formRef.current)));
+    }
+  }
 
   function goTo(index: number) {
-    if (index === STEPS.length - 1 && formRef.current) {
-      const data = new FormData(formRef.current);
-      setSnapshot({
-        title: String(data.get("title") ?? ""),
-        brief: String(data.get("brief") ?? ""),
-      });
-    }
+    if (index === STEPS.length - 1) refreshSnapshot();
     setStep(index);
     setFurthest((f) => Math.max(f, index));
     // After React shows the step: move focus to its title, so keyboard and
@@ -218,6 +223,16 @@ export function CampaignForm({
     }
     goTo(step + 1);
   }
+
+  // After a refused save has opened its step, put focus on the first field to
+  // fix (the save button the user pressed is now hidden).
+  useEffect(() => {
+    if (state.status !== "error") return;
+    requestAnimationFrame(() => {
+      const open = stepRefs.current.find((el) => el && !el.hidden);
+      open?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+    });
+  }, [state]);
 
   // A refused save: open the first step with something to fix. Done while
   // rendering, when a new result arrives (React's "adjust state on a prop
@@ -265,10 +280,20 @@ export function CampaignForm({
       // next save would then send the stale ones.
       onSubmit={(event) => {
         event.preventDefault();
+        // Enter in a field submits the form: before the last step it means
+        // Continue, so nothing is saved without the last look.
+        if (step < STEPS.length - 1) {
+          next();
+          return;
+        }
         const data = new FormData(event.currentTarget);
         startTransition(() => formAction(data));
       }}
       noValidate
+      // Keep the last look current while the dates are typed on that step.
+      onChange={() => {
+        if (step === STEPS.length - 1) refreshSnapshot();
+      }}
     >
       {campaign && (
         <input type="hidden" name="campaignId" value={campaign.id} />
@@ -277,6 +302,9 @@ export function CampaignForm({
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="min-w-0 space-y-4">
           <StepProgress step={step} furthest={furthest} onGo={goTo} />
+          {/* Outside the steps, so a refused save's message shows on
+              whichever step opens to fix it. */}
+          <FormMessage status={state.status} message={state.message} />
 
           <BuilderStep
             index={0}
@@ -654,7 +682,7 @@ export function CampaignForm({
                       required
                       inputMode="numeric"
                       placeholder="50"
-                      hint={`At least ₦${MIN_CPC_NAIRA}. Only real, unique visits count: link previews, bots and repeat visits within 24 hours don’t.`}
+                      hint={`At least ₦${MIN_CPC_NAIRA}. Only real, unique visits count: link previews, bots and repeat visits within 24 hours don’t. Locked once the campaign is live.`}
                       value={cpc}
                       onChange={(e) => setCpc(e.target.value)}
                       error={errors.cpc}
@@ -729,8 +757,8 @@ export function CampaignForm({
                     placeholder={perClick ? "25,000" : "50,000"}
                     hint={
                       perClick
-                        ? `At least ${formatNaira(MIN_PRICE_NAIRA * KOBO_PER_NAIRA)}. The most one creator can earn; what isn’t earned comes back to you.`
-                        : `At least ${formatNaira(MIN_PRICE_NAIRA * KOBO_PER_NAIRA)}. Creators can suggest a different price when they apply.`
+                        ? `At least ${formatNaira(MIN_PRICE_NAIRA * KOBO_PER_NAIRA)}. The most one creator can earn; what isn’t earned comes back to you. Locked once the campaign is live.`
+                        : `At least ${formatNaira(MIN_PRICE_NAIRA * KOBO_PER_NAIRA)}. Creators can suggest a different price when they apply. Locked once the campaign is live.`
                     }
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
@@ -832,7 +860,6 @@ export function CampaignForm({
               Saving keeps it as a draft; nothing is published yet.
             </Callout>
             <div className="mt-6 space-y-4">
-              <FormMessage status={state.status} message={state.message} />
               <Button type="submit" size="lg" disabled={pending}>
                 {pending ? "Saving…" : "Save draft"}
               </Button>
@@ -1033,7 +1060,64 @@ function BuilderStep({
   );
 }
 
-/** The last step's look back over everything, as creators will read it. */
+/** What the last look reads from the form's uncontrolled fields. */
+type Snapshot = {
+  title: string;
+  brief: string;
+  /** "Instagram: 10K–50K followers or more" for each platform with a minimum. */
+  followers: string[];
+  verifiedOnly: boolean;
+  destinationUrl: string;
+  applicationsCloseOn: string;
+  postFrom: string;
+  deliverBy: string;
+};
+
+const EMPTY_SNAPSHOT: Snapshot = {
+  title: "",
+  brief: "",
+  followers: [],
+  verifiedOnly: false,
+  destinationUrl: "",
+  applicationsCloseOn: "",
+  postFrom: "",
+  deliverBy: "",
+};
+
+function readSnapshot(data: FormData): Snapshot {
+  const text = (name: string) => {
+    const value = data.get(name);
+    return typeof value === "string" ? value.trim() : "";
+  };
+  const followers = PLATFORMS.flatMap((platform) => {
+    const min = text(`minFollowers.${platform}`);
+    return min && min in MIN_FOLLOWER_LABELS
+      ? [
+          `${PLATFORM_RULES[platform].label}: ${MIN_FOLLOWER_LABELS[min as FollowerRange]}`,
+        ]
+      : [];
+  });
+  return {
+    title: text("title"),
+    brief: text("brief"),
+    followers,
+    verifiedOnly: data.get("verifiedOnly") === "on",
+    destinationUrl: text("destination_url"),
+    applicationsCloseOn: text("applicationsCloseOn"),
+    postFrom: text("postFrom"),
+    deliverBy: text("deliverBy"),
+  };
+}
+
+/** Whole naira typed with or without commas or ₦, formatted; null if not a whole number. */
+function typedNaira(raw: string): string | null {
+  const naira = Number(raw.replace(/[₦,\s]/g, ""));
+  return raw.trim() !== "" && Number.isInteger(naira) && naira > 0
+    ? formatNaira(naira * KOBO_PER_NAIRA)
+    : null;
+}
+
+/** The last step's look back over everything that locks once the campaign is live. */
 function Review({
   snapshot,
   rows,
@@ -1044,7 +1128,7 @@ function Review({
   nicheNames,
   states,
 }: {
-  snapshot: { title: string; brief: string };
+  snapshot: Snapshot;
   rows: Row[];
   paymentModel: PaymentModel;
   price: string;
@@ -1064,29 +1148,44 @@ function Review({
         ]
       : [],
   );
+  const budget = typedNaira(price) ?? "Not set";
   const pay =
     paymentModel === "per_click"
-      ? `₦${cpc || "?"} per click, up to ₦${price || "?"} per creator`
-      : `₦${price || "?"} per creator`;
+      ? `${typedNaira(cpc) ?? "Not set"} per click, up to ${budget} per creator`
+      : `${budget} per creator`;
+  const who = [
+    nicheNames.length > 0 ? nicheNames.join(", ") : "Any niche",
+    states.length > 0
+      ? states.map((st) => stateLabel(st as NigerianState)).join(", ")
+      : "anywhere in Nigeria",
+    ...snapshot.followers,
+    ...(snapshot.verifiedOnly ? ["verified creators only"] : []),
+  ].join("; ");
+  const day = (value: string) => (value ? formatDay(value) : "Not set");
   const lines: [string, string][] = [
-    ["Title", snapshot.title || "Not set yet"],
-    ["Brief", snapshot.brief ? truncate(snapshot.brief, 160) : "Not set yet"],
+    ["Title", snapshot.title || "Not set"],
+    ["Brief", snapshot.brief ? truncate(snapshot.brief, 160) : "Not set"],
     ["Each creator posts", posts.join(", ") || "Nothing yet"],
-    [
-      "Who can apply",
-      [
-        nicheNames.length > 0 ? nicheNames.join(", ") : "Any niche",
-        states.length > 0
-          ? states.map((st) => stateLabel(st as NigerianState)).join(", ")
-          : "anywhere in Nigeria",
-      ].join(", "),
-    ],
+    ["Who can apply", who],
     ["Pay", pay],
-    ["Creators wanted", places || "?"],
+    ...(paymentModel === "per_click"
+      ? ([["Link", snapshot.destinationUrl || "Not set"]] as [string, string][])
+      : []),
+    ["Creators wanted", places || "Not set"],
+    ["Applications close", day(snapshot.applicationsCloseOn)],
+    [
+      "Posts up",
+      snapshot.postFrom
+        ? `${day(snapshot.postFrom)} to ${day(snapshot.deliverBy)}`
+        : `by ${day(snapshot.deliverBy)}`,
+    ],
   ];
   return (
     <div className="mt-8 border-t border-hairline pt-6">
-      <h3 className="font-semibold text-ink">What creators will see</h3>
+      <h3 className="font-semibold text-ink">Your campaign, as it will lock</h3>
+      <p className="mt-1 text-sm text-muted">
+        Pay, what to post and who can apply can’t change once it’s live.
+      </p>
       <dl className="mt-3 divide-y divide-hairline rounded-card bg-canvas ring-1 ring-hairline">
         {lines.map(([label, value]) => (
           <div
@@ -1174,7 +1273,8 @@ function CampaignSoFar({
           {spend ? formatNaira(spend.totalKobo) : "–"}
         </p>
         <p className="mt-2 text-xs text-muted">
-          Includes our 5% fee. Nothing is charged until you accept a creator.
+          Includes our fee (5%, at least ₦500 per creator). Nothing is charged
+          until you accept a creator.
         </p>
       </div>
       <p className="mt-4 flex items-start gap-2 rounded-card bg-surface-soft p-3 text-sm text-ink">
