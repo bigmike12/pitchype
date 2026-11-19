@@ -1,3 +1,6 @@
+import { after } from "next/server";
+
+import { flushPostHogLogs, logPostHogInfo } from "@/instrumentation";
 import { cronStatus, runReviewDeadlines } from "@/lib/review-deadlines";
 import { sendDueEmailsSafely } from "@/lib/send-emails";
 
@@ -16,5 +19,11 @@ export async function GET(request: Request) {
   }
   const result = await runReviewDeadlines();
   await sendDueEmailsSafely();
-  return Response.json(result, { status: cronStatus(result) });
+  const status = cronStatus(result);
+  logPostHogInfo("review deadlines job completed", {
+    "http.response.status_code": status,
+    "job.name": "review_deadlines",
+  });
+  after(flushPostHogLogs);
+  return Response.json(result, { status });
 }

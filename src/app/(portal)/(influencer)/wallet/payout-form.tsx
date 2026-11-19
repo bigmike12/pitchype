@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from "posthog-js";
 import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,18 @@ export function PayoutForm({
   const [state, formAction, pending] = useActionState<PayoutState, FormData>(
     async (previous, form) => {
       const next = await requestPayoutAction(previous, form);
-      if (next.status === "success") setAmount("");
+      if (next.status === "success") {
+        const requested = parsePayoutAmount(String(form.get("amount") ?? ""));
+        posthog.capture("payout_requested", {
+          payout_amount_band:
+            requested.ok && requested.kobo < 1_000_000
+              ? "under_10000"
+              : requested.ok && requested.kobo < 5_000_000
+                ? "10000_to_49999"
+                : "50000_plus",
+        });
+        setAmount("");
+      }
       return next;
     },
     { status: "idle" },

@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
+import posthog from "posthog-js";
 import { useEffect, useRef, type ReactNode } from "react";
 
 import { Wordmark } from "@/components/brand/wordmark";
@@ -231,6 +232,7 @@ function AccountBlock({
       <form
         action={signOutAction}
         className="mt-1 border-t border-hairline pt-1"
+        onSubmit={() => posthog.reset()}
       >
         <button
           type="submit"
@@ -302,7 +304,7 @@ function AccountMenu({
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <form action={signOutAction}>
+        <form action={signOutAction} onSubmit={() => posthog.reset()}>
           {/* Radix closes (and unmounts) the menu on select, which removes
               this form before the browser submits it. Keep it open; the
               redirect after signing out replaces the page. */}
@@ -331,6 +333,27 @@ export function SidebarNav({
   items: NavItem[];
   signOutAction: SignOut;
 }) {
+  useEffect(() => {
+    posthog.identify(viewer.id, {
+      email: viewer.email,
+      role: viewer.role,
+    });
+  }, [viewer.email, viewer.id, viewer.role]);
+
+  useEffect(() => {
+    const resetOnSignOut = (event: SubmitEvent) => {
+      if (
+        event.target instanceof HTMLFormElement &&
+        event.target.dataset.posthogSignOut !== undefined
+      ) {
+        posthog.reset();
+      }
+    };
+
+    document.addEventListener("submit", resetOnSignOut);
+    return () => document.removeEventListener("submit", resetOnSignOut);
+  }, []);
+
   return (
     <div className="flex flex-1 flex-col px-3 pb-4">
       <nav aria-label="Main" className="flex-1 pt-2">

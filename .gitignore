@@ -52,3 +52,4 @@ next-env.d.ts
 
 # Live production values kept at the repo root. Not an .env* name, so it needs its own line.
 /env
+.env.local
