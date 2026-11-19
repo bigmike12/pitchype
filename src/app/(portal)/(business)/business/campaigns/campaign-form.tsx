@@ -17,6 +17,7 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import posthog from "posthog-js";
 import {
   startTransition,
   useActionState,
@@ -287,6 +288,10 @@ export function CampaignForm({
           return;
         }
         const data = new FormData(event.currentTarget);
+        posthog.capture("campaign_draft_save_started", {
+          campaign_action: campaign ? "updated" : "created",
+          payment_model: paymentModel,
+        });
         startTransition(() => formAction(data));
       }}
       noValidate

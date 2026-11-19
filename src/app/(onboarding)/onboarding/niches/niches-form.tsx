@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from "posthog-js";
 import { startTransition, useActionState, useState } from "react";
 
 import { NichePicker } from "@/components/creators/niche-picker";
@@ -30,6 +31,9 @@ export function NichesForm({
       onSubmit={(event) => {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
+        posthog.capture("onboarding_niches_submitted", {
+          niche_count: chosen.length,
+        });
         startTransition(() => formAction(data));
       }}
     >
