@@ -50,9 +50,9 @@
   - `evidenceProblems(required: EvidenceType[], e: { note: string | null; links: string[]; fileCount: number; metrics: Metrics | null; capturedOn: string | null }): string[]` (spec §5.4 rules; empty = OK).
   - `finalRequirementProblems(required: FinalRequirement[], s: { links: string[]; fileCount: number; metrics: Metrics | null; capturedOn: string | null; report: string | null; postFrom: string | null; today: string }): string[]` (spec §5.5 and §5.1: `captured_on` not before `postFrom`, not after `today`; `final_report` 100–1,000 chars).
 
-- [ ] **Step 1: Failing tests:** `checkpointDates({postFrom:"2026-12-01", deliverBy:"2026-12-20", intervalDays:7})` → `["2026-12-08","2026-12-15"]`; interval that fits none → `[]`; a date equal to `deliverBy` is excluded. `checkpointApplies("2026-12-08", <start 2026-12-05T09:00+01:00>)` → applies; start 12-06 → too_soon; start 12-09 → started_after; start `2026-12-04T23:30+01:00` uses Lagos date 12-04 (Review Focus 1–2). `kickoffDueAt` +48h. `timelineView` percents and clamping (before start → 0, after end → 100). `parseMetrics` accepts `[{platform:"instagram",views:1200,likes:40}]`, rejects negatives, floats, strings, 7 entries. `evidenceProblems` and `finalRequirementProblems` one case per type plus the empty-requirements case.
-- [ ] **Step 2–4:** fail → implement → pass; typecheck, lint.
-- [ ] **Step 5: Commit** `Add checkpoint timing and evidence rules`.
+- [x] **Step 1: Failing tests:** `checkpointDates({postFrom:"2026-12-01", deliverBy:"2026-12-20", intervalDays:7})` → `["2026-12-08","2026-12-15"]`; interval that fits none → `[]`; a date equal to `deliverBy` is excluded. `checkpointApplies("2026-12-08", <start 2026-12-05T09:00+01:00>)` → applies; start 12-06 → too_soon; start 12-09 → started_after; start `2026-12-04T23:30+01:00` uses Lagos date 12-04 (Review Focus 1–2). `kickoffDueAt` +48h. `timelineView` percents and clamping (before start → 0, after end → 100). `parseMetrics` accepts `[{platform:"instagram",views:1200,likes:40}]`, rejects negatives, floats, strings, 7 entries. `evidenceProblems` and `finalRequirementProblems` one case per type plus the empty-requirements case.
+- [x] **Step 2–4:** fail → implement → pass; typecheck, lint.
+- [x] **Step 5: Commit** `Add checkpoint timing and evidence rules`.
 
 ### Task 2: Timeline and checkpoint configuration on campaigns (SQL)
 
