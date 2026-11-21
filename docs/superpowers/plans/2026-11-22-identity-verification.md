@@ -91,9 +91,9 @@
   - `trimIdentityEvent(event: unknown): Record<string, string | number | boolean | null>` — keeps `reference_id`, `verification_status`, `status`, `id_type`, each step's `status` and `message` (digits masked); drops `value`, every URL, `metadata.ipinfo`, names, DOB, images.
   - `isCompanyActive(status: string | null): boolean` — inactive when the text matches `/inactive|struck|dissolved|wound/i`; null → active (**verify in sandbox**).
 
-- [ ] **Step 1: Failing tests:** the docs' sample → `verified` when names match and steps pass; same payload with the selfie step failed → `failed`/`selfie_mismatch` (Review Focus 2); top-level `status: false` with `Completed` → failed; government step failed → `id_not_found`; name differs → `name_mismatch`; `id_type: "BVN"` on a `creator_nin` check → failed `other`; `Pending` → pending; `Abandoned` → abandoned; malformed input → failed `other`, never throws. `trimIdentityEvent(sample)` serialised contains no 11-digit run, no `http`, no first name (Review Focus 5).
-- [ ] **Step 2–4:** fail → implement → pass.
-- [ ] **Step 5: Commit** `Decide identity results from Dojah sessions`.
+- [x] **Step 1: Failing tests:** the docs' sample → `verified` when names match and steps pass; same payload with the selfie step failed → `failed`/`selfie_mismatch` (Review Focus 2); top-level `status: false` with `Completed` → failed; government step failed → `id_not_found`; name differs → `name_mismatch`; `id_type: "BVN"` on a `creator_nin` check → failed `other`; `Pending` → pending; `Abandoned` → abandoned; malformed input → failed `other`, never throws. `trimIdentityEvent(sample)` serialised contains no 11-digit run, no `http`, no first name (Review Focus 5).
+- [x] **Step 2–4:** fail → implement → pass.
+- [x] **Step 5: Commit** `Decide identity results from Dojah sessions`.
 
 ### Task 4: Identity tables and functions (SQL)
 
