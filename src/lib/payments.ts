@@ -451,6 +451,12 @@ async function confirmCrayTransfer(
   if (payout.providerReference === null) {
     // Never sent, or sent without our hearing back: only a processing payout is sent.
     if (payout.status !== "processing") return "ignored";
+    // The approval sends it straight away. Until 15 minutes have passed that
+    // send may still be on its way, and only Cray's duplicate check would stop
+    // a second one, so the daily check and "Check with Cray" wait first.
+    const approvedAt =
+      payout.approvedAt === null ? NaN : Date.parse(payout.approvedAt);
+    if (!(approvedAt < stuckPayoutCutoff(d.now()).getTime())) return "pending";
     if (payout.bankCode === null || payout.accountNumberEncrypted === null) {
       console.error("cray payout has no destination", reference);
       return "ignored";
@@ -514,7 +520,10 @@ async function confirmCrayTransfer(
       "fee",
     ]),
     sentKobo: outcome === "failed" ? null : query.sentKobo,
-    chargeKobo: outcome === "failed" ? null : query.chargeKobo,
+    // A reversal re-credits only what was sent: whether Cray also returns its
+    // payout charge is unconfirmed (spec §5.4), and booking it would put cash
+    // in the ledger that Cray may not hold.
+    chargeKobo: outcome === "paid" ? query.chargeKobo : null,
   });
   if (result === "ignored") {
     console.error("payout event ignored", reference);

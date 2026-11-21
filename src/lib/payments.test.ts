@@ -785,7 +785,8 @@ function crayPayout(overrides: Partial<PayoutRecord> = {}): PayoutRecord {
     provider: "cray",
     reference: PO_REF,
     providerReference: null,
-    approvedAt: minutesAgo(1),
+    // Past the 15-minute wait, so the checks may send it again.
+    approvedAt: minutesAgo(20),
     sendKobo: 1_995_000,
     bankCode: "000013",
     accountNumberEncrypted: CIPHERTEXT,
@@ -950,6 +951,26 @@ test("a disburse that times out leaves the payout processing for the next check"
   assert.equal(finishes.length, 0);
 });
 
+test("a payout approved under 15 minutes ago with no id yet is not sent again", async () => {
+  // The approval's own send may still be on its way; only Cray's duplicate
+  // check would stop a second payment, so the checks wait.
+  const { deps, disburses, validates, flags } = crayTransferDeps({
+    payout: crayPayout({ approvedAt: minutesAgo(5) }),
+  });
+  assert.equal(await confirmTransfer(PO_REF, deps), "pending");
+  assert.equal(validates.length, 0);
+  assert.equal(disburses.length, 0);
+  assert.equal(flags.length, 0);
+});
+
+test("a payout with no approval time and no id is not sent again", async () => {
+  const { deps, disburses } = crayTransferDeps({
+    payout: crayPayout({ approvedAt: null }),
+  });
+  assert.equal(await confirmTransfer(PO_REF, deps), "pending");
+  assert.equal(disburses.length, 0);
+});
+
 test("a payout that is not processing and has no id is not sent", async () => {
   const { deps, disburses } = crayTransferDeps({
     payout: crayPayout({ status: "failed" }),
@@ -1054,6 +1075,18 @@ test("a payout Cray reverses after we recorded it paid is reversed", async () =>
   assert.equal(finishes[0].outcome, "reversed");
   assert.equal(finishes[0].eventKey, `cray.payout.reversed:${CRAY_ID}`);
   assert.equal(finishes[0].sentKobo, 1_995_000);
+});
+
+test("a reversal re-credits only what Cray sent, not its payout charge", async () => {
+  // Until the sandbox shows Cray returns its charge on a reversal, booking it
+  // would put cash in the ledger that Cray doesn't hold (spec §5.4).
+  const { deps, finishes } = crayTransferDeps({
+    payout: crayPayout({ providerReference: CRAY_ID, status: "paid" }),
+    requery: requery({ status: "reversed", chargeKobo: 5_000 }),
+  });
+  assert.equal(await confirmTransfer(PO_REF, deps), "reversed");
+  assert.equal(finishes[0].sentKobo, 1_995_000);
+  assert.equal(finishes[0].chargeKobo, null);
 });
 
 test("a payout Cray reversed before we recorded it paid is a failure", async () => {
