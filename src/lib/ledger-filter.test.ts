@@ -61,8 +61,10 @@ test("pages are whole numbers of at least 1 and capped", () => {
   assert.equal(parseLedgerFilter({ page: "99999999" }).page, 1);
 });
 
-test("there are nine event types", () => {
-  assert.equal(LEDGER_EVENTS.length, 9);
+// The ledger's event_type check constraint: the original nine, plus the four
+// the Cray work added (deposit_received, processor_fee, cash_moved, payout_reversed).
+test("there are thirteen event types", () => {
+  assert.equal(LEDGER_EVENTS.length, 13);
 });
 
 test("the query string carries only the filters that are set", () => {
@@ -79,4 +81,16 @@ test("the export file is dated by the Lagos calendar day", () => {
   // 23:30 UTC on the 13th is already the 14th in Lagos (UTC+1).
   assert.equal(lagosDateStamp(new Date("2026-11-13T23:30:00Z")), "2026-11-14");
   assert.equal(lagosDateStamp(new Date("2026-11-13T10:00:00Z")), "2026-11-13");
+});
+
+test("the new Cray events are valid filters", () => {
+  for (const event of [
+    "deposit_received",
+    "processor_fee",
+    "cash_moved",
+    "payout_reversed",
+  ]) {
+    assert.ok((LEDGER_EVENTS as readonly string[]).includes(event), event);
+    assert.equal(parseLedgerFilter({ event }).event, event);
+  }
 });

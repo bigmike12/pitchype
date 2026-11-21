@@ -105,7 +105,8 @@ export function nairaToKobo(value: string | number): number {
   if (/[^0]/.test(fraction.slice(2))) {
     return fail("Cray sent an amount with more than two decimals");
   }
-  const kobo = Number(whole) * 100 + Number(fraction.padEnd(2, "0").slice(0, 2));
+  const kobo =
+    Number(whole) * 100 + Number(fraction.padEnd(2, "0").slice(0, 2));
   if (!Number.isSafeInteger(kobo)) {
     return fail("Cray sent an amount too large to handle");
   }
@@ -126,7 +127,8 @@ function encodeQueryPart(raw: string): string {
 /** The path and sorted, percent-encoded query that go into the signature. */
 export function canonicalPathWithQuery(pathWithQuery: string): string {
   const [rawPath, ...queryParts] = pathWithQuery.split("?");
-  const path = rawPath.length > 1 ? rawPath.replace(/\/+$/, "") || "/" : rawPath;
+  const path =
+    rawPath.length > 1 ? rawPath.replace(/\/+$/, "") || "/" : rawPath;
   const query = queryParts.join("?");
   if (query === "") return path;
   const pairs = query
@@ -138,7 +140,9 @@ export function canonicalPathWithQuery(pathWithQuery: string): string {
       const value = at === -1 ? "" : part.slice(at + 1);
       return [encodeQueryPart(key), encodeQueryPart(value)] as const;
     })
-    .sort((a, b) => (a[0] === b[0] ? (a[1] < b[1] ? -1 : 1) : a[0] < b[0] ? -1 : 1));
+    .sort((a, b) =>
+      a[0] === b[0] ? (a[1] < b[1] ? -1 : 1) : a[0] < b[0] ? -1 : 1,
+    );
   return `${path}?${pairs.map(([k, v]) => `${k}=${v}`).join("&")}`;
 }
 
@@ -420,15 +424,20 @@ export async function createPermanentAccount(input: {
 }> {
   requireReference(input.reference);
   // No BVN is sent (spec §5.3, "BVN - open"); the sandbox will say if one is needed.
-  const result = await request("collection", "POST", "/virtual-accounts/create", {
-    type: "individual",
-    virtual_account_type: "Permanent",
-    currency: "NGN",
-    provider: "Bloc",
-    account_name: input.accountName,
-    customer_email: input.email,
-    reference: input.reference,
-  });
+  const result = await request(
+    "collection",
+    "POST",
+    "/virtual-accounts/create",
+    {
+      type: "individual",
+      virtual_account_type: "Permanent",
+      currency: "NGN",
+      provider: "Bloc",
+      account_name: input.accountName,
+      customer_email: input.email,
+      reference: input.reference,
+    },
+  );
   const data = asObject(result.data);
   const accountNumber = requireString(data.account_number);
   requireAccountNumber(accountNumber);
@@ -468,10 +477,15 @@ export async function validateAccount(
 ): Promise<{ accountName: string; refId: string }> {
   requireAccountNumber(accountNumber);
   if (bankCode.trim() === "") fail("Invalid bank code");
-  const result = await request("disbursement", "POST", "/payout/accounts/validate", {
-    account_number: accountNumber,
-    bank_code: bankCode,
-  });
+  const result = await request(
+    "disbursement",
+    "POST",
+    "/payout/accounts/validate",
+    {
+      account_number: accountNumber,
+      bank_code: bankCode,
+    },
+  );
   const data = asObject(result.data);
   return {
     accountName: requireString(data.account_name),
@@ -511,7 +525,11 @@ export async function disburse(input: {
     if (error instanceof CrayError && error.status === 400) {
       // A refused disburse sent nothing, but the two refusals mean different things to the caller.
       if (/insufficient balance/i.test(error.message)) {
-        throw new CrayError(error.message, error.status, "insufficient_balance");
+        throw new CrayError(
+          error.message,
+          error.status,
+          "insufficient_balance",
+        );
       }
       if (/duplicate|already (been )?used|exists/i.test(error.message)) {
         throw new CrayError(error.message, error.status, "duplicate_reference");
@@ -584,7 +602,9 @@ export async function requeryPayout(
         : null,
     sentKobo: hasAmount ? requireAmountField(data.amount) : 0,
     chargeKobo:
-      charge === undefined || charge === null ? null : requireAmountField(charge),
+      charge === undefined || charge === null
+        ? null
+        : requireAmountField(charge),
     raw: data,
   };
 }

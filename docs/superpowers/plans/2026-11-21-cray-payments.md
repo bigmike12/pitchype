@@ -205,9 +205,9 @@
 - Consumes: notification facts from Task 6 and Task 7; accounts/events from Task 4.
 - Produces: `describeNotification` cases `deposit_received` (five outcome wordings, exact copy from spec §5.3 "Notifications", amounts via `formatNaira`; the short case says "₦12,700 is still to pay" (`still_needed_kobo`) and adds "Send ₦12,900 by bank transfer to cover the bank charge." (`still_needed_kobo + TRANSFER_IN_ALLOWANCE_KOBO`); href `/business/engagements/<id>/pay` when an engagement is named, else `/business/wallet` — check the real business wallet route) and `payout_reversed` ("Your payout of ₦X didn't arrive. ₦Y is back in your wallet." → `/wallet`); `EMAIL_POLICY.deposit_received = "always"`, `EMAIL_POLICY.payout_reversed = "always"`; ledger words for `deposit_received` ("Bank transfer received"), `processor_fee`, `cash_moved`, `payout_reversed` and the accounts `cray`, `cray_fees`, `bank`; filters, CSV and the trail check accept them.
 
-- [ ] **Step 1: Failing tests:** one per wording with the spec's example numbers (₦52,700 / ₦200 / ₦7,300 / ₦12,700 / ₦39,800); email policy for both kinds; ledger words for each new event; trail check still adds up with a deposit-funded hire.
-- [ ] **Step 2–4:** run → fail → implement → pass.
-- [ ] **Step 5: Commit** `Word deposit, reversal and Cray ledger rows`.
+- [x] **Step 1: Failing tests:** one per wording with the spec's example numbers (₦52,700 / ₦200 / ₦7,300 / ₦12,700 / ₦39,800); email policy for both kinds; ledger words for each new event; trail check still adds up with a deposit-funded hire.
+- [x] **Step 2–4:** run → fail → implement → pass.
+- [x] **Step 5: Commit** `Word deposit, reversal and Cray ledger rows`.
 
 ### Task 10: Payment decisions for Cray (`payments.ts`)
 

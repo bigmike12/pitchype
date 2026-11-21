@@ -39,7 +39,10 @@ export function encryptAccountNumber(plain: string): string {
   }
   const iv = randomBytes(IV_BYTES);
   const cipher = createCipheriv("aes-256-gcm", key(), iv);
-  const ciphertext = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
+  const ciphertext = Buffer.concat([
+    cipher.update(plain, "utf8"),
+    cipher.final(),
+  ]);
   return [
     VERSION,
     iv.toString("base64"),
@@ -56,17 +59,24 @@ export function decryptAccountNumber(stored: string): string {
   const iv = Buffer.from(parts[1], "base64");
   const tag = Buffer.from(parts[2], "base64");
   const ciphertext = Buffer.from(parts[3], "base64");
-  if (iv.length !== IV_BYTES || tag.length !== TAG_BYTES || ciphertext.length === 0) {
+  if (
+    iv.length !== IV_BYTES ||
+    tag.length !== TAG_BYTES ||
+    ciphertext.length === 0
+  ) {
     throw new AccountCryptoError("Unreadable stored bank account number");
   }
   try {
     const decipher = createDecipheriv("aes-256-gcm", key(), iv);
     decipher.setAuthTag(tag);
-    return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString(
-      "utf8",
-    );
+    return Buffer.concat([
+      decipher.update(ciphertext),
+      decipher.final(),
+    ]).toString("utf8");
   } catch (error) {
     if (error instanceof AccountCryptoError) throw error;
-    throw new AccountCryptoError("Could not decrypt the stored bank account number");
+    throw new AccountCryptoError(
+      "Could not decrypt the stored bank account number",
+    );
   }
 }

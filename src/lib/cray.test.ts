@@ -73,7 +73,10 @@ afterEach(() => {
 
 function stubFetch(...responses: { status?: number; body: unknown }[]) {
   let index = 0;
-  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+  globalThis.fetch = (async (
+    url: string | URL | Request,
+    init?: RequestInit,
+  ) => {
     calls.push({ url: String(url), init: init ?? {} });
     const response = responses[Math.min(index, responses.length - 1)];
     index += 1;
@@ -224,10 +227,7 @@ test("request uses the key of the scope and signs the exact body it sends", asyn
   await __request("disbursement", "GET", "/payout/banks");
   assert.equal(calls[0].url, "https://cray.test/checkout/initialize");
   assert.equal(headersOf(calls[0]).Authorization, `Bearer ${COLLECTION_KEY}`);
-  assert.equal(
-    headersOf(calls[1]).Authorization,
-    `Bearer ${DISBURSEMENT_KEY}`,
-  );
+  assert.equal(headersOf(calls[1]).Authorization, `Bearer ${DISBURSEMENT_KEY}`);
   assert.equal(calls[0].init.body, '{"a":1}');
   assert.equal(calls[1].init.body, undefined);
 
@@ -251,7 +251,8 @@ test("request uses a new nonce on every call", async () => {
   stubFetch({ body: OK_BODY });
   await __request("collection", "GET", "/balance");
   await __request("collection", "GET", "/balance");
-  const nonce = (call: Call) => /n=([^,]+)/.exec(headersOf(call)["X-Signature"])![1];
+  const nonce = (call: Call) =>
+    /n=([^,]+)/.exec(headersOf(call)["X-Signature"])![1];
   assert.notEqual(nonce(calls[0]), nonce(calls[1]));
 });
 
@@ -267,7 +268,11 @@ test("request accepts status true, 'success' or success: true", async () => {
 test("request turns a non-2xx answer into a CrayError with status and code", async () => {
   stubFetch({
     status: 401,
-    body: { status: false, code: "SIGNATURE_INVALID", message: "bad signature" },
+    body: {
+      status: false,
+      code: "SIGNATURE_INVALID",
+      message: "bad signature",
+    },
   });
   await assert.rejects(
     __request("collection", "GET", "/balance"),
@@ -288,7 +293,9 @@ test("request treats status:false on HTTP 200 as an error", async () => {
 });
 
 test("a network failure is status 0 and names neither key nor url", async () => {
-  stubFetchThrowing(new Error(`connect failed https://cray.test ${COLLECTION_KEY}`));
+  stubFetchThrowing(
+    new Error(`connect failed https://cray.test ${COLLECTION_KEY}`),
+  );
   await assert.rejects(
     __request("collection", "GET", "/balance"),
     (error: unknown) =>
@@ -458,7 +465,9 @@ test("queryCheckout refuses a success without all three amounts or with a fracti
     });
     await assert.rejects(queryCheckout(REFERENCE), CrayError, missing);
   }
-  stubFetch({ body: { status: true, data: checkoutData({ amount: "52700.005" }) } });
+  stubFetch({
+    body: { status: true, data: checkoutData({ amount: "52700.005" }) },
+  });
   await assert.rejects(queryCheckout(REFERENCE), CrayError);
 });
 
@@ -511,7 +520,12 @@ test("createPermanentAccount refuses an answer without a ten digit account numbe
   stubFetch({
     body: {
       status: true,
-      data: { id: "v", account_number: "123", bank_name: "B", account_name: "N" },
+      data: {
+        id: "v",
+        account_number: "123",
+        bank_name: "B",
+        account_name: "N",
+      },
     },
   });
   await assert.rejects(
@@ -577,7 +591,10 @@ test("disburse sends naira text and the customer reference", async () => {
     body: { status: true, data: { reference: "TX123456", status: "pending" } },
   });
   const result = await disburse(DISBURSE_INPUT);
-  assert.deepEqual(result, { providerReference: "TX123456", status: "pending" });
+  assert.deepEqual(result, {
+    providerReference: "TX123456",
+    status: "pending",
+  });
   assert.equal(calls[0].url, "https://cray.test/payout/disburse");
   assert.equal(headersOf(calls[0]).Authorization, `Bearer ${DISBURSEMENT_KEY}`);
   assert.deepEqual(bodyOf(calls[0]), {
@@ -660,7 +677,10 @@ test("requeryPayout gives a null charge when Cray sends none and refuses a succe
   });
   assert.equal((await requeryPayout("TX1")).chargeKobo, null);
   stubFetch({
-    body: { status: true, data: { status: "success", merchant_reference: "x" } },
+    body: {
+      status: true,
+      data: { status: "success", merchant_reference: "x" },
+    },
   });
   await assert.rejects(requeryPayout("TX1"), CrayError);
   const before = calls.length;
@@ -699,7 +719,9 @@ test("getMainBalanceKobo picks the main balance, or null", async () => {
   stubFetch({
     body: {
       status: true,
-      data: [{ name: "Settlement Balance", currency: "NGN", actual_balance: 5 }],
+      data: [
+        { name: "Settlement Balance", currency: "NGN", actual_balance: 5 },
+      ],
     },
   });
   assert.equal(await getMainBalanceKobo(), null);
@@ -721,7 +743,10 @@ test("isValidWebhookHash accepts the key chosen by the hint", () => {
 test("isValidWebhookHash rejects a changed field, a wrong hint, a bad hash and no keys", () => {
   const data = { reference: REFERENCE, amount: "10.00" };
   const hash = hashOf(JSON.stringify(data), "whk_test_abcd");
-  assert.equal(isValidWebhookHash({ ...data, amount: "11.00" }, hash, "abcd"), false);
+  assert.equal(
+    isValidWebhookHash({ ...data, amount: "11.00" }, hash, "abcd"),
+    false,
+  );
   assert.equal(isValidWebhookHash(data, hash, "zzzz"), false);
   assert.equal(isValidWebhookHash(data, "not-a-hash", "abcd"), false);
   assert.equal(isValidWebhookHash(data, undefined, "abcd"), false);
@@ -744,7 +769,8 @@ test("isValidWebhookHash supports two keys for rotation", () => {
 
 test("isValidWebhookHash accepts PHP-style escaping of slashes and non-ASCII", () => {
   const data = { return_url: "https://x.test/a", name: "Ọlá" };
-  const php = '{"return_url":"https:\\/\\/x.test\\/a","name":"\\u1eccl\\u00e1"}';
+  const php =
+    '{"return_url":"https:\\/\\/x.test\\/a","name":"\\u1eccl\\u00e1"}';
   const hash = hashOf(php, "whk_test_abcd");
   assert.equal(isValidWebhookHash(data, hash, "abcd"), true);
   const plain = hashOf(JSON.stringify(data), "whk_test_abcd");

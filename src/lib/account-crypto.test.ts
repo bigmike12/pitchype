@@ -35,7 +35,8 @@ test("two encryptions of the same number differ", () => {
 });
 
 test("a changed ciphertext is refused", () => {
-  const [version, iv, tag, ciphertext] = encryptAccountNumber("0123456789").split(":");
+  const [version, iv, tag, ciphertext] =
+    encryptAccountNumber("0123456789").split(":");
   const bytes = Buffer.from(ciphertext, "base64");
   bytes[0] ^= 1;
   const tampered = [version, iv, tag, bytes.toString("base64")].join(":");
@@ -43,10 +44,13 @@ test("a changed ciphertext is refused", () => {
 });
 
 test("a changed tag is refused", () => {
-  const [version, iv, tag, ciphertext] = encryptAccountNumber("0123456789").split(":");
+  const [version, iv, tag, ciphertext] =
+    encryptAccountNumber("0123456789").split(":");
   const bytes = Buffer.from(tag, "base64");
   bytes[0] ^= 1;
-  const tampered = [version, iv, bytes.toString("base64"), ciphertext].join(":");
+  const tampered = [version, iv, bytes.toString("base64"), ciphertext].join(
+    ":",
+  );
   assert.throws(() => decryptAccountNumber(tampered), AccountCryptoError);
 });
 
@@ -68,7 +72,8 @@ test("a missing or short key is refused", () => {
   process.env.BANK_ACCOUNT_ENCRYPTION_KEY = randomBytes(16).toString("base64");
   assert.throws(() => encryptAccountNumber("0123456789"), AccountCryptoError);
   assert.throws(
-    () => decryptAccountNumber("v1:AAAAAAAAAAAAAAAA:AAAAAAAAAAAAAAAAAAAAAA==:AA=="),
+    () =>
+      decryptAccountNumber("v1:AAAAAAAAAAAAAAAA:AAAAAAAAAAAAAAAAAAAAAA==:AA=="),
     AccountCryptoError,
   );
 });

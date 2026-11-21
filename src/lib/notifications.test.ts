@@ -130,6 +130,8 @@ test("missing facts never show 'undefined'", () => {
     "dispute_opened",
     "dispute_statement",
     "dispute_withdrawn",
+    "deposit_received",
+    "payout_reversed",
   ]) {
     const d = describeNotification(row(kind));
     assert.ok(d, kind);
@@ -587,4 +589,130 @@ test("the business hears a per-click creator withdrew", () => {
   assert.equal(d?.title, "Ada Kitchen withdrew from “Zobo week”");
   assert.match(d?.body ?? "", /stopped counting/);
   assert.equal(d?.href, "/business/engagements/e1");
+});
+
+// Bank-transfer deposits: the business is told what arrived, what Cray's
+// charge was, and what happened (the wording is the spec's, §5.3).
+const deposit = (extra: Record<string, unknown>) =>
+  describeNotification(
+    row("deposit_received", {
+      engagement_id: "e1",
+      engagement_title: "Zobo week",
+      name: "Tolu",
+      ...extra,
+    }),
+    "business",
+  );
+
+const sentence = (d: { title: string; body: string | null } | null) =>
+  `${d?.title}. ${d?.body}`;
+
+test("a deposit that funds the hire says so, with the charge", () => {
+  const d = deposit({
+    outcome: "funded",
+    amount_sent_kobo: 5_270_000,
+    charge_kobo: 20_000,
+    credited_kobo: 5_250_000,
+    wallet_after_kobo: 0,
+  });
+  assert.equal(
+    sentence(d),
+    "We received ₦52,700 (₦200 bank charge). Your hire with Tolu is paid.",
+  );
+  assert.equal(d?.href, "/business/engagements/e1");
+});
+
+test("a deposit with money over says where the extra is", () => {
+  const d = deposit({
+    outcome: "funded_with_extra",
+    amount_sent_kobo: 6_000_000,
+    charge_kobo: 20_000,
+    credited_kobo: 5_980_000,
+    wallet_after_kobo: 730_000,
+  });
+  assert.equal(
+    sentence(d),
+    "We received ₦60,000 (₦200 bank charge). Your hire is paid and the extra ₦7,300 is in your wallet.",
+  );
+});
+
+test("a short deposit says how much is still to pay and what to send", () => {
+  const d = deposit({
+    outcome: "short",
+    amount_sent_kobo: 4_000_000,
+    charge_kobo: 20_000,
+    credited_kobo: 3_980_000,
+    still_needed_kobo: 1_270_000,
+    wallet_after_kobo: 3_980_000,
+  });
+  assert.equal(
+    sentence(d),
+    "We received ₦40,000 (₦200 bank charge). This hire needs ₦52,500, so ₦12,700 is still to pay. The ₦39,800 is in your wallet and will be used first. Send ₦12,900 by bank transfer to cover the bank charge.",
+  );
+  assert.equal(d?.href, "/business/engagements/e1/pay");
+});
+
+test("a deposit after the hire ended says the money is safe in the wallet", () => {
+  const d = deposit({
+    outcome: "hire_ended",
+    amount_sent_kobo: 5_270_000,
+    charge_kobo: 20_000,
+    credited_kobo: 5_250_000,
+    wallet_after_kobo: 5_250_000,
+  });
+  assert.equal(
+    sentence(d),
+    "We received ₦52,700 (₦200 bank charge), but the hire had already ended. The money is in your wallet.",
+  );
+  assert.equal(d?.href, "/business/wallet");
+});
+
+test("a deposit with no hire behind it is added to the wallet, and points at a waiting hire if there is one", () => {
+  const plain = deposit({
+    outcome: "credited",
+    engagement_id: undefined,
+    engagement_title: undefined,
+    amount_sent_kobo: 1_000_000,
+    charge_kobo: 20_000,
+    credited_kobo: 980_000,
+  });
+  assert.equal(
+    sentence(plain),
+    "We received ₦10,000 (₦200 bank charge). ₦9,800 was added to your Pitchype wallet.",
+  );
+  assert.equal(plain?.href, "/business/wallet");
+
+  const waiting = deposit({
+    outcome: "credited",
+    amount_sent_kobo: 1_000_000,
+    charge_kobo: 20_000,
+    credited_kobo: 980_000,
+  });
+  assert.match(
+    waiting?.body ?? "",
+    /₦9,800 was added to your Pitchype wallet\. You have a hire waiting for payment: pay it from your wallet\./,
+  );
+  assert.equal(waiting?.href, "/business/engagements/e1/pay");
+});
+
+test("a deposit notice with no figures still reads sensibly", () => {
+  const d = describeNotification(row("deposit_received", {}), "business");
+  assert.ok(d);
+  assert.match(d.title, /bank transfer/i);
+});
+
+test("a reversed payout tells the creator it didn't arrive and what came back", () => {
+  const d = describeNotification(
+    row("payout_reversed", {
+      payout_id: "p1",
+      amount_kobo: 2_200_000,
+      credited_kobo: 2_195_000,
+    }),
+    "influencer",
+  );
+  assert.equal(
+    `${d?.title}. ${d?.body}`,
+    "Your ₦22,000 payout didn’t arrive. ₦21,950 is back in your wallet.",
+  );
+  assert.equal(d?.href, "/wallet");
 });
