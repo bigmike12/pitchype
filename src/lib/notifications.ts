@@ -2,6 +2,7 @@
 // (a kind and the facts, see the create_notifications migration); this file
 // turns that into what a person reads, so copy changes need no migration.
 
+import { formatDay } from "./campaign.ts";
 import {
   formatDateTime,
   PLATFORM_RULES,
@@ -273,6 +274,32 @@ export function describeNotification(
         body: text(d.decision_reason),
         href: "/wallet",
       };
+    case "kickoff_done":
+      return {
+        title: `${name} confirmed the kickoff for ${quoted}`,
+        body: "They’ve read the brief and started on the work.",
+        href: businessHire,
+      };
+    case "checkpoint_done": {
+      const due = text(d.due_on);
+      return {
+        title: `${name} sent a progress checkpoint for ${quoted}`,
+        body: due ? `It was due on ${formatDay(due)}.` : null,
+        href: businessHire,
+      };
+    }
+    case "checkpoint_late": {
+      const due = text(d.due_on);
+      const dueLine = due ? `It was due on ${formatDay(due)}. ` : "";
+      return {
+        title:
+          d.kickoff === true
+            ? `${name} confirmed the kickoff for ${quoted}, after it was due`
+            : `${name} sent a late progress checkpoint for ${quoted}`,
+        body: `${dueLine}It’s recorded as late. No money is held back because of a missed checkpoint.`,
+        href: businessHire,
+      };
+    }
     case "click_cap_reached": {
       const cap = typeof d.cap === "number" ? d.cap : null;
       const earned = kobo(d.earned_kobo);

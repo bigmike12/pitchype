@@ -135,6 +135,9 @@ test("missing facts never show 'undefined'", () => {
     "identity_verified",
     "identity_failed",
     "identity_needs_review",
+    "kickoff_done",
+    "checkpoint_done",
+    "checkpoint_late",
   ]) {
     const d = describeNotification(row(kind));
     assert.ok(d, kind);
@@ -671,4 +674,34 @@ test("a duplicate-identity rejection stays neutral about why", () => {
   );
   assert.match(d?.body ?? "", /contact us/i);
   assert.doesNotMatch(d?.body ?? "", /another account|duplicate/i);
+});
+
+test("checkpoint notices tell the business who sent what, and link to the hire", () => {
+  const kickoff = describeNotification(
+    row("kickoff_done", { ...hire, name: "Tolu", kickoff: true }),
+    "business",
+  );
+  assert.equal(kickoff?.title, "Tolu confirmed the kickoff for “Zobo week”");
+  assert.equal(kickoff?.href, "/business/engagements/e1");
+
+  const done = describeNotification(
+    row("checkpoint_done", { ...hire, name: "Tolu", due_on: "2026-12-08" }),
+    "business",
+  );
+  assert.equal(done?.title, "Tolu sent a progress checkpoint for “Zobo week”");
+  assert.match(done?.body ?? "", /8 Dec 2026/);
+
+  const late = describeNotification(
+    row("checkpoint_late", { ...hire, name: "Tolu", due_on: "2026-12-08" }),
+    "business",
+  );
+  assert.match(late?.title ?? "", /late/);
+  assert.match(late?.body ?? "", /No money is held back/);
+
+  const lateKickoff = describeNotification(
+    row("checkpoint_late", { ...hire, name: "Tolu", kickoff: true }),
+    "business",
+  );
+  assert.match(lateKickoff?.title ?? "", /kickoff/);
+  assert.match(lateKickoff?.title ?? "", /after it was due/);
 });

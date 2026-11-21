@@ -33,6 +33,9 @@ export const EMAIL_POLICY: Record<string, EmailPolicy> = {
   application_passed: "applications",
   hire_cancelled: "applications",
   work_started: "applications",
+  kickoff_done: "applications",
+  checkpoint_done: "applications",
+  checkpoint_late: "applications",
 
   campaign_approved: "campaigns",
   campaign_sent_back: "campaigns",

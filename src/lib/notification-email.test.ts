@@ -83,7 +83,14 @@ test("switches control their group", () => {
   const only = (group: keyof typeof ALL_OFF) => ({ ...ALL_OFF, [group]: true });
 
   const groups = {
-    applications: ["application_received", "work_started", "hire_cancelled"],
+    applications: [
+      "application_received",
+      "work_started",
+      "hire_cancelled",
+      "kickoff_done",
+      "checkpoint_done",
+      "checkpoint_late",
+    ],
     campaigns: ["campaign_approved", "campaign_sent_back"],
     messages: ["new_message"],
   } as const;
