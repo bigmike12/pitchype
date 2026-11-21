@@ -50,11 +50,11 @@
   - `personNamesMatch(entered: string, onRecord: string): boolean` — spec §5.4 person rule (entered first and last tokens both among the record's tokens, any order).
   - `companyNamesMatch(entered: string, onRecord: string): boolean` — spec §5.4 company rule (equivalences `LIMITED`=`LTD`, `ENTERPRISES`=`ENTERPRISE`=`ENT`, `NIGERIA`=`NIG`, `&`=`AND`, `CO`=`COMPANY`, `PLC`; leading `THE` ignored; then equality).
 
-- [ ] **Step 1: Failing tests:** fingerprint is stable for the same input, differs for NIN vs BVN of the same digits, differs with another key, starts `v1:`; throws on `"1234"`, on a missing key, on a 16-byte key, and the error message doesn't include the digits. `personNamesMatch("Chidi Okafor", "OKAFOR CHIDI EMEKA") === true`; `("Chídi  Okafor", "CHIDI OKAFOR") === true`; `("Chidi Okafor", "CHIDI OKORO") === false`; `("Chidi", "CHIDI OKAFOR") === false` (needs first and last). `companyNamesMatch("Acme Industries Ltd", "ACME INDUSTRIES LIMITED") === true`; `("The Acme & Co", "ACME AND COMPANY") === true`; `("Acme Foods Ltd", "ACME INDUSTRIES LIMITED") === false`.
-- [ ] **Step 2:** `node --test src/lib/identity-crypto.test.ts src/lib/identity-names.test.ts` → FAIL.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run → PASS; typecheck, lint.
-- [ ] **Step 5: Commit** `Fingerprint ID numbers and match legal names`.
+- [x] **Step 1: Failing tests:** fingerprint is stable for the same input, differs for NIN vs BVN of the same digits, differs with another key, starts `v1:`; throws on `"1234"`, on a missing key, on a 16-byte key, and the error message doesn't include the digits. `personNamesMatch("Chidi Okafor", "OKAFOR CHIDI EMEKA") === true`; `("Chídi  Okafor", "CHIDI OKAFOR") === true`; `("Chidi Okafor", "CHIDI OKORO") === false`; `("Chidi", "CHIDI OKAFOR") === false` (needs first and last). `companyNamesMatch("Acme Industries Ltd", "ACME INDUSTRIES LIMITED") === true`; `("The Acme & Co", "ACME AND COMPANY") === true`; `("Acme Foods Ltd", "ACME INDUSTRIES LIMITED") === false`.
+- [x] **Step 2:** `node --test src/lib/identity-crypto.test.ts src/lib/identity-names.test.ts` → FAIL.
+- [x] **Step 3:** Implement.
+- [x] **Step 4:** Run → PASS; typecheck, lint.
+- [x] **Step 5: Commit** `Fingerprint ID numbers and match legal names`.
 
 ### Task 2: Dojah client
 
