@@ -72,9 +72,9 @@
   - `screenPerson(input: { name: string; dateOfBirth: string | null; reference: string }): Promise<{ matchCount: number; providerReference: string | null }>` and `screenBusiness(input: { name: string; reference: string })` — `POST /api/v2/aml/screening` with `schema` `"individual"` / `"organization"`, `unique_reference`, `properties.names`, `date_of_birth` as `DD-MM-YYYY`, `nationality: "Nigerian"`, `screening_options: { pep_check: true, sanction: true, adverse_media_check: false }`; `matchCount` = number of results returned.
   - Constants for the browser: `widgetConfig(kind: "NIN" | "BVN"): { appId: string; publicKey: string; widgetId: string }` (server-only function; the page passes the result to the client component).
 
-- [ ] **Step 1: Failing tests** (stub `fetch` like `src/lib/cray.test.ts`): headers are `Authorization: <secret>` with no `Bearer` and `AppId`; CAC path/query and parsed result from the docs' sample (`JOHN DOE LIMITED`, affiliate `JOHN MUSA` → `directors: ["JOHN MUSA"]`); CAC 404 → `{found:false}`; 402 and 424 → `DojahError` with that status; screening body exact (schema, options, DOB format) and `matchCount`; signature: valid, tampered body, wrong secret, missing header, different length; an error message with `"22222222222"` in it comes out masked.
-- [ ] **Step 2–4:** fail → implement → pass; typecheck, lint.
-- [ ] **Step 5: Commit** `Add the Dojah client`.
+- [x] **Step 1: Failing tests** (stub `fetch` like `src/lib/cray.test.ts`): headers are `Authorization: <secret>` with no `Bearer` and `AppId`; CAC path/query and parsed result from the docs' sample (`JOHN DOE LIMITED`, affiliate `JOHN MUSA` → `directors: ["JOHN MUSA"]`); CAC 404 → `{found:false}`; 402 and 424 → `DojahError` with that status; screening body exact (schema, options, DOB format) and `matchCount`; signature: valid, tampered body, wrong secret, missing header, different length; an error message with `"22222222222"` in it comes out masked.
+- [x] **Step 2–4:** fail → implement → pass; typecheck, lint.
+- [x] **Step 5: Commit** `Add the Dojah client`.
 
 ### Task 3: Deciding a Dojah session (pure)
 
