@@ -192,9 +192,9 @@
 - Produces (SQL): `record_cash_movement(from_account text, to_account text, amount_kobo bigint, reason text) returns uuid` — admin only, accounts in (`paystack`,`cray`,`bank`), from ≠ to, amount > 0, reason 3–500; one `cash_moved` group (`to +amount`, `from −amount`). `reconciliation_runs.provider text not null default 'paystack'`; `record_reconciliation(provider text, balance_kobo bigint, note_parts jsonb default '[]')` — expected = the ledger balance of that provider's cash account (positive sum of its rows); difference and the whole-ledger zero-sum check go into `note` as today, plus the parts (`[{name, kobo}]`) for Cray; keep `record_reconciliation(bigint)` as a wrapper for `'paystack'`.
 - Produces (TS): `recordCashMovement(input: { from: "paystack" | "cray" | "bank"; to: "paystack" | "cray" | "bank"; amountKobo: number; reason: string }): Promise<{ ok: true } | { ok: false; reason: string }>`; `recordReconciliation(provider: "cray" | "paystack", balanceKobo: number, parts?: { name: string; kobo: number }[])`; `getLatestReconciliation(provider: "cray" | "paystack")`; `listReconciliationRuns` rows gain `provider`.
 
-- [ ] **Step 1: Failing pgTAP:** admin cash movement balanced, non-admin refused, same-account refused, `paystack → cray` of ₦100,000 changes both expected cash figures; `record_reconciliation('cray', X)` compares against `cray` only; a Paystack run is unaffected by Cray rows; append-only still holds.
-- [ ] **Step 2–4:** as before; existing `audit.test.sql` passes unedited.
-- [ ] **Step 5: Commit** `Reconcile each payment provider on its own and record cash moved between them`.
+- [x] **Step 1: Failing pgTAP:** admin cash movement balanced, non-admin refused, same-account refused, `paystack → cray` of ₦100,000 changes both expected cash figures; `record_reconciliation('cray', X)` compares against `cray` only; a Paystack run is unaffected by Cray rows; append-only still holds.
+- [x] **Step 2–4:** as before; existing `audit.test.sql` passes unedited.
+- [x] **Step 5: Commit** `Reconcile each payment provider on its own and record cash moved between them`.
 
 ### Task 9: Notification and ledger words
 

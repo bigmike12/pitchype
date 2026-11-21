@@ -76,7 +76,7 @@ async function ReconciliationRuns({
 }) {
   await requireRole("admin");
   const [latest, runs, query] = await Promise.all([
-    getLatestReconciliation(),
+    getLatestReconciliation("paystack"),
     listReconciliationRuns(RUNS_KEPT),
     searchParams,
   ]);

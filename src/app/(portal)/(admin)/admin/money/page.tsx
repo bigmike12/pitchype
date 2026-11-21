@@ -49,7 +49,7 @@ export default function MoneyPage() {
 async function Money() {
   await requireRole("admin");
   const [reconciliation, waiting, escrow] = await Promise.all([
-    getLatestReconciliation(),
+    getLatestReconciliation("paystack"),
     countPayoutsAwaitingApproval(),
     countEscrowEngagements(),
   ]);

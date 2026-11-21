@@ -55,7 +55,8 @@ async function realDeps(): Promise<MoneyCheckDeps> {
     listProcessingPayoutsOlderThan: payouts.listProcessingPayoutsOlderThan,
     confirmTransfer: (reference) => payments.confirmTransfer(reference),
     getBalanceKobo: paystack.getBalanceKobo,
-    recordReconciliation: money.recordReconciliation,
+    recordReconciliation: (balanceKobo) =>
+      money.recordReconciliation("paystack", balanceKobo),
   };
 }
 

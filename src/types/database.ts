@@ -1754,6 +1754,7 @@ export type Database = {
           id: string
           note: string | null
           paystack_balance_kobo: number
+          provider: string
           ran_at: string
         }
         Insert: {
@@ -1762,6 +1763,7 @@ export type Database = {
           id?: string
           note?: string | null
           paystack_balance_kobo: number
+          provider?: string
           ran_at?: string
         }
         Update: {
@@ -1770,6 +1772,7 @@ export type Database = {
           id?: string
           note?: string | null
           paystack_balance_kobo?: number
+          provider?: string
           ran_at?: string
         }
         Relationships: []
@@ -2506,6 +2509,10 @@ export type Database = {
         }
         Returns: string
       }
+      provider_reconciliation_figures: {
+        Args: { balance_kobo: number; totals: Json; which: string }
+        Returns: Json
+      }
       reconciliation_figures: {
         Args: { paystack_balance_kobo: number; totals: Json }
         Returns: Json
@@ -2517,6 +2524,15 @@ export type Database = {
           payload: Json
           paystack_fee_kobo: number
           reference: string
+        }
+        Returns: string
+      }
+      record_cash_movement: {
+        Args: {
+          amount_kobo: number
+          from_account: string
+          reason: string
+          to_account: string
         }
         Returns: string
       }
@@ -2557,10 +2573,12 @@ export type Database = {
         Args: { new_provider_reference: string; payout_reference: string }
         Returns: string
       }
-      record_reconciliation: {
-        Args: { paystack_balance_kobo: number }
-        Returns: Json
-      }
+      record_reconciliation:
+        | {
+            Args: { balance_kobo: number; note_parts?: Json; which: string }
+            Returns: Json
+          }
+        | { Args: { paystack_balance_kobo: number }; Returns: Json }
       record_strike: {
         Args: { dedupe: string; detail: string; flag: string; person: string }
         Returns: Json

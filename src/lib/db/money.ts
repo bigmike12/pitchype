@@ -1012,71 +1012,89 @@ export async function getSettlementState(
 
 export type ReconciliationRun = {
   id: string;
+  provider: PaymentProvider;
   ranAt: string;
+  // The provider's reported balance (whichever provider the run is for).
   paystackBalanceKobo: number;
   expectedCashKobo: number;
   differenceKobo: number;
   note: string | null;
 };
 
-/** The latest reconciliation run, for admins (row level security); null if none yet. */
-export async function getLatestReconciliation(): Promise<ReconciliationRun | null> {
+const RECONCILIATION_COLUMNS =
+  "id, provider, ran_at, paystack_balance_kobo, expected_cash_kobo, difference_kobo, note";
+
+function toReconciliationRun(row: {
+  id: string;
+  provider: string;
+  ran_at: string;
+  paystack_balance_kobo: number;
+  expected_cash_kobo: number;
+  difference_kobo: number;
+  note: string | null;
+}): ReconciliationRun {
+  if (row.provider !== "cray" && row.provider !== "paystack") {
+    throw new Error("reconciliation run has an unknown provider");
+  }
+  return {
+    id: row.id,
+    provider: row.provider,
+    ranAt: row.ran_at,
+    paystackBalanceKobo: row.paystack_balance_kobo,
+    expectedCashKobo: row.expected_cash_kobo,
+    differenceKobo: row.difference_kobo,
+    note: row.note,
+  };
+}
+
+/** The latest reconciliation run for a provider, for admins (row level security); null if none yet. */
+export async function getLatestReconciliation(
+  provider: PaymentProvider,
+): Promise<ReconciliationRun | null> {
   const supabase = await createSessionClient();
   const { data, error } = await supabase
     .from("reconciliation_runs")
-    .select(
-      "id, ran_at, paystack_balance_kobo, expected_cash_kobo, difference_kobo, note",
-    )
+    .select(RECONCILIATION_COLUMNS)
+    .eq("provider", provider)
     .order("ran_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) throw new Error(`reconciliation lookup failed (${error.code})`);
-  if (!data) return null;
-  return {
-    id: data.id,
-    ranAt: data.ran_at,
-    paystackBalanceKobo: data.paystack_balance_kobo,
-    expectedCashKobo: data.expected_cash_kobo,
-    differenceKobo: data.difference_kobo,
-    note: data.note,
-  };
+  return data ? toReconciliationRun(data) : null;
 }
 
-/** The most recent reconciliation runs, newest first, for admins (row level security). */
+/** The most recent reconciliation runs of every provider, newest first, for admins (row level security). */
 export async function listReconciliationRuns(
   limit = 30,
 ): Promise<ReconciliationRun[]> {
   const supabase = await createSessionClient();
   const { data, error } = await supabase
     .from("reconciliation_runs")
-    .select(
-      "id, ran_at, paystack_balance_kobo, expected_cash_kobo, difference_kobo, note",
-    )
+    .select(RECONCILIATION_COLUMNS)
     .order("ran_at", { ascending: false })
     .limit(Math.max(1, Math.min(limit, 200)));
   if (error) throw new Error(`reconciliation list failed (${error.code})`);
-  return data.map((row) => ({
-    id: row.id,
-    ranAt: row.ran_at,
-    paystackBalanceKobo: row.paystack_balance_kobo,
-    expectedCashKobo: row.expected_cash_kobo,
-    differenceKobo: row.difference_kobo,
-    note: row.note,
-  }));
+  return data.map(toReconciliationRun);
 }
 
 /**
- * Stores a reconciliation run against Paystack's balance (fetched by the
- * server). Secret-key client: the scheduled job acts for no one person.
+ * Stores a reconciliation run against a provider's balance (fetched by the
+ * server). `parts` are the pieces of the balance the provider reported (Cray:
+ * Main and Settlement), kept in the run's note. Secret-key client: the
+ * scheduled job acts for no one person.
  */
-export async function recordReconciliation(balanceKobo: number): Promise<{
+export async function recordReconciliation(
+  provider: PaymentProvider,
+  balanceKobo: number,
+  parts: { name: string; kobo: number }[] = [],
+): Promise<{
   expectedCashKobo: number;
   differenceKobo: number;
   ledgerBalanced: boolean;
 }> {
   const { data, error } = await createAdminClient().rpc(
     "record_reconciliation",
-    { paystack_balance_kobo: balanceKobo },
+    { which: provider, balance_kobo: balanceKobo, note_parts: parts },
   );
   if (error) throw new Error(`reconciliation failed (${error.code})`);
   const root = obj(data);
@@ -1085,4 +1103,44 @@ export async function recordReconciliation(balanceKobo: number): Promise<{
     differenceKobo: num(root.difference_kobo) ?? 0,
     ledgerBalanced: root.ledger_balanced === true,
   };
+}
+
+// Cash moved between places -------------------------------------------------------------------
+
+export type CashAccount = "paystack" | "cray" | "bank";
+
+const CASH_REFUSALS = [
+  "not_allowed",
+  "invalid_cash_account",
+  "reason_required",
+  "cash_not_available",
+  "invalid_amount",
+] as const;
+
+/**
+ * Admin only (checked inside): records money moved between Paystack, Cray and
+ * our bank as one balanced ledger group, with a required reason.
+ */
+export async function recordCashMovement(input: {
+  from: CashAccount;
+  to: CashAccount;
+  amountKobo: number;
+  reason: string;
+}): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const supabase = await createSessionClient();
+  const { error } = await supabase.rpc("record_cash_movement", {
+    from_account: input.from,
+    to_account: input.to,
+    amount_kobo: input.amountKobo,
+    reason: input.reason,
+  });
+  if (error) {
+    const known = CASH_REFUSALS.find((code) => code === error.message);
+    if (known && (error.code === "P0001" || error.code === "22023")) {
+      return { ok: false, reason: known };
+    }
+    if (error.code === "42501") return { ok: false, reason: "not_allowed" };
+    throw new Error(`cash movement failed (${error.code})`);
+  }
+  return { ok: true };
 }
