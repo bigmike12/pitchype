@@ -13,6 +13,7 @@ import { createSessionClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
 
 import { bool, isObject, list, num, obj, str } from "./json";
+import { screeningQueues, type ScreeningRow } from "../identity-queue.ts";
 import { refused, type Refused } from "./refusal";
 
 type Result<T> = { ok: true; value: T } | Refused;
@@ -490,4 +491,132 @@ export async function listIdentityReviewQueue(): Promise<IdentityReviewRow[]> {
         ]
       : [];
   });
+}
+
+// The admin identity page ----------------------------------------------------------------------
+
+/** Who each person is, for the admin page: their role and the name they trade or post under. Secret-key client; admin pages only. */
+export async function getUserLabels(
+  userIds: string[],
+): Promise<Map<string, { role: string; name: string }>> {
+  const labels = new Map<string, { role: string; name: string }>();
+  if (userIds.length === 0) return labels;
+  const admin = createAdminClient();
+  const [users, creators, businesses] = await Promise.all([
+    admin.from("users").select("id, role").in("id", userIds),
+    admin
+      .from("influencer_profiles")
+      .select("user_id, display_name")
+      .in("user_id", userIds),
+    admin
+      .from("business_profiles")
+      .select("user_id, business_name")
+      .in("user_id", userIds),
+  ]);
+  if (users.error) throw new Error(`user labels failed (${users.error.code})`);
+  if (creators.error) {
+    throw new Error(`creator names failed (${creators.error.code})`);
+  }
+  if (businesses.error) {
+    throw new Error(`business names failed (${businesses.error.code})`);
+  }
+  const names = new Map<string, string>([
+    ...creators.data.map((c) => [c.user_id, c.display_name] as const),
+    ...businesses.data.map((b) => [b.user_id, b.business_name] as const),
+  ]);
+  for (const user of users.data) {
+    labels.set(user.id, { role: user.role, name: names.get(user.id) ?? "" });
+  }
+  return labels;
+}
+
+/** Recent screenings that were not clear, newest first. Admin session only; others see nothing. */
+export async function listUnclearScreenings(
+  limit = 200,
+): Promise<ScreeningRow[]> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("screenings")
+    .select(
+      "id, user_id, subject, trigger, status, match_count, review_outcome, created_at",
+    )
+    .neq("status", "clear")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`screenings list failed (${error.code})`);
+  return data.flatMap((row) => {
+    const subject = row.subject === "business" ? "business" : "person";
+    const trigger = (["first_payout", "first_hire", "admin"] as const).find(
+      (t) => t === row.trigger,
+    );
+    const status = (["clear", "possible_match", "error"] as const).find(
+      (s) => s === row.status,
+    );
+    if (!trigger || !status) return [];
+    return [
+      {
+        id: row.id,
+        userId: row.user_id,
+        subject,
+        trigger,
+        status,
+        matchCount: row.match_count,
+        reviewOutcome:
+          row.review_outcome === "cleared" || row.review_outcome === "confirmed"
+            ? row.review_outcome
+            : null,
+        createdAt: row.created_at,
+      },
+    ];
+  });
+}
+
+export type CappedPerson = {
+  userId: string;
+  kind: IdentityCheckKind;
+  answered: number;
+  lastAnsweredAt: string;
+  /** When the daily cap lifts; null when only an admin can reopen it. */
+  nextAllowedAt: string | null;
+};
+
+/** Everyone who has used their tries for a kind of check. Admin only (checked inside). */
+export async function listCappedPeople(): Promise<CappedPerson[]> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase.rpc("identity_capped_people");
+  if (error) throw new Error(`capped people failed (${error.code})`);
+  return data.flatMap((row) => {
+    const kind = KINDS.find((k) => k === row.kind);
+    return kind
+      ? [
+          {
+            userId: row.user_id,
+            kind,
+            answered: row.answered,
+            lastAnsweredAt: row.last_answered_at,
+            nextAllowedAt: row.next_allowed_at,
+          },
+        ]
+      : [];
+  });
+}
+
+/** How much waits on the admin identity page: held checks, screenings to decide, people at the cap. */
+export async function countIdentityAttention(): Promise<number> {
+  const [checks, unclear, capped] = await Promise.all([
+    listIdentityReviewQueue(),
+    listUnclearScreenings(),
+    listCappedPeople(),
+  ]);
+  const people = [...new Set(unclear.map((s) => s.userId))];
+  const states = new Map(
+    await Promise.all(
+      people.map(async (id) => [id, await getScreeningState(id)] as const),
+    ),
+  );
+  const { attention } = screeningQueues(
+    unclear,
+    (id) => states.get(id) ?? "none",
+  );
+  return checks.length + attention.length + capped.length;
 }

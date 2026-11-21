@@ -759,6 +759,32 @@ as $$
    limit greatest(max, 0);
 $$;
 
+-- Admin only: people who have used their tries for a kind of check (the daily
+-- cap or the total), for the admin identity page. `next_allowed_at` is null
+-- when only an admin can reopen it.
+create function public.identity_capped_people()
+returns table (user_id uuid, kind text, answered integer, last_answered_at timestamptz, next_allowed_at timestamptz)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if public.current_user_id() is null or public.current_user_role() is distinct from 'admin' then
+    raise exception 'not_allowed' using errcode = 'P0001';
+  end if;
+  return query
+    select p.user_id, p.kind, p.answered, p.last_answered_at,
+           (public.identity_attempt_state(p.user_id, p.kind) ->> 'next_allowed_at')::timestamptz
+      from (select c.user_id, c.kind, count(*)::integer as answered, max(c.created_at) as last_answered_at
+              from public.identity_checks c
+             where c.counted
+             group by c.user_id, c.kind) p
+     where (public.identity_attempt_state(p.user_id, p.kind) ->> 'capped')::boolean
+     order by p.last_answered_at desc;
+end;
+$$;
+
 -- What the server needs to act on a check (service role) ---------------------------------------------------------------------
 
 -- The check a provider event refers to, or null.
@@ -835,6 +861,7 @@ revoke all on function public.identity_verified(uuid) from public, anon, authent
 revoke all on function public.director_verified(uuid) from public, anon, authenticated;
 revoke all on function public.identity_fingerprint_matches(uuid, text, text) from public, anon, authenticated;
 revoke all on function public.identity_attempt_state(uuid, text) from public, anon, authenticated;
+revoke all on function public.identity_capped_people() from public, anon;
 revoke all on function public.my_identity_checks() from public, anon;
 revoke all on function public.recent_cac_cache(uuid, text) from public, anon, authenticated;
 revoke all on function public.start_identity_check(text, text) from public, anon;
@@ -855,6 +882,7 @@ grant execute on function public.identity_verified(uuid) to service_role;
 grant execute on function public.director_verified(uuid) to service_role;
 grant execute on function public.identity_fingerprint_matches(uuid, text, text) to service_role;
 grant execute on function public.identity_attempt_state(uuid, text) to service_role;
+grant execute on function public.identity_capped_people() to authenticated;
 grant execute on function public.my_identity_checks() to authenticated;
 grant execute on function public.recent_cac_cache(uuid, text) to service_role;
 grant execute on function public.start_identity_check(text, text) to authenticated;

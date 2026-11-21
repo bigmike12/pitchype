@@ -7,6 +7,7 @@ import {
   LockKeyhole,
   Megaphone,
   ShieldAlert,
+  UserCheck,
 } from "lucide-react";
 import type { Metadata } from "next";
 import { Suspense } from "react";
@@ -24,6 +25,7 @@ import {
   listOpenCampaignReports,
 } from "@/lib/db/campaigns";
 import { countOpenDisputes } from "@/lib/db/disputes";
+import { countIdentityAttention } from "@/lib/db/identity";
 import { getStandingReview } from "@/lib/db/moderation";
 import { countEscrowEngagements } from "@/lib/db/money";
 import { countPayoutsAwaitingApproval } from "@/lib/db/payouts";
@@ -67,6 +69,7 @@ async function Overview() {
     payouts,
     escrow,
     disputes,
+    identity,
   ] = await Promise.all([
     getStandingReview(),
     listCampaignsForReview(),
@@ -77,6 +80,7 @@ async function Overview() {
     countPayoutsAwaitingApproval(),
     countEscrowEngagements(),
     countOpenDisputes(),
+    countIdentityAttention(),
   ]);
 
   return (
@@ -111,6 +115,14 @@ async function Overview() {
           icon={BadgeCheck}
           tone="sky"
           href="/admin/verification"
+        />
+        <StatCard
+          label="Identity to review"
+          value={String(identity)}
+          detail="Held checks, screenings, caps"
+          icon={UserCheck}
+          tone="mint"
+          href="/admin/identity"
         />
         <StatCard
           label="Open reports"

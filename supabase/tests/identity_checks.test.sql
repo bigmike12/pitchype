@@ -14,7 +14,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(155);
+select plan(160);
 
 -- The service role cannot read the tables, so tests that act as it look
 -- references and ids up through these (run as the test's own role).
@@ -595,6 +595,21 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub": "f1f1f1f1-0000-0000-0000-0000000f1004"}';
 select throws_ok($$ select public.identity_attempt_state('00000000-0000-0000-0000-0000000f1004', 'creator_nin') $$,
   '42501', null, 'people cannot call it');
+reset role;
+
+-- The admin's list of people at the cap --------------------------------------------------------------------------------------
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "f1f1f1f1-0000-0000-0000-0000000f1004"}';
+select throws_ok($$ select * from public.identity_capped_people() $$, 'P0001', 'not_allowed', 'a person cannot list who is capped');
+set local request.jwt.claims = '{"sub": "f1f1f1f1-0000-0000-0000-0000000f9001"}';
+select is((select count(*)::int from public.identity_capped_people() where user_id = '00000000-0000-0000-0000-0000000f1004'),
+  1, 'an admin sees Eve, capped for the day');
+select isnt((select next_allowed_at from public.identity_capped_people() where user_id = '00000000-0000-0000-0000-0000000f1004'),
+  null, 'with when it lifts');
+select is((select next_allowed_at from public.identity_capped_people() where user_id = '00000000-0000-0000-0000-0000000f1008'),
+  null, 'and Ida, whose five answered attempts need an admin');
+select is((select count(*)::int from public.identity_capped_people() where user_id = '00000000-0000-0000-0000-0000000f1006'),
+  0, 'but not Gus, whose cap was reopened');
 reset role;
 
 select * from finish();

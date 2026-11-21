@@ -182,3 +182,8 @@ test("a hire's page lights up the sidebar link it belongs to", () => {
   assert.equal(isItemActive("/admin/money/engagements/9f1c", escrow), true);
   assert.equal(isItemActive("/business/engagementsx/9f1c", board), false);
 });
+
+test("the admin identity page is named in the top bar", () => {
+  assert.equal(sectionLabel("admin", "/admin/identity"), "Identity");
+  assert.equal(sectionLabel("business", "/admin/identity"), null);
+});

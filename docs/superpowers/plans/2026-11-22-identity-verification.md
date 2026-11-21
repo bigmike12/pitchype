@@ -203,9 +203,9 @@
 - Consumes: Task 4 (`listIdentityReviewQueue`, `reviewIdentityCheck`, `allowIdentityRetry`, `reviewScreening`), Task 9 (`ensureScreened` for "Screen again").
 - Produces: spec §5.9 — three sections (checks in review: duplicate ID or RC/BN only; screenings `possible_match`/`error`; people at the attempt cap), masked facts, Dojah reference, actions with a required reason and a confirm box. `confirmed` screening → link to the existing standing tools (no new enforcement code).
 
-- [ ] **Step 1:** tests for any pure helper you add (e.g. queue grouping).
-- [ ] **Step 2–4:** implement; `npm test`, typecheck, lint.
-- [ ] **Step 5: Commit** `Add the admin identity review page`.
+- [x] **Step 1:** tests for any pure helper you add (e.g. queue grouping).
+- [x] **Step 2–4:** implement; `npm test`, typecheck, lint.
+- [x] **Step 5: Commit** `Add the admin identity review page`.
 
 ### Task 11: Bank-transfer accounts with a verified BVN (Cray)
 
