@@ -17,6 +17,7 @@ export type NavIcon =
   | "overview"
   | "standing"
   | "verification"
+  | "identity"
   | "reports"
   | "hidden"
   | "escrow"
@@ -125,6 +126,12 @@ const NAV: Record<PortalRole, NavItem[]> = {
       group: "Review",
     },
     {
+      href: "/admin/identity",
+      label: "Identity",
+      icon: "identity",
+      group: "Review",
+    },
+    {
       href: "/admin/reports",
       label: "Reports",
       icon: "reports",
@@ -229,10 +236,6 @@ export function sectionLabel(
   if (active) return active.label;
   // Any other admin money page (the payout check, the ledger export).
   if (role === "admin" && pathname.startsWith("/admin/money/")) return "Money";
-  // Reached from the admin overview and the payouts page, not the sidebar.
-  if (role === "admin" && isNavActive(pathname, "/admin/identity")) {
-    return "Identity";
-  }
   if (pathname === "/account" || pathname.startsWith("/account/")) {
     return "Account";
   }
