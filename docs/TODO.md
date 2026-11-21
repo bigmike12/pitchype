@@ -718,6 +718,86 @@ Portal rebuild (2026-11-16, the dashboard-kit look):
 - [ ] **Errors after a page has started streaming still answer HTTP 200** (a Next.js limit). The error pages add `noindex` themselves; nothing else to do unless Search Console shows them indexed.
 - [ ] `/llms.txt` lists the five public pages and the home FAQ. If the audience pages' FAQs or the escrow page's questions should be in it too, move them into `src/lib/` the way the home FAQ was (`faq.ts`).
 
+## 14. Identity verification with Dojah (2026-11-23)
+
+Design: `docs/superpowers/specs/2026-11-22-identity-verification-design.md`; plan:
+`docs/superpowers/plans/2026-11-22-identity-verification.md`. Built and tested
+locally with fakes; **nothing has run against Dojah's or Cray's sandbox**, so every
+"verify in sandbox" line is an assumption in code, kept in one small function.
+
+### You (owner tasks)
+
+- [ ] **You:** Dojah: complete compliance in the dashboard; get sandbox and live
+      keys; build two EasyOnboard flows (NIN + liveness selfie; BVN + liveness
+      selfie) **without Dojah's AML step**, theme them in Pitchype's colours,
+      publish them and note the widget ids; subscribe
+      `https://<domain>/api/webhooks/dojah` to the `kyc_widget` service and copy
+      the webhook secret; fund the wallet (calls answer 402 when it is empty).
+      Put them in `DOJAH_*` (see `.env.example`, `docs/PROVIDERS.md`).
+- [ ] **You:** generate `IDENTITY_FINGERPRINT_KEY` per environment
+      (`openssl rand -base64 32`) and keep a copy: losing it restarts
+      duplicate-ID checks and a re-typed BVN then needs a fresh Dojah check.
+- [ ] **You:** ask Cray to raise our tier above "Starter Business" so business
+      transfer accounts can be opened. Until then a registered business is
+      refused and pays by card. After the tier changes, refused rows stay
+      refused: clear `deposit_accounts.refused_at` and `refusal_code` for the
+      affected businesses by hand, writing down which and why.
+- [ ] **You:** legal review of the privacy lines on the identity pages
+      (`src/components/identity/identity-panel.tsx`, the transfer-account
+      director step and the onboarding "why we ask" copy) and of Dojah's
+      data-processing terms and our transfer assessment (policy §7.5). The text is
+      a draft.
+- [ ] **You:** decide the retention schedule for `identity_checks`,
+      `screenings` and `identity_events` (policy §6, §7.6). Nothing is deleted
+      today; there is no deletion job.
+- [ ] **You:** update the policy's gap register (CAC/business verification,
+      creator identity verification) once this ships.
+- [x] Playwright specs: none of `e2e/*.spec.ts` (smoke, audience pages, sign-up
+      role) applies, submits, hires or requests a payout or goes through
+      onboarding, so none needed a verified user. Any future spec that does
+      needs one (the database refuses otherwise).
+- [ ] **You (optional):** add an "Identity" link to the admin sidebar
+      (`src/lib/portal.ts`) and update the exact admin-nav assertion in
+      `src/lib/portal.test.ts`. The page is reached from the admin Overview card
+      and the payouts page today.
+
+### Verify in sandbox (each is one small mapping)
+
+- [ ] Widget result shape (`decideIdentityResult`, `stepPassed` in
+      `src/lib/identity.ts`): the step keys `government_data` and `selfie`, that a
+      boolean `status` marks a step passed, where the record's names and date of
+      birth sit (`data.government_data.data.<nin|bvn>.entity`), the date formats
+      Dojah returns for a BVN, and the wording of a failed selfie step (we read
+      "live" for liveness, otherwise a selfie mismatch).
+- [ ] `GET /api/v1/kyc/verification?reference_id=` returns widget sessions in the
+      webhook's shape and echoes our reference (the daily backstop; it carries no
+      top-level `value`, so the number is read from the government record).
+- [ ] CAC: the status vocabulary (`isCompanyActive` treats inactive, struck,
+      dissolved and wound as inactive; a missing status is active), that the
+      advanced lookup returns `affiliates`, and that `type_of_company` and the
+      `company_type` query values agree.
+- [ ] AML: that `entity.results` counts only real matches at the default
+      threshold (we treat any result as a possible match); consider
+      `match_threshold`.
+- [ ] Dojah's webhook retries and what it does on a 5xx.
+- [ ] Cray: which account type our tier allows, the `POST /corporate-accounts/create`
+      field names (`createBusinessAccount` in `src/lib/cray.ts`: `type`,
+      `business_name`, `rc_number`, `director_name`, `phone_number`, `bvn`), what a
+      tier refusal looks like (we record any 4xx other than 408 and 429 as a
+      refusal, so a bad phone number would also read as one), and that
+      `/virtual-accounts/create` accepts `bvn` as we send it.
+
+### Code follow-ups
+
+- [ ] No automatic re-screening, transaction monitoring or screening schedule
+      (policy §5): screening is once per person, plus an admin's "screen again".
+- [ ] No data-subject-request tooling and no deletion job for identity data.
+- [ ] A refused business transfer account has no admin retry button.
+- [ ] The identity pages and the director step have only been type-checked and
+      built, not opened in a browser, and not checked at 390px beyond reasoning.
+- [ ] An admin's "screen again" assumes a creator in `screenAgainAction` only for
+      the fallback subject; the subject normally comes from the verified check.
+
 ## Done
 
 - [x] Database migrations for Stages 1–3 pushed to the live project

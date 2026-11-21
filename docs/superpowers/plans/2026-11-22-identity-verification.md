@@ -230,7 +230,7 @@
 **Files:**
 - Modify: `CLAUDE.md` (§3 table: Dojah; §4 layout: `dojah.ts`, `identity*.ts`, `api/webhooks/dojah`, `api/cron/identity-checks`; §5: identity gates; §7: ID data rules; §8: three new kinds; §12: the 2026-11-22 decisions), `docs/PROVIDERS.md` (Dojah section: endpoints, widget script, env vars, dashboard setup, webhook signature, what Dojah receives as processor, how to replace; Scheduled jobs: identity-checks), `docs/TODO.md` (spec §10 owner tasks, every verify-in-sandbox item, privacy copy legal review, retention schedule)
 
-- [ ] **Step 1:** write the docs in CLAUDE.md's existing voice.
-- [ ] **Step 2:** full verification: `npm run lint`, `npm run typecheck`, `npm test`, `supabase test db` (only the four known local failures), from-scratch migration replay in a throwaway database with all pgTAP files green, `node scripts/money-race.mjs`.
-- [ ] **Step 3: Commit** `Document identity verification`.
-- [ ] **Step 4:** final report: tasks and commit hashes, every command and its result, what you couldn't verify (sandboxes, browser), every deviation from the plan or spec and why, open questions for the owner.
+- [x] **Step 1:** write the docs in CLAUDE.md's existing voice.
+- [x] **Step 2:** full verification: `npm run lint`, `npm run typecheck`, `npm test`, `supabase test db` (only the four known local failures), from-scratch migration replay in a throwaway database with all pgTAP files green, `node scripts/money-race.mjs`.
+- [x] **Step 3: Commit** `Document identity verification`.
+- [x] **Step 4:** final report: tasks and commit hashes, every command and its result, what you couldn't verify (sandboxes, browser), every deviation from the plan or spec and why, open questions for the owner.
