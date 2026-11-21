@@ -217,6 +217,126 @@ export async function recordCardPayment(input: {
   throw new Error("record card payment returned an unexpected result");
 }
 
+// Bank-transfer deposits -----------------------------------------------------------------------
+
+/**
+ * The business's transfer account reference (created the first time). The
+ * server then asks Cray to create the account under this reference, and
+ * retries with the same one on a timeout. Secret-key client.
+ */
+export async function getDepositAccountReference(
+  userId: string,
+): Promise<string> {
+  const { data, error } = await createAdminClient().rpc(
+    "deposit_account_reference",
+    { person: userId, which: "cray" },
+  );
+  if (error) throw new Error(`deposit account reference failed (${error.code})`);
+  if (typeof data !== "string" || data === "") {
+    throw new Error("deposit account reference returned an unexpected result");
+  }
+  return data;
+}
+
+/** Records the account Cray created for a reference. Secret-key client. */
+export async function completeDepositAccount(input: {
+  reference: string;
+  providerAccountId: string;
+  accountNumber: string;
+  bankName: string;
+  accountName: string;
+}): Promise<void> {
+  const { error } = await createAdminClient().rpc("complete_deposit_account", {
+    account_reference: input.reference,
+    new_provider_account_id: input.providerAccountId,
+    new_account_number: input.accountNumber,
+    new_bank_name: input.bankName,
+    new_account_name: input.accountName,
+  });
+  if (error) throw new Error(`complete deposit account failed (${error.code})`);
+}
+
+/** The signed-in business's own transfer account, once Cray has created it. */
+export async function getMyDepositAccount(): Promise<{
+  accountNumber: string;
+  bankName: string;
+  accountName: string;
+} | null> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("deposit_accounts")
+    .select("account_number, bank_name, account_name")
+    .not("account_number", "is", null)
+    .maybeSingle();
+  if (error) throw new Error(`deposit account failed (${error.code})`);
+  if (!data || !data.account_number || !data.bank_name || !data.account_name) {
+    return null;
+  }
+  return {
+    accountNumber: data.account_number,
+    bankName: data.bank_name,
+    accountName: data.account_name,
+  };
+}
+
+export type DepositOutcome = {
+  outcome:
+    | "funded"
+    | "funded_with_extra"
+    | "short"
+    | "hire_ended"
+    | "credited"
+    | "duplicate"
+    | "unknown_account";
+  stillNeededKobo: number | null;
+};
+
+const DEPOSIT_OUTCOMES = new Set([
+  "funded",
+  "funded_with_extra",
+  "short",
+  "hire_ended",
+  "credited",
+  "duplicate",
+  "unknown_account",
+]);
+
+/**
+ * Records a deposit whose Cray webhook signature the server has verified (the
+ * signed webhook is the only evidence of a deposit). Secret-key client.
+ */
+export async function recordDeposit(input: {
+  provider: "cray";
+  accountReference: string;
+  accountNumber: string;
+  depositReference: string;
+  grossKobo: number;
+  chargeKobo: number;
+  eventKey: string;
+  payload: Json;
+}): Promise<DepositOutcome> {
+  const { data, error } = await createAdminClient().rpc("record_deposit", {
+    deposit_provider: input.provider,
+    account_reference: input.accountReference,
+    account_number: input.accountNumber,
+    deposit_reference: input.depositReference,
+    gross_kobo: input.grossKobo,
+    charge_kobo: input.chargeKobo,
+    event_key: input.eventKey,
+    payload: input.payload,
+  });
+  if (error) throw new Error(`record deposit failed (${error.code})`);
+  const value = obj(data);
+  const outcome = str(value.outcome);
+  if (!outcome || !DEPOSIT_OUTCOMES.has(outcome)) {
+    throw new Error("record deposit returned an unexpected result");
+  }
+  return {
+    outcome: outcome as DepositOutcome["outcome"],
+    stillNeededKobo: num(value.still_needed_kobo),
+  };
+}
+
 // Work and settlement ------------------------------------------------------------------------
 
 /** The creator starts work on a funded hire (funded → in_progress). */

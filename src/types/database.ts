@@ -550,6 +550,50 @@ export type Database = {
           },
         ]
       }
+      deposit_accounts: {
+        Row: {
+          account_name: string | null
+          account_number: string | null
+          bank_name: string | null
+          created_at: string
+          id: string
+          provider: string
+          provider_account_id: string | null
+          reference: string
+          user_id: string
+        }
+        Insert: {
+          account_name?: string | null
+          account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          id?: string
+          provider: string
+          provider_account_id?: string | null
+          reference: string
+          user_id: string
+        }
+        Update: {
+          account_name?: string | null
+          account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          id?: string
+          provider?: string
+          provider_account_id?: string | null
+          reference?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposit_accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dispute_statements: {
         Row: {
           author_id: string
@@ -785,6 +829,7 @@ export type Database = {
           min_fee_kobo: number
           min_payout_kobo: number
           paystack_rate: Json
+          provider_fees: Json
           transfer_fee_tiers: Json
           transfer_stamp_duty_from_kobo: number
           transfer_stamp_duty_kobo: number
@@ -797,6 +842,7 @@ export type Database = {
           min_fee_kobo: number
           min_payout_kobo: number
           paystack_rate: Json
+          provider_fees?: Json
           transfer_fee_tiers: Json
           transfer_stamp_duty_from_kobo: number
           transfer_stamp_duty_kobo: number
@@ -809,6 +855,7 @@ export type Database = {
           min_fee_kobo?: number
           min_payout_kobo?: number
           paystack_rate?: Json
+          provider_fees?: Json
           transfer_fee_tiers?: Json
           transfer_stamp_duty_from_kobo?: number
           transfer_stamp_duty_kobo?: number
@@ -2154,6 +2201,16 @@ export type Database = {
         Args: { at: string; deliver_by: string }
         Returns: boolean
       }
+      complete_deposit_account: {
+        Args: {
+          account_reference: string
+          new_account_name: string
+          new_account_number: string
+          new_bank_name: string
+          new_provider_account_id: string
+        }
+        Returns: undefined
+      }
       consume_rate_limit: {
         Args: { p_key: string; p_max: number; p_window_seconds: number }
         Returns: boolean
@@ -2187,6 +2244,7 @@ export type Database = {
           min_fee_kobo: number
           min_payout_kobo: number
           paystack_rate: Json
+          provider_fees: Json
           transfer_fee_tiers: Json
           transfer_stamp_duty_from_kobo: number
           transfer_stamp_duty_kobo: number
@@ -2226,6 +2284,10 @@ export type Database = {
       }
       deny_submission: {
         Args: { engagement: string; reasons: string[] }
+        Returns: string
+      }
+      deposit_account_reference: {
+        Args: { person: string; which: string }
         Returns: string
       }
       destination_host: { Args: { url: string }; Returns: string }
@@ -2417,6 +2479,19 @@ export type Database = {
           note: string
         }
         Returns: string
+      }
+      record_deposit: {
+        Args: {
+          account_number: string
+          account_reference: string
+          charge_kobo: number
+          deposit_provider: string
+          deposit_reference: string
+          event_key: string
+          gross_kobo: number
+          payload: Json
+        }
+        Returns: Json
       }
       record_reconciliation: {
         Args: { paystack_balance_kobo: number }
@@ -2758,6 +2833,7 @@ export type Database = {
         | "click_cap_reached"
         | "click_hold_started"
         | "clicks_stopped"
+        | "deposit_received"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -2982,6 +3058,7 @@ export const Constants = {
         "click_cap_reached",
         "click_hold_started",
         "clicks_stopped",
+        "deposit_received",
       ],
       payment_model: ["fixed", "per_click"],
       report_reason: [
