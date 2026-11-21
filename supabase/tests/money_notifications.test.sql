@@ -21,11 +21,43 @@ insert into public.users (id, auth_user_id, email, role) values
   ('00000000-0000-0000-0000-0000000ce001', 'cecececc-0000-0000-0000-0000000ce001', 'ada.moneynotify@example.com', 'business'),
   ('00000000-0000-0000-0000-0000000ce002', 'cecececc-0000-0000-0000-0000000ce002', 'efe.moneynotify@example.com', 'admin');
 
+-- Identity fixtures: the people made above count as verified, so the identity
+-- gates (identity_gates migration) are not what this file is about.
+insert into public.identity_checks (user_id, kind, status, reference, legal_name_entered, legal_name_on_record,
+                                    id_last3, id_fingerprint, counted, decided_at)
+select u.id, case u.role when 'influencer' then 'creator_nin' else 'owner_bvn' end, 'verified',
+       'pit_id_fx_' || replace(u.id::text, '-', ''), 'Fixture Person', 'FIXTURE PERSON', '000',
+       'v1:fx-' || u.id::text, true, now()
+  from public.users u
+ where u.created_at = now() and u.role in ('influencer', 'business')
+   and not exists (select 1 from public.identity_checks c where c.user_id = u.id);
+insert into public.screenings (user_id, subject, trigger, status)
+select u.id, 'person', 'admin', 'clear'
+  from public.users u
+ where u.created_at = now() and u.role = 'influencer'
+   and not exists (select 1 from public.screenings s where s.user_id = u.id);
+
 insert into public.users (id, auth_user_id, email, role)
 select ('00000000-0000-0000-0000-0000000ce1' || lpad(n::text, 2, '0'))::uuid,
        ('cecececc-0000-0000-0000-0000000ce1' || lpad(n::text, 2, '0'))::uuid,
        'c' || n || '.moneynotify@example.com', 'influencer'
   from generate_series(1, 8) n;
+
+-- Identity fixtures: the people made above count as verified, so the identity
+-- gates (identity_gates migration) are not what this file is about.
+insert into public.identity_checks (user_id, kind, status, reference, legal_name_entered, legal_name_on_record,
+                                    id_last3, id_fingerprint, counted, decided_at)
+select u.id, case u.role when 'influencer' then 'creator_nin' else 'owner_bvn' end, 'verified',
+       'pit_id_fx_' || replace(u.id::text, '-', ''), 'Fixture Person', 'FIXTURE PERSON', '000',
+       'v1:fx-' || u.id::text, true, now()
+  from public.users u
+ where u.created_at = now() and u.role in ('influencer', 'business')
+   and not exists (select 1 from public.identity_checks c where c.user_id = u.id);
+insert into public.screenings (user_id, subject, trigger, status)
+select u.id, 'person', 'admin', 'clear'
+  from public.users u
+ where u.created_at = now() and u.role = 'influencer'
+   and not exists (select 1 from public.screenings s where s.user_id = u.id);
 
 insert into public.business_profiles (user_id, business_name, contact_name, state, city) values
   ('00000000-0000-0000-0000-0000000ce001', 'Ada Money Kitchen', 'Ada Obi', 'Lagos', 'Ikeja');
@@ -291,11 +323,43 @@ select is((select count(*)::integer from public.notifications
 --   hire 3  started, then the creator withdraws hire 4  submitted, denied, then two disputes
 insert into public.users (id, auth_user_id, email, role) values
   ('00000000-0000-0000-0000-0000000ce003', 'cecececc-0000-0000-0000-0000000ce003', 'bo.moneynotify@example.com', 'business');
+
+-- Identity fixtures: the people made above count as verified, so the identity
+-- gates (identity_gates migration) are not what this file is about.
+insert into public.identity_checks (user_id, kind, status, reference, legal_name_entered, legal_name_on_record,
+                                    id_last3, id_fingerprint, counted, decided_at)
+select u.id, case u.role when 'influencer' then 'creator_nin' else 'owner_bvn' end, 'verified',
+       'pit_id_fx_' || replace(u.id::text, '-', ''), 'Fixture Person', 'FIXTURE PERSON', '000',
+       'v1:fx-' || u.id::text, true, now()
+  from public.users u
+ where u.created_at = now() and u.role in ('influencer', 'business')
+   and not exists (select 1 from public.identity_checks c where c.user_id = u.id);
+insert into public.screenings (user_id, subject, trigger, status)
+select u.id, 'person', 'admin', 'clear'
+  from public.users u
+ where u.created_at = now() and u.role = 'influencer'
+   and not exists (select 1 from public.screenings s where s.user_id = u.id);
 insert into public.users (id, auth_user_id, email, role)
 select ('00000000-0000-0000-0000-0000000ce2' || lpad(n::text, 2, '0'))::uuid,
        ('cecececc-0000-0000-0000-0000000ce2' || lpad(n::text, 2, '0'))::uuid,
        'c2' || n || '.moneynotify@example.com', 'influencer'
   from generate_series(1, 4) n;
+
+-- Identity fixtures: the people made above count as verified, so the identity
+-- gates (identity_gates migration) are not what this file is about.
+insert into public.identity_checks (user_id, kind, status, reference, legal_name_entered, legal_name_on_record,
+                                    id_last3, id_fingerprint, counted, decided_at)
+select u.id, case u.role when 'influencer' then 'creator_nin' else 'owner_bvn' end, 'verified',
+       'pit_id_fx_' || replace(u.id::text, '-', ''), 'Fixture Person', 'FIXTURE PERSON', '000',
+       'v1:fx-' || u.id::text, true, now()
+  from public.users u
+ where u.created_at = now() and u.role in ('influencer', 'business')
+   and not exists (select 1 from public.identity_checks c where c.user_id = u.id);
+insert into public.screenings (user_id, subject, trigger, status)
+select u.id, 'person', 'admin', 'clear'
+  from public.users u
+ where u.created_at = now() and u.role = 'influencer'
+   and not exists (select 1 from public.screenings s where s.user_id = u.id);
 insert into public.business_profiles (user_id, business_name, contact_name, state, city) values
   ('00000000-0000-0000-0000-0000000ce003', 'Bo Review Bakery', 'Bo Eze', 'Lagos', 'Ikeja');
 insert into public.influencer_profiles (user_id, display_name, state, city, niches, published)

@@ -5,7 +5,7 @@
 -- functions that change them; the gates that use them are the next migration.
 --
 -- Invariants (proven by supabase/tests/identity_checks.test.sql and scenarios
--- 30 to 32 of scripts/money-race.mjs):
+-- 36 to 38 of scripts/money-race.mjs, added with the Dojah webhook):
 --   * Only the functions below write these tables. No client role, and not
 --     the service role, writes a table directly; the service role calls the
 --     functions it is granted.

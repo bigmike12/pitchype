@@ -18,6 +18,17 @@ insert into public.users (id, auth_user_id, email, role) values
   ('00000000-0000-0000-0000-0000000d3005', 'dddddddd-0000-0000-0000-0000000d3005', 'gita.lapse@example.com', 'influencer'),
   ('00000000-0000-0000-0000-0000000d3006', 'dddddddd-0000-0000-0000-0000000d3006', 'hana.lapse@example.com', 'influencer');
 
+-- Identity fixtures: the people made above count as verified, so the identity
+-- gates (identity_gates migration) are not what this file is about.
+insert into public.identity_checks (user_id, kind, status, reference, legal_name_entered, legal_name_on_record,
+                                    id_last3, id_fingerprint, counted, decided_at)
+select u.id, case u.role when 'influencer' then 'creator_nin' else 'owner_bvn' end, 'verified',
+       'pit_id_fx_' || replace(u.id::text, '-', ''), 'Fixture Person', 'FIXTURE PERSON', '000',
+       'v1:fx-' || u.id::text, true, now()
+  from public.users u
+ where u.created_at = now() and u.role in ('influencer', 'business')
+   and not exists (select 1 from public.identity_checks c where c.user_id = u.id);
+
 insert into public.business_profiles (user_id, business_name, contact_name, state, city) values
   ('00000000-0000-0000-0000-0000000d3001', 'Ada Lapse Test', 'Ada Obi', 'Lagos', 'Ikeja');
 

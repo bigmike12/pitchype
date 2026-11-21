@@ -278,6 +278,24 @@ function userRow(p) {
   return `(${lit(p.id)}, ${lit(p.auth)}, ${lit(p.email)}, ${lit(p.role)})`;
 }
 
+// A verified identity (and, for creators, a clear screening) so the identity
+// gates do not stand in the way of scenarios about money. Direct inserts, as
+// the pgTAP fixtures do; the identity scenarios use the real functions.
+function verifiedSql(p) {
+  const kind = p.role === "influencer" ? "creator_nin" : "owner_bvn";
+  const screening =
+    p.role === "influencer"
+      ? `
+insert into public.screenings (user_id, subject, trigger, status)
+values (${lit(p.id)}, 'person', 'admin', 'clear');`
+      : "";
+  return `
+insert into public.identity_checks (user_id, kind, status, reference, legal_name_entered,
+                                    legal_name_on_record, id_last3, id_fingerprint, counted, decided_at)
+values (${lit(p.id)}, ${lit(kind)}, 'verified', ${lit(`pit_id_race_${p.id.replaceAll("-", "")}`)},
+        'Race Tester', 'RACE TESTER', '000', ${lit(`v1:race-${p.id}`)}, true, now());${screening}`;
+}
+
 export async function newAdmin() {
   const admin = newPerson("admin", "admin");
   await run(
@@ -297,7 +315,7 @@ export async function newHire(price, sameBusinessAs = null) {
   const businessSql = sameBusinessAs
     ? ""
     : `
-insert into public.users (id, auth_user_id, email, role) values ${userRow(business)};
+insert into public.users (id, auth_user_id, email, role) values ${userRow(business)};${verifiedSql(business)}
 insert into public.business_profiles (user_id, business_name, contact_name, state, city)
 values (${lit(business.id)}, 'Race Test Business', 'Race Tester', 'Lagos', 'Ikeja');
 insert into public.campaigns (id, business_id, status, title, brief, price_kobo, places,
@@ -306,7 +324,7 @@ values (${lit(campaign)}, ${lit(business.id)}, 'open', 'Money race test',
         'A brief that is long enough for the checks.', 500000, 10,
         public.lagos_today() + 10, public.lagos_today() + 20, now(), now());`;
   await run(`${businessSql}
-insert into public.users (id, auth_user_id, email, role) values ${userRow(creator)};
+insert into public.users (id, auth_user_id, email, role) values ${userRow(creator)};${verifiedSql(creator)}
 insert into public.applications (id, campaign_id, creator_id, status)
 values (${lit(application)}, ${lit(campaign)}, ${lit(creator.id)}, 'approved');
 insert into public.engagements (id, application_id, campaign_id, business_id, creator_id, agreed_price_kobo, pay_by)

@@ -129,9 +129,9 @@
 
 - Playwright specs under `e2e/` (if any create applications, campaigns or payouts) will now need verified users; you can't run them reliably here — list the affected specs in your final report rather than editing them blind.
 
-- [ ] **Step 1: Failing pgTAP** `identity_gates.test.sql`: each gate refused unverified and allowed verified; an existing creator with a wallet balance and no check → `request_payout` refused, balance unchanged (Review Focus 4); a hire approved before verification existed can still be paid (`start_payment` works); a paused campaign resumes without verification; admin takedown unaffected; `approve_payout` refused for `none`/`possible_match`/`error`, allowed for `clear` and after `cleared`.
-- [ ] **Step 2–4:** fail → migration → add fixture rows to the existing files → `supabase test db` all green (bar the four known) → `node scripts/money-race.mjs` all PASS → types, `npm test`, typecheck, lint.
-- [ ] **Step 5: Commit** `Require a verified identity to apply, hire, publish and withdraw`.
+- [x] **Step 1: Failing pgTAP** `identity_gates.test.sql`: each gate refused unverified and allowed verified; an existing creator with a wallet balance and no check → `request_payout` refused, balance unchanged (Review Focus 4); a hire approved before verification existed can still be paid (`start_payment` works); a paused campaign resumes without verification; admin takedown unaffected; `approve_payout` refused for `none`/`possible_match`/`error`, allowed for `clear` and after `cleared`.
+- [x] **Step 2–4:** fail → migration → add fixture rows to the existing files → `supabase test db` all green (bar the four known) → `node scripts/money-race.mjs` all PASS → types, `npm test`, typecheck, lint.
+- [x] **Step 5: Commit** `Require a verified identity to apply, hire, publish and withdraw`.
 
 ### Task 6: Dojah webhook, backstop job and notifications
 
