@@ -84,11 +84,11 @@
   - `getMainBalanceKobo(): Promise<number | null>` — the part whose name matches `/main/i`, else null.
   - `isValidWebhookHash(data: unknown, hash: unknown, keyHint: string | null): boolean` — keys from `CRAY_WEBHOOK_KEYS` (comma-separated, ≤ 2); pick by last 4 chars = `keyHint`, else try each; `base64(HMAC-SHA256(serialised data, key))`, constant-time compare; try `JSON.stringify(data)` and, if that fails, the PHP-escaped variant (`/` → `\/`, non-ASCII → `\uXXXX`).
 
-- [ ] **Step 1: Write failing tests** — for each function: the exact path, method, scope key and body sent (amounts as naira strings), the parsed result, and one refusal case. Specifically: `disburse` maps the 400 insufficient-balance body to `code === "insufficient_balance"` and a duplicate refusal to `"duplicate_reference"`; `queryCheckout` throws when `data.reference` differs; `getBalances` sums `[{name:"Main Balance",actual_balance:50000},{name:"Settlement Balance",available_balance:1200,locked_balance:0}]` to `5_120_000` kobo for both response shapes; `isValidWebhookHash` true for a hash made with key `k_test_abcd` and hint `abcd`, false for a changed field, false with no keys configured, true for the PHP-escaped variant of `{"return_url":"https://x.test/a"}`.
-- [ ] **Step 2: Run** `node --test src/lib/cray.test.ts` → new tests FAIL.
-- [ ] **Step 3: Implement** the functions above.
-- [ ] **Step 4: Run** tests → PASS; typecheck, lint.
-- [ ] **Step 5: Commit** `Add Cray checkout, accounts, payouts, balance and webhook hash calls`.
+- [x] **Step 1: Write failing tests** — for each function: the exact path, method, scope key and body sent (amounts as naira strings), the parsed result, and one refusal case. Specifically: `disburse` maps the 400 insufficient-balance body to `code === "insufficient_balance"` and a duplicate refusal to `"duplicate_reference"`; `queryCheckout` throws when `data.reference` differs; `getBalances` sums `[{name:"Main Balance",actual_balance:50000},{name:"Settlement Balance",available_balance:1200,locked_balance:0}]` to `5_120_000` kobo for both response shapes; `isValidWebhookHash` true for a hash made with key `k_test_abcd` and hint `abcd`, false for a changed field, false with no keys configured, true for the PHP-escaped variant of `{"return_url":"https://x.test/a"}`.
+- [x] **Step 2: Run** `node --test src/lib/cray.test.ts` → new tests FAIL.
+- [x] **Step 3: Implement** the functions above.
+- [x] **Step 4: Run** tests → PASS; typecheck, lint.
+- [x] **Step 5: Commit** `Add Cray checkout, accounts, payouts, balance and webhook hash calls`.
 
 ### Task 3: Bank account number encryption
 

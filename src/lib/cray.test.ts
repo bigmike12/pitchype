@@ -1,12 +1,27 @@
 import assert from "node:assert/strict";
-import { createHash, generateKeyPairSync, verify } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  generateKeyPairSync,
+  verify,
+} from "node:crypto";
 import { afterEach, beforeEach, test } from "node:test";
 
 import {
   CrayError,
   __request,
   canonicalPathWithQuery,
+  createPermanentAccount,
+  disburse,
+  getBalances,
+  getMainBalanceKobo,
+  initializeCheckout,
   isCrayConfigured,
+  isValidWebhookHash,
+  listBanks,
+  queryCheckout,
+  requeryPayout,
+  validateAccount,
   koboToNaira,
   nairaToKobo,
   signatureHeader,
@@ -329,4 +344,409 @@ test("isCrayConfigured needs every variable", () => {
     assert.equal(isCrayConfigured(), false, name);
     process.env[name] = saved;
   }
+});
+
+// ---- endpoints ----
+
+function bodyOf(call: Call): Record<string, unknown> {
+  return JSON.parse(String(call.init.body)) as Record<string, unknown>;
+}
+
+const REFERENCE = "pit_0123456789abcdef0123456789abcdef";
+
+test("initializeCheckout sends naira text, card only, customer bears the fee", async () => {
+  stubFetch({
+    body: { status: true, data: { link: "https://checkout.cray.test/abc" } },
+  });
+  const result = await initializeCheckout({
+    amountKobo: 5_270_000,
+    reference: REFERENCE,
+    email: "biz@example.com",
+    name: "Biz Ltd",
+    callbackUrl: "https://pitchype.test/return?reference=" + REFERENCE,
+  });
+  assert.deepEqual(result, { checkoutUrl: "https://checkout.cray.test/abc" });
+  assert.equal(calls[0].url, "https://cray.test/checkout/initialize");
+  assert.equal(calls[0].init.method, "POST");
+  assert.equal(headersOf(calls[0]).Authorization, `Bearer ${COLLECTION_KEY}`);
+  assert.deepEqual(bodyOf(calls[0]), {
+    amount: "52700.00",
+    currency: "NGN",
+    reference: REFERENCE,
+    defaultPaymentMethod: "card",
+    paymentMethods: ["card"],
+    feeBearer: "customer",
+    token: "sub_test_token",
+    customer: { name: "Biz Ltd", email: "biz@example.com" },
+    callback_url: "https://pitchype.test/return?reference=" + REFERENCE,
+  });
+});
+
+test("initializeCheckout refuses a bad amount before fetching and a missing link", async () => {
+  stubFetch({ body: { status: true, data: {} } });
+  await assert.rejects(
+    initializeCheckout({
+      amountKobo: 0,
+      reference: REFERENCE,
+      email: "a@b.co",
+      name: "A",
+      callbackUrl: "https://x.test",
+    }),
+    CrayError,
+  );
+  assert.equal(calls.length, 0);
+  await assert.rejects(
+    initializeCheckout({
+      amountKobo: 100,
+      reference: REFERENCE,
+      email: "a@b.co",
+      name: "A",
+      callbackUrl: "https://x.test",
+    }),
+    CrayError,
+  );
+});
+
+function checkoutData(overrides: Record<string, unknown> = {}) {
+  return {
+    status: "Successful",
+    reference: REFERENCE,
+    amount: "52700.00",
+    fee: "200.00",
+    net_amount: "52500.00",
+    currency: "NGN",
+    ...overrides,
+  };
+}
+
+test("queryCheckout maps a successful payment to exact kobo", async () => {
+  stubFetch({ body: { status: true, data: checkoutData() } });
+  const result = await queryCheckout(REFERENCE);
+  assert.equal(calls[0].url, `https://cray.test/checkout/query/${REFERENCE}`);
+  assert.equal(calls[0].init.method, "GET");
+  assert.equal(result.status, "success");
+  assert.equal(result.grossKobo, 5_270_000);
+  assert.equal(result.feeKobo, 20_000);
+  assert.equal(result.netKobo, 5_250_000);
+  assert.equal(result.currency, "NGN");
+  assert.equal(result.reference, REFERENCE);
+});
+
+test("queryCheckout maps failed, abandoned and everything else", async () => {
+  for (const [text, want] of [
+    ["Failed", "failed"],
+    ["abandoned", "abandoned"],
+    ["PENDING", "pending"],
+    ["Processing", "pending"],
+  ] as const) {
+    stubFetch({ body: { status: true, data: checkoutData({ status: text }) } });
+    assert.equal((await queryCheckout(REFERENCE)).status, want, text);
+  }
+});
+
+test("queryCheckout refuses an answer for another reference", async () => {
+  stubFetch({
+    body: { status: true, data: checkoutData({ reference: "pit_other" }) },
+  });
+  await assert.rejects(queryCheckout(REFERENCE), CrayError);
+});
+
+test("queryCheckout refuses a success without all three amounts or with a fractional kobo", async () => {
+  for (const missing of ["amount", "fee", "net_amount"]) {
+    stubFetch({
+      body: { status: true, data: checkoutData({ [missing]: undefined }) },
+    });
+    await assert.rejects(queryCheckout(REFERENCE), CrayError, missing);
+  }
+  stubFetch({ body: { status: true, data: checkoutData({ amount: "52700.005" }) } });
+  await assert.rejects(queryCheckout(REFERENCE), CrayError);
+});
+
+test("queryCheckout returns a null currency when Cray sends none and rejects bad references before fetching", async () => {
+  stubFetch({
+    body: { status: true, data: checkoutData({ currency: undefined }) },
+  });
+  assert.equal((await queryCheckout(REFERENCE)).currency, null);
+  const before = calls.length;
+  await assert.rejects(queryCheckout("a/b?c"), CrayError);
+  assert.equal(calls.length, before);
+});
+
+test("createPermanentAccount sends the Bloc permanent request and reads the account", async () => {
+  stubFetch({
+    body: {
+      status: true,
+      data: {
+        id: "va_123",
+        account_number: "9012345678",
+        bank_name: "Bloc Bank",
+        account_name: "Cray/Pitchype - Biz",
+      },
+    },
+  });
+  const result = await createPermanentAccount({
+    reference: "pit_va_0123456789abcdef0123456789abcdef",
+    accountName: "Pitchype - Biz",
+    email: "biz@example.com",
+  });
+  assert.deepEqual(result, {
+    providerAccountId: "va_123",
+    accountNumber: "9012345678",
+    bankName: "Bloc Bank",
+    accountName: "Cray/Pitchype - Biz",
+  });
+  assert.equal(calls[0].url, "https://cray.test/virtual-accounts/create");
+  assert.deepEqual(bodyOf(calls[0]), {
+    type: "individual",
+    virtual_account_type: "Permanent",
+    currency: "NGN",
+    provider: "Bloc",
+    account_name: "Pitchype - Biz",
+    customer_email: "biz@example.com",
+    reference: "pit_va_0123456789abcdef0123456789abcdef",
+  });
+});
+
+test("createPermanentAccount refuses an answer without a ten digit account number", async () => {
+  stubFetch({
+    body: {
+      status: true,
+      data: { id: "v", account_number: "123", bank_name: "B", account_name: "N" },
+    },
+  });
+  await assert.rejects(
+    createPermanentAccount({
+      reference: "pit_va_x",
+      accountName: "N",
+      email: "a@b.co",
+    }),
+    CrayError,
+  );
+});
+
+test("listBanks uses the disbursement key and keeps one entry per code", async () => {
+  stubFetch({
+    body: {
+      status: true,
+      data: [
+        { bank_code: "000014", bank_name: "Access" },
+        { bank_code: "000014", bank_name: "Access again" },
+        { bank_code: "000013", bank_name: "GTB" },
+        { bank_code: "", bank_name: "Nothing" },
+      ],
+    },
+  });
+  const banks = await listBanks();
+  assert.equal(calls[0].url, "https://cray.test/payout/banks");
+  assert.equal(headersOf(calls[0]).Authorization, `Bearer ${DISBURSEMENT_KEY}`);
+  assert.deepEqual(banks, [
+    { code: "000014", name: "Access" },
+    { code: "000013", name: "GTB" },
+  ]);
+});
+
+test("validateAccount returns the name and ref id, and refuses bad numbers before fetching", async () => {
+  stubFetch({
+    body: { status: true, data: { account_name: "JOHN DOE", ref_id: "ref_1" } },
+  });
+  const result = await validateAccount("0123456789", "000014");
+  assert.deepEqual(result, { accountName: "JOHN DOE", refId: "ref_1" });
+  assert.equal(calls[0].url, "https://cray.test/payout/accounts/validate");
+  assert.deepEqual(bodyOf(calls[0]), {
+    account_number: "0123456789",
+    bank_code: "000014",
+  });
+  const before = calls.length;
+  await assert.rejects(validateAccount("12345", "000014"), CrayError);
+  await assert.rejects(validateAccount("0123456789", ""), CrayError);
+  assert.equal(calls.length, before);
+});
+
+const DISBURSE_INPUT = {
+  amountKobo: 995_000,
+  reference: "pit_po_0123456789abcdef0123456789abcdef",
+  accountNumber: "0123456789",
+  bankCode: "000014",
+  recipientName: "JOHN DOE",
+  refId: "ref_1",
+  narration: "Pitchype payout",
+};
+
+test("disburse sends naira text and the customer reference", async () => {
+  stubFetch({
+    body: { status: true, data: { reference: "TX123456", status: "pending" } },
+  });
+  const result = await disburse(DISBURSE_INPUT);
+  assert.deepEqual(result, { providerReference: "TX123456", status: "pending" });
+  assert.equal(calls[0].url, "https://cray.test/payout/disburse");
+  assert.equal(headersOf(calls[0]).Authorization, `Bearer ${DISBURSEMENT_KEY}`);
+  assert.deepEqual(bodyOf(calls[0]), {
+    customer_reference: DISBURSE_INPUT.reference,
+    amount: "9950.00",
+    currency: "NGN",
+    bank_code: "000014",
+    account_number: "0123456789",
+    recipient_name: "JOHN DOE",
+    ref_id: "ref_1",
+    narration: "Pitchype payout",
+  });
+});
+
+test("disburse maps an insufficient balance refusal and a duplicate refusal", async () => {
+  stubFetch({
+    status: 400,
+    body: { status: false, message: "Insufficient balance" },
+  });
+  await assert.rejects(
+    disburse(DISBURSE_INPUT),
+    (e: unknown) =>
+      e instanceof CrayError &&
+      e.code === "insufficient_balance" &&
+      e.status === 400,
+  );
+  stubFetch({
+    status: 400,
+    body: { status: false, message: "Reference has already been used" },
+  });
+  await assert.rejects(
+    disburse(DISBURSE_INPUT),
+    (e: unknown) => e instanceof CrayError && e.code === "duplicate_reference",
+  );
+  stubFetch({ status: 500, body: { status: false, message: "boom" } });
+  await assert.rejects(
+    disburse(DISBURSE_INPUT),
+    (e: unknown) => e instanceof CrayError && e.code === null,
+  );
+});
+
+test("requeryPayout maps each status and reads amounts as exact kobo", async () => {
+  for (const [text, want] of [
+    ["approved", "success"],
+    ["Successful", "success"],
+    ["success", "success"],
+    ["failed", "failed"],
+    ["declined", "failed"],
+    ["reversed", "reversed"],
+    ["pending", "pending"],
+    ["something new", "pending"],
+  ] as const) {
+    stubFetch({
+      body: {
+        status: true,
+        data: {
+          status: text,
+          merchant_reference: "pit_po_x",
+          amount: "9950.00",
+          charge: "50.00",
+        },
+      },
+    });
+    const result = await requeryPayout("TX123456");
+    assert.equal(result.status, want, text);
+    assert.equal(result.merchantReference, "pit_po_x");
+    assert.equal(result.sentKobo, 995_000);
+    assert.equal(result.chargeKobo, 5_000);
+  }
+  assert.equal(calls[0].url, "https://cray.test/payout/requery/TX123456");
+  assert.equal(headersOf(calls[0]).Authorization, `Bearer ${DISBURSEMENT_KEY}`);
+});
+
+test("requeryPayout gives a null charge when Cray sends none and refuses a success without an amount", async () => {
+  stubFetch({
+    body: {
+      status: true,
+      data: { status: "success", merchant_reference: "x", amount: 9950 },
+    },
+  });
+  assert.equal((await requeryPayout("TX1")).chargeKobo, null);
+  stubFetch({
+    body: { status: true, data: { status: "success", merchant_reference: "x" } },
+  });
+  await assert.rejects(requeryPayout("TX1"), CrayError);
+  const before = calls.length;
+  await assert.rejects(requeryPayout("a/b"), CrayError);
+  assert.equal(calls.length, before);
+});
+
+const BALANCES = [
+  { name: "Main Balance", currency: "NGN", actual_balance: 50000 },
+  {
+    name: "Settlement Balance",
+    currency: "NGN",
+    available_balance: 1200,
+    locked_balance: 0,
+  },
+  { name: "Dollar", currency: "USD", actual_balance: 99 },
+];
+
+test("getBalances sums the NGN accounts for either response shape", async () => {
+  for (const data of [BALANCES, { accounts: BALANCES }]) {
+    stubFetch({ body: { status: true, data } });
+    const result = await getBalances();
+    assert.equal(result.totalKobo, 5_120_000);
+    assert.deepEqual(result.parts, [
+      { name: "Main Balance", kobo: 5_000_000 },
+      { name: "Settlement Balance", kobo: 120_000 },
+    ]);
+  }
+  assert.equal(calls[0].url, "https://cray.test/balance?currency=NGN");
+  assert.equal(headersOf(calls[0]).Authorization, `Bearer ${COLLECTION_KEY}`);
+});
+
+test("getMainBalanceKobo picks the main balance, or null", async () => {
+  stubFetch({ body: { status: true, data: BALANCES } });
+  assert.equal(await getMainBalanceKobo(), 5_000_000);
+  stubFetch({
+    body: {
+      status: true,
+      data: [{ name: "Settlement Balance", currency: "NGN", actual_balance: 5 }],
+    },
+  });
+  assert.equal(await getMainBalanceKobo(), null);
+});
+
+// ---- webhook hash ----
+
+function hashOf(serialised: string, key: string): string {
+  return createHmac("sha256", key).update(serialised).digest("base64");
+}
+
+test("isValidWebhookHash accepts the key chosen by the hint", () => {
+  const data = { reference: REFERENCE, amount: "10.00" };
+  const hash = hashOf(JSON.stringify(data), "whk_test_abcd");
+  assert.equal(isValidWebhookHash(data, hash, "abcd"), true);
+  assert.equal(isValidWebhookHash(data, hash, null), true);
+});
+
+test("isValidWebhookHash rejects a changed field, a wrong hint, a bad hash and no keys", () => {
+  const data = { reference: REFERENCE, amount: "10.00" };
+  const hash = hashOf(JSON.stringify(data), "whk_test_abcd");
+  assert.equal(isValidWebhookHash({ ...data, amount: "11.00" }, hash, "abcd"), false);
+  assert.equal(isValidWebhookHash(data, hash, "zzzz"), false);
+  assert.equal(isValidWebhookHash(data, "not-a-hash", "abcd"), false);
+  assert.equal(isValidWebhookHash(data, undefined, "abcd"), false);
+  assert.equal(isValidWebhookHash(data, 42, "abcd"), false);
+  process.env.CRAY_WEBHOOK_KEYS = "";
+  assert.equal(isValidWebhookHash(data, hash, "abcd"), false);
+});
+
+test("isValidWebhookHash supports two keys for rotation", () => {
+  process.env.CRAY_WEBHOOK_KEYS = "whk_old_1111, whk_new_2222";
+  const data = { a: 1 };
+  for (const [key, hint] of [
+    ["whk_old_1111", "1111"],
+    ["whk_new_2222", "2222"],
+  ]) {
+    const hash = hashOf(JSON.stringify(data), key);
+    assert.equal(isValidWebhookHash(data, hash, hint), true, key);
+  }
+});
+
+test("isValidWebhookHash accepts PHP-style escaping of slashes and non-ASCII", () => {
+  const data = { return_url: "https://x.test/a", name: "Ọlá" };
+  const php = '{"return_url":"https:\\/\\/x.test\\/a","name":"\\u1eccl\\u00e1"}';
+  const hash = hashOf(php, "whk_test_abcd");
+  assert.equal(isValidWebhookHash(data, hash, "abcd"), true);
+  const plain = hashOf(JSON.stringify(data), "whk_test_abcd");
+  assert.equal(isValidWebhookHash(data, plain, "abcd"), true);
 });
