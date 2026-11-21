@@ -97,6 +97,24 @@ const REFUSAL_TEXT = {
   answer_required: "Write an answer of 2 to 1,000 characters.",
   appeal_not_open: "This appeal has already been answered.",
   no_such_strike: "We couldn’t find that strike.",
+  // Identity checks and screening
+  identity_required:
+    "Confirm your identity first. You can do it from your account page.",
+  already_verified: "Your identity is already confirmed.",
+  check_in_review:
+    "Your last check is still being looked at. This usually takes 1–2 working days.",
+  attempt_limit:
+    "You’ve used all your tries for now. Contact us and we’ll help you through it.",
+  screening_hold:
+    "We need to review your account before you can hire. This usually takes 1–2 working days.",
+  invalid_legal_name: "Enter your full legal name, 3 to 200 characters.",
+  invalid_kind: "That kind of check isn’t available for your account.",
+  invalid_review_outcome: "Choose one of the listed outcomes.",
+  identity_reason_required: "Write a reason of 3 to 500 characters.",
+  no_such_check: "We couldn’t find that identity check.",
+  check_not_in_review: "This check isn’t waiting for a decision.",
+  no_such_screening: "We couldn’t find that screening.",
+  screening_not_pending: "This screening has already been decided.",
 } as const;
 
 export type Refusal = keyof typeof REFUSAL_TEXT;
