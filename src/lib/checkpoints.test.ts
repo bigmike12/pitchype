@@ -5,6 +5,7 @@ import {
   checkpointApplies,
   checkpointDates,
   evidenceProblems,
+  intervalFromChoice,
   finalRequirementProblems,
   isValidInterval,
   kickoffDueAt,
@@ -363,4 +364,26 @@ test("final analytics need a screenshot, metrics and a capture date in range", (
       .length,
     1,
   );
+});
+
+test("a frequency choice is a preset or a valid custom number of days", () => {
+  assert.equal(intervalFromChoice("7", ""), 7);
+  assert.equal(intervalFromChoice("3", "20"), 3);
+  assert.equal(intervalFromChoice("custom", " 10 "), 10);
+  assert.equal(intervalFromChoice("custom", "2"), 2);
+  for (const [frequency, custom] of [
+    ["", ""],
+    ["5", ""],
+    ["custom", ""],
+    ["custom", "1"],
+    ["custom", "31"],
+    ["custom", "2.5"],
+    ["custom", "abc"],
+  ]) {
+    assert.equal(
+      intervalFromChoice(frequency, custom),
+      null,
+      `${frequency} ${custom}`,
+    );
+  }
 });

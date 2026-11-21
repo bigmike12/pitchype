@@ -7,10 +7,9 @@ import {
   checkpointDates,
   isEvidenceType,
   isFinalRequirement,
-  isValidInterval,
+  intervalFromChoice,
   MAX_INTERVAL_DAYS,
   MIN_INTERVAL_DAYS,
-  PRESET_INTERVALS,
   type EvidenceType,
   type FinalRequirement,
 } from "./checkpoints.ts";
@@ -623,17 +622,11 @@ function checkpointSettings(
   if (text(form, "checkpointsEnabled") !== "on") return off;
 
   const { postFrom, deliverBy, errors } = context;
-  const frequency = text(form, "checkpointFrequency");
-  const raw =
-    frequency === "custom"
-      ? text(form, "checkpointCustomDays").trim()
-      : frequency;
-  const days = /^\d+$/.test(raw) ? Number(raw) : Number.NaN;
-  const presets: readonly number[] = PRESET_INTERVALS;
-  if (
-    !isValidInterval(days) ||
-    (frequency !== "custom" && !presets.includes(days))
-  ) {
+  const days = intervalFromChoice(
+    text(form, "checkpointFrequency"),
+    text(form, "checkpointCustomDays"),
+  );
+  if (days === null) {
     errors.checkpointInterval = `Choose how often, or a custom interval from ${MIN_INTERVAL_DAYS} to ${MAX_INTERVAL_DAYS} days.`;
   }
 
@@ -651,6 +644,7 @@ function checkpointSettings(
   } else if (
     !errors.checkpointInterval &&
     isDay(deliverBy) &&
+    days !== null &&
     checkpointDates({ postFrom, deliverBy, intervalDays: days }).length === 0
   ) {
     errors.checkpointInterval =
@@ -659,7 +653,7 @@ function checkpointSettings(
 
   return {
     checkpointsEnabled: true,
-    checkpointIntervalDays: isValidInterval(days) ? days : null,
+    checkpointIntervalDays: days,
     checkpointEvidence: evidence,
   };
 }

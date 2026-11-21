@@ -58,6 +58,22 @@ export const MAX_INTERVAL_DAYS = 30;
 export const MIN_DAYS_AFTER_START = 3;
 export const KICKOFF_HOURS = 48;
 
+/**
+ * The interval a builder's frequency choice means: a preset ("3", "7", "14"),
+ * or "custom" with the typed number of days. Null when it isn't a valid choice.
+ */
+export function intervalFromChoice(
+  frequency: string,
+  customDays: string,
+): number | null {
+  const raw = frequency === "custom" ? customDays.trim() : frequency;
+  if (!/^\d+$/.test(raw)) return null;
+  const days = Number(raw);
+  const presets: readonly number[] = PRESET_INTERVALS;
+  if (frequency !== "custom" && !presets.includes(days)) return null;
+  return isValidInterval(days) ? days : null;
+}
+
 export function isValidInterval(days: number): boolean {
   return (
     Number.isInteger(days) &&

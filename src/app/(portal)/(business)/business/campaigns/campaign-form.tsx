@@ -61,6 +61,13 @@ import {
   type PaymentModel,
 } from "@/lib/campaign";
 import {
+  EVIDENCE_LABELS,
+  FINAL_REQUIREMENT_LABELS,
+  intervalFromChoice,
+  isEvidenceType,
+  isFinalRequirement,
+} from "@/lib/checkpoints";
+import {
   MIN_FOLLOWER_LABELS,
   PLATFORM_RULES,
   PLATFORMS,
@@ -74,6 +81,7 @@ import { NIGERIAN_STATES, stateLabel, type NigerianState } from "@/lib/profile";
 import { cn } from "@/lib/utils";
 
 import { saveCampaignAction, type CampaignFormState } from "./actions";
+import { TimelineFields } from "./timeline-fields";
 
 /** The four steps, in order: a short name for the progress bar. */
 const STEPS = ["Basics", "Posts and creators", "Pay", "Dates and review"];
@@ -95,6 +103,10 @@ const FIELD_STEP: Record<string, number> = {
   applicationsCloseOn: 3,
   postFrom: 3,
   deliverBy: 3,
+  endsOn: 3,
+  checkpointInterval: 3,
+  checkpointEvidence: 3,
+  finalRequirements: 3,
 };
 
 const PAYMENT_OPTIONS = [
@@ -796,10 +808,10 @@ export function CampaignForm({
             icon={CalendarCheck}
             tone="peach"
             title="Dates, and a last look"
-            lead="When applications close and when the posts must be up."
+            lead="When applications close, when the campaign runs, and what creators send along the way."
           >
-            <div className="space-y-5">
-              <div className="grid gap-5 sm:grid-cols-3">
+            <div className="space-y-8">
+              <div className="max-w-xs">
                 <TextField
                   label="Applications close"
                   name="applicationsCloseOn"
@@ -811,25 +823,22 @@ export function CampaignForm({
                   }
                   error={errors.applicationsCloseOn}
                 />
-                <TextField
-                  label="Post from"
-                  labelAside={<span className="text-muted">Optional</span>}
-                  name="postFrom"
-                  type="date"
-                  min={today}
-                  defaultValue={values.postFrom ?? campaign?.postFrom ?? ""}
-                  error={errors.postFrom}
-                />
-                <TextField
-                  label="Posts up by"
-                  name="deliverBy"
-                  type="date"
-                  min={today}
-                  required
-                  defaultValue={values.deliverBy ?? campaign?.deliverBy}
-                  error={errors.deliverBy}
-                />
               </div>
+              <TimelineFields
+                today={today}
+                perClick={perClick}
+                initial={{
+                  postFrom: values.postFrom ?? campaign?.postFrom ?? "",
+                  deliverBy: values.deliverBy ?? campaign?.deliverBy ?? "",
+                  endsOn: values.endsOn ?? campaign?.endsOn ?? "",
+                  checkpointsEnabled: campaign?.checkpointsEnabled ?? false,
+                  checkpointIntervalDays:
+                    campaign?.checkpointIntervalDays ?? null,
+                  checkpointEvidence: campaign?.checkpointEvidence ?? [],
+                  finalRequirements: campaign?.finalRequirements ?? [],
+                }}
+                errors={errors}
+              />
             </div>
             <Review
               snapshot={snapshot}
@@ -1102,6 +1111,10 @@ type Snapshot = {
   applicationsCloseOn: string;
   postFrom: string;
   deliverBy: string;
+  endsOn: string;
+  /** "Every 7 days: a written progress update, links", or empty when off. */
+  checkpoints: string;
+  finalRequirements: string[];
 };
 
 const EMPTY_SNAPSHOT: Snapshot = {
@@ -1113,6 +1126,9 @@ const EMPTY_SNAPSHOT: Snapshot = {
   applicationsCloseOn: "",
   postFrom: "",
   deliverBy: "",
+  endsOn: "",
+  checkpoints: "",
+  finalRequirements: [],
 };
 
 function readSnapshot(data: FormData): Snapshot {
@@ -1137,7 +1153,28 @@ function readSnapshot(data: FormData): Snapshot {
     applicationsCloseOn: text("applicationsCloseOn"),
     postFrom: text("postFrom"),
     deliverBy: text("deliverBy"),
+    endsOn: text("endsOn"),
+    checkpoints: checkpointSummary(data),
+    finalRequirements: data
+      .getAll("finalRequirements")
+      .filter(isFinalRequirement)
+      .map((r) => FINAL_REQUIREMENT_LABELS[r]),
   };
+}
+
+/** "Every 7 days: a written progress update, links", or "" when checkpoints are off. */
+function checkpointSummary(data: FormData): string {
+  if (data.get("checkpointsEnabled") !== "on") return "";
+  const frequency = String(data.get("checkpointFrequency") ?? "");
+  const days = intervalFromChoice(
+    frequency,
+    String(data.get("checkpointCustomDays") ?? ""),
+  );
+  const needs = data
+    .getAll("checkpointEvidence")
+    .filter(isEvidenceType)
+    .map((type) => EVIDENCE_LABELS[type].toLowerCase());
+  return `${days === null ? "Frequency not set" : `Every ${days} days`}: ${needs.join(", ") || "nothing chosen yet"}`;
 }
 
 /** Whole naira typed with or without commas or ₦, formatted; null if not a whole number. */
@@ -1204,12 +1241,18 @@ function Review({
       : []),
     ["Creators wanted", places || "Not set"],
     ["Applications close", day(snapshot.applicationsCloseOn)],
-    [
-      "Posts up",
-      snapshot.postFrom
-        ? `${day(snapshot.postFrom)} to ${day(snapshot.deliverBy)}`
-        : `by ${day(snapshot.deliverBy)}`,
-    ],
+    ["Campaign starts", day(snapshot.postFrom)],
+    ["Final delivery by", day(snapshot.deliverBy)],
+    ["Campaign ends", day(snapshot.endsOn)],
+    ["Checkpoints", snapshot.checkpoints || "None"],
+    ...(paymentModel === "per_click"
+      ? []
+      : ([
+          [
+            "Final submission",
+            snapshot.finalRequirements.join(", ") || "A link or a screenshot",
+          ],
+        ] as [string, string][])),
   ];
   return (
     <div className="mt-8 border-t border-hairline pt-6">

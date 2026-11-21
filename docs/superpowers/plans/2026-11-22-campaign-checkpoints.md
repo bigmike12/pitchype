@@ -117,9 +117,9 @@
 - Consumes: Task 1 (`checkpointDates`, `isValidInterval`), Task 2 fields.
 - Produces: in the existing four-step builder, a **Timeline** group (start = `post_from`, final delivery = `deliver_by`, end = `ends_on`, with one-line explanations) and a **Checkpoints** group (switch; frequency radio 3 / 7 / 14 / Custom with a 2–30 number; evidence checkboxes; a live list of the generated dates via `checkpointDates`; an empty-list warning matching `checkpoints_do_not_fit`), plus **Final requirements** checkboxes (hidden for per-click). Server action validates with the Task 2 TS rules and surfaces the SQL refusals as words. Locked fields show as read-only once submitted, like deliverables.
 
-- [ ] **Step 1:** tests for any new pure form helper (e.g. parsing the frequency radio + custom value).
-- [ ] **Step 2–4:** implement; `npm test`, typecheck, lint; reason through 390px.
-- [ ] **Step 5: Commit** `Set the timeline, checkpoints and final requirements in the campaign builder`.
+- [x] **Step 1:** tests for any new pure form helper (e.g. parsing the frequency radio + custom value).
+- [x] **Step 2–4:** implement; `npm test`, typecheck, lint; reason through 390px.
+- [x] **Step 5: Commit** `Set the timeline, checkpoints and final requirements in the campaign builder`.
 
 ### Task 7: Timeline, checklist and trail on campaign and hire pages
 

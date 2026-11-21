@@ -163,6 +163,7 @@ function typed(form: FormData): CampaignFormState["values"] {
     "applicationsCloseOn",
     "postFrom",
     "deliverBy",
+    "endsOn",
   ];
   return Object.fromEntries(fields.map((f) => [f, text(form, f).trim()]));
 }
