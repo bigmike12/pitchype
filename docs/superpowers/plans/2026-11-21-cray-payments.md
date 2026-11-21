@@ -273,10 +273,10 @@
   - `recordCashMovementAction` (admin, whole-naira amount via the existing `parseNairaAmount`, reason required, confirm box).
   - Reconciliation pages show the latest run per provider and the parts note for Cray; ledger filter offers the new accounts/events.
 
-- [ ] **Step 1: Failing tests** for any new pure helper (e.g. `namesMatch(a: string, b: string): boolean` in `src/lib/payout-request.ts`: `"JOHN  DOE"` vs `"john doe"` true, `"John Doe"` vs `"Jane Doe"` false).
-- [ ] **Step 2–3:** implement; every action authenticates → authorizes → validates → acts (CLAUDE.md §7).
-- [ ] **Step 4:** `npm test`, typecheck, lint.
-- [ ] **Step 5: Commit** `Run Cray payouts, the provider switch and cash movements from the admin pages`.
+- [x] **Step 1: Failing tests** for any new pure helper (e.g. `namesMatch(a: string, b: string): boolean` in `src/lib/payout-request.ts`: `"JOHN  DOE"` vs `"john doe"` true, `"John Doe"` vs `"Jane Doe"` false).
+- [x] **Step 2–3:** implement; every action authenticates → authorizes → validates → acts (CLAUDE.md §7).
+- [x] **Step 4:** `npm test`, typecheck, lint.
+- [x] **Step 5: Commit** `Run Cray payouts, the provider switch and cash movements from the admin pages`.
 
 ### Task 14: Daily money checks and race scenarios
 

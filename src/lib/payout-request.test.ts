@@ -166,3 +166,58 @@ test("account names match without regard to case, spacing or edge whitespace", (
   assert.equal(namesMatch("John Doe", "John"), false);
   assert.equal(namesMatch("", ""), false);
 });
+
+test("payoutPreview uses the payout provider's transfer cost", () => {
+  assert.deepEqual(payoutPreview(1_000_000, "cray"), {
+    feeKobo: 5_000,
+    receiveKobo: 995_000,
+  });
+  assert.deepEqual(payoutPreview(1_000_000, "paystack"), {
+    feeKobo: transferFee(1_000_000),
+    receiveKobo: 1_000_000 - transferFee(1_000_000),
+  });
+  assert.deepEqual(
+    payoutPreview(1_000_000),
+    payoutPreview(1_000_000, "paystack"),
+  );
+});
+
+test("a reversed payout tells the creator the money is back", () => {
+  const reversed = describePayoutStatus({
+    status: "reversed",
+    decisionReason: null,
+  });
+  assert.equal(reversed.tone, "attention");
+  assert.match(reversed.label, /reversed/i);
+  assert.match(reversed.detail ?? "", /back in your wallet/i);
+});
+
+test("admin words name the provider that holds the payout", () => {
+  assert.equal(
+    adminPayoutStatus("processing", "cray"),
+    "Sent to Cray, waiting for the bank",
+  );
+  assert.equal(
+    adminPayoutStatus("processing"),
+    "Sent to Paystack, waiting for the bank",
+  );
+  assert.equal(
+    adminPayoutStatus("reversed", "cray"),
+    "Reversed by Cray after it was paid, money returned to the wallet",
+  );
+});
+
+test("a live check names the provider the admin asked", () => {
+  assert.equal(
+    payoutCheckOutcome("paid", "cray").message,
+    "Cray says it was sent. Marked paid.",
+  );
+  assert.equal(
+    payoutCheckOutcome("pending", "cray").message,
+    "Cray hasn’t finished it yet.",
+  );
+  assert.equal(
+    payoutCheckOutcome("paid").message,
+    "Paystack says it was sent. Marked paid.",
+  );
+});

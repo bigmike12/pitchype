@@ -149,6 +149,11 @@ export async function listMyPayouts(): Promise<PayoutRow[]> {
 
 export type PayoutForReview = {
   id: string;
+  provider: "cray" | "paystack";
+  // Cray: its own id for the transfer, and why a processing payout is held.
+  providerReference: string | null;
+  waitingForFunds: boolean;
+  needsReference: boolean;
   creatorId: string;
   creatorName: string;
   amountKobo: number;
@@ -168,6 +173,10 @@ export type PayoutForReview = {
 
 type PayoutReviewRow = {
   id: string;
+  provider: string;
+  provider_reference: string | null;
+  waiting_for_funds: boolean;
+  needs_reference: boolean;
   user_id: string;
   amount_kobo: number;
   transfer_fee_kobo: number;
@@ -184,7 +193,12 @@ type PayoutReviewRow = {
 };
 
 const PAYOUT_REVIEW_COLUMNS =
-  "id, user_id, amount_kobo, transfer_fee_kobo, status, bank_name, last4, account_name, reference, approved_by, approved_at, decision_reason, paid_at, created_at";
+  "id, provider, provider_reference, waiting_for_funds, needs_reference, user_id, amount_kobo, transfer_fee_kobo, status, bank_name, last4, account_name, reference, approved_by, approved_at, decision_reason, paid_at, created_at";
+
+function toProvider(value: string): "cray" | "paystack" {
+  if (value === "cray" || value === "paystack") return value;
+  throw new Error("payout has an unknown provider");
+}
 
 // Row level security shows admins all payouts and all creator profiles. The
 // approver stays an id: admins have no profile, and signed-in people can't
@@ -207,6 +221,10 @@ async function withCreatorNames(
   }
   return rows.map((row) => ({
     id: row.id,
+    provider: toProvider(row.provider),
+    providerReference: row.provider_reference,
+    waitingForFunds: row.waiting_for_funds,
+    needsReference: row.needs_reference,
     creatorId: row.user_id,
     creatorName: names.get(row.user_id) ?? "",
     amountKobo: row.amount_kobo,
@@ -550,4 +568,35 @@ export async function listProcessingPayoutsOlderThan(
   return data.flatMap((row) =>
     row.reference ? [{ id: row.id, reference: row.reference }] : [],
   );
+}
+
+/**
+ * A requested payout's destination as the approval pre-check needs it, for
+ * admins (row level security). A Cray payout's number comes back encrypted;
+ * only the send path decrypts it.
+ */
+export async function getPayoutForApproval(payoutId: string): Promise<{
+  provider: "cray" | "paystack";
+  status: string;
+  bankCode: string | null;
+  accountNumberEncrypted: string | null;
+  accountName: string;
+} | null> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("payouts")
+    .select(
+      "provider, status, bank_code, account_number_encrypted, account_name",
+    )
+    .eq("id", payoutId)
+    .maybeSingle();
+  if (error) throw new Error(`payout lookup failed (${error.code})`);
+  if (!data) return null;
+  return {
+    provider: toProvider(data.provider),
+    status: data.status,
+    bankCode: data.bank_code,
+    accountNumberEncrypted: data.account_number_encrypted,
+    accountName: data.account_name,
+  };
 }

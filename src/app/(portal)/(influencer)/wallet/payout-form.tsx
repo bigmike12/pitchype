@@ -5,7 +5,8 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
-import { MIN_PAYOUT_KOBO, transferFee } from "@/lib/fees";
+import type { PaymentProvider } from "@/lib/db/money";
+import { MIN_PAYOUT_KOBO, payoutTransferFee } from "@/lib/fees";
 import { formatNaira } from "@/lib/money";
 import { parsePayoutAmount, payoutPreview } from "@/lib/payout-request";
 import { refusalText } from "@/lib/refusals";
@@ -21,9 +22,12 @@ import { requestPayoutAction, type PayoutState } from "./actions";
 export function PayoutForm({
   balanceKobo,
   hasBankAccount,
+  provider,
 }: {
   balanceKobo: number;
   hasBankAccount: boolean;
+  /** The provider that would send it: its transfer cost is what is shown. */
+  provider: PaymentProvider;
 }) {
   const [amount, setAmount] = useState("");
   const [state, formAction, pending] = useActionState<PayoutState, FormData>(
@@ -52,11 +56,11 @@ export function PayoutForm({
   } else if (parsed.kobo > balanceKobo) {
     line = "That’s more than your balance.";
     problem = true;
-  } else if (transferFee(parsed.kobo) >= parsed.kobo) {
+  } else if (payoutTransferFee(provider, parsed.kobo) >= parsed.kobo) {
     line = refusalText("payout_fee_too_high");
     problem = true;
   } else {
-    const { feeKobo, receiveKobo } = payoutPreview(parsed.kobo);
+    const { feeKobo, receiveKobo } = payoutPreview(parsed.kobo, provider);
     line = `You will receive ${formatNaira(receiveKobo)} after the ${formatNaira(feeKobo)} transfer cost.`;
   }
 

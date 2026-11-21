@@ -3,7 +3,9 @@
 // No framework imports, so node tests cover it and the client form can use it.
 
 import { KOBO_PER_NAIRA, formatNaira } from "./money.ts";
-import { MIN_PAYOUT_KOBO, transferFee } from "./fees.ts";
+import { MIN_PAYOUT_KOBO, payoutTransferFee } from "./fees.ts";
+import type { PaymentProvider } from "./db/money.ts";
+import { providerName } from "./provider-words.ts";
 import type { TransferResult } from "./payments.ts";
 
 // Keeps the kobo total far inside what a number holds exactly.
@@ -51,11 +53,14 @@ export function namesMatch(a: string, b: string): boolean {
  * their account. Callers check the amount first; a fee that would take it all
  * is a bug to surface, not a number to show.
  */
-export function payoutPreview(amountKobo: number): {
+export function payoutPreview(
+  amountKobo: number,
+  provider: PaymentProvider = "paystack",
+): {
   feeKobo: number;
   receiveKobo: number;
 } {
-  const feeKobo = transferFee(amountKobo);
+  const feeKobo = payoutTransferFee(provider, amountKobo);
   if (feeKobo >= amountKobo) {
     throw new Error("The transfer cost would take the whole payout");
   }
@@ -101,24 +106,36 @@ export function describePayoutStatus(p: {
           ? `${p.decisionReason} ${BACK_IN_WALLET}`
           : BACK_IN_WALLET,
       };
+    case "reversed":
+      return {
+        label: "Reversed",
+        tone: "attention",
+        detail: `It didn’t reach your bank, so it was sent back. ${BACK_IN_WALLET}`,
+      };
     default:
       return { label: "Status unknown", tone: "info", detail: null };
   }
 }
 
 /** The same statuses for admins, who read about the payout rather than being addressed as the creator. */
-export function adminPayoutStatus(status: string): string {
+export function adminPayoutStatus(
+  status: string,
+  provider: PaymentProvider = "paystack",
+): string {
+  const name = providerName(provider);
   switch (status) {
     case "requested":
       return "Waiting for approval";
     case "processing":
-      return "Sent to Paystack, waiting for the bank";
+      return `Sent to ${name}, waiting for the bank`;
     case "paid":
       return "Paid";
     case "failed":
       return "Failed, money returned to the wallet";
     case "rejected":
       return "Rejected, money returned to the wallet";
+    case "reversed":
+      return `Reversed by ${name} after it was paid, money returned to the wallet`;
     default:
       return "Status unknown";
   }
@@ -129,36 +146,38 @@ export function adminPayoutStatus(status: string): string {
  * each outcome of confirmTransfer(); Paystack's own text is never shown.
  * `changed` says the payout moved to paid or failed, so the page refreshes.
  */
-export function payoutCheckOutcome(result: TransferResult): {
+export function payoutCheckOutcome(
+  result: TransferResult,
+  provider: PaymentProvider = "paystack",
+): {
   status: "success" | "error";
   message: string;
   changed: boolean;
 } {
+  const name = providerName(provider);
   switch (result) {
     case "paid":
       return {
         status: "success",
-        message: "Paystack says it was sent. Marked paid.",
+        message: `${name} says it was sent. Marked paid.`,
         changed: true,
       };
     case "failed":
       return {
         status: "success",
-        message:
-          "Paystack says it did not go through. The money is back in the creator’s wallet.",
+        message: `${name} says it did not go through. The money is back in the creator’s wallet.`,
         changed: true,
       };
     case "reversed":
       return {
         status: "success",
-        message:
-          "The provider took this payout back. The money is back in the creator’s wallet.",
+        message: `${name} took this payout back. The money is back in the creator’s wallet.`,
         changed: true,
       };
     case "pending":
       return {
         status: "success",
-        message: "Paystack hasn’t finished it yet.",
+        message: `${name} hasn’t finished it yet.`,
         changed: false,
       };
     case "duplicate":
