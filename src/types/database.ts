@@ -2370,6 +2370,7 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_platform_overview: { Args: never; Returns: Json }
       all_distinct: { Args: { items: string[] }; Returns: boolean }
       allow_identity_retry: {
         Args: { person: string; reason: string }

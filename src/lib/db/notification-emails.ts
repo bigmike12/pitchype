@@ -7,7 +7,10 @@
 // security and save_email_preferences() decide what they can touch. Errors
 // carry the database code only: never the recipient's address.
 
-import { DEFAULT_EMAIL_PREFERENCES, type EmailPreferences } from "@/lib/notification-email";
+import {
+  DEFAULT_EMAIL_PREFERENCES,
+  type EmailPreferences,
+} from "@/lib/notification-email";
 import type { NotificationRow } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createSessionClient } from "@/lib/supabase/server";
