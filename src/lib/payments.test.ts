@@ -8,10 +8,12 @@ import {
   confirmCardPayment,
   confirmTransfer,
   crayCardFigures,
+  handleCrayWebhook,
   handlePaystackWebhook,
   sendCrayPayout,
   stuckPayoutCutoff,
   type CardDeps,
+  type CrayWebhookDeps,
   type PayoutRecord,
   type TransferDeps,
   type WebhookDeps,
@@ -1080,4 +1082,373 @@ test("Cray, card and Paystack event keys never collide", () => {
     `cray.payout.success:${CRAY_ID}`,
   ];
   assert.equal(new Set(keys).size, keys.length);
+});
+
+// Cray webhook ----------------------------------------------------------------------------------
+
+const WEBHOOK_KEY = "whk_test_abcd";
+const realWebhookKeys = process.env.CRAY_WEBHOOK_KEYS;
+
+beforeEach(() => {
+  process.env.CRAY_WEBHOOK_KEYS = WEBHOOK_KEY;
+});
+
+afterEach(() => {
+  if (realWebhookKeys === undefined) delete process.env.CRAY_WEBHOOK_KEYS;
+  else process.env.CRAY_WEBHOOK_KEYS = realWebhookKeys;
+});
+
+type DepositInput = Parameters<CrayWebhookDeps["recordDeposit"]>[0];
+
+function crayWebhookDeps(
+  options: {
+    deposit?: Awaited<ReturnType<CrayWebhookDeps["recordDeposit"]>> | Error;
+    card?: Awaited<ReturnType<CrayWebhookDeps["confirmCardPayment"]>> | Error;
+    transfer?: Awaited<ReturnType<CrayWebhookDeps["confirmTransfer"]>> | Error;
+    payoutByCrayId?: { reference: string | null } | null;
+  } = {},
+) {
+  const deposits: DepositInput[] = [];
+  const cards: string[] = [];
+  const transfers: string[] = [];
+  const lookups: string[] = [];
+  const deps: CrayWebhookDeps = {
+    recordDeposit: async (input) => {
+      deposits.push(input);
+      const value = options.deposit ?? {
+        outcome: "funded",
+        stillNeededKobo: null,
+      };
+      if (value instanceof Error) throw value;
+      return value;
+    },
+    confirmCardPayment: async (reference) => {
+      cards.push(reference);
+      const value = options.card ?? "funded";
+      if (value instanceof Error) throw value;
+      return value;
+    },
+    confirmTransfer: async (reference) => {
+      transfers.push(reference);
+      const value = options.transfer ?? "paid";
+      if (value instanceof Error) throw value;
+      return value;
+    },
+    getPayoutByProviderReference: async (crayId) => {
+      lookups.push(crayId);
+      return options.payoutByCrayId === undefined
+        ? { reference: PO_REF }
+        : options.payoutByCrayId;
+    },
+  };
+  return { deps, deposits, cards, transfers, lookups };
+}
+
+function signedBody(
+  event: string,
+  data: unknown,
+  key = WEBHOOK_KEY,
+  tamper = false,
+): string {
+  const hash = createHmac("sha256", key)
+    .update(JSON.stringify(data))
+    .digest("base64");
+  return JSON.stringify({
+    event,
+    data: tamper ? { ...(data as object), amount: "1.00" } : data,
+    hash,
+  });
+}
+
+const DEPOSIT_DATA = {
+  recipient: "9012345678",
+  customer_reference: "pit_va_0123456789abcdef0123456789abcdef",
+  transaction_reference: "dep_0001",
+  amount: "52700.00",
+  charge: "200.00",
+  currency: "NGN",
+  sender_account_number: "5551234567",
+  sender_name: "Someone Private",
+};
+
+test("a signed deposit is recorded once with exact kobo and a trimmed payload", async () => {
+  const { deps, deposits } = crayWebhookDeps();
+  const result = await handleCrayWebhook(
+    signedBody("collection.virtualaccount.successful", DEPOSIT_DATA),
+    "abcd",
+    deps,
+  );
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body, { ok: true, result: "funded" });
+  assert.equal(deposits.length, 1);
+  assert.equal(deposits[0].provider, "cray");
+  assert.equal(deposits[0].accountReference, DEPOSIT_DATA.customer_reference);
+  assert.equal(deposits[0].accountNumber, "9012345678");
+  assert.equal(deposits[0].depositReference, "dep_0001");
+  assert.equal(deposits[0].grossKobo, 5_270_000);
+  assert.equal(deposits[0].chargeKobo, 20_000);
+  assert.equal(deposits[0].eventKey, "cray.deposit:dep_0001");
+  const stored = JSON.stringify(deposits[0].payload);
+  assert.ok(!stored.includes("5551234567"));
+  assert.ok(!stored.includes("Someone Private"));
+});
+
+test("a deposit with only gross and net takes the charge as the difference", async () => {
+  const { deps, deposits } = crayWebhookDeps();
+  const { charge: _charge, ...withoutCharge } = DEPOSIT_DATA;
+  void _charge;
+  await handleCrayWebhook(
+    signedBody("collection.virtualaccount.successful", {
+      ...withoutCharge,
+      net_amount: "52500.00",
+    }),
+    "abcd",
+    deps,
+  );
+  assert.equal(deposits[0].grossKobo, 5_270_000);
+  assert.equal(deposits[0].chargeKobo, 20_000);
+});
+
+test("a deposit with a bad hash is refused and records nothing", async () => {
+  const { deps, deposits } = crayWebhookDeps();
+  for (const body of [
+    signedBody(
+      "collection.virtualaccount.successful",
+      DEPOSIT_DATA,
+      WEBHOOK_KEY,
+      true,
+    ),
+    signedBody(
+      "collection.virtualaccount.successful",
+      DEPOSIT_DATA,
+      "another_key_0000",
+    ),
+  ]) {
+    const result = await handleCrayWebhook(body, "abcd", deps);
+    assert.equal(result.status, 401);
+    assert.equal(result.body.ok, false);
+  }
+  assert.equal(deposits.length, 0);
+});
+
+test("a deposit-shaped body with no hash is refused", async () => {
+  const { deps, deposits } = crayWebhookDeps();
+  const result = await handleCrayWebhook(
+    JSON.stringify({
+      event: "collection.virtualaccount.successful",
+      data: DEPOSIT_DATA,
+    }),
+    "abcd",
+    deps,
+  );
+  assert.equal(result.status, 401);
+  assert.equal(deposits.length, 0);
+});
+
+test("an unsigned payin that claims a deposit, or success, moves no money by itself", async () => {
+  const { deps, deposits, cards } = crayWebhookDeps();
+  const claimsDeposit = await handleCrayWebhook(
+    JSON.stringify({ event: "payin", data: DEPOSIT_DATA }),
+    null,
+    deps,
+  );
+  assert.equal(claimsDeposit.status, 200);
+  assert.equal(deposits.length, 0);
+  assert.equal(cards.length, 0);
+
+  // With our reference it is only a hint: the payment is verified with Cray.
+  const hint = await handleCrayWebhook(
+    JSON.stringify({
+      event: "payin",
+      data: { reference: REF, status: "Successful", amount: "99999999.00" },
+    }),
+    null,
+    deps,
+  );
+  assert.equal(hint.status, 200);
+  assert.deepEqual(cards, [REF]);
+  assert.equal(deposits.length, 0);
+});
+
+test("a collection event names our reference as reference or merchant_reference", async () => {
+  const { deps, cards } = crayWebhookDeps();
+  await handleCrayWebhook(
+    JSON.stringify({
+      event: "collection.checkout.successful",
+      data: { merchant_reference: REF },
+    }),
+    null,
+    deps,
+  );
+  assert.deepEqual(cards, [REF]);
+});
+
+test("payin with a reference that is not ours is ignored", async () => {
+  const { deps, cards } = crayWebhookDeps();
+  for (const reference of ["abc", "pit_nope", `${REF}x`]) {
+    const result = await handleCrayWebhook(
+      JSON.stringify({ event: "payin", data: { reference } }),
+      null,
+      deps,
+    );
+    assert.deepEqual(result, {
+      status: 200,
+      body: { ok: true, result: "ignored" },
+    });
+  }
+  assert.equal(cards.length, 0);
+});
+
+test("a card payment Cray still calls pending asks for a retry", async () => {
+  const { deps } = crayWebhookDeps({ card: "pending" });
+  const result = await handleCrayWebhook(
+    JSON.stringify({ event: "payin", data: { reference: REF } }),
+    null,
+    deps,
+  );
+  assert.equal(result.status, 503);
+});
+
+test("a payout event finds our payout by Cray's id and confirms it", async () => {
+  const { deps, transfers, lookups } = crayWebhookDeps();
+  const result = await handleCrayWebhook(
+    JSON.stringify({
+      event: "payout",
+      data: { reference: "CRAY0001", status: "successful" },
+    }),
+    null,
+    deps,
+  );
+  assert.equal(result.status, 200);
+  assert.deepEqual(lookups, ["CRAY0001"]);
+  assert.deepEqual(transfers, [PO_REF]);
+});
+
+test("a payout event for an id we don't know is acknowledged and ignored", async () => {
+  const { deps, transfers } = crayWebhookDeps({ payoutByCrayId: null });
+  const result = await handleCrayWebhook(
+    JSON.stringify({ event: "payout", data: { reference: "CRAY9999" } }),
+    null,
+    deps,
+  );
+  assert.deepEqual(result, {
+    status: 200,
+    body: { ok: true, result: "ignored" },
+  });
+  assert.equal(transfers.length, 0);
+});
+
+test("a deposit for an account we don't know is acknowledged and logged", async () => {
+  const { deps } = crayWebhookDeps({
+    deposit: { outcome: "unknown_account", stillNeededKobo: null },
+  });
+  const result = await handleCrayWebhook(
+    signedBody("collection.virtualaccount.successful", DEPOSIT_DATA),
+    "abcd",
+    deps,
+  );
+  assert.equal(result.status, 200);
+  assert.ok(
+    logged.some((line) => line.includes("cray deposit for an unknown account")),
+  );
+  assert.ok(!logged.some((line) => line.includes("5551234567")));
+});
+
+test("a signed deposit we can't read the figures of is not acknowledged", async () => {
+  const { deps, deposits } = crayWebhookDeps();
+  const { amount: _amount, ...withoutAmount } = DEPOSIT_DATA;
+  void _amount;
+  const result = await handleCrayWebhook(
+    signedBody("collection.virtualaccount.successful", withoutAmount),
+    "abcd",
+    deps,
+  );
+  assert.equal(result.status, 500);
+  assert.equal(deposits.length, 0);
+});
+
+test("a deposit in another currency is ignored, not credited as naira", async () => {
+  const { deps, deposits } = crayWebhookDeps();
+  const result = await handleCrayWebhook(
+    signedBody("collection.virtualaccount.successful", {
+      ...DEPOSIT_DATA,
+      currency: "USD",
+    }),
+    "abcd",
+    deps,
+  );
+  assert.equal(result.status, 200);
+  assert.equal(deposits.length, 0);
+});
+
+test("malformed JSON is a 400 and unknown events are acknowledged", async () => {
+  const { deps } = crayWebhookDeps();
+  assert.equal((await handleCrayWebhook("not json", null, deps)).status, 400);
+  assert.deepEqual(
+    await handleCrayWebhook(
+      JSON.stringify({ event: "bill.paid", data: {} }),
+      null,
+      deps,
+    ),
+    { status: 200, body: { ok: true, result: "ignored" } },
+  );
+  assert.deepEqual(await handleCrayWebhook(JSON.stringify(["x"]), null, deps), {
+    status: 200,
+    body: { ok: true, result: "ignored" },
+  });
+});
+
+test("a database or Cray outage returns 500 so Cray retries", async () => {
+  const dbDown = crayWebhookDeps({
+    deposit: new Error("record deposit failed (08006)"),
+  });
+  assert.equal(
+    (
+      await handleCrayWebhook(
+        signedBody("collection.virtualaccount.successful", DEPOSIT_DATA),
+        "abcd",
+        dbDown.deps,
+      )
+    ).status,
+    500,
+  );
+  const crayDown = crayWebhookDeps({
+    card: new CrayError("Could not reach Cray", 0),
+  });
+  assert.equal(
+    (
+      await handleCrayWebhook(
+        JSON.stringify({ event: "payin", data: { reference: REF } }),
+        null,
+        crayDown.deps,
+      )
+    ).status,
+    500,
+  );
+  const rateLimited = crayWebhookDeps({
+    card: new CrayError("slow down", 429),
+  });
+  assert.equal(
+    (
+      await handleCrayWebhook(
+        JSON.stringify({ event: "payin", data: { reference: REF } }),
+        null,
+        rateLimited.deps,
+      )
+    ).status,
+    500,
+  );
+});
+
+test("a reference Cray doesn't know is acknowledged once, not retried forever", async () => {
+  const { deps } = crayWebhookDeps({ card: new CrayError("not found", 404) });
+  const result = await handleCrayWebhook(
+    JSON.stringify({ event: "payin", data: { reference: REF } }),
+    null,
+    deps,
+  );
+  assert.deepEqual(result, {
+    status: 200,
+    body: { ok: true, result: "not_verified" },
+  });
 });

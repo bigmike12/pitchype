@@ -28,6 +28,8 @@ import { MoneyStateError } from "./db/money-errors.ts";
 import {
   CrayError,
   disburse,
+  isValidWebhookHash,
+  nairaToKobo,
   queryCheckout,
   requeryPayout,
   validateAccount,
@@ -620,4 +622,219 @@ export async function handlePaystackWebhook(
     );
     return { status: 500, body: { ok: false } };
   }
+}
+
+// Cray webhook ---------------------------------------------------------------------------------
+
+export type CrayWebhookDeps = {
+  recordDeposit: (input: {
+    provider: "cray";
+    accountReference: string;
+    accountNumber: string;
+    depositReference: string;
+    grossKobo: number;
+    chargeKobo: number;
+    eventKey: string;
+    payload: Json;
+  }) => Promise<{
+    outcome:
+      | "funded"
+      | "funded_with_extra"
+      | "short"
+      | "hire_ended"
+      | "credited"
+      | "duplicate"
+      | "unknown_account";
+    stillNeededKobo: number | null;
+  }>;
+  confirmCardPayment: WebhookDeps["confirmCardPayment"];
+  confirmTransfer: WebhookDeps["confirmTransfer"];
+  /** Our payout for Cray's own id, or null. */
+  getPayoutByProviderReference: (
+    providerReference: string,
+  ) => Promise<{ reference: string | null } | null>;
+};
+
+async function realCrayWebhookDeps(): Promise<CrayWebhookDeps> {
+  const money = await import("./db/money.ts");
+  const payouts = await import("./db/payouts.ts");
+  return {
+    recordDeposit: money.recordDeposit,
+    confirmCardPayment: (reference) => confirmCardPayment(reference),
+    confirmTransfer: (reference) => confirmTransfer(reference),
+    getPayoutByProviderReference: payouts.getPayoutByProviderReference,
+  };
+}
+
+const DEPOSIT_EVENT = "collection.virtualaccount.successful";
+
+function field(source: unknown, name: string): unknown {
+  return typeof source === "object" && source !== null && !Array.isArray(source)
+    ? (source as Record<string, unknown>)[name]
+    : undefined;
+}
+
+/**
+ * Decides what a Cray webhook means.
+ *
+ * The one event that moves money on its own is a bank-transfer deposit
+ * (`collection.virtualaccount.successful`): Cray has no API to look a deposit
+ * up, so its signature is the evidence, and it is checked before anything is
+ * read (401 if wrong). Everything else is only a HINT: `payin` and the other
+ * `collection.*` events carry our `pit_` reference and the payment is then
+ * verified with Cray's checkout query; `payout` events carry Cray's id, we
+ * find our payout and requery it. A body's own claims of success or amounts
+ * are never used for card payments or payouts.
+ *
+ * 200 tells Cray to stop; 5xx makes it retry (a Cray or database outage, a
+ * charge Cray still calls pending, a signed deposit whose figures we cannot
+ * read). A reference Cray does not know (400/404) is acknowledged once.
+ * Cray's key hint is the last characters of the webhook key it signed with.
+ */
+export async function handleCrayWebhook(
+  rawBody: string,
+  keyHint: string | null,
+  deps?: CrayWebhookDeps,
+): Promise<WebhookResponse> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawBody);
+  } catch {
+    return { status: 400, body: { ok: false } };
+  }
+  const event = field(parsed, "event");
+  const data = field(parsed, "data");
+  if (typeof event !== "string") {
+    return { status: 200, body: { ok: true, result: "ignored" } };
+  }
+
+  // A deposit credits money with nothing else to check it against.
+  if (event === DEPOSIT_EVENT) {
+    if (!isValidWebhookHash(data, field(parsed, "hash"), keyHint)) {
+      return { status: 401, body: { ok: false } };
+    }
+  }
+
+  const d = deps ?? (await realCrayWebhookDeps());
+  try {
+    if (event === DEPOSIT_EVENT) {
+      return await handleCrayDeposit(data, d);
+    }
+
+    // Our reference comes back as `reference` or `merchant_reference`.
+    const reference = [
+      field(data, "reference"),
+      field(data, "merchant_reference"),
+    ].find(
+      (value): value is string =>
+        typeof value === "string" && CARD_REFERENCE.test(value),
+    );
+    if (event === "payin" || event.startsWith("collection.")) {
+      if (reference === undefined) {
+        return { status: 200, body: { ok: true, result: "ignored" } };
+      }
+      const result = await d.confirmCardPayment(reference);
+      // Cray said success but its checkout query doesn't agree yet.
+      if (result === "pending") {
+        return { status: 503, body: { ok: false, result } };
+      }
+      return { status: 200, body: { ok: true, result } };
+    }
+
+    if (event === "payout" || event.startsWith("payout.")) {
+      const crayId = field(data, "reference");
+      if (typeof crayId !== "string" || crayId === "") {
+        return { status: 200, body: { ok: true, result: "ignored" } };
+      }
+      const payout = await d.getPayoutByProviderReference(crayId);
+      if (payout === null || payout.reference === null) {
+        return { status: 200, body: { ok: true, result: "ignored" } };
+      }
+      const result = await d.confirmTransfer(payout.reference);
+      return { status: 200, body: { ok: true, result } };
+    }
+    return { status: 200, body: { ok: true, result: "ignored" } };
+  } catch (error) {
+    if (
+      error instanceof CrayError &&
+      (error.status === 400 || error.status === 404)
+    ) {
+      // Cray doesn't know the reference (say, a sandbox event sent to live);
+      // retrying gets the same answer. Anything else is retried.
+      console.error("cray webhook: lookup refused", event, error.status);
+      return { status: 200, body: { ok: true, result: "not_verified" } };
+    }
+    console.error(
+      "cray webhook failed",
+      event,
+      error instanceof CrayError ? `cray ${error.status}` : "error",
+    );
+    return { status: 500, body: { ok: false } };
+  }
+}
+
+async function handleCrayDeposit(
+  data: unknown,
+  d: CrayWebhookDeps,
+): Promise<WebhookResponse> {
+  const accountReference = field(data, "customer_reference");
+  const accountNumber = field(data, "recipient");
+  const depositReference = field(data, "transaction_reference");
+  if (
+    typeof accountReference !== "string" ||
+    typeof accountNumber !== "string" ||
+    typeof depositReference !== "string" ||
+    depositReference === ""
+  ) {
+    // Not attributable to one of our accounts: nothing to credit. The
+    // reconciliation surplus shows the money to an admin.
+    console.error("cray deposit without account details");
+    return { status: 200, body: { ok: true, result: "ignored" } };
+  }
+  const currency = field(data, "currency");
+  if (currency !== undefined && currency !== null && currency !== "NGN") {
+    console.error("cray deposit currency mismatch", depositReference);
+    return { status: 200, body: { ok: true, result: "ignored" } };
+  }
+
+  // Exact kobo, or a thrown CrayError (a 500: a deposit is never guessed at).
+  const amount = field(data, "amount");
+  if (typeof amount !== "string" && typeof amount !== "number") {
+    throw new CrayError("Cray sent a deposit without an amount", 0);
+  }
+  const grossKobo = nairaToKobo(amount);
+  const charge = field(data, "charge");
+  const net = field(data, "net_amount") ?? field(data, "net");
+  let chargeKobo: number;
+  if (typeof charge === "string" || typeof charge === "number") {
+    chargeKobo = nairaToKobo(charge);
+  } else if (typeof net === "string" || typeof net === "number") {
+    chargeKobo = grossKobo - nairaToKobo(net);
+  } else {
+    throw new CrayError("Cray sent a deposit without a charge", 0);
+  }
+
+  const result = await d.recordDeposit({
+    provider: "cray",
+    accountReference,
+    accountNumber,
+    depositReference,
+    grossKobo,
+    chargeKobo,
+    eventKey: `cray.deposit:${depositReference}`,
+    // The ids and amounts only: no sender name or account.
+    payload: trim(data, [
+      "transaction_reference",
+      "customer_reference",
+      "amount",
+      "charge",
+      "net_amount",
+      "currency",
+      "status",
+    ]),
+  });
+  if (result.outcome === "unknown_account") {
+    console.error("cray deposit for an unknown account", depositReference);
+  }
+  return { status: 200, body: { ok: true, result: result.outcome } };
 }
