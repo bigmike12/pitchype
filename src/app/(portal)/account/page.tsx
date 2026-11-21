@@ -12,6 +12,11 @@ import { listMyBlocks } from "@/lib/db/moderation";
 import { getMyEmailPreferences } from "@/lib/db/notification-emails";
 import { getProfile } from "@/lib/db/profiles";
 
+import {
+  IdentityPanel,
+  loadIdentityPanel,
+} from "@/components/identity/identity-panel";
+
 import { signOutAction } from "../actions";
 import { updateProfileAction } from "./actions";
 import { BlockControl } from "./block-control";
@@ -54,10 +59,13 @@ export default function AccountPage() {
 // /profile), and signing out.
 async function Account() {
   const user = await requireUser();
-  const [profile, blocks, emailPreferences] = await Promise.all([
+  const [profile, blocks, emailPreferences, identity] = await Promise.all([
     getProfile(user),
     user.role === "admin" ? Promise.resolve([]) : listMyBlocks(),
     user.role === "admin" ? Promise.resolve(null) : getMyEmailPreferences(),
+    user.role === "admin"
+      ? Promise.resolve(null)
+      : loadIdentityPanel(user.id, user.role),
   ]);
   if (!profile && user.role !== "admin") redirect("/onboarding");
 
@@ -82,6 +90,16 @@ async function Account() {
             </div>
           </dl>
         </Section>
+
+        {identity && (
+          <Section id="identity" title="Identity">
+            <p className="mb-5 max-w-xl">
+              We confirm who is behind every account that applies, hires,
+              publishes or withdraws money.
+            </p>
+            <IdentityPanel data={identity} next="account" />
+          </Section>
+        )}
 
         {profile?.role === "business" && (
           <Section id="business-profile" title="Business profile">
@@ -197,7 +215,7 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <SectionCard id={`${id}-title`} title={title} padded>
+    <SectionCard id={`${id}-title`} anchor={id} title={title} padded>
       {children}
     </SectionCard>
   );

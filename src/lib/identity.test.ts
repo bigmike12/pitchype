@@ -5,6 +5,9 @@ import { afterEach, beforeEach, test } from "node:test";
 import { DojahError } from "./dojah.ts";
 import {
   applyIdentityEvent,
+  buildCacDecision,
+  cacFromCache,
+  decideCacResult,
   decideIdentityResult,
   handleDojahWebhook,
   isCompanyActive,
@@ -758,4 +761,103 @@ test("the webhook and the backstop deciding one check at once decide it once", a
   await applyIdentityEvent(widgetEvent(), deps);
   await runIdentityChecks(NOW, deps);
   assert.equal(new Set(calls.finish.map((c) => c.eventKey)).size, 1);
+});
+
+// CAC lookups --------------------------------------------------------------------------------------------------------
+
+const CAC_FOUND = {
+  found: true as const,
+  companyName: "ACME INDUSTRIES LIMITED",
+  companyType: "COMPANY",
+  status: null,
+  registrationNumber: "1234567",
+  directors: ["JOHN MUSA"],
+};
+
+test("a found, active company with a matching name verifies", () => {
+  assert.deepEqual(decideCacResult("Acme Industries Ltd", CAC_FOUND), {
+    status: "verified",
+    reason: null,
+  });
+  assert.equal(
+    decideCacResult("Acme Industries Ltd", { ...CAC_FOUND, status: "ACTIVE" })
+      .status,
+    "verified",
+  );
+});
+
+test("a company CAC does not know fails company_not_found", () => {
+  assert.deepEqual(decideCacResult("Acme", { found: false }), {
+    status: "failed",
+    reason: "company_not_found",
+  });
+});
+
+test("a struck-off company fails company_inactive even when the name matches", () => {
+  assert.deepEqual(
+    decideCacResult("Acme Industries Ltd", {
+      ...CAC_FOUND,
+      status: "STRUCK OFF",
+    }),
+    { status: "failed", reason: "company_inactive" },
+  );
+});
+
+test("a different name fails name_mismatch", () => {
+  assert.deepEqual(decideCacResult("Acme Foods Ltd", CAC_FOUND), {
+    status: "failed",
+    reason: "name_mismatch",
+  });
+});
+
+test("a verified CAC decision keeps the company, our company type and the directors", () => {
+  const decision = buildCacDecision({
+    enteredName: "Acme Industries Ltd",
+    companyType: "COMPANY",
+    rcNumber: "1234567",
+    cac: CAC_FOUND,
+    lookedUp: true,
+  });
+  assert.equal(decision.status, "verified");
+  assert.equal(decision.company_name_on_record, "ACME INDUSTRIES LIMITED");
+  assert.equal(decision.company_type, "COMPANY");
+  assert.equal(decision.registration_number, "1234567");
+  assert.deepEqual(decision.directors, ["JOHN MUSA"]);
+  assert.equal(decision.counted, true);
+  assert.equal("reason" in decision, false);
+});
+
+test("a failed CAC decision keeps CAC's answer for a corrected name, and an uncounted re-compare", () => {
+  const decision = buildCacDecision({
+    enteredName: "Acme Foods Ltd",
+    companyType: "COMPANY",
+    rcNumber: "1234567",
+    cac: CAC_FOUND,
+    lookedUp: false,
+  });
+  assert.equal(decision.status, "failed");
+  assert.equal(decision.reason, "name_mismatch");
+  assert.equal(decision.registration_number, "1234567");
+  assert.equal(decision.counted, false);
+  assert.deepEqual(cacFromCache(decision.cac_cache), CAC_FOUND);
+});
+
+test("a company CAC does not know has no cached answer", () => {
+  const decision = buildCacDecision({
+    enteredName: "Acme",
+    companyType: "COMPANY",
+    rcNumber: "1234567",
+    cac: { found: false },
+    lookedUp: true,
+  });
+  assert.equal(decision.reason, "company_not_found");
+  assert.equal("cac_cache" in decision, false);
+  assert.equal(decision.counted, true);
+});
+
+test("a cached answer that is not a found company is not used", () => {
+  assert.equal(cacFromCache(null), null);
+  assert.equal(cacFromCache({}), null);
+  assert.equal(cacFromCache({ found: true, companyName: "" }), null);
+  assert.equal(cacFromCache("text"), null);
 });

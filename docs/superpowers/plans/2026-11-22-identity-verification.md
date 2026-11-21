@@ -161,10 +161,10 @@
 - Consumes: Tasks 2, 4.
 - Produces: step `identity` inserted in `CREATOR_STEPS` after `photo` and in `BUSINESS_STEPS` after `location` (both before `done`), with `STEP_COPY` entries in the "why we ask" style and a "Do this later" link to the next step. Actions (authenticate → role → validate → rate limit with a new `isIdentityStartLimited` limiter, 5/hour, in `src/lib/money-limits.ts` style but its own file `src/lib/identity-limits.ts`): `startPersonCheckAction(kind: "creator_nin" | "owner_bvn" | "director_bvn", form)` → returns `{ reference, widget: widgetConfig(...), prefill: { firstName, lastName } }`; `verifyCacAction(form)` (name, company type select, RC/BN → `startIdentityCheck('business_cac')` → `lookupCacAdvanced` → decide with `companyNamesMatch` + `isCompanyActive` → `finishIdentityCheck`; a corrected name within 24 h re-compares against `cac_cache` without a new lookup). `DojahWidget` loads the script with `next/script`, constructs `Connect` with spec §5.2 step 3 options, `embed: true`, shows "Checking…" on `onSuccess` and calls `router.refresh()`; on script failure shows "Couldn't load the check. Please try again." Business onboarding first asks Registered / Not registered. The account page gets an `#identity` section (status, legal name on record, last 3 digits, date, retry or "next try after …").
 
-- [ ] **Step 1: Failing tests:** `src/lib/onboarding.test.ts` — step order and numbering for both roles include `identity`; a pure `identityPanelState(checks)` helper (co-located, tested) maps check rows to `"none" | "in_progress" | "verified" | "failed" | "review" | "capped"`.
-- [ ] **Step 2–3:** implement; privacy line under the form: what's collected, that Dojah checks it, that we keep only the result and the last 3 digits (draft, owner's legal review — note in TODO).
-- [ ] **Step 4:** `npm test`, typecheck, lint; local build with overrides; reason through 390px.
-- [ ] **Step 5: Commit** `Add identity checks to onboarding and the account page`.
+- [x] **Step 1: Failing tests:** `src/lib/onboarding.test.ts` — step order and numbering for both roles include `identity`; a pure `identityPanelState(checks)` helper (co-located, tested) maps check rows to `"none" | "in_progress" | "verified" | "failed" | "review" | "capped"`.
+- [x] **Step 2–3:** implement; privacy line under the form: what's collected, that Dojah checks it, that we keep only the result and the last 3 digits (draft, owner's legal review — note in TODO).
+- [x] **Step 4:** `npm test`, typecheck, lint; local build with overrides; reason through 390px.
+- [x] **Step 5: Commit** `Add identity checks to onboarding and the account page`.
 
 ### Task 8: Gate-aware UI and banners
 

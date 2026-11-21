@@ -49,3 +49,36 @@ export function companyNamesMatch(entered: string, onRecord: string): boolean {
   const b = companyTokens(onRecord);
   return a.length > 0 && a.join(" ") === b.join(" ");
 }
+
+/**
+ * The legal name a person types before a check: 3 to 200 characters with at
+ * least a first and a last name. The widget is prefilled with the first and
+ * last words; the full name is what the record's name is compared with.
+ */
+export function splitLegalName(
+  value: string,
+):
+  | { ok: true; full: string; firstName: string; lastName: string }
+  | { ok: false } {
+  const words = value.trim().split(/\s+/).filter(Boolean);
+  const full = words.join(" ");
+  if (words.length < 2 || full.length < 3 || full.length > 200) {
+    return { ok: false };
+  }
+  return {
+    ok: true,
+    full,
+    firstName: words[0],
+    lastName: words[words.length - 1],
+  };
+}
+
+/** A CAC registration number as typed ("RC 1234567", "BN-1234567"): the 3 to 10 digits, or not ok. */
+export function parseRegistrationNumber(
+  value: string,
+): { ok: true; digits: string } | { ok: false } {
+  const match = /^(?:RC|BN|IT|LP|LLP)?[\s-]*(\d{3,10})$/.exec(
+    value.trim().toUpperCase().replace(/\s+/g, " "),
+  );
+  return match ? { ok: true, digits: match[1] } : { ok: false };
+}

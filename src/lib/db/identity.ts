@@ -137,6 +137,23 @@ export async function fingerprintMatches(
   return data === true;
 }
 
+/** Whether the person has used their tries for this kind of check, and when the daily cap lifts (null: only an admin can reopen it). */
+export async function getIdentityAttemptState(
+  userId: string,
+  kind: IdentityCheckKind,
+): Promise<{ capped: boolean; nextAllowedAt: string | null }> {
+  const { data, error } = await createAdminClient().rpc(
+    "identity_attempt_state",
+    { person: userId, check_kind: kind },
+  );
+  if (error) throw new Error(`identity attempts failed (${error.code})`);
+  const value = obj(data);
+  return {
+    capped: bool(value.capped),
+    nextAllowedAt: str(value.next_allowed_at),
+  };
+}
+
 export type IdentityCheckForEvent = {
   id: string;
   userId: string;

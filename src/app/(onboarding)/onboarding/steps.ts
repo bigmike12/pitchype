@@ -2,6 +2,7 @@ import {
   AtSign,
   BadgeCheck,
   Camera,
+  ShieldCheck,
   MapPin,
   Store,
   Tags,
@@ -84,6 +85,16 @@ export const STEP_COPY: Record<
     why: {
       title: "Self-reported to start",
       text: "Add your accounts now. Later you can verify a count with a one-time code in your bio and earn the Verified mark.",
+    },
+  },
+  identity: {
+    title: "Confirm it’s you",
+    lead: "We check everyone who gets paid through Pitchype. It takes a couple of minutes.",
+    icon: ShieldCheck,
+    tone: "mint",
+    why: {
+      title: "So everyone can trust who they’re dealing with",
+      text: "Businesses pay into escrow and creators are paid out, so we confirm who is on each side. Your legal name stays private, and we don’t keep your ID number or selfie. You can do this later, but you’ll need it before you apply, hire, publish or withdraw.",
     },
   },
   photo: {

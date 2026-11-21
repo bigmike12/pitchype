@@ -275,6 +275,40 @@ $$;
 
 -- Starting a check --------------------------------------------------------------------------------------------
 
+-- The attempt cap, in one place: at most 3 answered attempts per person and
+-- kind in 24 hours and 5 since an admin last allowed more (a grant starts both
+-- counts again). `next_allowed_at` is when the 24-hour cap lifts, or null when
+-- only an admin can reopen it. start_identity_check() and the page both ask here.
+create function public.identity_attempt_state(person uuid, check_kind text)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  since timestamptz;
+  today_count integer;
+  total_count integer;
+  lifts timestamptz;
+begin
+  select coalesce(max(g.created_at), '-infinity'::timestamptz) into since
+    from public.identity_retry_grants g where g.user_id = person;
+  select count(*) into today_count from public.identity_checks c
+   where c.user_id = person and c.kind = check_kind and c.counted
+     and c.created_at > greatest(now() - interval '24 hours', since);
+  select count(*) into total_count from public.identity_checks c
+   where c.user_id = person and c.kind = check_kind and c.counted and c.created_at > since;
+  if total_count < 5 and today_count >= 3 then
+    select c.created_at + interval '24 hours' into lifts from public.identity_checks c
+     where c.user_id = person and c.kind = check_kind and c.counted
+       and c.created_at > greatest(now() - interval '24 hours', since)
+     order by c.created_at desc offset 2 limit 1;
+  end if;
+  return jsonb_build_object('capped', today_count >= 3 or total_count >= 5, 'next_allowed_at', lifts);
+end;
+$$;
+
 create function public.start_identity_check(kind text, legal_name text)
 returns jsonb
 language plpgsql
@@ -287,8 +321,6 @@ declare
   wanted text := kind;
   my_role public.user_role;
   name_entered text := btrim(coalesce(legal_name, ''));
-  last_grant timestamptz;
-  since timestamptz;
   existing public.identity_checks;
   new_check public.identity_checks;
 begin
@@ -336,13 +368,7 @@ begin
      set status = 'abandoned', failure_reason = 'abandoned', decided_at = now()
    where c.user_id = me and c.status = 'started' and c.created_at < now() - interval '24 hours';
 
-  select max(g.created_at) into last_grant from public.identity_retry_grants g where g.user_id = me;
-  since := coalesce(last_grant, '-infinity'::timestamptz);
-  if (select count(*) from public.identity_checks c
-       where c.user_id = me and c.kind = wanted and c.counted
-         and c.created_at > greatest(now() - interval '24 hours', since)) >= 3
-     or (select count(*) from public.identity_checks c
-          where c.user_id = me and c.kind = wanted and c.counted and c.created_at > since) >= 5 then
+  if (public.identity_attempt_state(me, wanted) ->> 'capped')::boolean then
     raise exception 'attempt_limit' using errcode = 'P0001';
   end if;
 
@@ -808,6 +834,7 @@ $$;
 revoke all on function public.identity_verified(uuid) from public, anon, authenticated;
 revoke all on function public.director_verified(uuid) from public, anon, authenticated;
 revoke all on function public.identity_fingerprint_matches(uuid, text, text) from public, anon, authenticated;
+revoke all on function public.identity_attempt_state(uuid, text) from public, anon, authenticated;
 revoke all on function public.my_identity_checks() from public, anon;
 revoke all on function public.recent_cac_cache(uuid, text) from public, anon, authenticated;
 revoke all on function public.start_identity_check(text, text) from public, anon;
@@ -827,6 +854,7 @@ revoke all on function public.identity_checks_to_poll(integer) from public, anon
 grant execute on function public.identity_verified(uuid) to service_role;
 grant execute on function public.director_verified(uuid) to service_role;
 grant execute on function public.identity_fingerprint_matches(uuid, text, text) to service_role;
+grant execute on function public.identity_attempt_state(uuid, text) to service_role;
 grant execute on function public.my_identity_checks() to authenticated;
 grant execute on function public.recent_cac_cache(uuid, text) to service_role;
 grant execute on function public.start_identity_check(text, text) to authenticated;

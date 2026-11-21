@@ -17,7 +17,11 @@ import type {
   IdentityCheckForEvent,
 } from "./db/identity.ts";
 import { lastThree } from "./identity-crypto.ts";
-import { normaliseName, personNamesMatch } from "./identity-names.ts";
+import {
+  companyNamesMatch,
+  normaliseName,
+  personNamesMatch,
+} from "./identity-names.ts";
 
 export type IdentityKind =
   "creator_nin" | "owner_bvn" | "business_cac" | "director_bvn";
@@ -282,6 +286,76 @@ export function trimIdentityEvent(
 /** Inactive when the status text says so; no text counts as active (verify the vocabulary in sandbox). */
 export function isCompanyActive(status: string | null): boolean {
   return status === null || !/inactive|struck|dissolved|wound/i.test(status);
+}
+
+/**
+ * What a CAC lookup means for the name the business typed (design §5.3): the
+ * company must exist, be active, and carry the same name on CAC's records.
+ * The first thing wrong decides the reason.
+ */
+export function decideCacResult(
+  enteredName: string,
+  cac: CacResult,
+): { status: "verified" | "failed"; reason: FailureReason | null } {
+  if (!cac.found) return { status: "failed", reason: "company_not_found" };
+  if (!isCompanyActive(cac.status)) {
+    return { status: "failed", reason: "company_inactive" };
+  }
+  if (!companyNamesMatch(enteredName, cac.companyName)) {
+    return { status: "failed", reason: "name_mismatch" };
+  }
+  return { status: "verified", reason: null };
+}
+
+type CacFound = Extract<CacResult, { found: true }>;
+
+/** CAC's answer as kept on a check (24 hours) for a corrected name; null when it is not a usable one. */
+export function cacFromCache(value: unknown): CacFound | null {
+  const v = asObject(value);
+  const companyName = str(v.companyName);
+  const registrationNumber = str(v.registrationNumber);
+  if (v.found !== true || companyName === null || registrationNumber === null) {
+    return null;
+  }
+  return {
+    found: true,
+    companyName,
+    companyType: str(v.companyType) ?? "",
+    status: str(v.status),
+    registrationNumber,
+    directors: Array.isArray(v.directors)
+      ? v.directors.filter((d): d is string => typeof d === "string")
+      : [],
+  };
+}
+
+/**
+ * The decision finish_identity_check records for a CAC check. `companyType` is
+ * the value the business chose (our enum, so the director list can be fetched
+ * again later); `lookedUp` is false when a corrected name was compared with
+ * the answer kept from a paid lookup, which does not count as an attempt.
+ */
+export function buildCacDecision(input: {
+  enteredName: string;
+  companyType: CompanyType;
+  rcNumber: string;
+  cac: CacResult;
+  lookedUp: boolean;
+}): { [key: string]: Json | undefined } {
+  const { status, reason } = decideCacResult(input.enteredName, input.cac);
+  const decision: { [key: string]: Json | undefined } = {
+    status,
+    company_type: input.companyType,
+    registration_number: input.rcNumber,
+    counted: input.lookedUp,
+  };
+  if (reason !== null) decision.reason = reason;
+  if (input.cac.found) {
+    decision.company_name_on_record = input.cac.companyName;
+    decision.directors = input.cac.directors;
+    decision.cac_cache = { ...input.cac };
+  }
+  return decision;
 }
 
 // Applying an event, the webhook and the daily backstop --------------------------------------------------------------

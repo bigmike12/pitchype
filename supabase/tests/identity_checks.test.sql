@@ -14,7 +14,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(148);
+select plan(155);
 
 -- The service role cannot read the tables, so tests that act as it look
 -- references and ids up through these (run as the test's own role).
@@ -568,6 +568,33 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub": "f1f1f1f1-0000-0000-0000-0000000f1001"}';
 select throws_ok($$ select public.screening_facts('00000000-0000-0000-0000-0000000f1001') $$,
   '42501', null, 'people cannot read screening facts');
+reset role;
+
+-- The attempt cap in one place, for the page ---------------------------------------------------------------------------------
+set local role service_role;
+select is((public.identity_attempt_state('00000000-0000-0000-0000-0000000f1004', 'creator_nin') ->> 'capped')::boolean,
+  true, 'Eve, with three answered attempts today, is capped');
+select cmp_ok((public.identity_attempt_state('00000000-0000-0000-0000-0000000f1004', 'creator_nin') ->> 'next_allowed_at')::timestamptz,
+  '>', now(), 'until a later time');
+select is((public.identity_attempt_state('00000000-0000-0000-0000-0000000f1006', 'creator_nin') ->> 'capped')::boolean,
+  false, 'Gus, whose cap an admin reopened, is not');
+select is((public.identity_attempt_state('00000000-0000-0000-0000-0000000f1005', 'creator_nin') ->> 'capped')::boolean,
+  false, 'Fay, with only abandoned sessions, is not');
+select is(public.identity_attempt_state('00000000-0000-0000-0000-0000000f1004', 'owner_bvn') ->> 'capped',
+  'false', 'and the count is per kind');
+reset role;
+insert into public.identity_checks (user_id, kind, status, reference, legal_name_entered, counted, created_at)
+select '00000000-0000-0000-0000-0000000f1008', 'creator_nin', 'failed', 'pit_id_total' || n, 'Ida Creator', true,
+       now() - interval '3 days'
+  from generate_series(1, 5) n;
+set local role service_role;
+select is(public.identity_attempt_state('00000000-0000-0000-0000-0000000f1008', 'creator_nin'),
+  '{"capped": true, "next_allowed_at": null}'::jsonb, 'five old answered attempts cap for good until an admin reopens it');
+reset role;
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "f1f1f1f1-0000-0000-0000-0000000f1004"}';
+select throws_ok($$ select public.identity_attempt_state('00000000-0000-0000-0000-0000000f1004', 'creator_nin') $$,
+  '42501', null, 'people cannot call it');
 reset role;
 
 select * from finish();
