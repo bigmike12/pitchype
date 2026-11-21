@@ -20,6 +20,7 @@ import {
   formatRate,
   paystackCharge,
   payoutTransferFee,
+  transferAmountToSend,
   pricePerCreatorWithin,
   transferFee,
 } from "./fees.ts";
@@ -354,4 +355,17 @@ test("Cray bank-transfer charge is 1% capped at ₦200 (an estimate for display)
 
 test("Cray: the business carries the charge, so a fault refund returns price plus the whole fee", () => {
   assert.equal(faultRefund(5_000_000, 250_000, 0), 5_250_000);
+});
+
+test("a bank transfer adds Cray's ₦200 charge allowance to what is still to pay", () => {
+  assert.equal(transferAmountToSend(1_250_000), 1_270_000);
+  assert.equal(transferAmountToSend(5_250_000), 5_270_000);
+});
+
+test("the amount to send is a whole number of kobo and more than is owed", () => {
+  for (const owed of [1, 100, 5_250_000, 99_999_999]) {
+    const send = transferAmountToSend(owed);
+    assert.ok(Number.isInteger(send));
+    assert.ok(send > owed);
+  }
 });

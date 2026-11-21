@@ -251,10 +251,10 @@
 - Consumes: `startPayment(…, method)`, `getActivePaymentProvider`, `getDepositAccountReference`, `completeDepositAccount`, `getMyDepositAccount` (Tasks 4, 6); `initializeCheckout`, `createPermanentAccount`, `CrayError`, `isCrayConfigured` (Task 2); `TRANSFER_IN_ALLOWANCE_KOBO` (Task 5).
 - Produces: `payAction` handles `method` from the form (`card` | `transfer`); card on Cray → `initializeCheckout` with `callbackUrl = ${SITE_URL}/business/engagements/${id}/pay/return?reference=${reference}`; card on Paystack unchanged; transfer → ensure the deposit account (reference first, then `createPermanentAccount`, retry once with the same reference on `CrayError` status 0, then `completeDepositAccount`; account name `Pitchype – <business name>`) and redirect back to the pay page with `?transfer=1`. Send no BVN (spec §5.3 "BVN — open"); if Cray refuses for a missing BVN, the business sees "Bank transfer isn't available yet; please pay by card" and `console.error("cray permanent account refused", status, code)` — don't build BVN capture. Pay page: when the active provider is Cray, two choices "Pay by card" / "Pay by bank transfer" (one form, a radio or two submit buttons; fee notice required for both); the transfer panel (bank, account number + copy, the returned account name, amount to send = `cardAmountKobo + TRANSFER_IN_ALLOWANCE_KOBO` with the spec's copy). Return page: provider-neutral wording; reads `reference` (and `trxref`). Business wallet page: shows the transfer account if one exists and the new ledger words.
 
-- [ ] **Step 1: Failing tests:** `view.test.ts` — the provider-neutral messages for each `CardPaymentResult` (no "Paystack" in any string). Pure helper `transferAmountToSend(cardPartKobo: number): number` (co-located, tested): `1_250_000 → 1_270_000`.
-- [ ] **Step 2–3:** implement; skeletons for any new Suspense boundary.
-- [ ] **Step 4:** `npm test`, typecheck, lint; a production build only with the local overrides from Global Constraints (otherwise say you couldn't); reason through the 390px layout.
-- [ ] **Step 5: Commit** `Let businesses pay by card or bank transfer through Cray`.
+- [x] **Step 1: Failing tests:** `view.test.ts` — the provider-neutral messages for each `CardPaymentResult` (no "Paystack" in any string). Pure helper `transferAmountToSend(cardPartKobo: number): number` (co-located, tested): `1_250_000 → 1_270_000`.
+- [x] **Step 2–3:** implement; skeletons for any new Suspense boundary.
+- [x] **Step 4:** `npm test`, typecheck, lint; a production build only with the local overrides from Global Constraints (otherwise say you couldn't); reason through the 390px layout.
+- [x] **Step 5: Commit** `Let businesses pay by card or bank transfer through Cray`.
 
 ### Task 13: Creator bank details, admin payouts, provider switch and cash movement pages
 

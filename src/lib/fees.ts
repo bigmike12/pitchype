@@ -298,6 +298,15 @@ export const CRAY_FEES = {
  */
 export const TRANSFER_IN_ALLOWANCE_KOBO = CRAY_FEES.transfer_in.allowance_kobo;
 
+/**
+ * What the business sends by bank transfer: what is still to pay plus the
+ * allowance for the bank-transfer charge. Anything the charge doesn't use
+ * stays in their wallet.
+ */
+export function transferAmountToSend(cardPartKobo: number): number {
+  return cardPartKobo + TRANSFER_IN_ALLOWANCE_KOBO;
+}
+
 /** What Cray's card charge is expected to be on `kobo` (for display and tests only). */
 export function crayCardCharge(kobo: number): number {
   requireWholeKobo("Charged amount", kobo, 1);

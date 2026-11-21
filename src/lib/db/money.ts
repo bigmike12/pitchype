@@ -512,6 +512,8 @@ export type PaymentRow = {
   id: string;
   reference: string;
   status: string;
+  provider: PaymentProvider;
+  method: "card" | "transfer" | "wallet";
   totalKobo: number;
   cardAmountKobo: number;
   walletPartKobo: number;
@@ -526,7 +528,7 @@ export async function getPaymentsForEngagement(
   const { data, error } = await supabase
     .from("payments")
     .select(
-      "id, reference, status, total_kobo, card_amount_kobo, wallet_part_kobo, created_at",
+      "id, reference, status, provider, method, total_kobo, card_amount_kobo, wallet_part_kobo, created_at",
     )
     .eq("engagement_id", engagementId)
     .order("created_at", { ascending: false });
@@ -534,15 +536,26 @@ export async function getPaymentsForEngagement(
     if (error.code === "22P02") return [];
     throw new Error(`payments lookup failed (${error.code})`);
   }
-  return data.map((row) => ({
-    id: row.id,
-    reference: row.reference,
-    status: row.status,
-    totalKobo: row.total_kobo,
-    cardAmountKobo: row.card_amount_kobo,
-    walletPartKobo: row.wallet_part_kobo,
-    createdAt: row.created_at,
-  }));
+  return data.flatMap((row) =>
+    (row.provider === "cray" || row.provider === "paystack") &&
+    (row.method === "card" ||
+      row.method === "transfer" ||
+      row.method === "wallet")
+      ? [
+          {
+            id: row.id,
+            reference: row.reference,
+            status: row.status,
+            provider: row.provider,
+            method: row.method,
+            totalKobo: row.total_kobo,
+            cardAmountKobo: row.card_amount_kobo,
+            walletPartKobo: row.wallet_part_kobo,
+            createdAt: row.created_at,
+          },
+        ]
+      : [],
+  );
 }
 
 // Admin audit reads --------------------------------------------------------------------------
