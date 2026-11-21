@@ -49,6 +49,8 @@ test("only known codes count as refusals", () => {
     "checkpoint_not_yours",
     "checkpoint_closed",
     "hire_not_running",
+    "checkpoints_outstanding",
+    "final_requirements_missing",
   ]) {
     assert.equal(isRefusal(code), true, code);
   }

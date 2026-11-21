@@ -91,9 +91,9 @@
 **Interfaces:**
 - Produces: `submit_work(engagement uuid, note text, links text[], file_ids uuid[], metrics jsonb, captured_on date, report text) returns uuid` (new overload; the 4-arg one calls it with nulls and keeps its grants). Before today's logic: `checkpoints_outstanding` while any of the hire's rows is `due`/`overdue` with `due_at <= now()`; `final_requirements_missing` unless the campaign's `final_requirements` are met (spec §5.5, also on resubmission). On success, rows still `due` with `due_at > now()` → `closed` (`final_submitted`) with events. Everything after is the existing body unchanged. `submissions` gains nullable `metrics jsonb`, `captured_on date`, `report text`.
 
-- [ ] **Step 1: Failing pgTAP** (Review Focus 5): refused with an overdue unevidenced row (and with a missed kickoff); allowed with all `done`/`done_late`; a future row doesn't block and is `closed` after; `review_deadline_at` = now + 7 days and engagement `submitted` exactly as the existing tests expect; `ledger_entries` unchanged by the submit; each final requirement enforced, including on a resubmission after denial; the 4-arg call on a campaign without requirements behaves exactly as before (re-run the key assertions of `submissions.test.sql`'s happy path in this file).
-- [ ] **Step 2–4:** fail → migration → green → wrapper → `npm test`, typecheck, lint.
-- [ ] **Step 5: Commit** `Require checkpoints and final requirements before a final submission`.
+- [x] **Step 1: Failing pgTAP** (Review Focus 5): refused with an overdue unevidenced row (and with a missed kickoff); allowed with all `done`/`done_late`; a future row doesn't block and is `closed` after; `review_deadline_at` = now + 7 days and engagement `submitted` exactly as the existing tests expect; `ledger_entries` unchanged by the submit; each final requirement enforced, including on a resubmission after denial; the 4-arg call on a campaign without requirements behaves exactly as before (re-run the key assertions of `submissions.test.sql`'s happy path in this file).
+- [x] **Step 2–4:** fail → migration → green → wrapper → `npm test`, typecheck, lint.
+- [x] **Step 5: Commit** `Require checkpoints and final requirements before a final submission`.
 
 ### Task 5: Overdue notices, warnings and the early dispute (SQL + job)
 

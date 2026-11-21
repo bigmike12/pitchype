@@ -79,6 +79,10 @@ const REFUSAL_TEXT = {
   checkpoint_not_yours: "You can’t send evidence for this checkpoint.",
   checkpoint_closed:
     "This checkpoint doesn’t take evidence any more, or doesn’t apply to this job.",
+  checkpoints_outstanding:
+    "Send the kickoff and any checkpoint that’s due before you submit your final work. Late is fine.",
+  final_requirements_missing:
+    "Your final submission is missing something the campaign asks for. Check the list above the form.",
   hire_not_running:
     "This job has ended, so it doesn’t take any more kickoffs or checkpoints.",
   // Payouts
