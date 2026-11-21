@@ -19,6 +19,7 @@ import {
   PAYOUT_LIMITED_MESSAGE,
 } from "@/lib/money-limits";
 import { parsePayoutAmount } from "@/lib/payout-request";
+import { ensureScreened } from "@/lib/screening";
 import { refusalText } from "@/lib/refusals";
 
 // Bank account ---------------------------------------------------------------
@@ -184,6 +185,18 @@ export async function requestPayoutAction(
   refresh();
   if (!result.ok) {
     return { status: "error", message: refusalText(result.reason) };
+  }
+  // The first payout request screens the creator for sanctions and PEP status.
+  // The payout stays requested whatever the answer: an admin cannot approve it
+  // while the screening holds it, and the creator only ever sees the usual
+  // "waiting for approval". A failure here never fails the request.
+  try {
+    await ensureScreened({ id: user.id, role: "influencer" }, "first_payout");
+  } catch (error) {
+    console.error(
+      "payout: screening failed",
+      error instanceof Error ? error.name : "error",
+    );
   }
   return {
     status: "success",

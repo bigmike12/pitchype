@@ -17,7 +17,14 @@ import {
  * bank through Paystack; rejecting needs a written reason the creator sees and
  * puts the money back in their wallet. The server checks the reason again.
  */
-export function PayoutDecision({ payoutId }: { payoutId: string }) {
+export function PayoutDecision({
+  payoutId,
+  held = false,
+}: {
+  payoutId: string;
+  /** The creator's screening needs a decision first: approving is switched off, rejecting is not. */
+  held?: boolean;
+}) {
   const [approval, approve, approving] = useActionState<
     PayoutDecisionState,
     FormData
@@ -48,7 +55,7 @@ export function PayoutDecision({ payoutId }: { payoutId: string }) {
           </span>
         </label>
         <FormMessage status={approval.status} message={approval.message} />
-        <Button type="submit" disabled={approving || rejecting}>
+        <Button type="submit" disabled={approving || rejecting || held}>
           {approving ? "Approving…" : "Approve and send"}
         </Button>
       </form>

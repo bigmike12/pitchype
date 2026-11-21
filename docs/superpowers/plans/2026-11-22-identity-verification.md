@@ -189,9 +189,9 @@
 - Consumes: Tasks 2, 4, 5.
 - Produces: `ensureScreened(person: { id: string; role: "business" | "influencer" }, trigger: "first_payout" | "first_hire", deps?): Promise<"clear" | "possible_match" | "error" | "already">` — only when `getScreeningState` is `none`; person data from the verified check (registered business → `screenBusiness(company name)`; otherwise `screenPerson(legal name, DOB)`); `matchCount > 0` → `possible_match`; a `DojahError` → `error`; always records a row. (Note the spec's trigger is the first **hire approval**, `first_hire`, not first payment.) Payout request: after `requestPayout` succeeds → `ensureScreened(..., "first_payout")`; the creator sees the usual "waiting for approval" whatever the result. Approve action: before `approveApplication` → `ensureScreened(..., "first_hire")`; `possible_match` → refuse with the spec's neutral copy (`screening_hold`); `error` → proceed. Admin payouts page: legal name on record beside the bank account name with a warning when `personNamesMatch` fails; approve disabled with the reason while `screening_hold`; "Screen again" action (admin) calls `ensureScreened` with trigger `admin` regardless of state.
 
-- [ ] **Step 1: Failing tests** for `ensureScreened`: already screened → no Dojah call; match → `possible_match` recorded; no match → `clear`; Dojah 424 → `error` recorded; registered business screens the company name, unregistered the owner's name and DOB.
-- [ ] **Step 2–4:** fail → implement → pass; typecheck, lint.
-- [ ] **Step 5: Commit** `Screen people once at their first payout or hire`.
+- [x] **Step 1: Failing tests** for `ensureScreened`: already screened → no Dojah call; match → `possible_match` recorded; no match → `clear`; Dojah 424 → `error` recorded; registered business screens the company name, unregistered the owner's name and DOB.
+- [x] **Step 2–4:** fail → implement → pass; typecheck, lint.
+- [x] **Step 5: Commit** `Screen people once at their first payout or hire`.
 
 ### Task 10: Admin identity page
 
