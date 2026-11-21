@@ -136,9 +136,9 @@
 - Produces (SQL): `fee_config.provider_fees jsonb not null default '{}'` and a **new** `fee_config` row (copy of the latest row) whose `provider_fees` is the spec §5.7 JSON with Cray `card {rate_bps:150, cap_kobo:200000}`, `transfer_in {rate_bps:100, cap_kobo:20000, allowance_kobo:20000}`, `payout {tiers:[{up_to_kobo:null, fee_kobo:5000}], stamp_duty_kobo:0, stamp_duty_from_kobo:0}`; Paystack entry mirrors the existing columns. Seed as one JSON literal (same pattern as the original seed) so the TS test can read it. Functions that read "the latest fee_config" keep working.
 - Produces (TS `fees.ts`): `CRAY_FEES` constant equal to that JSON, `TRANSFER_IN_ALLOWANCE_KOBO = 20_000`, `payoutTransferFee(provider: "cray" | "paystack", amountKobo: number): number` (Paystack → existing `transferFee`), `crayCardCharge(kobo: number): number` and `crayTransferInCharge(kobo: number): number` (estimates for display/tests only).
 
-- [ ] **Step 1: Failing tests:** `fee-config.test.ts` asserts the new seed's `provider_fees.cray` deep-equals `CRAY_FEES`; `payoutTransferFee("cray", 1_000_000) === 5000`; `payoutTransferFee("paystack", x) === transferFee(x)` for the tier edges; `crayTransferInCharge(5_250_000) === 20_000` (cap) and `crayTransferInCharge(1_000_000) === 10_000`; the existing Paystack invariant test still passes unchanged.
-- [ ] **Step 2–4:** run → fail; implement migration + TS; `supabase migration up`, `supabase test db`, `npm test` → pass.
-- [ ] **Step 5: Commit** `Add per-provider processor fees to fee_config`.
+- [x] **Step 1: Failing tests:** `fee-config.test.ts` asserts the new seed's `provider_fees.cray` deep-equals `CRAY_FEES`; `payoutTransferFee("cray", 1_000_000) === 5000`; `payoutTransferFee("paystack", x) === transferFee(x)` for the tier edges; `crayTransferInCharge(5_250_000) === 20_000` (cap) and `crayTransferInCharge(1_000_000) === 10_000`; the existing Paystack invariant test still passes unchanged.
+- [x] **Step 2–4:** run → fail; implement migration + TS; `supabase migration up`, `supabase test db`, `npm test` → pass.
+- [x] **Step 5: Commit** `Add per-provider processor fees to fee_config`.
 
 ### Task 6: Transfer accounts and deposits (SQL)
 
