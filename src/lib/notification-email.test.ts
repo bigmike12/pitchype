@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import {
-  ALL_EMAILS_ON,
+  DEFAULT_EMAIL_PREFERENCES,
   EMAIL_POLICY,
   parseEmailPreferences,
   wantsEmail,
@@ -11,6 +11,7 @@ import {
 import { describeNotification } from "./notifications.ts";
 
 const ALL_OFF = { applications: false, campaigns: false, messages: false };
+const ALL_EMAILS_ON = { applications: true, campaigns: true, messages: true };
 
 const describes = (kind: string) =>
   describeNotification(
@@ -123,4 +124,17 @@ test("parseEmailPreferences reads checkboxes", () => {
     campaigns: false,
     messages: true,
   });
+});
+
+test("a person who has chosen nothing gets no chat email", () => {
+  assert.deepEqual(DEFAULT_EMAIL_PREFERENCES, {
+    applications: true,
+    campaigns: true,
+    messages: false,
+  });
+  assert.equal(wantsEmail("new_message", DEFAULT_EMAIL_PREFERENCES), false);
+  assert.equal(
+    wantsEmail("application_received", DEFAULT_EMAIL_PREFERENCES),
+    true,
+  );
 });

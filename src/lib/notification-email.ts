@@ -15,11 +15,14 @@ export type EmailPreferences = {
   messages: boolean;
 };
 
-/** What a person has before they choose anything (no stored row). */
-export const ALL_EMAILS_ON: EmailPreferences = {
+/**
+ * What a person has before they choose anything (no stored row). Chat email
+ * is opt-in; it matches the database default and claim_due_emails().
+ */
+export const DEFAULT_EMAIL_PREFERENCES: EmailPreferences = {
   applications: true,
   campaigns: true,
-  messages: true,
+  messages: false,
 };
 
 export const EMAIL_POLICY: Record<string, EmailPolicy> = {

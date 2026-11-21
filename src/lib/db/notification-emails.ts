@@ -7,7 +7,7 @@
 // security and save_email_preferences() decide what they can touch. Errors
 // carry the database code only: never the recipient's address.
 
-import { ALL_EMAILS_ON, type EmailPreferences } from "@/lib/notification-email";
+import { DEFAULT_EMAIL_PREFERENCES, type EmailPreferences } from "@/lib/notification-email";
 import type { NotificationRow } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createSessionClient } from "@/lib/supabase/server";
@@ -77,7 +77,7 @@ export async function finishEmail(
   if (error) throw new Error(`finish email failed (${error.code})`);
 }
 
-/** The signed-in person's email switches; no stored row means all on. */
+/** The signed-in person's email switches; no stored row means the defaults (chat email off). */
 export async function getMyEmailPreferences(): Promise<EmailPreferences> {
   const supabase = await createSessionClient();
   const { data, error } = await supabase
@@ -85,7 +85,7 @@ export async function getMyEmailPreferences(): Promise<EmailPreferences> {
     .select("email_applications, email_campaigns, email_messages")
     .maybeSingle();
   if (error) throw new Error(`email preferences failed (${error.code})`);
-  if (!data) return ALL_EMAILS_ON;
+  if (!data) return DEFAULT_EMAIL_PREFERENCES;
   return {
     applications: data.email_applications,
     campaigns: data.email_campaigns,
