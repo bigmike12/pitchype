@@ -455,6 +455,16 @@ select is(public.take_identity_secret('f1000000-0000-0000-0000-00000000a002'), n
 reset role;
 
 -- Housekeeping: abandoning and polling -----------------------------------------------------------------------------------
+-- The poller and the abandon job look at every open check in the database, so
+-- open checks already in a used local database would change these counts as
+-- they age. Clear them for this rolled-back transaction only.
+delete from public.identity_secrets s
+ using public.identity_checks c
+ where c.id = s.check_id and c.status in ('started', 'pending')
+   and c.reference not in ('pit_id_stale', 'pit_id_hour', 'pit_id_pending', 'pit_id_fresh');
+delete from public.identity_checks c
+ where c.status in ('started', 'pending')
+   and c.reference not in ('pit_id_stale', 'pit_id_hour', 'pit_id_pending', 'pit_id_fresh');
 insert into public.users (id, auth_user_id, email, role) values
   ('00000000-0000-0000-0000-0000000f1008', 'f1f1f1f1-0000-0000-0000-0000000f1008', 'ida.idc@example.com', 'influencer'),
   ('00000000-0000-0000-0000-0000000f1009', 'f1f1f1f1-0000-0000-0000-0000000f1009', 'jo.idc@example.com', 'influencer'),
