@@ -120,11 +120,11 @@
   - `record_card_payment(...)` — same signature; posts cash to the payment's provider account (`paystack` | `cray`) and the charge group to `paystack_fees` + event `paystack_fee` for Paystack, or `cray_fees` + event `processor_fee` for Cray (skip the fee group when the charge is 0).
 - Produces (TS, `src/lib/db/money.ts`): `getActivePaymentProvider(): Promise<"cray" | "paystack">`, `setPaymentProvider(provider: "cray" | "paystack", reason: string): Promise<{ ok: true } | { ok: false; reason: string }>`, `listPaymentProviderHistory(limit = 20): Promise<{ provider: string; reason: string; changedBy: string | null; createdAt: string }[]>`, `startPayment(engagementId: string, feeNoticeSeen: boolean, method: "card" | "transfer" = "card")` (result value gains `provider` and `method`).
 
-- [ ] **Step 1: Write failing pgTAP** `payment_provider.test.sql`: seed row makes `active_payment_provider() = 'cray'`; non-admin `set_payment_provider` refused; admin switch writes a row and changes the result; short reason refused; unknown provider refused; switching to the active one refused; no role can insert/update/delete the table directly; a payment started under `cray`, then a switch to `paystack`, keeps `provider = 'cray'` and `record_card_payment` for it posts to `cray` (Review Focus 3); a Paystack payment still posts to `paystack` + `paystack_fees` exactly as before; a Cray payment with charge 0 writes no fee group; `start_payment(..., 'transfer')` refused when active is `paystack`; the ledger accepts the new accounts/events and still refuses an unknown one; every group balances.
-- [ ] **Step 2: Run** `supabase test db` → the new file FAILS (functions missing).
-- [ ] **Step 3: Write the migration**, then `supabase migration up && supabase test db`; iterate until **all** pgTAP files pass (existing ones untouched).
-- [ ] **Step 4:** `npm run db:types`; add the TS wrappers; `npm test`, typecheck, lint.
-- [ ] **Step 5: Commit** `Add the payment provider switch and stamp each payment with its provider`.
+- [x] **Step 1: Write failing pgTAP** `payment_provider.test.sql`: seed row makes `active_payment_provider() = 'cray'`; non-admin `set_payment_provider` refused; admin switch writes a row and changes the result; short reason refused; unknown provider refused; switching to the active one refused; no role can insert/update/delete the table directly; a payment started under `cray`, then a switch to `paystack`, keeps `provider = 'cray'` and `record_card_payment` for it posts to `cray` (Review Focus 3); a Paystack payment still posts to `paystack` + `paystack_fees` exactly as before; a Cray payment with charge 0 writes no fee group; `start_payment(..., 'transfer')` refused when active is `paystack`; the ledger accepts the new accounts/events and still refuses an unknown one; every group balances.
+- [x] **Step 2: Run** `supabase test db` → the new file FAILS (functions missing).
+- [x] **Step 3: Write the migration**, then `supabase migration up && supabase test db`; iterate until **all** pgTAP files pass (existing ones untouched).
+- [x] **Step 4:** `npm run db:types`; add the TS wrappers; `npm test`, typecheck, lint.
+- [x] **Step 5: Commit** `Add the payment provider switch and stamp each payment with its provider`.
 
 ### Task 5: Fees per provider
 

@@ -1326,6 +1326,41 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_provider_settings: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          id: string
+          provider: string
+          reason: string
+          seq: number
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          provider: string
+          reason: string
+          seq?: never
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          provider?: string
+          reason?: string
+          seq?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_provider_settings_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           business_fee_kobo: number
@@ -1335,7 +1370,9 @@ export type Database = {
           fee_config_id: string
           fee_notice_seen_at: string
           id: string
+          method: string
           paystack_fee_kobo: number | null
+          provider: string
           reference: string
           status: string
           total_kobo: number
@@ -1350,7 +1387,9 @@ export type Database = {
           fee_config_id: string
           fee_notice_seen_at: string
           id?: string
+          method?: string
           paystack_fee_kobo?: number | null
+          provider?: string
           reference: string
           status?: string
           total_kobo: number
@@ -1365,7 +1404,9 @@ export type Database = {
           fee_config_id?: string
           fee_notice_seen_at?: string
           id?: string
+          method?: string
           paystack_fee_kobo?: number | null
+          provider?: string
           reference?: string
           status?: string
           total_kobo?: number
@@ -2020,6 +2061,7 @@ export type Database = {
     }
     Functions: {
       accept_submission: { Args: { engagement: string }; Returns: string }
+      active_payment_provider: { Args: never; Returns: string }
       active_strike_count: { Args: { person: string }; Returns: number }
       add_dispute_statement: {
         Args: {
@@ -2532,6 +2574,10 @@ export type Database = {
         Args: { creator: string; reason: string }
         Returns: undefined
       }
+      set_payment_provider: {
+        Args: { change_reason: string; new_provider: string }
+        Returns: undefined
+      }
       settle_click_hire: {
         Args: { actor: string; engagement: string; reason: string }
         Returns: boolean
@@ -2578,7 +2624,7 @@ export type Database = {
       }
       start_engagement: { Args: { engagement: string }; Returns: undefined }
       start_payment: {
-        Args: { engagement: string; fee_notice_seen: boolean }
+        Args: { engagement: string; fee_notice_seen: boolean; method?: string }
         Returns: Json
       }
       submit_appeal: { Args: { message: string }; Returns: string }

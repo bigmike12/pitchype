@@ -38,6 +38,8 @@ const REFUSAL_TEXT = {
     "Your wallet doesn’t cover this hire. Pay the rest by card.",
   wallet_covers_total:
     "Your wallet covers this hire. Pay from your wallet instead.",
+  transfer_not_available:
+    "Bank transfer isn’t available right now. Please pay by card.",
   fee_notice_required:
     "Tick the box to confirm you’ve read that our fee isn’t refundable.",
   // Settling a hire (admins)

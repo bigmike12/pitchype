@@ -24,25 +24,33 @@ type Result<T> = { ok: true; value: T } | Refused;
 
 // Paying for a hire --------------------------------------------------------------------------
 
+export type PaymentProvider = "cray" | "paystack";
+
 /**
- * Starts a card payment for an approved hire. The amounts come from the
- * engagement row in the database, never from the caller (CLAUDE.md §6 rule 6).
+ * Starts a card or bank-transfer payment for an approved hire. The amounts
+ * come from the engagement row in the database, never from the caller
+ * (CLAUDE.md §6 rule 6), and so does the provider: the database stamps the
+ * active one on the payment, and the caller must follow `provider`.
  */
 export async function startPayment(
   engagementId: string,
   feeNoticeSeen: boolean,
+  method: "card" | "transfer" = "card",
 ): Promise<
   Result<{
     paymentId: string;
     reference: string;
     cardAmountKobo: number;
     email: string;
+    provider: PaymentProvider;
+    method: "card" | "transfer";
   }>
 > {
   const supabase = await createSessionClient();
   const { data, error } = await supabase.rpc("start_payment", {
     engagement: engagementId,
     fee_notice_seen: feeNoticeSeen,
+    method,
   });
   if (error) return refused(error, "start payment");
   const value = obj(data);
@@ -50,10 +58,100 @@ export async function startPayment(
   const reference = str(value.reference);
   const cardAmountKobo = num(value.card_amount_kobo);
   const email = str(value.email);
-  if (!paymentId || !reference || cardAmountKobo === null || !email) {
+  const provider = str(value.provider);
+  const startedMethod = str(value.method);
+  if (
+    !paymentId ||
+    !reference ||
+    cardAmountKobo === null ||
+    !email ||
+    (provider !== "cray" && provider !== "paystack") ||
+    (startedMethod !== "card" && startedMethod !== "transfer")
+  ) {
     throw new Error("start payment returned an unexpected shape");
   }
-  return { ok: true, value: { paymentId, reference, cardAmountKobo, email } };
+  return {
+    ok: true,
+    value: {
+      paymentId,
+      reference,
+      cardAmountKobo,
+      email,
+      provider,
+      method: startedMethod,
+    },
+  };
+}
+
+// The provider switch -------------------------------------------------------------------------
+
+/** Which provider new payments and payouts start on (the latest switch row). */
+export async function getActivePaymentProvider(): Promise<PaymentProvider> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase.rpc("active_payment_provider");
+  if (error) throw new Error(`active payment provider failed (${error.code})`);
+  if (data === "cray" || data === "paystack") return data;
+  throw new Error("active payment provider returned an unexpected value");
+}
+
+const SWITCH_REFUSALS = [
+  "not_admin",
+  "invalid_provider",
+  "reason_required",
+  "already_active",
+] as const;
+
+/** Admin only (checked inside): switches new payments and payouts to a provider. */
+export async function setPaymentProvider(
+  provider: PaymentProvider,
+  reason: string,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const supabase = await createSessionClient();
+  const { error } = await supabase.rpc("set_payment_provider", {
+    new_provider: provider,
+    change_reason: reason,
+  });
+  if (error) {
+    const known = SWITCH_REFUSALS.find((code) => code === error.message);
+    if (error.code === "P0001" && known) return { ok: false, reason: known };
+    if (error.code === "42501") return { ok: false, reason: "not_admin" };
+    throw new Error(`set payment provider failed (${error.code})`);
+  }
+  return { ok: true };
+}
+
+export type PaymentProviderChange = {
+  provider: PaymentProvider;
+  reason: string;
+  changedBy: string | null;
+  createdAt: string;
+};
+
+/** The switch history, newest first (admins only; others see nothing). */
+export async function listPaymentProviderHistory(
+  limit = 20,
+): Promise<PaymentProviderChange[]> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("payment_provider_settings")
+    .select("provider, reason, changed_by, created_at")
+    .order("seq", { ascending: false })
+    .limit(limit);
+  if (error) {
+    throw new Error(`list payment provider history failed (${error.code})`);
+  }
+  return data.flatMap((row) =>
+    row.provider === "cray" || row.provider === "paystack"
+      ? [
+          {
+            provider: row.provider,
+            reason: row.reason,
+            changedBy: row.changed_by,
+            createdAt: row.created_at,
+          },
+        ]
+      : [],
+  );
 }
 
 /** Funds a hire wholly from the business wallet. */
