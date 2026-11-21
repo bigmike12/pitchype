@@ -147,9 +147,9 @@
   - `runIdentityChecks(now: Date, deps?): Promise<{ polled: number; applied: number; errored: number; abandoned: number; secretsPurged: number }>` + route (bearer `CRON_SECRET` via `src/app/api/cron/authorised.ts`; 500 if any step errored); `vercel.json` adds `{ "path": "/api/cron/identity-checks", "schedule": "50 3 * * *" }`.
   - Notification words for `identity_verified` ("Your identity is confirmed."), `identity_failed` (reason-specific fix-it line from spec §5.2 step 5), `identity_needs_review` ("We're taking a closer look. This usually takes 1–2 working days.") → href `/account#identity`; all three `EMAIL_POLICY` `"always"`.
 
-- [ ] **Step 1: Failing tests:** signed webhook applies once; bad signature → 401 and nothing called; repeat → `duplicate`; unknown reference → 200; database error → 500; captured `console.error` output in every test contains no 11-digit run (Review Focus 5); `runIdentityChecks` polls, applies, abandons, purges and reports errors; director match passes for an affiliate and fails `not_a_director` otherwise; notification wording per reason.
-- [ ] **Step 2–4:** fail → implement → pass; lint, typecheck.
-- [ ] **Step 5: Commit** `Receive Dojah results by webhook and a daily backstop`.
+- [x] **Step 1: Failing tests:** signed webhook applies once; bad signature → 401 and nothing called; repeat → `duplicate`; unknown reference → 200; database error → 500; captured `console.error` output in every test contains no 11-digit run (Review Focus 5); `runIdentityChecks` polls, applies, abandons, purges and reports errors; director match passes for an affiliate and fails `not_a_director` otherwise; notification wording per reason.
+- [x] **Step 2–4:** fail → implement → pass; lint, typecheck.
+- [x] **Step 5: Commit** `Receive Dojah results by webhook and a daily backstop`.
 
 ### Task 7: Verification pages and onboarding
 

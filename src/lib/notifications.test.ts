@@ -132,6 +132,9 @@ test("missing facts never show 'undefined'", () => {
     "dispute_opened",
     "dispute_statement",
     "dispute_withdrawn",
+    "identity_verified",
+    "identity_failed",
+    "identity_needs_review",
   ]) {
     const d = describeNotification(row(kind));
     assert.ok(d, kind);
@@ -613,4 +616,59 @@ test("a taken-down sample and a removed cover say why, and link to the editor", 
   assert.equal(cover?.title, "We removed your cover picture");
   assert.equal(cover?.body, "Shows a phone number");
   assert.equal(cover?.href, "/profile#cover");
+});
+
+test("a confirmed identity says so and links to the account page", () => {
+  const d = describeNotification(
+    row("identity_verified", { kind: "creator_nin" }),
+    "influencer",
+  );
+  assert.equal(d?.title, "Your identity is confirmed");
+  assert.equal(d?.href, "/account#identity");
+});
+
+test("a check in review says how long it usually takes, without saying why", () => {
+  const d = describeNotification(row("identity_needs_review", {}), "business");
+  assert.equal(d?.title, "We’re taking a closer look");
+  assert.match(d?.body ?? "", /1–2 working days/);
+  assert.doesNotMatch(`${d?.title} ${d?.body}`, /duplicate|sanction|match/i);
+});
+
+test("a failed identity check says what to fix for each reason", () => {
+  const cases: [string, string, RegExp][] = [
+    ["creator_nin", "name_mismatch", /NIN/],
+    ["owner_bvn", "name_mismatch", /BVN/],
+    ["business_cac", "name_mismatch", /CAC/],
+    ["creator_nin", "selfie_mismatch", /light/i],
+    ["creator_nin", "liveness_failed", /light/i],
+    ["creator_nin", "id_not_found", /NIN/],
+    ["owner_bvn", "id_not_found", /BVN/],
+    ["business_cac", "company_not_found", /registration number/i],
+    ["business_cac", "company_inactive", /not active/i],
+    ["director_bvn", "not_a_director", /director/i],
+    ["creator_nin", "provider_unavailable", /try again/i],
+    ["creator_nin", "other", /try again/i],
+    ["creator_nin", "something_new", /try again/i],
+  ];
+  for (const [kind, reason, expected] of cases) {
+    const d = describeNotification(
+      row("identity_failed", { kind, reason }),
+      "influencer",
+    );
+    assert.equal(d?.title, "We couldn’t confirm your identity", reason);
+    assert.match(d?.body ?? "", expected, `${kind} ${reason}`);
+    assert.equal(d?.href, "/account#identity");
+  }
+});
+
+test("a duplicate-identity rejection stays neutral about why", () => {
+  const d = describeNotification(
+    row("identity_failed", {
+      kind: "creator_nin",
+      reason: "duplicate_identity",
+    }),
+    "influencer",
+  );
+  assert.match(d?.body ?? "", /contact us/i);
+  assert.doesNotMatch(d?.body ?? "", /another account|duplicate/i);
 });

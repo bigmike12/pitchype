@@ -9,6 +9,14 @@
 // Nothing here logs. The ID number leaves decideIdentityResult in `idNumber`
 // for the caller to fingerprint and drop; it is never part of a trimmed copy.
 
+import type { CacResult, CompanyType } from "./dojah.ts";
+import { isValidDojahSignature } from "./dojah.ts";
+import type {
+  BusinessCacFacts,
+  FinishResult,
+  IdentityCheckForEvent,
+} from "./db/identity.ts";
+import { lastThree } from "./identity-crypto.ts";
 import { normaliseName, personNamesMatch } from "./identity-names.ts";
 
 export type IdentityKind =
@@ -37,11 +45,11 @@ export type IdentityDecision = {
   detail: string | null;
 };
 
-type Json = Record<string, unknown>;
+type Obj = Record<string, unknown>;
 
-function asObject(value: unknown): Json {
+function asObject(value: unknown): Obj {
   return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Json)
+    ? (value as Obj)
     : {};
 }
 
@@ -49,10 +57,10 @@ function str(value: unknown): string | null {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }
 
-function step(event: Json, name: string): Json | null {
+function step(event: Obj, name: string): Obj | null {
   const value = asObject(event.data)[name];
   return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Json)
+    ? (value as Obj)
     : null;
 }
 
@@ -61,11 +69,11 @@ function step(event: Json, name: string): Json | null {
  * ("government_data", "selfie") and the boolean `status` come from Dojah's
  * sample; verify them against a sandbox session.
  */
-export function stepPassed(event: Json, name: string): boolean {
+export function stepPassed(event: Obj, name: string): boolean {
   return step(event, name)?.status === true;
 }
 
-function stepFailed(event: Json, name: string): boolean {
+function stepFailed(event: Obj, name: string): boolean {
   return step(event, name)?.status === false;
 }
 
@@ -78,7 +86,7 @@ function scrub(message: string | null): string | null {
     .slice(0, 200);
 }
 
-function selfieReason(event: Json): FailureReason {
+function selfieReason(event: Obj): FailureReason {
   const message = str(step(event, "selfie")?.message) ?? "";
   return /live/i.test(message) && !/success/i.test(message)
     ? "liveness_failed"
@@ -86,13 +94,13 @@ function selfieReason(event: Json): FailureReason {
 }
 
 /** The reason for the first step that failed, or `other` when none did. */
-function failingStepReason(event: Json): FailureReason {
+function failingStepReason(event: Obj): FailureReason {
   if (stepFailed(event, "government_data")) return "id_not_found";
   if (stepFailed(event, "selfie")) return selfieReason(event);
   return "other";
 }
 
-function failingStepDetail(event: Json): string | null {
+function failingStepDetail(event: Obj): string | null {
   for (const name of ["government_data", "selfie"]) {
     if (stepFailed(event, name)) return scrub(str(step(event, name)?.message));
   }
@@ -127,7 +135,7 @@ function simple(status: IdentityDecision["status"]): IdentityDecision {
 }
 
 /** The government record for the ID type: data.government_data.data.<nin|bvn>.entity. */
-function governmentEntity(event: Json, idType: "NIN" | "BVN"): Json {
+function governmentEntity(event: Obj, idType: "NIN" | "BVN"): Obj {
   const record = asObject(
     asObject(
       asObject(step(event, "government_data")?.data)[idType.toLowerCase()],
@@ -137,9 +145,9 @@ function governmentEntity(event: Json, idType: "NIN" | "BVN"): Json {
 }
 
 function idNumberOf(
-  event: Json,
+  event: Obj,
   idType: "NIN" | "BVN",
-  entity: Json,
+  entity: Obj,
 ): string | null {
   for (const candidate of [event.value, entity[idType.toLowerCase()]]) {
     const digits = typeof candidate === "string" ? candidate.trim() : "";
@@ -178,7 +186,7 @@ function isoDate(value: unknown): string | null {
   return null;
 }
 
-function recordName(entity: Json): string | null {
+function recordName(entity: Obj): string | null {
   const first = str(entity.first_name) ?? str(entity.firstname);
   const last = str(entity.last_name) ?? str(entity.surname);
   if (first === null || last === null) return null;
@@ -274,4 +282,327 @@ export function trimIdentityEvent(
 /** Inactive when the status text says so; no text counts as active (verify the vocabulary in sandbox). */
 export function isCompanyActive(status: string | null): boolean {
   return status === null || !/inactive|struck|dissolved|wound/i.test(status);
+}
+
+// Applying an event, the webhook and the daily backstop --------------------------------------------------------------
+//
+// One path decides a Dojah session, whether it arrives by webhook or by the
+// daily lookup: applyIdentityEvent. The event key is built from the
+// reference and Dojah's own status, so the same session reported twice (or by
+// both routes) is one decision: the database stores the key first and answers
+// "duplicate" for the second.
+//
+// The ID number is read from the event, fingerprinted and dropped in this one
+// call. Nothing here logs an event, a name or a number; failures are logged
+// by class and the first characters of our own reference only.
+
+type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
+export type IdentityDeps = {
+  getCheck: (reference: string) => Promise<IdentityCheckForEvent | null>;
+  finish: (
+    reference: string,
+    decision: Json,
+    eventKey: string,
+  ) => Promise<FinishResult>;
+  fingerprint: (kind: "NIN" | "BVN", digits: string) => string;
+  getCacFacts: (userId: string) => Promise<BusinessCacFacts | null>;
+  refreshDirectors: (userId: string, directors: string[]) => Promise<void>;
+  lookupCac: (rcNumber: string, companyType: CompanyType) => Promise<CacResult>;
+  encryptSecret: (plain: string) => string;
+  storeSecret: (
+    checkId: string,
+    bvnEncrypted: string,
+    phoneEncrypted: string | null,
+  ) => Promise<void>;
+  deleteSecret: (checkId: string) => Promise<void>;
+  getVerification: (reference: string) => Promise<unknown | null>;
+  listToPoll: (max: number) => Promise<string[]>;
+  abandonStale: () => Promise<number>;
+  purgeSecrets: () => Promise<number>;
+  now: () => Date;
+};
+
+// The real dependencies, in one place. The database module is imported lazily
+// because it loads the Supabase clients, which node tests cannot.
+async function realDeps(): Promise<IdentityDeps> {
+  const db = await import("./db/identity.ts");
+  const dojah = await import("./dojah.ts");
+  const crypto = await import("./identity-crypto.ts");
+  const secrets = await import("./account-crypto.ts");
+  return {
+    getCheck: db.getIdentityCheckByReference,
+    finish: db.finishIdentityCheck,
+    fingerprint: crypto.identityFingerprint,
+    getCacFacts: db.getBusinessCacFacts,
+    refreshDirectors: db.refreshCacDirectors,
+    lookupCac: dojah.lookupCacAdvanced,
+    encryptSecret: secrets.encryptSecret,
+    storeSecret: db.storeIdentitySecret,
+    deleteSecret: db.deleteIdentitySecret,
+    getVerification: dojah.getVerification,
+    listToPoll: db.listIdentityChecksToPoll,
+    abandonStale: db.abandonStaleIdentityChecks,
+    purgeSecrets: db.purgeIdentitySecrets,
+    now: () => new Date(),
+  };
+}
+
+const COMPANY_TYPES: CompanyType[] = [
+  "BUSINESS_NAME",
+  "COMPANY",
+  "INCORPORATED_TRUSTEES",
+  "LIMITED_PARTNERSHIP",
+  "LIMITED_LIABILITY_PARTNERSHIP",
+];
+const NINETY_DAYS_MS = 90 * 24 * 3_600_000;
+
+/**
+ * Is this person one of the company's directors on CAC? The list stored at
+ * sign-up is used while it is under 90 days old; otherwise CAC is asked once
+ * more and the list refreshed. A lookup that fails throws, so the event is
+ * retried rather than recorded as "not a director".
+ */
+async function isListedDirector(
+  userId: string,
+  nameOnRecord: string,
+  d: IdentityDeps,
+): Promise<boolean> {
+  const facts = await d.getCacFacts(userId);
+  if (facts === null) return false;
+  let directors = facts.directors;
+  const fetchedAt =
+    facts.directorsFetchedAt === null
+      ? null
+      : new Date(facts.directorsFetchedAt).getTime();
+  const stale =
+    fetchedAt === null || d.now().getTime() - fetchedAt > NINETY_DAYS_MS;
+  const companyType = COMPANY_TYPES.find((t) => t === facts.companyType);
+  if (stale && companyType) {
+    const answer = await d.lookupCac(facts.registrationNumber, companyType);
+    if (answer.found) {
+      directors = answer.directors;
+      await d.refreshDirectors(userId, directors);
+    }
+  }
+  return directors.some((name) => personNamesMatch(name, nameOnRecord));
+}
+
+export type ApplyResult = "applied" | "duplicate" | "ignored" | "unknown";
+
+/**
+ * Decides one Dojah session event and records it. Returns "applied" when the
+ * database took the decision, "duplicate" for an event key it already has,
+ * "ignored" for events that change nothing (Ongoing, a CAC check, a check
+ * already decided) and "unknown" for a reference that is not ours.
+ */
+export async function applyIdentityEvent(
+  event: unknown,
+  deps?: IdentityDeps,
+): Promise<ApplyResult> {
+  const d = deps ?? (await realDeps());
+  const e = asObject(event);
+  const reference = str(e.reference_id);
+  const check = reference === null ? null : await d.getCheck(reference);
+  if (reference === null || check === null) return "unknown";
+  if (check.kind === "business_cac") return "ignored";
+
+  const decision = decideIdentityResult(event, {
+    kind: check.kind,
+    legalNameEntered: check.legalNameEntered,
+  });
+  if (decision.status === "ongoing") return "ignored";
+  const eventKey = `dojah:${reference}:${str(e.verification_status) ?? "unknown"}`;
+
+  let toRecord: { [key: string]: Json | undefined };
+  let heldSecret = false;
+  if (decision.status === "pending") {
+    toRecord = { status: "pending", counted: true };
+  } else if (decision.status === "abandoned") {
+    toRecord = { status: "abandoned", reason: "abandoned", counted: false };
+  } else if (decision.status === "failed") {
+    toRecord = {
+      status: "failed",
+      reason: decision.reason ?? "other",
+      failure_detail: decision.detail,
+      counted: true,
+    };
+  } else if (
+    decision.idType === null ||
+    decision.idNumber === null ||
+    decision.nameOnRecord === null
+  ) {
+    // decideIdentityResult never verifies without these; fail closed anyway.
+    toRecord = { status: "failed", reason: "other", counted: true };
+  } else if (
+    check.kind === "director_bvn" &&
+    !(await isListedDirector(check.userId, decision.nameOnRecord, d))
+  ) {
+    toRecord = { status: "failed", reason: "not_a_director", counted: true };
+  } else {
+    toRecord = {
+      status: "verified",
+      legal_name_on_record: decision.nameOnRecord,
+      id_last3: lastThree(decision.idNumber),
+      id_fingerprint: d.fingerprint(decision.idType, decision.idNumber),
+      date_of_birth: decision.dateOfBirth,
+      counted: true,
+    };
+    // Only a director's BVN is kept, encrypted, until the bank-transfer
+    // account is opened (design §6.4). Stored first, so a crash after the
+    // decision cannot leave a verified director with no BVN to use.
+    if (check.kind === "director_bvn") {
+      await d.storeSecret(check.id, d.encryptSecret(decision.idNumber), null);
+      heldSecret = true;
+    }
+  }
+
+  const result = await d.finish(reference, toRecord, eventKey);
+  if (heldSecret && result !== "verified") await d.deleteSecret(check.id);
+  if (result === "duplicate") return "duplicate";
+  if (result === "ignored" || result === "unknown_reference") {
+    return result === "ignored" ? "ignored" : "unknown";
+  }
+  return "applied";
+}
+
+export type DojahWebhookDeps = {
+  apply: (event: unknown) => Promise<ApplyResult>;
+};
+
+type WebhookResponse = {
+  status: number;
+  body: { ok: boolean; result?: string };
+};
+
+// The references we create (start_identity_check). Anything else is not ours.
+const IDENTITY_REFERENCE = /^pit_id_[0-9a-f]{32}$/;
+
+/** The error's class (and status when it has one), nothing else. */
+function describeError(error: unknown): string {
+  const name = error instanceof Error ? error.name : "NonError";
+  const status = (error as { status?: unknown } | null)?.status;
+  return typeof status === "number" ? `${name} ${status}` : name;
+}
+
+/**
+ * Decides what a Dojah webhook means. The signature is checked on the raw
+ * body before anything is parsed. 200 tells Dojah to stop, 5xx makes it retry:
+ * a database or provider outage is retried, and so is a missing key.
+ */
+export async function handleDojahWebhook(
+  rawBody: string,
+  signature: string | null,
+  deps: DojahWebhookDeps = { apply: (event) => applyIdentityEvent(event) },
+): Promise<WebhookResponse> {
+  if (!isValidDojahSignature(rawBody, signature)) {
+    return { status: 401, body: { ok: false } };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawBody);
+  } catch {
+    return { status: 400, body: { ok: false } };
+  }
+  const reference = str(asObject(parsed).reference_id);
+  if (reference === null || !IDENTITY_REFERENCE.test(reference)) {
+    return { status: 200, body: { ok: true, result: "ignored" } };
+  }
+  try {
+    const result = await deps.apply(parsed);
+    return { status: 200, body: { ok: true, result } };
+  } catch (error) {
+    // Class and the start of our own reference only: never a message, which
+    // could carry a number.
+    console.error(
+      "dojah webhook failed",
+      reference.slice(0, 15),
+      describeError(error),
+    );
+    return { status: 500, body: { ok: false } };
+  }
+}
+
+export type IdentityChecksResult = {
+  polled: number;
+  applied: number;
+  errored: number;
+  abandoned: number;
+  secretsPurged: number;
+};
+
+const POLL_BATCH = 100;
+
+/**
+ * The daily backstop: abandons sessions that never started, deletes expired
+ * secrets, and asks Dojah about sessions still open after 30 minutes, treating
+ * each answer exactly like a webhook. One failure never stops the rest; the
+ * caller answers 500 when `errored` is above zero.
+ */
+export async function runIdentityChecks(
+  now: Date = new Date(),
+  deps?: IdentityDeps,
+): Promise<IdentityChecksResult> {
+  const d = deps ?? { ...(await realDeps()), now: () => now };
+  const result: IdentityChecksResult = {
+    polled: 0,
+    applied: 0,
+    errored: 0,
+    abandoned: 0,
+    secretsPurged: 0,
+  };
+
+  try {
+    result.abandoned = await d.abandonStale();
+  } catch (error) {
+    result.errored += 1;
+    console.error("identity abandon failed", describeError(error));
+  }
+  try {
+    result.secretsPurged = await d.purgeSecrets();
+  } catch (error) {
+    result.errored += 1;
+    console.error("identity secret purge failed", describeError(error));
+  }
+
+  let references: string[] = [];
+  try {
+    references = await d.listToPoll(POLL_BATCH);
+  } catch (error) {
+    result.errored += 1;
+    console.error("identity poll list failed", describeError(error));
+  }
+  result.polled = references.length;
+  for (const reference of references) {
+    try {
+      const answer = await d.getVerification(reference);
+      if (answer === null) continue;
+      // We asked by this reference, so the answer is for it whatever id the
+      // lookup echoes back.
+      const outcome = await applyIdentityEvent(
+        { ...asObject(answer), reference_id: reference },
+        d,
+      );
+      if (outcome === "applied") result.applied += 1;
+    } catch (error) {
+      result.errored += 1;
+      console.error(
+        "identity check failed",
+        reference.slice(0, 15),
+        describeError(error),
+      );
+    }
+  }
+  return result;
+}
+
+/** HTTP status for the cron response: 500 when any step failed, so the scheduler's log shows it. */
+export function identityCronStatus(result: IdentityChecksResult): 200 | 500 {
+  return result.errored > 0 ? 500 : 200;
 }

@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { createHmac, randomBytes } from "node:crypto";
+import { afterEach, beforeEach, test } from "node:test";
 
+import { DojahError } from "./dojah.ts";
 import {
+  applyIdentityEvent,
   decideIdentityResult,
+  handleDojahWebhook,
   isCompanyActive,
+  runIdentityChecks,
   trimIdentityEvent,
+  type IdentityDeps,
 } from "./identity.ts";
+import { identityFingerprint } from "./identity-crypto.ts";
 import { SAMPLE_BVN, SAMPLE_NIN, widgetEvent } from "./identity-fixtures.ts";
 
 const NIN_CHECK = {
@@ -204,4 +211,551 @@ test("company status text: inactive words, otherwise active", () => {
   assert.equal(isCompanyActive("STRUCK OFF"), false);
   assert.equal(isCompanyActive("Dissolved"), false);
   assert.equal(isCompanyActive("Wound up"), false);
+});
+
+// The webhook, the backstop and the director match ----------------------------------------------------------
+
+const REF = "pit_id_0123456789abcdef0123456789abcdef";
+const WEBHOOK_SECRET = "whsec_identity_test";
+const NOW = new Date("2026-11-23T03:50:00.000Z");
+const savedEnv = {
+  key: process.env.IDENTITY_FINGERPRINT_KEY,
+  secret: process.env.DOJAH_WEBHOOK_SECRET,
+};
+const realConsoleError = console.error;
+const realConsoleLog = console.log;
+let logged: string[] = [];
+
+beforeEach(() => {
+  logged = [];
+  console.error = (...args: unknown[]) => {
+    logged.push(args.map(String).join(" "));
+  };
+  console.log = console.error;
+  process.env.IDENTITY_FINGERPRINT_KEY = randomBytes(32).toString("base64");
+  process.env.DOJAH_WEBHOOK_SECRET = WEBHOOK_SECRET;
+});
+
+afterEach(() => {
+  console.error = realConsoleError;
+  console.log = realConsoleLog;
+  for (const [name, value] of [
+    ["IDENTITY_FINGERPRINT_KEY", savedEnv.key],
+    ["DOJAH_WEBHOOK_SECRET", savedEnv.secret],
+  ] as const) {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+});
+
+function assertNoLongNumbersLogged() {
+  for (const line of logged) {
+    assert.doesNotMatch(
+      line,
+      /\d{11}/,
+      `a log line carries an 11-digit run: ${line}`,
+    );
+  }
+}
+
+type Script = {
+  check?: Awaited<ReturnType<IdentityDeps["getCheck"]>>;
+  finish?: Awaited<ReturnType<IdentityDeps["finish"]>>;
+  finishError?: Error;
+  facts?: Awaited<ReturnType<IdentityDeps["getCacFacts"]>>;
+  cac?: Awaited<ReturnType<IdentityDeps["lookupCac"]>>;
+  verifications?: Record<string, unknown | Error>;
+  toPoll?: string[];
+  abandoned?: number;
+  abandonError?: Error;
+  purged?: number;
+};
+
+function fakes(script: Script = {}) {
+  const calls = {
+    finish: [] as {
+      reference: string;
+      decision: Record<string, unknown>;
+      eventKey: string;
+    }[],
+    storeSecret: [] as { checkId: string; bvn: string }[],
+    deleteSecret: [] as string[],
+    refreshDirectors: [] as { userId: string; directors: string[] }[],
+    lookupCac: [] as { rc: string; type: string }[],
+    order: [] as string[],
+  };
+  const deps: IdentityDeps = {
+    getCheck: async () =>
+      script.check === undefined
+        ? {
+            id: "check-1",
+            userId: "user-1",
+            kind: "creator_nin",
+            status: "started",
+            legalNameEntered: "John Doe",
+            createdAt: NOW.toISOString(),
+          }
+        : script.check,
+    finish: async (reference, decision, eventKey) => {
+      calls.order.push("finish");
+      if (script.finishError) throw script.finishError;
+      calls.finish.push({
+        reference,
+        decision: decision as Record<string, unknown>,
+        eventKey,
+      });
+      return script.finish ?? (decision as { status: "verified" }).status;
+    },
+    fingerprint: identityFingerprint,
+    getCacFacts: async () =>
+      script.facts === undefined
+        ? {
+            checkId: "cac-1",
+            companyName: "ACME LIMITED",
+            companyType: "COMPANY",
+            registrationNumber: "1234567",
+            directors: ["JOHN DOE"],
+            directorsFetchedAt: NOW.toISOString(),
+          }
+        : script.facts,
+    refreshDirectors: async (userId, directors) => {
+      calls.refreshDirectors.push({ userId, directors });
+    },
+    lookupCac: async (rc, type) => {
+      calls.lookupCac.push({ rc, type });
+      return script.cac ?? { found: false };
+    },
+    encryptSecret: () => "v1:aaa:bbb:ccc",
+    storeSecret: async (checkId, bvn) => {
+      calls.order.push("store");
+      calls.storeSecret.push({ checkId, bvn });
+    },
+    deleteSecret: async (checkId) => {
+      calls.deleteSecret.push(checkId);
+    },
+    getVerification: async (reference) => {
+      const answer = script.verifications?.[reference];
+      if (answer instanceof Error) throw answer;
+      return answer ?? null;
+    },
+    listToPoll: async () => script.toPoll ?? [],
+    abandonStale: async () => {
+      if (script.abandonError) throw script.abandonError;
+      return script.abandoned ?? 0;
+    },
+    purgeSecrets: async () => script.purged ?? 0,
+    now: () => NOW,
+  };
+  return { deps, calls };
+}
+
+test("a verified widget event is decided once, with the number fingerprinted and dropped", async () => {
+  const { deps, calls } = fakes();
+  const result = await applyIdentityEvent(widgetEvent(), deps);
+  assert.equal(result, "applied");
+  assert.equal(calls.finish.length, 1);
+  const call = calls.finish[0];
+  assert.equal(call.reference, REF);
+  assert.equal(call.eventKey, `dojah:${REF}:Completed`);
+  assert.equal(call.decision.status, "verified");
+  assert.equal(
+    call.decision.id_fingerprint,
+    identityFingerprint("NIN", SAMPLE_NIN),
+  );
+  assert.equal(call.decision.id_last3, "789");
+  assert.equal(call.decision.legal_name_on_record, "JOHN EMEKA DOE");
+  assert.equal(call.decision.counted, true);
+  assert.ok(!JSON.stringify(call.decision).includes(SAMPLE_NIN));
+  assert.equal(calls.storeSecret.length, 0);
+});
+
+test("the same event again is a duplicate and the same unknown reference is unknown", async () => {
+  assert.equal(
+    await applyIdentityEvent(
+      widgetEvent(),
+      fakes({ finish: "duplicate" }).deps,
+    ),
+    "duplicate",
+  );
+  assert.equal(
+    await applyIdentityEvent(widgetEvent(), fakes({ finish: "ignored" }).deps),
+    "ignored",
+  );
+  const unknown = fakes({ check: null });
+  assert.equal(
+    await applyIdentityEvent(widgetEvent(), unknown.deps),
+    "unknown",
+  );
+  assert.equal(unknown.calls.finish.length, 0);
+});
+
+test("an Ongoing event changes nothing", async () => {
+  const { deps, calls } = fakes();
+  assert.equal(
+    await applyIdentityEvent(widgetEvent("NIN", "Ongoing"), deps),
+    "ignored",
+  );
+  assert.equal(calls.finish.length, 0);
+});
+
+test("Pending is recorded as pending and counted", async () => {
+  const { deps, calls } = fakes();
+  await applyIdentityEvent(widgetEvent("NIN", "Pending"), deps);
+  assert.equal(calls.finish[0].decision.status, "pending");
+  assert.equal(calls.finish[0].decision.counted, true);
+  assert.equal(calls.finish[0].eventKey, `dojah:${REF}:Pending`);
+});
+
+test("a failed selfie is recorded as failed with its reason and no fingerprint", async () => {
+  const event = widgetEvent();
+  steps(event).selfie = {
+    data: {},
+    message: "Face does not match",
+    status: false,
+  };
+  const { deps, calls } = fakes();
+  await applyIdentityEvent(event, deps);
+  const decision = calls.finish[0].decision;
+  assert.equal(decision.status, "failed");
+  assert.equal(decision.reason, "selfie_mismatch");
+  assert.equal(decision.counted, true);
+  assert.equal("id_fingerprint" in decision, false);
+});
+
+test("an abandoned session is recorded as abandoned and not counted", async () => {
+  const { deps, calls } = fakes();
+  await applyIdentityEvent(widgetEvent("NIN", "Abandoned"), deps);
+  assert.equal(calls.finish[0].decision.status, "abandoned");
+  assert.equal(calls.finish[0].decision.counted, false);
+});
+
+test("a widget event for a CAC check is ignored", async () => {
+  const { deps, calls } = fakes({
+    check: {
+      id: "c",
+      userId: "u",
+      kind: "business_cac",
+      status: "started",
+      legalNameEntered: "Acme Limited",
+      createdAt: NOW.toISOString(),
+    },
+  });
+  assert.equal(await applyIdentityEvent(widgetEvent(), deps), "ignored");
+  assert.equal(calls.finish.length, 0);
+});
+
+test("a missing fingerprint key stops a verified event before anything is recorded", async () => {
+  delete process.env.IDENTITY_FINGERPRINT_KEY;
+  const { deps, calls } = fakes();
+  await assert.rejects(() => applyIdentityEvent(widgetEvent(), deps));
+  assert.equal(calls.finish.length, 0);
+});
+
+const DIRECTOR_CHECK = {
+  id: "dir-1",
+  userId: "user-1",
+  kind: "director_bvn" as const,
+  status: "started" as const,
+  legalNameEntered: "John Doe",
+  createdAt: NOW.toISOString(),
+};
+
+test("a director who is on CAC's list verifies, and the BVN is held encrypted until the account is opened", async () => {
+  const { deps, calls } = fakes({ check: DIRECTOR_CHECK });
+  assert.equal(await applyIdentityEvent(widgetEvent("BVN"), deps), "applied");
+  assert.equal(calls.finish[0].decision.status, "verified");
+  assert.equal(
+    calls.finish[0].decision.id_fingerprint,
+    identityFingerprint("BVN", SAMPLE_BVN),
+  );
+  assert.deepEqual(calls.order, ["store", "finish"]);
+  assert.deepEqual(calls.storeSecret, [
+    { checkId: "dir-1", bvn: "v1:aaa:bbb:ccc" },
+  ]);
+  assert.equal(calls.lookupCac.length, 0);
+  assert.equal(calls.deleteSecret.length, 0);
+});
+
+test("a director who is not on the list fails not_a_director and nothing is stored", async () => {
+  const { deps, calls } = fakes({
+    check: DIRECTOR_CHECK,
+    facts: {
+      checkId: "cac-1",
+      companyName: "ACME LIMITED",
+      companyType: "COMPANY",
+      registrationNumber: "1234567",
+      directors: ["ADA OBI"],
+      directorsFetchedAt: NOW.toISOString(),
+    },
+  });
+  await applyIdentityEvent(widgetEvent("BVN"), deps);
+  assert.equal(calls.finish[0].decision.status, "failed");
+  assert.equal(calls.finish[0].decision.reason, "not_a_director");
+  assert.equal("id_fingerprint" in calls.finish[0].decision, false);
+  assert.equal(calls.storeSecret.length, 0);
+});
+
+test("a director list older than 90 days is looked up again before matching", async () => {
+  const old = new Date(NOW.getTime() - 91 * 24 * 3_600_000).toISOString();
+  const { deps, calls } = fakes({
+    check: DIRECTOR_CHECK,
+    facts: {
+      checkId: "cac-1",
+      companyName: "ACME LIMITED",
+      companyType: "COMPANY",
+      registrationNumber: "1234567",
+      directors: ["ADA OBI"],
+      directorsFetchedAt: old,
+    },
+    cac: {
+      found: true,
+      companyName: "ACME LIMITED",
+      companyType: "COMPANY",
+      status: null,
+      registrationNumber: "1234567",
+      directors: ["JOHN DOE"],
+    },
+  });
+  await applyIdentityEvent(widgetEvent("BVN"), deps);
+  assert.deepEqual(calls.lookupCac, [{ rc: "1234567", type: "COMPANY" }]);
+  assert.deepEqual(calls.refreshDirectors, [
+    { userId: "user-1", directors: ["JOHN DOE"] },
+  ]);
+  assert.equal(calls.finish[0].decision.status, "verified");
+});
+
+test("a director list that was never fetched is fetched too", async () => {
+  const { deps, calls } = fakes({
+    check: DIRECTOR_CHECK,
+    facts: {
+      checkId: "cac-1",
+      companyName: "ACME LIMITED",
+      companyType: "COMPANY",
+      registrationNumber: "1234567",
+      directors: [],
+      directorsFetchedAt: null,
+    },
+    cac: {
+      found: true,
+      companyName: "ACME LIMITED",
+      companyType: "COMPANY",
+      status: null,
+      registrationNumber: "1234567",
+      directors: ["JOHN MUSA DOE"],
+    },
+  });
+  await applyIdentityEvent(widgetEvent("BVN"), deps);
+  assert.equal(calls.lookupCac.length, 1);
+  assert.equal(calls.finish[0].decision.status, "verified");
+});
+
+test("a stored BVN is removed again when the check does not end up verified", async () => {
+  const { deps, calls } = fakes({
+    check: DIRECTOR_CHECK,
+    finish: "needs_review",
+  });
+  await applyIdentityEvent(widgetEvent("BVN"), deps);
+  assert.deepEqual(calls.deleteSecret, ["dir-1"]);
+});
+
+test("an unreachable CAC lookup throws before anything is recorded, so Dojah retries", async () => {
+  const { deps, calls } = fakes({
+    check: DIRECTOR_CHECK,
+    facts: {
+      checkId: "cac-1",
+      companyName: "ACME LIMITED",
+      companyType: "COMPANY",
+      registrationNumber: "1234567",
+      directors: [],
+      directorsFetchedAt: null,
+    },
+  });
+  deps.lookupCac = async () => {
+    throw new DojahError("Dojah answered 424", 424);
+  };
+  await assert.rejects(
+    () => applyIdentityEvent(widgetEvent("BVN"), deps),
+    DojahError,
+  );
+  assert.equal(calls.finish.length, 0);
+  assert.equal(calls.storeSecret.length, 0);
+});
+
+test("a director with no verified CAC record fails not_a_director", async () => {
+  const { deps, calls } = fakes({ check: DIRECTOR_CHECK, facts: null });
+  assert.equal(await applyIdentityEvent(widgetEvent("BVN"), deps), "applied");
+  assert.equal(calls.finish[0].decision.reason, "not_a_director");
+});
+
+function signed(body: string, secret = WEBHOOK_SECRET) {
+  return createHmac("sha256", secret).update(body).digest("hex");
+}
+
+function webhookDeps(
+  result: "applied" | "duplicate" | "ignored" | "unknown" | Error = "applied",
+) {
+  const seen: unknown[] = [];
+  return {
+    seen,
+    deps: {
+      apply: async (event: unknown) => {
+        seen.push(event);
+        if (result instanceof Error) throw result;
+        return result;
+      },
+    },
+  };
+}
+
+test("a signed webhook is applied once", async () => {
+  const body = JSON.stringify(widgetEvent());
+  const { deps, seen } = webhookDeps();
+  const response = await handleDojahWebhook(body, signed(body), deps);
+  assert.deepEqual(response, {
+    status: 200,
+    body: { ok: true, result: "applied" },
+  });
+  assert.equal(seen.length, 1);
+});
+
+test("a bad, tampered or missing signature is 401 and nothing is read", async () => {
+  const body = JSON.stringify(widgetEvent());
+  for (const signature of [
+    signed(body, "another secret"),
+    signed(body + " "),
+    null,
+    "",
+  ]) {
+    const { deps, seen } = webhookDeps();
+    const response = await handleDojahWebhook(body, signature, deps);
+    assert.equal(response.status, 401);
+    assert.equal(seen.length, 0);
+  }
+});
+
+test("a repeat is a 200 duplicate", async () => {
+  const body = JSON.stringify(widgetEvent());
+  const response = await handleDojahWebhook(
+    body,
+    signed(body),
+    webhookDeps("duplicate").deps,
+  );
+  assert.deepEqual(response, {
+    status: 200,
+    body: { ok: true, result: "duplicate" },
+  });
+});
+
+test("malformed JSON with a good signature is 400", async () => {
+  const body = "{not json";
+  const response = await handleDojahWebhook(
+    body,
+    signed(body),
+    webhookDeps().deps,
+  );
+  assert.equal(response.status, 400);
+});
+
+test("an event that is not one of our sessions is acknowledged and ignored", async () => {
+  for (const event of [
+    { ...widgetEvent(), reference_id: "DJ-31038041E0" },
+    { verification_status: "Completed" },
+    [],
+    "text",
+  ]) {
+    const body = JSON.stringify(event);
+    const { deps, seen } = webhookDeps();
+    const response = await handleDojahWebhook(body, signed(body), deps);
+    assert.deepEqual(response, {
+      status: 200,
+      body: { ok: true, result: "ignored" },
+    });
+    assert.equal(seen.length, 0);
+  }
+});
+
+test("an unknown reference is a 200", async () => {
+  const body = JSON.stringify(widgetEvent());
+  const response = await handleDojahWebhook(
+    body,
+    signed(body),
+    webhookDeps("unknown").deps,
+  );
+  assert.deepEqual(response, {
+    status: 200,
+    body: { ok: true, result: "unknown" },
+  });
+});
+
+test("a database or provider failure is a 500 so Dojah retries, and the log has no ID number", async () => {
+  const body = JSON.stringify(widgetEvent());
+  for (const failure of [
+    new Error(`database down while handling ${SAMPLE_NIN}`),
+    new DojahError(`Dojah answered 424 for ${SAMPLE_NIN}`, 424),
+  ]) {
+    const response = await handleDojahWebhook(
+      body,
+      signed(body),
+      webhookDeps(failure).deps,
+    );
+    assert.equal(response.status, 500);
+  }
+  assert.ok(logged.length >= 2);
+  assertNoLongNumbersLogged();
+});
+
+test("the backstop polls open sessions, applies what Dojah answers and reports the rest", async () => {
+  const { deps, calls } = fakes({
+    toPoll: ["pit_id_a", "pit_id_b", "pit_id_c"],
+    verifications: {
+      pit_id_a: { ...widgetEvent(), reference_id: "pit_id_a" },
+      pit_id_c: new DojahError(`Dojah answered 424 for ${SAMPLE_NIN}`, 424),
+    },
+    abandoned: 2,
+    purged: 3,
+  });
+  const result = await runIdentityChecks(NOW, deps);
+  assert.deepEqual(result, {
+    polled: 3,
+    applied: 1,
+    errored: 1,
+    abandoned: 2,
+    secretsPurged: 3,
+  });
+  assert.equal(calls.finish[0].reference, "pit_id_a");
+  assert.equal(calls.finish[0].eventKey, "dojah:pit_id_a:Completed");
+  assertNoLongNumbersLogged();
+});
+
+test("the backstop answers for the reference it asked about", async () => {
+  const { deps, calls } = fakes({
+    toPoll: ["pit_id_asked"],
+    verifications: {
+      pit_id_asked: { ...widgetEvent(), reference_id: "DJ-OTHER" },
+    },
+  });
+  await runIdentityChecks(NOW, deps);
+  assert.equal(calls.finish[0].reference, "pit_id_asked");
+});
+
+test("one failing step does not stop the others", async () => {
+  const { deps } = fakes({
+    abandonError: new Error("db"),
+    purged: 4,
+    toPoll: [],
+  });
+  const result = await runIdentityChecks(NOW, deps);
+  assert.equal(result.errored, 1);
+  assert.equal(result.secretsPurged, 4);
+});
+
+test("the webhook and the backstop deciding one check at once decide it once", async () => {
+  // Same reference and status give the same event key, so the database sees one.
+  const { deps, calls } = fakes({
+    toPoll: [REF],
+    verifications: { [REF]: widgetEvent() },
+  });
+  await applyIdentityEvent(widgetEvent(), deps);
+  await runIdentityChecks(NOW, deps);
+  assert.equal(new Set(calls.finish.map((c) => c.eventKey)).size, 1);
 });

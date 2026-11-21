@@ -69,6 +69,9 @@ test("money and deadline kinds always send", () => {
     "click_cap_reached",
     "click_hold_started",
     "clicks_stopped",
+    "identity_verified",
+    "identity_failed",
+    "identity_needs_review",
   ];
   for (const kind of always) {
     assert.equal(wantsEmail(kind, ALL_OFF), true, kind);
