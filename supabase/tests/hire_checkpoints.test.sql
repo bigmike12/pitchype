@@ -300,11 +300,13 @@ select throws_ok($$ update public.checkpoint_evidence set note = 'changed' $$, '
 select throws_ok($$ delete from public.checkpoint_evidence $$, 'P0001', 'checkpoint_evidence_append_only', 'or deleted');
 
 -- Screenshots -------------------------------------------------------------------------------------------------------------------
-select is((select count(*)::int from public.proof_files where checkpoint_evidence_id is not null), 4,
+select is((select count(*)::int from public.proof_files f join public.checkpoint_evidence v on v.id = f.checkpoint_evidence_id
+            where v.engagement_id in (select engagement from hires)), 4,
   'the screenshots are attached to their evidence');
 update public.proof_files set created_at = now() - interval '3 days' where checkpoint_evidence_id is not null;
 select public.delete_orphan_proof_files();
-select is((select count(*)::int from public.proof_files where checkpoint_evidence_id is not null), 4,
+select is((select count(*)::int from public.proof_files f join public.checkpoint_evidence v on v.id = f.checkpoint_evidence_id
+            where v.engagement_id in (select engagement from hires)), 4,
   'the daily sweep keeps attached screenshots');
 select ok(exists (select 1 from pg_constraint
                    where conname = 'proof_files_one_parent' and pg_get_constraintdef(oid) like '%checkpoint_evidence_id%'),

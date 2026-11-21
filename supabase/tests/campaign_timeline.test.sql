@@ -64,7 +64,10 @@ select is(
   (select (ends_on is null and not checkpoints_enabled and final_requirements = '{}'
            and checkpoint_interval_days is null) from public.campaigns where title = 'Legacy live campaign'),
   true, 'a campaign that was live before timelines is untouched: no end date, no checkpoints, no final requirements');
-select is((select count(*)::int from public.campaign_checkpoints), 0, 'no schedule rows exist yet');
+select is((select count(*)::int from public.campaign_checkpoints
+            where campaign_id in (select id from public.campaigns
+                                   where business_id in ('00000000-0000-0000-0000-0000000cb001', '00000000-0000-0000-0000-0000000cb002'))),
+  0, 'no schedule rows exist yet for these businesses');
 
 -- Ada ------------------------------------------------------------------------------------------
 set local role authenticated;

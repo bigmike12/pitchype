@@ -104,6 +104,12 @@ create function pg_temp.notes(person uuid, what text) returns integer language s
 create function pg_temp.events(row_id uuid, what text) returns integer language sql as
   $$ select count(*)::int from public.checkpoint_events where hire_checkpoint_id = row_id and event = what $$;
 
+-- The job looks at every running hire, so in a database that has been used
+-- (the race script leaves hires behind) other hires' checkpoints would add to
+-- its counts. Set them aside for this transaction.
+update public.hire_checkpoints set status = 'closed'
+ where status in ('due', 'overdue') and engagement_id not in (select engagement from hires);
+
 create temporary table before_ledger on commit drop as
   select count(*) as n, coalesce(sum(amount_kobo), 0) as total from public.ledger_entries;
 create temporary table before_hires on commit drop as

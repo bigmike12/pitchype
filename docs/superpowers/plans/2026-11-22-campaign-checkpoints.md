@@ -143,8 +143,8 @@
 **Interfaces:**
 - Produces race scenarios numbered after the last existing one: `checkpoint evidence vs daily job marking overdue`, `late evidence vs business opening the early dispute` (one wins cleanly; no half state), `final submission vs daily job`. Each asserts the existing invariants (ledger unchanged by checkpoint paths).
 
-- [ ] **Step 1:** add the scenarios; `node scripts/money-race.mjs` → all PASS.
-- [ ] **Step 2:** docs in CLAUDE.md's voice.
-- [ ] **Step 3:** full verification: lint, typecheck, `npm test`, `supabase test db` (only the four known local failures), a from-scratch migration replay in a throwaway database with every pgTAP file green (drop it afterwards), the race script, a local build with overrides.
-- [ ] **Step 4: Commit** `Document campaign checkpoints`.
-- [ ] **Step 5:** final report: commits, every command and its result, what you couldn't verify (browser), deviations and why, open questions.
+- [x] **Step 1:** add the scenarios; `node scripts/money-race.mjs` → all PASS.
+- [x] **Step 2:** docs in CLAUDE.md's voice.
+- [x] **Step 3:** full verification: lint, typecheck, `npm test`, `supabase test db` (only the four known local failures), a from-scratch migration replay in a throwaway database with every pgTAP file green (drop it afterwards), the race script, a local build with overrides.
+- [x] **Step 4: Commit** `Document campaign checkpoints`.
+- [x] **Step 5:** final report: commits, every command and its result, what you couldn't verify (browser), deviations and why, open questions.
