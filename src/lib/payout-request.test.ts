@@ -5,6 +5,7 @@ import { MIN_PAYOUT_KOBO, transferFee } from "./fees.ts";
 import {
   adminPayoutStatus,
   describePayoutStatus,
+  namesMatch,
   parsePayoutAmount,
   payoutCheckOutcome,
   payoutPreview,
@@ -156,4 +157,12 @@ test("a live check with Paystack reads in calm words, never Paystack's", () => {
     message: "Couldn’t find this transfer.",
     changed: false,
   });
+});
+
+test("account names match without regard to case, spacing or edge whitespace", () => {
+  assert.equal(namesMatch("JOHN  DOE", "john doe"), true);
+  assert.equal(namesMatch("  John Doe ", "JOHN DOE"), true);
+  assert.equal(namesMatch("John Doe", "Jane Doe"), false);
+  assert.equal(namesMatch("John Doe", "John"), false);
+  assert.equal(namesMatch("", ""), false);
 });

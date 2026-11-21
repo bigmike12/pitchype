@@ -231,7 +231,8 @@ export async function getDepositAccountReference(
     "deposit_account_reference",
     { person: userId, which: "cray" },
   );
-  if (error) throw new Error(`deposit account reference failed (${error.code})`);
+  if (error)
+    throw new Error(`deposit account reference failed (${error.code})`);
   if (typeof data !== "string" || data === "") {
     throw new Error("deposit account reference returned an unexpected result");
   }
@@ -335,6 +336,28 @@ export async function recordDeposit(input: {
     outcome: outcome as DepositOutcome["outcome"],
     stillNeededKobo: num(value.still_needed_kobo),
   };
+}
+
+/**
+ * Which provider a payment started on, and its frozen card part, by reference.
+ * Null when no payment has this reference. Secret-key client: the webhooks and
+ * the return page act for no one person.
+ */
+export async function getPaymentProvider(reference: string): Promise<{
+  provider: PaymentProvider;
+  cardPartKobo: number;
+} | null> {
+  const { data, error } = await createAdminClient()
+    .from("payments")
+    .select("provider, card_amount_kobo")
+    .eq("reference", reference)
+    .maybeSingle();
+  if (error) throw new Error(`payment lookup failed (${error.code})`);
+  if (!data) return null;
+  if (data.provider !== "cray" && data.provider !== "paystack") {
+    throw new Error("payment has an unknown provider");
+  }
+  return { provider: data.provider, cardPartKobo: data.card_amount_kobo };
 }
 
 // Work and settlement ------------------------------------------------------------------------

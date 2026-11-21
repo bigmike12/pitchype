@@ -37,6 +37,16 @@ export function parsePayoutAmount(input: string): Parsed {
 }
 
 /**
+ * Whether the name Cray's account check returns is still the name the creator
+ * was shown, ignoring case and spacing. An empty name never matches.
+ */
+export function namesMatch(a: string, b: string): boolean {
+  const clean = (name: string) =>
+    name.trim().replace(/\s+/g, " ").toLowerCase();
+  return clean(a) !== "" && clean(a) === clean(b);
+}
+
+/**
  * What the creator pays to send `amountKobo` to their bank, and what lands in
  * their account. Callers check the amount first; a fee that would take it all
  * is a bug to surface, not a number to show.
@@ -162,6 +172,33 @@ export function payoutCheckOutcome(result: TransferResult): {
       return {
         status: "error",
         message: "Couldn’t find this transfer.",
+        changed: false,
+      };
+    case "sent":
+      return {
+        status: "success",
+        message: "Sent. It will be marked paid once the bank confirms it.",
+        changed: true,
+      };
+    case "waiting_for_funds":
+      return {
+        status: "success",
+        message:
+          "Nothing was sent: the provider balance is too low for this payout yet. It will be tried again.",
+        changed: true,
+      };
+    case "needs_reference":
+      return {
+        status: "error",
+        message:
+          "We can’t tell whether this was already sent. Find it in the provider’s dashboard and attach its reference here.",
+        changed: true,
+      };
+    case "name_changed":
+      return {
+        status: "error",
+        message:
+          "The bank now returns a different account name, so nothing was sent. Reject the payout with a reason.",
         changed: false,
       };
   }

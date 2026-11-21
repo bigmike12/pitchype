@@ -59,14 +59,17 @@ export async function saveCrayBankAccount(input: {
   accountName: string;
   accountNumberEncrypted: string;
 }): Promise<void> {
-  const { error } = await createAdminClient().rpc("save_cray_bank_account_for", {
-    person: input.userId,
-    bank_code: input.bankCode,
-    bank_name: input.bankName,
-    last4: input.last4,
-    account_name: input.accountName,
-    encrypted_number: input.accountNumberEncrypted,
-  });
+  const { error } = await createAdminClient().rpc(
+    "save_cray_bank_account_for",
+    {
+      person: input.userId,
+      bank_code: input.bankCode,
+      bank_name: input.bankName,
+      last4: input.last4,
+      account_name: input.accountName,
+      encrypted_number: input.accountNumberEncrypted,
+    },
+  );
   if (error) throw new Error(`bank account save failed (${error.code})`);
 }
 

@@ -223,9 +223,9 @@
   - `export async function sendCrayPayout(payout: { reference: string; bankCode: string; accountNumberEncrypted: string; accountName: string; sendKobo: number }, deps?: TransferDeps): Promise<TransferResult>` (used by the admin approval in Task 13).
   - `TransferResult` adds `"reversed" | "waiting_for_funds" | "needs_reference" | "name_changed" | "sent"`.
 
-- [ ] **Step 1: Failing tests** (fakes via `deps`, like the existing ones): `crayCardFigures` three branches; Cray card success → `recordCardPayment` called with `paidKobo = cardPart`, `paystackFeeKobo = 0`, key `cray.charge:pit_…`; Cray pending → `"pending"`; Paystack path tests still pass unchanged; Cray payout without provider ref → disburse called once with `amountKobo = sendKobo` and the decrypted number, `recordPayoutSend` called; validate name mismatch → `"name_changed"`, disburse not called; insufficient balance → `"waiting_for_funds"`, nothing finished; duplicate → `"needs_reference"`, `finishPayout` never called, no re-credit (Review Focus 2); requery success with matching merchant ref → `finishPayout("paid", sentKobo, chargeKobo)`; mismatched merchant ref → `"ignored"`; requery reversed → `finishPayout("reversed")`; a Cray payout "not found" for hours is never failed.
-- [ ] **Step 2–4:** run → fail → implement → pass; typecheck, lint.
-- [ ] **Step 5: Commit** `Confirm Cray card payments and payouts against Cray`.
+- [x] **Step 1: Failing tests** (fakes via `deps`, like the existing ones): `crayCardFigures` three branches; Cray card success → `recordCardPayment` called with `paidKobo = cardPart`, `paystackFeeKobo = 0`, key `cray.charge:pit_…`; Cray pending → `"pending"`; Paystack path tests still pass unchanged; Cray payout without provider ref → disburse called once with `amountKobo = sendKobo` and the decrypted number, `recordPayoutSend` called; validate name mismatch → `"name_changed"`, disburse not called; insufficient balance → `"waiting_for_funds"`, nothing finished; duplicate → `"needs_reference"`, `finishPayout` never called, no re-credit (Review Focus 2); requery success with matching merchant ref → `finishPayout("paid", sentKobo, chargeKobo)`; mismatched merchant ref → `"ignored"`; requery reversed → `finishPayout("reversed")`; a Cray payout "not found" for hours is never failed.
+- [x] **Step 2–4:** run → fail → implement → pass; typecheck, lint.
+- [x] **Step 5: Commit** `Confirm Cray card payments and payouts against Cray`.
 
 ### Task 11: Cray webhook route
 
