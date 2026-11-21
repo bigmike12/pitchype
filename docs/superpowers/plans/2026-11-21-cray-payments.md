@@ -98,9 +98,9 @@
 **Interfaces:**
 - Produces: `encryptAccountNumber(plain: string): string` (format `v1:<iv b64>:<tag b64>:<ciphertext b64>`), `decryptAccountNumber(stored: string): string`, `class AccountCryptoError extends Error` (message never contains the input). Key: `BANK_ACCOUNT_ENCRYPTION_KEY`, base64 of exactly 32 bytes; AES-256-GCM; random 12-byte IV.
 
-- [ ] **Step 1: Write failing tests:** round trip of `"0123456789"`; two encryptions of the same number differ; a flipped ciphertext byte → `AccountCryptoError`; a different key → `AccountCryptoError`; `"v2:..."`, `"garbage"` → `AccountCryptoError`; missing or 16-byte key → `AccountCryptoError`; `encryptAccountNumber("12345")` (not 10 digits) throws; no error message includes `0123456789`.
-- [ ] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** → PASS.
-- [ ] **Step 5: Commit** `Encrypt creators' full bank account numbers at rest`.
+- [x] **Step 1: Write failing tests:** round trip of `"0123456789"`; two encryptions of the same number differ; a flipped ciphertext byte → `AccountCryptoError`; a different key → `AccountCryptoError`; `"v2:..."`, `"garbage"` → `AccountCryptoError`; missing or 16-byte key → `AccountCryptoError`; `encryptAccountNumber("12345")` (not 10 digits) throws; no error message includes `0123456789`.
+- [x] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** → PASS.
+- [x] **Step 5: Commit** `Encrypt creators' full bank account numbers at rest`.
 
 ### Task 4: Provider switch, ledger accounts, and provider-stamped card payments (SQL)
 
