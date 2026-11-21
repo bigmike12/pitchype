@@ -9,7 +9,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(49);
+select plan(50);
 
 -- Ada is a business, Zed an admin; creators d4011..d4016 are hired.
 insert into public.users (id, auth_user_id, email, role) values
@@ -44,7 +44,15 @@ select ('d4000000-0000-0000-0000-0000000000e' || x.n)::uuid,
   from generate_series(1, 6) as x (n);
 
 -- The switch -----------------------------------------------------------------------------------------
-select is(public.active_payment_provider(), 'cray', 'Cray is the default provider');
+-- A database that has been used (or raced) already holds more history rows, so
+-- the history is counted from where this test started.
+-- ...and it starts on Cray whatever the database was last left on.
+insert into public.payment_provider_settings (provider, reason) values ('cray', 'Test setup: start on Cray');
+create temp table history_before as select count(*)::integer as n from public.payment_provider_settings;
+grant select on history_before to authenticated;
+select is(public.active_payment_provider(), 'cray', 'the latest switch row is the active provider');
+select is((select provider from public.payment_provider_settings order by seq asc limit 1), 'cray',
+  'Cray is the default provider (the seeded first row)');
 select is((select count(*)::integer from public.payment_provider_settings
             where provider = 'cray' and changed_by is null and reason = 'Default since 2026-11-21'), 1,
   'seeded with one row, reason recorded, nobody as the author');
@@ -86,8 +94,8 @@ select throws_ok($$ select public.set_payment_provider('cray', 'Already on Cray'
 select lives_ok($$ select public.set_payment_provider('paystack', 'Cray sandbox is down') $$,
   'an admin switches to Paystack with a reason');
 select is(public.active_payment_provider(), 'paystack', 'and the latest row decides');
-select is((select count(*)::integer from public.payment_provider_settings), 2,
-  'an admin reads the history');
+select is((select count(*)::integer from public.payment_provider_settings) - (select n from history_before), 1,
+  'an admin reads the history, with the new row in it');
 reset role;
 select is((select changed_by || ':' || reason from public.payment_provider_settings order by seq desc limit 1),
   '00000000-0000-0000-0000-0000000d4002:Cray sandbox is down', 'the row records who and why');

@@ -629,6 +629,123 @@ Portal rebuild (2026-11-16, the dashboard-kit look):
 - [ ] A business's home has no list page behind "In progress" and
       "Completed" yet, so those two pipeline stages are not links.
 
+## 13. Cray as the default payment provider (2026-11-21)
+
+Design: `docs/superpowers/specs/2026-11-21-cray-payments-design.md`; plan:
+`docs/superpowers/plans/2026-11-21-cray-payments.md`. Everything is built and
+tested locally with fakes; **nothing has run against Cray's sandbox**, so every
+"verify in sandbox" line below is an assumption in code, kept in one small
+function each.
+
+### You (owner tasks)
+
+- [ ] **You:** create a Cray sandbox account, complete KYC, and create API keys
+      (collection, disbursement, webhook).
+- [ ] **You:** generate an ES256 (P-256) signing key, register its public key
+      with Cray, and note the `kid`; get the subaccount token. Put them in
+      `CRAY_*` (see `.env.example`, `docs/PROVIDERS.md`).
+- [ ] **You:** set the webhook URL `https://<domain>/api/webhooks/cray` and
+      enable webhooks in the dashboard.
+- [ ] **You:** Dashboard, Settings, Settlement Configuration: settle to the
+      **Main Balance**, not a bank account (otherwise collected money leaves
+      Cray, the Paystack problem again).
+- [ ] **You:** ask Cray again whether a Bloc permanent account needs a BVN
+      (their REST docs list none, their SDK docs say 11 digits). Account creation
+      sends none. **If Cray refuses without one, stop and decide before building
+      any BVN/NIN capture**: that belongs to the separate KYC/KYB project (Dojah:
+      NIN for creators and unregistered businesses, CAC for registered ones;
+      PalmPay permanent accounts accept a NIN). Until then a refused creation
+      shows "Bank transfer isn't available yet; please pay by card".
+- [ ] **You:** get Cray's fees **in writing** (card, transfer-in, payout; whether
+      stamp duty applies). The seeded figures in `fee_config.provider_fees.cray`
+      and `src/lib/fees.ts` are provisional (support agent: card 1.5% capped
+      ₦2,000, transfer about 1% capped ₦100 to ₦200, payout flat about ₦10 to
+      ₦50). Change both together, with a new `fee_config` version.
+- [ ] **You:** generate `BANK_ACCOUNT_ENCRYPTION_KEY` (`openssl rand -base64 32`)
+      per environment and keep a copy somewhere safe: losing it means every
+      creator re-enters bank details.
+- [ ] **You:** the compliance flag (CLAUDE.md §6.4) is still open: confirm with
+      a lawyer and Cray how holding third-party funds and business wallet
+      balances must be structured, now that a business's transfer account can
+      receive any amount at any time.
+
+### Verify in sandbox (each is one small mapping in `src/lib/cray.ts` or `payments.ts`)
+
+- [ ] Base URL: docs say sandbox is `http://sandbox.crayfi.io`; try https first.
+- [ ] Checkout query path: Cray's agent wrote `/api/checkout/query/...`; we call
+      `GET /checkout/query/{reference}` (`queryCheckout`).
+- [ ] Checkout query fields: with `feeBearer: "customer"`, which of `amount`,
+      `fee`/`charge` and `net_amount` is what we receive (we expect `net_amount`
+      = our total and `amount` = total + Cray's charge; `crayCardFigures`), the
+      name of the currency field (absent is accepted as NGN), and that
+      `data.reference` is our reference.
+- [ ] Checkout status words: `Successful`, `Failed`, `Abandoned`; anything else
+      (including `Pending`) is pending.
+- [ ] Permanent account creation response: we read `id` (or `reference`),
+      `account_number`, `bank_name`, `account_name` (Cray may prefix the name;
+      we always show the returned one).
+- [ ] Deposit webhook (`collection.virtualaccount.successful`): where the
+      `hash` sits (we read a top-level `hash` beside `event` and `data`), what
+      the `Cray-Webhook-Key` header holds (we match the LAST characters of a
+      configured key), the amount fields (we read `amount` and `charge`, or
+      gross and `net_amount`; if `amount` is already net the charge is
+      subtracted twice, so check), and `currency`.
+- [ ] Hash serialisation: we try `JSON.stringify(data)` and a PHP-style variant
+      (escaped slashes and `\uXXXX`). Check with a real delivery containing a URL
+      and non-ASCII text, and delete the variant that isn't used.
+- [ ] Payout requery path and fields: `GET /payout/requery/{id}` returning
+      `status`, `merchant_reference`, `amount`, `charge` (or `fee`). Status words
+      we treat as paid: `approved`, `successful`, `success`; failed: `failed`,
+      `declined`; `reversed`; anything else is pending and logged once.
+- [ ] What Cray returns on a reversal after paid (we re-credit the amount sent,
+      plus the charge if Cray reports it, and let reconciliation show any
+      difference).
+- [ ] Disburse refusals: we read "Insufficient balance" (HTTP 400) as nothing
+      sent, and a message matching duplicate/already used/exists as a repeated
+      `customer_reference` (Cray rejects those). Confirm the wording and that a
+      refused disburse really sent nothing.
+- [ ] Main Balance versus Settlement Balance in `GET /balance` (array or
+      `{accounts: []}`); we sum both for reconciliation and show the Main
+      Balance beside payouts.
+- [ ] Whether the sandbox lets a payout be paid while the money is still in the
+      Settlement Balance (we assume not: it waits for funds).
+- [ ] The payout webhook (`payout`, unsigned): `data.reference` is Cray's id
+      (we then requery); and which events Cray sends for a reversal.
+
+### Code follow-ups
+
+- [ ] Rename `payments.paystack_fee_kobo`, the `paystack`/`paystack_fees`
+      accounts, the `paystack_fee` event and `ledger_entries.paystack_reference`
+      (and `reconciliation_runs.paystack_balance_kobo`) now that they mean "the
+      provider's". Left alone on purpose: rewriting every money function that
+      names them isn't worth the risk. Each has a comment saying so.
+- [ ] `ledger_event_rank()` (admin trail ordering of groups written in the same
+      instant) does not know `deposit_received`, `processor_fee`, `cash_moved`
+      or `payout_reversed`; they sort last. Harmless; add them with a migration.
+- [ ] `admin_engagement_trail()` does not return a payment's provider and
+      method, because `audit.test.sql` asserts the exact key set (a no-secrets
+      check). Extend both together so the hire's money trail shows which
+      provider took each payment.
+- [ ] A deposit with no `customer_reference` or in another currency is only
+      logged and acknowledged; the reconciliation surplus shows it. Decide
+      whether an admin screen should list them.
+- [ ] `payment_events` is keyed by event only; the Cray event keys are
+      `cray.charge:<reference>`, `cray.deposit:<deposit id>` and
+      `cray.payout.<status>:<Cray id>`. If Cray reuses an id across kinds, key
+      them apart.
+- [ ] A refused deposit-account creation (BVN) is logged once per attempt
+      (`cray permanent account refused`); add a small admin list if it happens.
+- [x] A production build with local overrides succeeds (done 2026-11-21 on a
+      copy of the repo, so the dev server's `.next` was untouched). Not run:
+      the app against a real Cray sandbox, or any new page in a browser.
+- [ ] **Before pushing these migrations to a hosted project:** Cray is the
+      seeded default provider, so until the `CRAY_*` variables are set there
+      every new card payment would fail to start (nothing is charged), and the
+      admin switch only refuses to switch TO a provider whose keys are missing.
+      Set the Cray variables first, or switch the provider back to Paystack on
+      `/admin/money/provider` straight after the migration. The same applies to
+      any local database that has had these migrations applied.
+
 ## Done
 
 - [x] Database migrations for Stages 1–3 pushed to the live project

@@ -10,6 +10,9 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
+-- Starts on Cray whatever the database was last left on.
+insert into public.payment_provider_settings (provider, reason) values ('cray', 'Test setup: start on Cray');
+
 select plan(78);
 
 -- Efe is an admin, Chidi a creator with both accounts, Kemi a creator with only a Paystack account,
@@ -74,52 +77,52 @@ select lives_ok($$ select public.request_payout(2500000) $$, 'and more');
 reset role;
 select is((select provider || ':' || transfer_fee_kobo || ':' || bank_code || ':' || (recipient_code is null)::text
               || ':' || account_number_encrypted
-             from public.payouts where amount_kobo = 2000000 and user_id = '00000000-0000-0000-0000-0000000d6101'),
+             from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2000000 and user_id = '00000000-0000-0000-0000-0000000d6101'),
   'cray:5000:000013:true:v1:aXY=:dGFn:Y2lwaGVy', 'the request snapshots provider, ₦50 fee, bank code and ciphertext');
 
 -- Approving ----------------------------------------------------------------------------------------------------------
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "d6d6d6d6-0000-0000-0000-0000000d6002"}'; -- Efe
-select is(public.approve_payout((select id from public.payouts where amount_kobo = 2000000)) - 'reference',
+select is(public.approve_payout((select id from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2000000)) - 'reference',
   '{"provider": "cray", "bank_code": "000013", "bank_name": "GTBank", "last4": "1234", "send_kobo": 1995000,
     "account_name": "CHIDI OKAFOR", "account_number_encrypted": "v1:aXY=:dGFn:Y2lwaGVy"}'::jsonb,
   'approval returns the snapshot, the ciphertext and ₦19,950 to send');
-select lives_ok($$ select public.approve_payout((select id from public.payouts where amount_kobo = 2100000)) $$, 'P2 approved');
-select lives_ok($$ select public.approve_payout((select id from public.payouts where amount_kobo = 2200000)) $$, 'P3 approved');
-select lives_ok($$ select public.approve_payout((select id from public.payouts where amount_kobo = 2300000)) $$, 'P4 approved');
-select lives_ok($$ select public.approve_payout((select id from public.payouts where amount_kobo = 2500000)) $$, 'P6 approved');
+select lives_ok($$ select public.approve_payout((select id from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2100000)) $$, 'P2 approved');
+select lives_ok($$ select public.approve_payout((select id from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2200000)) $$, 'P3 approved');
+select lives_ok($$ select public.approve_payout((select id from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2300000)) $$, 'P4 approved');
+select lives_ok($$ select public.approve_payout((select id from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2500000)) $$, 'P6 approved');
 reset role;
 
 -- Cray's id is set once --------------------------------------------------------------------------------------------------
 set local role service_role;
-select is(public.record_payout_send((select reference from public.payouts where amount_kobo = 2000000), 'CRAY0001'), 'set',
+select is(public.record_payout_send((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2000000), 'CRAY0001'), 'set',
   'the first send records Cray''s id');
-select is(public.record_payout_send((select reference from public.payouts where amount_kobo = 2000000), 'CRAY0001'), 'already_set',
+select is(public.record_payout_send((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2000000), 'CRAY0001'), 'already_set',
   'the same id again changes nothing');
-select is(public.record_payout_send((select reference from public.payouts where amount_kobo = 2000000), 'CRAY9999'), 'conflict',
+select is(public.record_payout_send((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2000000), 'CRAY9999'), 'conflict',
   'another id is a conflict and is not stored');
-select throws_ok($$ select public.record_payout_send((select reference from public.payouts where amount_kobo = 2100000), 'CRAY0001') $$,
+select throws_ok($$ select public.record_payout_send((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2100000), 'CRAY0001') $$,
   '23505', null, 'Cray''s id belongs to one payout only');
-select throws_ok($$ select public.record_payout_send((select id::text from public.payouts where amount_kobo = 2400000), 'CRAY0004') $$,
+select throws_ok($$ select public.record_payout_send((select id::text from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2400000), 'CRAY0004') $$,
   'P0001', 'no_such_payout', 'an unknown reference is refused');
 reset role;
-select is((select provider_reference from public.payouts where amount_kobo = 2000000), 'CRAY0001', 'the stored id is the first');
+select is((select provider_reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2000000), 'CRAY0001', 'the stored id is the first');
 
 -- Flags ----------------------------------------------------------------------------------------------------------------------
 set local role service_role;
-select lives_ok($$ select public.flag_payout((select reference from public.payouts where amount_kobo = 2100000), 'waiting_for_funds') $$,
+select lives_ok($$ select public.flag_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2100000), 'waiting_for_funds') $$,
   'a processing Cray payout can wait for funds');
 reset role;
-select is((select waiting_for_funds::text || ':' || needs_reference::text || ':' || status from public.payouts where amount_kobo = 2100000),
+select is((select waiting_for_funds::text || ':' || needs_reference::text || ':' || status from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2100000),
   'true:false:processing', 'and stays processing');
 set local role service_role;
-select lives_ok($$ select public.flag_payout((select reference from public.payouts where amount_kobo = 2100000), 'needs_reference') $$,
+select lives_ok($$ select public.flag_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2100000), 'needs_reference') $$,
   'or need a reference');
 reset role;
-select is((select waiting_for_funds::text || ':' || needs_reference::text from public.payouts where amount_kobo = 2100000),
+select is((select waiting_for_funds::text || ':' || needs_reference::text from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2100000),
   'false:true', 'one flag at a time');
 set local role service_role;
-select throws_ok($$ select public.flag_payout((select reference from public.payouts where amount_kobo = 2100000), 'paid') $$,
+select throws_ok($$ select public.flag_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2100000), 'paid') $$,
   'P0001', 'payout_not_flaggable', 'only the two known flags');
 select throws_ok($$ select public.flag_payout('pit_po_nope', 'needs_reference') $$,
   'P0001', 'no_such_payout', 'an unknown payout is refused');
@@ -128,95 +131,95 @@ reset role;
 -- An admin attaches Cray's id ----------------------------------------------------------------------------------------------
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "d6d6d6d6-0000-0000-0000-0000000d6101"}'; -- Chidi
-select throws_ok($$ select public.attach_payout_reference((select id from public.payouts where amount_kobo = 2100000), 'CRAY0002') $$,
+select throws_ok($$ select public.attach_payout_reference((select id from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2100000), 'CRAY0002') $$,
   'P0001', 'not_allowed', 'a creator cannot attach a reference');
 set local request.jwt.claims = '{"sub": "d6d6d6d6-0000-0000-0000-0000000d6002"}'; -- Efe
-select throws_ok($$ select public.attach_payout_reference((select id from public.payouts where amount_kobo = 2000000), 'CRAY0003') $$,
+select throws_ok($$ select public.attach_payout_reference((select id from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2000000), 'CRAY0003') $$,
   'P0001', 'payout_not_attachable', 'an id already set cannot be replaced');
-select throws_ok($$ select public.attach_payout_reference((select id from public.payouts where amount_kobo = 2400000), 'CRAY0003') $$,
+select throws_ok($$ select public.attach_payout_reference((select id from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2400000), 'CRAY0003') $$,
   'P0001', 'payout_not_attachable', 'a payout still waiting for approval cannot take one');
-select lives_ok($$ select public.attach_payout_reference((select id from public.payouts where amount_kobo = 2100000), 'CRAY0002') $$,
+select lives_ok($$ select public.attach_payout_reference((select id from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2100000), 'CRAY0002') $$,
   'the admin attaches Cray''s id to P2');
 reset role;
 select is((select provider_reference || ':' || needs_reference::text || ':' || (reference_attached_by is not null)::text
-             from public.payouts where amount_kobo = 2100000), 'CRAY0002:false:true',
+             from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2100000), 'CRAY0002:false:true',
   'the flag clears and who attached it is recorded');
 
 -- Paid on Cray -------------------------------------------------------------------------------------------------------------------
 set local role service_role;
-select is(public.finish_payout((select reference from public.payouts where amount_kobo = 2000000), 'paid',
+select is(public.finish_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2000000), 'paid',
     'cray.payout.paid:CRAY0001', '{"data": {"reference": "CRAY0001"}}', 1995000, 5000), 'paid',
   'sent ₦19,950 plus Cray''s ₦50 charge settles P1 as paid');
 reset role;
 select is((select array_agg(account || ':' || amount_kobo order by account) from public.ledger_entries
-            where payout_id = (select id from public.payouts where amount_kobo = 2000000) and event_type = 'payout_paid'),
+            where payout_id = (select id from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2000000) and event_type = 'payout_paid'),
   array['cray:-2000000', 'payout_in_flight:2000000'], 'cash leaves cray by the whole amount, in one balanced group');
-select is((select sent_kobo || ':' || provider_charge_kobo from public.payouts where amount_kobo = 2000000), '1995000:5000',
+select is((select sent_kobo || ':' || provider_charge_kobo from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2000000), '1995000:5000',
   'the payout records what Cray sent and charged');
 set local role service_role;
-select is(public.finish_payout((select reference from public.payouts where amount_kobo = 2100000), 'paid',
+select is(public.finish_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2100000), 'paid',
     'cray.payout.paid:CRAY0002', '{}', 2095000, 3000), 'paid', 'a cheaper charge still pays');
 reset role;
 select is((select array_agg(account || ':' || amount_kobo order by account) from public.ledger_entries
-            where payout_id = (select id from public.payouts where amount_kobo = 2100000) and event_type = 'payout_paid'),
+            where payout_id = (select id from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2100000) and event_type = 'payout_paid'),
   array['cray:-2098000', 'cray_fees:-2000', 'payout_in_flight:2100000'],
   'the ₦20 difference is booked to cray_fees in the same group, not charged to the creator');
 set local role service_role;
-select throws_ok($$ select public.finish_payout((select reference from public.payouts where amount_kobo = 2200000), 'paid',
+select throws_ok($$ select public.finish_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2200000), 'paid',
     'cray.payout.paid:wrong', '{}', 2000000, 5000) $$,
   'P0001', 'payout_amount_mismatch', 'Cray paying an amount we did not ask for is refused');
-select throws_ok($$ select public.finish_payout((select reference from public.payouts where amount_kobo = 2200000), 'paid',
+select throws_ok($$ select public.finish_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2200000), 'paid',
     'cray.payout.paid:none', '{}') $$,
   '22023', 'invalid_amount', 'a Cray payout cannot be marked paid without the amount sent');
 reset role;
 select is((select count(*)::integer from public.payment_events where event_key in ('cray.payout.paid:wrong', 'cray.payout.paid:none')), 0,
   'and the refused events leave no key behind');
 set local role service_role;
-select is(public.finish_payout((select reference from public.payouts where amount_kobo = 2000000), 'paid',
+select is(public.finish_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2000000), 'paid',
     'cray.payout.paid:CRAY0001', '{}', 1995000, 5000), 'duplicate', 'the same event again is a duplicate');
 
 -- Reversed after paid -----------------------------------------------------------------------------------------------------------------
-select is(public.finish_payout((select reference from public.payouts where amount_kobo = 2200000), 'paid',
+select is(public.finish_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2200000), 'paid',
     'cray.payout.paid:CRAY0003', '{}', 2195000, 5000), 'paid', 'P3 is paid');
-select is(public.finish_payout((select reference from public.payouts where amount_kobo = 2200000), 'reversed',
+select is(public.finish_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2200000), 'reversed',
     'cray.payout.reversed:CRAY0003', '{"data": {"status": "reversed"}}', 2195000, null), 'reversed',
   'Cray takes it back: reversed');
 reset role;
-select is((select status || ':' || reversed_kobo from public.payouts where amount_kobo = 2200000), 'reversed:2195000',
+select is((select status || ':' || reversed_kobo from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2200000), 'reversed:2195000',
   'the payout is reversed with the amount returned');
 select is((select array_agg(account || ':' || amount_kobo order by account) from public.ledger_entries
-            where payout_id = (select id from public.payouts where amount_kobo = 2200000) and event_type = 'payout_reversed'),
+            where payout_id = (select id from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2200000) and event_type = 'payout_reversed'),
   array['cray:2195000', 'creator_wallet:-2195000'], 'cash comes back to cray and the creator is re-credited');
 select is((select data ->> 'credited_kobo' from public.notifications
             where user_id = '00000000-0000-0000-0000-0000000d6101' and kind = 'payout_reversed'), '2195000',
   'the creator is told');
 set local role service_role;
-select is(public.finish_payout((select reference from public.payouts where amount_kobo = 2200000), 'reversed',
+select is(public.finish_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2200000), 'reversed',
     'cray.payout.reversed:CRAY0003-again', '{}', 2195000, null), 'duplicate',
   'a second reversal is a duplicate and moves nothing');
-select is(public.finish_payout((select reference from public.payouts where amount_kobo = 2200000), 'failed',
+select is(public.finish_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2200000), 'failed',
     'cray.payout.failed:CRAY0003', '{}'), 'ignored', 'a failure after a reversal is ignored');
-select is(public.finish_payout((select reference from public.payouts where amount_kobo = 2200000), 'paid',
+select is(public.finish_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2200000), 'paid',
     'cray.payout.paid:CRAY0003-late', '{}', 2195000, 5000), 'ignored', 'and so is a late paid');
-select is(public.finish_payout((select reference from public.payouts where amount_kobo = 2500000), 'reversed',
+select is(public.finish_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2500000), 'reversed',
     'cray.payout.reversed:none', '{}', 2495000, null), 'ignored',
   'reversed for a payout that is only processing is ignored (the caller decides it failed)');
 reset role;
 select is((select count(*)::integer from public.ledger_entries
-            where payout_id = (select id from public.payouts where amount_kobo = 2500000) and event_type <> 'payout_requested'), 0,
+            where payout_id = (select id from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2500000) and event_type <> 'payout_requested'), 0,
   'and moved nothing');
 
 -- Failed on Cray: the wallet gets it back -------------------------------------------------------------------------------------------------
 select is(public.wallet_balance('00000000-0000-0000-0000-0000000d6101', 'creator_wallet'), 20000000::bigint - 2000000 - 2100000 - 2200000 - 2300000 - 2400000 - 2500000 + 2195000,
   'the wallet before the failure');
 set local role service_role;
-select is(public.finish_payout((select reference from public.payouts where amount_kobo = 2300000), 'failed',
+select is(public.finish_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2300000), 'failed',
     'cray.payout.failed:P4', '{}'), 'failed', 'Cray says P4 failed');
 reset role;
 select is(public.wallet_balance('00000000-0000-0000-0000-0000000d6101', 'creator_wallet'),
   20000000::bigint - 2000000 - 2100000 - 2200000 - 2300000 - 2400000 - 2500000 + 2195000 + 2300000,
   'the whole amount returns to the wallet');
-select is((select status from public.payouts where amount_kobo = 2300000), 'failed', 'and the payout is failed');
+select is((select status from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2300000), 'failed', 'and the payout is failed');
 
 -- Paystack behaves as before ---------------------------------------------------------------------------------------------------------------
 insert into public.payment_provider_settings (provider, reason) values ('paystack', 'Test: back to Paystack');
@@ -225,27 +228,27 @@ set local request.jwt.claims = '{"sub": "d6d6d6d6-0000-0000-0000-0000000d6101"}'
 select lives_ok($$ select public.request_payout(2600000) $$, 'Chidi requests under Paystack');
 reset role;
 select is((select provider || ':' || transfer_fee_kobo || ':' || recipient_code || ':' || (account_number_encrypted is null)::text
-             from public.payouts where amount_kobo = 2600000), 'paystack:7500:RCP_chidi:true',
+             from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2600000), 'paystack:7500:RCP_chidi:true',
   'the snapshot is Paystack''s account and its tier fee plus stamp duty');
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "d6d6d6d6-0000-0000-0000-0000000d6002"}';
-select is(public.approve_payout((select id from public.payouts where amount_kobo = 2600000)) - 'reference',
+select is(public.approve_payout((select id from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2600000)) - 'reference',
   '{"last4": "1234", "bank_name": "GTBank", "send_kobo": 2592500, "account_name": "CHIDI OKAFOR", "recipient_code": "RCP_chidi"}'::jsonb,
   'a Paystack approval returns exactly the old shape');
 reset role;
 set local role service_role;
-select throws_ok($$ select public.flag_payout((select reference from public.payouts where amount_kobo = 2600000), 'needs_reference') $$,
+select throws_ok($$ select public.flag_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2600000), 'needs_reference') $$,
   'P0001', 'payout_not_flaggable', 'a Paystack payout cannot be flagged');
-select throws_ok($$ select public.record_payout_send((select reference from public.payouts where amount_kobo = 2600000), 'X1') $$,
+select throws_ok($$ select public.record_payout_send((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2600000), 'X1') $$,
   'P0001', 'payout_not_processing', 'or given a Cray id');
-select throws_ok($$ select public.finish_payout((select reference from public.payouts where amount_kobo = 2600000), 'reversed',
+select throws_ok($$ select public.finish_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2600000), 'reversed',
     'evt-ps-rev', '{}', 2592500, null) $$,
   '22023', 'invalid_outcome', 'reversed is not an outcome for a Paystack payout');
-select is(public.finish_payout((select reference from public.payouts where amount_kobo = 2600000), 'paid', 'evt-ps-paid', '{}'), 'paid',
+select is(public.finish_payout((select reference from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2600000), 'paid', 'evt-ps-paid', '{}'), 'paid',
   'the 4-argument call still settles a Paystack payout');
 reset role;
 select is((select array_agg(account || ':' || amount_kobo order by account) from public.ledger_entries
-            where payout_id = (select id from public.payouts where amount_kobo = 2600000) and event_type = 'payout_paid'),
+            where payout_id = (select id from public.payouts where user_id = '00000000-0000-0000-0000-0000000d6101' and amount_kobo = 2600000) and event_type = 'payout_paid'),
   array['payout_in_flight:2600000', 'paystack:-2600000'], 'cash leaves paystack by the whole amount, as before');
 
 -- Access and the books -------------------------------------------------------------------------------------------------------------------------

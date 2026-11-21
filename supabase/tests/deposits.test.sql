@@ -9,6 +9,9 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
+-- Starts on Cray whatever the database was last left on.
+insert into public.payment_provider_settings (provider, reason) values ('cray', 'Test setup: start on Cray');
+
 select plan(65);
 
 -- Ada and Bola are businesses, Cora a creator who can't see accounts, Zed an admin.

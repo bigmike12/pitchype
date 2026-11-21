@@ -298,7 +298,7 @@
 **Files:**
 - Modify: `CLAUDE.md` (§2 provider rule, §3 table, §4 layout lines for `cray.ts`, `account-crypto.ts`, `api/webhooks/cray`, §6.1/§6.3/§6.4 Cray economics and top-ups, §6.6 a "Cray" subsection summarising §5 of the spec, §7 encrypted account numbers, §8 the two new notification kinds, §12 decisions of 2026-11-21), `docs/PROVIDERS.md` (new Cray section: every endpoint, env var, dashboard setup, the settlement-to-Main-Balance setting, IP whitelisting off, how to replace; Paystack section marked "kept, not default"), `docs/TODO.md` (spec §10 owner tasks; every **verify in sandbox** item; the column/account rename TODO; the provisional fees)
 
-- [ ] **Step 1:** write the docs changes; keep CLAUDE.md's existing voice and density.
-- [ ] **Step 2:** full verification: `npm run lint`, `npm run typecheck`, `npm test`, `supabase test db`, `node scripts/money-race.mjs`; replay every migration from scratch **without** `db reset` (e.g. in a throwaway local database: `createdb`/`psql` against the Supabase Docker Postgres, apply `supabase/migrations/*.sql` in order inside a transaction and roll back) and report the result.
-- [ ] **Step 3: Commit** `Document Cray as the default payment provider`.
-- [ ] **Step 4:** report: what was built, every test command and its result, what couldn't be verified (sandbox), and any place you deviated from this plan or the spec, with why.
+- [x] **Step 1:** write the docs changes; keep CLAUDE.md's existing voice and density.
+- [x] **Step 2:** full verification: `npm run lint`, `npm run typecheck`, `npm test`, `supabase test db`, `node scripts/money-race.mjs`; replay every migration from scratch **without** `db reset` (e.g. in a throwaway local database: `createdb`/`psql` against the Supabase Docker Postgres, apply `supabase/migrations/*.sql` in order inside a transaction and roll back) and report the result.
+- [x] **Step 3: Commit** `Document Cray as the default payment provider`.
+- [x] **Step 4:** report: what was built, every test command and its result, what couldn't be verified (sandbox), and any place you deviated from this plan or the spec, with why.
