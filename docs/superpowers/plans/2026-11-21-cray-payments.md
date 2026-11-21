@@ -54,16 +54,16 @@
   - internal `request(scope: "collection" | "disbursement", method: "GET" | "POST", pathWithQuery: string, body?: Record<string, unknown>): Promise<Record<string, unknown>>` (exported only for tests as `__request`)
   - `isCrayConfigured(): boolean` — true when `CRAY_BASE_URL`, both API keys, `CRAY_SIGNING_PRIVATE_KEY`, `CRAY_SIGNING_KEY_ID`, `CRAY_SUBACCOUNT_TOKEN` and `CRAY_WEBHOOK_KEYS` are non-empty.
 
-- [ ] **Step 1: Write failing tests** in `src/lib/cray.test.ts` (copy `stubFetch`/env save-restore pattern from `src/lib/paystack.test.ts`):
+- [x] **Step 1: Write failing tests** in `src/lib/cray.test.ts` (copy `stubFetch`/env save-restore pattern from `src/lib/paystack.test.ts`):
   - `koboToNaira`: `5_250_000 → "52500.00"`, `5 → "0.05"`, `0` throws, `-1` throws, `1.5` throws.
   - `nairaToKobo`: `"3950.00000000" → 395000`, `"1000.00" → 100000`, `"5000" → 500000`, `0.95 → 95`, `0.05 → 5`, `1 → 100`, `"52500.5" → 5250050`; throws on `"39.505"`, `"-1"`, `"abc"`, `""`, `NaN`, `1e21`, `"1,000"`.
   - `canonicalPathWithQuery("/subaccounts/x/ledger?page=2&currency=NGN") === "/subaccounts/x/ledger?currency=NGN&page=2"`; `"/balance/" → "/balance"`; `"/" → "/"`; `"/balance?search=S%C3%A3o%20Paulo&currency=NGN" → "/balance?currency=NGN&search=S%C3%A3o%20Paulo"`; a `+` is signed as `%2B`.
   - `signatureHeader` with the docs' worked example (POST `/virtual-accounts/create`, body `{"amount":1000,"currency":"NGN"}`, `t=1761132000000`, `n=1f0a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8`): generate a P-256 key pair in the test, assert the header matches `/^t=1761132000000,n=1f0a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8,kid=[^,]+,v1=[A-Za-z0-9+/=]+$/`, and `crypto.verify("sha256", Buffer.from(canonical), { key: publicKey, dsaEncoding: "der" }, sig)` is true where `canonical` is `"POST\n/virtual-accounts/create\n1761132000000\n1f0a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8\n6469249697a442b13fd6384708be6aede58b356f534aee1549b252ef370a3e36"`. Empty-body GET uses hash `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
   - `__request`: sends `Authorization: Bearer <collection key>` for scope collection and the disbursement key for scope disbursement; sends `X-Signature`; the body string sent is byte-identical to the one hashed; each call uses a new nonce; non-2xx → `CrayError` with status and `code`; network failure → status 0 with a message that contains neither key nor URL; a 10+ digit run in an error message is masked to `******1234`; missing env → `CrayError` naming no values; times out after 15 s (`AbortSignal.timeout`).
-- [ ] **Step 2: Run** `node --test src/lib/cray.test.ts` → FAIL (module missing).
-- [ ] **Step 3: Implement** in `src/lib/cray.ts`. Header comment in the style of `paystack.ts` (boundary, no retries, what's never logged). `nairaToKobo`: work on the decimal text (`String(value)`; reject exponent forms), split on `.`, allow extra fraction digits only if all zero. `signatureHeader`: `crypto.sign("sha256", Buffer.from(canonical), { key, dsaEncoding: "der" })`, base64. `request`: `JSON.stringify(body)` once, hash and send that string; `t = Date.now()`, `n = crypto.randomUUID()`; accept success when HTTP 2xx and (`status === true` or `"success"` or `success === true`).
-- [ ] **Step 4: Run** `node --test src/lib/cray.test.ts` → PASS; `npm run typecheck`, `npm run lint` clean.
-- [ ] **Step 5: Commit** `Add the Cray client core: naira conversion and request signing`.
+- [x] **Step 2: Run** `node --test src/lib/cray.test.ts` → FAIL (module missing).
+- [x] **Step 3: Implement** in `src/lib/cray.ts`. Header comment in the style of `paystack.ts` (boundary, no retries, what's never logged). `nairaToKobo`: work on the decimal text (`String(value)`; reject exponent forms), split on `.`, allow extra fraction digits only if all zero. `signatureHeader`: `crypto.sign("sha256", Buffer.from(canonical), { key, dsaEncoding: "der" })`, base64. `request`: `JSON.stringify(body)` once, hash and send that string; `t = Date.now()`, `n = crypto.randomUUID()`; accept success when HTTP 2xx and (`status === true` or `"success"` or `success === true`).
+- [x] **Step 4: Run** `node --test src/lib/cray.test.ts` → PASS; `npm run typecheck`, `npm run lint` clean.
+- [x] **Step 5: Commit** `Add the Cray client core: naira conversion and request signing`.
 
 ### Task 2: Cray endpoints and webhook hash
 
