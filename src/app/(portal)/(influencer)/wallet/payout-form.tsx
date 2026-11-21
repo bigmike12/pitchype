@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 
+import { IdentityRequired } from "@/components/identity/identity-required";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
@@ -21,9 +22,12 @@ import { requestPayoutAction, type PayoutState } from "./actions";
 export function PayoutForm({
   balanceKobo,
   hasBankAccount,
+  identityRequired = false,
 }: {
   balanceKobo: number;
   hasBankAccount: boolean;
+  /** The creator has not confirmed their identity: payouts stay shut, with the reason. */
+  identityRequired?: boolean;
 }) {
   const [amount, setAmount] = useState("");
   const [state, formAction, pending] = useActionState<PayoutState, FormData>(
@@ -35,11 +39,13 @@ export function PayoutForm({
     { status: "idle" },
   );
 
-  const blocked = !hasBankAccount
-    ? "Add a bank account above to ask for a payout."
-    : balanceKobo < MIN_PAYOUT_KOBO
-      ? `You can ask for a payout once your balance is ${formatNaira(MIN_PAYOUT_KOBO)} or more.`
-      : null;
+  const blocked = identityRequired
+    ? "Confirm your identity to withdraw your earnings. Your balance stays in your wallet."
+    : !hasBankAccount
+      ? "Add a bank account above to ask for a payout."
+      : balanceKobo < MIN_PAYOUT_KOBO
+        ? `You can ask for a payout once your balance is ${formatNaira(MIN_PAYOUT_KOBO)} or more.`
+        : null;
 
   const parsed = parsePayoutAmount(amount);
   let line: string;
@@ -88,14 +94,18 @@ export function PayoutForm({
         A member of our team approves each payout before it’s sent.
       </p>
       <FormMessage status={state.status} message={state.message} />
-      <Button
-        type="submit"
-        disabled={
-          pending || blocked !== null || problem || amount.trim() === ""
-        }
-      >
-        {pending ? "One moment…" : "Ask for payout"}
-      </Button>
+      {identityRequired ? (
+        <IdentityRequired label="Ask for payout" />
+      ) : (
+        <Button
+          type="submit"
+          disabled={
+            pending || blocked !== null || problem || amount.trim() === ""
+          }
+        >
+          {pending ? "One moment…" : "Ask for payout"}
+        </Button>
+      )}
     </form>
   );
 }

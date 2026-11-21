@@ -22,6 +22,7 @@ import {
 import { listNiches } from "@/lib/db/creators";
 import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { text, type FormState } from "@/lib/form-data";
+import { refusalText } from "@/lib/refusals";
 
 export type CampaignFormState = FormState<CampaignField>;
 export type ActionState = { status: "idle" | "error"; message?: string };
@@ -135,7 +136,9 @@ export async function campaignTransitionAction(
       message:
         result.reason === "invalid"
           ? sentence(result.message)
-          : "This campaign changed since you opened it. Refresh the page and try again.",
+          : result.reason === "identity_required"
+            ? refusalText("identity_required")
+            : "This campaign changed since you opened it. Refresh the page and try again.",
     };
   }
   sendEmailsAfterResponse();

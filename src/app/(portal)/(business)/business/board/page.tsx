@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/skeleton";
 import { hireEndedUnpaid } from "@/lib/applications";
 import { requireRole } from "@/lib/auth";
+import { isIdentityVerified } from "@/lib/db/identity";
 import {
   BUSINESS_COLUMNS,
   businessColumn,
@@ -104,6 +105,7 @@ const first = (value: string | string[] | undefined) =>
 
 async function HiringBoard({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireRole("business");
+  const identityVerified = await isIdentityVerified(user.id);
   const [campaigns, counts, niches, query] = await Promise.all([
     listOwnCampaigns(user.id),
     getApplicationCounts(),
@@ -258,6 +260,7 @@ async function HiringBoard({ searchParams }: { searchParams: SearchParams }) {
                   <HireCard
                     key={card.id}
                     card={card}
+                    identityVerified={identityVerified}
                     column={column.key}
                     showCampaign={!picked}
                     detail={creatorDetailLine(
@@ -335,8 +338,10 @@ function HireCard({
   column,
   showCampaign,
   detail,
+  identityVerified,
 }: {
   card: Card;
+  identityVerified: boolean;
   column: Exclude<BusinessColumn, "closed">;
   showCampaign: boolean;
   detail: string;
@@ -445,6 +450,7 @@ function HireCard({
                 again={reopened}
                 size="sm"
                 dropAction="to_pay"
+                identityRequired={!identityVerified}
               />
             )}
             {card.status === "submitted" && (

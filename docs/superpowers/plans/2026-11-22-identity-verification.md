@@ -175,9 +175,9 @@
 - Consumes: `isIdentityVerified`, `refusalText("identity_required")`.
 - Produces: disabled Apply / Submit for listing / Approve / Request payout buttons with "Confirm your identity first" and a link to `/account#identity` (show why, don't hide — CLAUDE.md §5); a one-line portal banner for unverified creators ("Confirm your identity to apply for campaigns and withdraw your earnings") and businesses ("Confirm your identity to publish campaigns and hire creators"); server actions surface the database's `identity_required` refusal text if reached anyway.
 
-- [ ] **Step 1:** a pure helper `identityBanner(role, verified): string | null` with tests.
-- [ ] **Step 2–4:** implement; `npm test`, typecheck, lint.
-- [ ] **Step 5: Commit** `Show why unverified people can't apply, hire, publish or withdraw`.
+- [x] **Step 1:** a pure helper `identityBanner(role, verified): string | null` with tests.
+- [x] **Step 2–4:** implement; `npm test`, typecheck, lint.
+- [x] **Step 5: Commit** `Show why unverified people can't apply, hire, publish or withdraw`.
 
 ### Task 9: Screening at the first money event and payout approval
 

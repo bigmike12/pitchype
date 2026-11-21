@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 
+import { IdentityRequired } from "@/components/identity/identity-required";
 import { Button } from "@/components/ui/button";
 import { TextAreaField, TextField } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
@@ -28,6 +29,7 @@ export function ApplyForm({
   campaignCpcKobo = null,
   paymentModel = "fixed",
   application,
+  identityRequired = false,
 }: {
   campaignId: string;
   campaignPriceKobo: number;
@@ -40,6 +42,8 @@ export function ApplyForm({
     proposedCpcKobo: number | null;
     note: string | null;
   };
+  /** The creator has not confirmed their identity: show why instead of an Apply button. */
+  identityRequired?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<ApplyState, FormData>(
     applyAction,
@@ -95,13 +99,17 @@ export function ApplyForm({
         error={errors.note}
       />
       <FormMessage status={state.status} message={state.message} />
-      <Button type="submit" size="lg" disabled={pending}>
-        {pending
-          ? "Sending…"
-          : application
-            ? "Save changes"
-            : "Apply to this campaign"}
-      </Button>
+      {identityRequired ? (
+        <IdentityRequired label="Apply to this campaign" size="lg" />
+      ) : (
+        <Button type="submit" size="lg" disabled={pending}>
+          {pending
+            ? "Sending…"
+            : application
+              ? "Save changes"
+              : "Apply to this campaign"}
+        </Button>
+      )}
     </form>
   );
 }
