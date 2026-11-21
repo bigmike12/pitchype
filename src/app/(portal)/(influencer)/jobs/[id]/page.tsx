@@ -13,6 +13,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { CampaignTimeline } from "@/components/campaigns/campaign-timeline";
+import { CheckpointList } from "@/components/checkpoints/checkpoint-list";
+import { CheckpointTrail } from "@/components/checkpoints/checkpoint-trail";
 import { ClickProofList } from "@/components/clicks/click-proof-list";
 import { ClickSummary } from "@/components/clicks/click-summary";
 import { DisputeForm } from "@/components/engagement/dispute-form";
@@ -28,6 +31,13 @@ import {
   PanelSkeleton,
 } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth";
+import { lagosToday } from "@/lib/campaign";
+import { dueDay, numberRows, outstandingRows } from "@/lib/checkpoint-words";
+import { lagosDate } from "@/lib/checkpoints";
+import {
+  listCheckpointEvents,
+  listHireCheckpoints,
+} from "@/lib/db/checkpoints";
 import { formatDateTime } from "@/lib/creator-profile";
 import { getEngagementDetails } from "@/lib/db/applications";
 import { listClickProofs } from "@/lib/db/click-proofs";
@@ -39,7 +49,11 @@ import { describeJobStatus } from "@/lib/job-status-words";
 import { formatNaira } from "@/lib/money";
 import { CONTACT_EMAIL } from "@/lib/site";
 
-import { openDisputeAction } from "./actions";
+import {
+  openDisputeAction,
+  submitCheckpointAction,
+  submitKickoffAction,
+} from "./actions";
 import { ClickProofForm } from "./click-proof-form";
 import { StartWorkForm } from "./start-form";
 import { SubmitForm } from "./submit-form";
@@ -109,6 +123,25 @@ async function Job({ params }: { params: Params }) {
   // there is no proof to review (proof for the record comes in Part 2).
   const clicks = await getEngagementClicks(engagement.id);
   const proofs = clicks ? await listClickProofs(engagement.id) : [];
+  // Kickoff and checkpoints exist only for campaigns that asked for them.
+  const campaign = engagement.campaign;
+  const checkpointRows = campaign.checkpointsEnabled
+    ? await listHireCheckpoints(engagement.id)
+    : [];
+  const checkpointEvents = campaign.checkpointsEnabled
+    ? await listCheckpointEvents(engagement.id)
+    : [];
+  const now = new Date();
+  const outstanding = outstandingRows(checkpointRows, now);
+  const outstandingTitles = numberRows(checkpointRows)
+    .filter((r) => outstanding.some((o) => o.id === r.id))
+    .map((r) => r.title);
+  const platforms = [...new Set(campaign.deliverables.map((d) => d.platform))];
+  // Evidence can be sent while the job is running, never after it has settled.
+  const canSendEvidence =
+    ["in_progress", "submitted", "denied", "disputed"].includes(
+      engagement.status,
+    ) && engagement.settledAt === null;
   const clicksOver =
     clicks?.clicksEndAt !== null &&
     clicks?.clicksEndAt !== undefined &&
@@ -244,6 +277,41 @@ async function Job({ params }: { params: Params }) {
             !engagement.settledAt && (
               <ClickProofForm engagementId={engagement.id} />
             )}
+          <SectionCard
+            id="campaign-timeline-title"
+            title="Campaign timeline"
+            padded
+          >
+            <CampaignTimeline
+              start={campaign.postFrom}
+              liveFrom={
+                engagement.approvedAt
+                  ? lagosDate(new Date(engagement.approvedAt))
+                  : lagosToday(now)
+              }
+              deliverBy={campaign.deliverBy}
+              endsOn={campaign.endsOn}
+              checkpoints={checkpointRows
+                .filter((r) => r.kind === "progress" && r.status !== "skipped")
+                .map(dueDay)}
+              today={lagosToday(now)}
+            />
+          </SectionCard>
+          {checkpointRows.length > 0 && (
+            <SectionCard id="checkpoints-title" title="Kickoff and checkpoints">
+              <CheckpointList
+                rows={checkpointRows}
+                viewer="creator"
+                engagementId={engagement.id}
+                required={campaign.checkpointEvidence}
+                platforms={platforms}
+                now={now}
+                canSend={canSendEvidence}
+                kickoffAction={submitKickoffAction}
+                checkpointAction={submitCheckpointAction}
+              />
+            </SectionCard>
+          )}
           {rounds.length > 0 && (
             <SectionCard id="rounds-title" title="Your submissions">
               <Rounds rounds={rounds} />
@@ -256,6 +324,9 @@ async function Job({ params }: { params: Params }) {
               deliverBy={engagement.campaign.deliverBy}
               resubmit={status.canResubmit}
               roundsLeft={engagement.roundsLeft}
+              finalRequirements={campaign.finalRequirements}
+              platforms={platforms}
+              outstanding={outstandingTitles}
             />
           )}
           {disputeId && (
@@ -284,6 +355,15 @@ async function Job({ params }: { params: Params }) {
               ))}
             </ol>
           </SectionCard>
+
+          {checkpointEvents.length > 0 && (
+            <SectionCard id="checkpoint-trail-title" title="Checkpoint trail">
+              <CheckpointTrail
+                events={checkpointEvents}
+                rows={checkpointRows}
+              />
+            </SectionCard>
+          )}
 
           {status.canStart && <StartWorkForm engagementId={engagement.id} />}
           {status.canOpenDispute && (

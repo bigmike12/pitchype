@@ -131,9 +131,9 @@
 - Consumes: Tasks 1–5.
 - Produces: spec §5.1 display + `timelineView` bar (CSS only, labelled dates, markers; readable with motion off) on both campaign pages and both hire pages; spec §5.8 checklist with status chips (Due / Overdue / Done / Done late / Skipped "started after this date" / Closed "final work submitted"), the kickoff and checkpoint forms (screenshots through the existing proof upload pipeline, metrics fields per platform with "Reported by you" / "Reported by the creator" labels), the final-submission form showing outstanding items and final requirements (and the new metrics/captured-on/report fields when required), the trail timeline on hire, dispute and money-trail pages, and the business's dispute button reflecting the earlier date. Copy states that no money is held back for a missed checkpoint.
 
-- [ ] **Step 1:** tests for pure view helpers you add (e.g. `checkpointChip(row, now)`).
-- [ ] **Step 2–4:** implement; skeletons; `npm test`, typecheck, lint; local build with overrides; reason through 390px.
-- [ ] **Step 5: Commit** `Show campaign timelines, checkpoints and their trail to both sides`.
+- [x] **Step 1:** tests for pure view helpers you add (e.g. `checkpointChip(row, now)`).
+- [x] **Step 2–4:** implement; skeletons; `npm test`, typecheck, lint; local build with overrides; reason through 390px.
+- [x] **Step 5: Commit** `Show campaign timelines, checkpoints and their trail to both sides`.
 
 ### Task 8: Races, docs and final verification
 

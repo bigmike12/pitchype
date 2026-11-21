@@ -8,7 +8,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(76);
+select plan(78);
 
 -- Ada and Bola are businesses, Efe is an admin, creators cc101..cc106 are hired by Ada.
 insert into public.users (id, auth_user_id, email, role) values
@@ -346,6 +346,13 @@ select throws_ok($$ select public.submit_checkpoint(
     (select c.id from public.hire_checkpoints c where c.engagement_id = (select engagement from hires where n = 5) and c.kind = 'progress' and c.status = 'due' limit 1),
     'Filmed two of the three reels so far.', array['https://x.com/p/1'], null, null, null, null, null) $$,
   'P0001', 'hire_not_running', 'nor evidence');
+
+-- What the hire page reads about the campaign ---------------------------------------------------------------------------------
+set local request.jwt.claims = '{"sub": "cccccccc-0000-0000-0000-0000000cc101"}'; -- creator 1
+select is((select d #>> '{campaign,checkpoint_evidence}' from public.engagement_details((select engagement from hires where n = 1)) d),
+  '["progress_update", "content_links"]', 'the hire page gets the evidence each checkpoint needs');
+select is((select d #>> '{campaign,checkpoints_enabled}' from public.engagement_details((select engagement from hires where n = 1)) d),
+  'true', 'and that checkpoints are on');
 
 select * from finish();
 rollback;

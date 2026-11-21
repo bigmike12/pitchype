@@ -10,6 +10,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { CampaignSchedule } from "@/components/campaigns/campaign-schedule";
 import {
   DeliverableList,
   PerClickTerms,
@@ -24,6 +25,7 @@ import { isIdentityVerified } from "@/lib/db/identity";
 import {
   creatorReceivesKobo,
   formatDay,
+  lagosToday,
   placesStatus,
   problemText,
 } from "@/lib/campaign";
@@ -255,6 +257,20 @@ async function Campaign({ params }: { params: Params }) {
                 </p>
               </SectionCard>
             )}
+          <SectionCard id="timeline-title" title="Timeline" padded>
+            <CampaignSchedule
+              start={campaign.postFrom}
+              liveFrom={lagosToday()}
+              deliverBy={campaign.deliverBy}
+              endsOn={campaign.endsOn}
+              today={lagosToday()}
+              checkpointsEnabled={campaign.checkpointsEnabled}
+              checkpointIntervalDays={campaign.checkpointIntervalDays}
+              checkpointEvidence={campaign.checkpointEvidence}
+              checkpointDates={campaign.checkpointDates}
+              finalRequirements={campaign.finalRequirements}
+            />
+          </SectionCard>
           <SectionCard id="posts-title" title="What you post" padded>
             <div>
               <DeliverableList

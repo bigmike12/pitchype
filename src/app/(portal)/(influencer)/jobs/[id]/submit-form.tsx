@@ -11,7 +11,17 @@ import { Button } from "@/components/ui/button";
 import { TextAreaField } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 import type { Deliverable } from "@/lib/campaign";
+import { Callout } from "@/components/ui/callout";
+import { MetricsFields } from "@/components/checkpoints/metrics-fields";
+import {
+  FINAL_REQUIREMENT_LABELS,
+  REPORT_MAX,
+  REPORT_MIN,
+  type FinalRequirement,
+} from "@/lib/checkpoints";
+import type { Platform } from "@/lib/creator-profile";
 import { MAX_PROOF_NOTE_LENGTH } from "@/lib/proof";
+import { CalendarClock } from "lucide-react";
 
 import { submitWorkAction, type SubmitState } from "./actions";
 
@@ -26,12 +36,21 @@ export function SubmitForm({
   deliverBy,
   resubmit,
   roundsLeft,
+  finalRequirements = [],
+  platforms = [],
+  outstanding = [],
 }: {
   engagementId: string;
   deliverables: Deliverable[];
   deliverBy: string;
   resubmit: boolean;
   roundsLeft: number;
+  /** What the campaign says the final submission must contain; empty means a link or a screenshot. */
+  finalRequirements?: FinalRequirement[];
+  /** The platforms the job posts on, for the analytics fields. */
+  platforms?: Platform[];
+  /** Kickoff and checkpoints whose time has passed with no evidence: they come first. */
+  outstanding?: string[];
 }) {
   const [state, formAction, pending] = useActionState<SubmitState, FormData>(
     submitWorkAction,
@@ -73,6 +92,28 @@ export function SubmitForm({
         </p>
       </div>
 
+      {outstanding.length > 0 && (
+        <Callout
+          tone="attention"
+          icon={CalendarClock}
+          title="Send these first, then your final work"
+        >
+          {outstanding.join(", ")} still need evidence. Late is fine, and no
+          money is held back because of it.
+        </Callout>
+      )}
+      {finalRequirements.length > 0 && (
+        <div>
+          <h3 className="mb-2 font-semibold text-ink">
+            The final submission needs
+          </h3>
+          <ul className="list-disc space-y-1 pl-5 text-body">
+            {finalRequirements.map((r) => (
+              <li key={r}>{FINAL_REQUIREMENT_LABELS[r]}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div>
         <h3 className="mb-2 font-semibold text-ink">What the job asked for</h3>
         <DeliverableList
@@ -84,12 +125,35 @@ export function SubmitForm({
 
       <ProofFields
         idPrefix="submit"
+        linksOptional={
+          finalRequirements.length > 0 &&
+          !finalRequirements.includes("content_links")
+        }
         onScreenshotsChange={() => setPictureError(undefined)}
         errors={{
           ...state.errors,
           screenshots: pictureError ?? state.errors?.screenshots,
         }}
       />
+      {finalRequirements.includes("analytics") && (
+        <MetricsFields
+          idPrefix="submit"
+          platforms={platforms}
+          capturedOnRequired
+          errors={state.errors}
+        />
+      )}
+      {finalRequirements.includes("final_report") && (
+        <TextAreaField
+          id="submit-report"
+          name="report"
+          label="Final report"
+          rows={5}
+          maxLength={REPORT_MAX}
+          hint={`How it went, in ${REPORT_MIN} to ${REPORT_MAX.toLocaleString("en-NG")} characters. No contact details.`}
+          error={state.errors?.report}
+        />
+      )}
       <TextAreaField
         id="submit-note"
         name="note"
@@ -102,7 +166,11 @@ export function SubmitForm({
       />
 
       <FormMessage status={state.status} message={state.message} />
-      <Button type="submit" size="lg" disabled={pending || preparing}>
+      <Button
+        type="submit"
+        size="lg"
+        disabled={pending || preparing || outstanding.length > 0}
+      >
         {preparing
           ? "Preparing…"
           : pending

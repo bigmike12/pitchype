@@ -101,11 +101,17 @@ const MAX_LINKS_TEXT_LENGTH = MAX_PROOF_LINKS * (MAX_PROOF_LINK_LENGTH + 2);
 export function ProofFields({
   idPrefix,
   linksOptional = false,
+  showLinks = true,
+  maxScreenshots = MAX_PROOF_FILES,
   errors,
   onScreenshotsChange,
 }: {
   /** Keeps ids apart when a page has two proof forms. */
   idPrefix: string;
+  /** Leave the links out where only screenshots are taken (the kickoff). */
+  showLinks?: boolean;
+  /** Only changes the hint; the server and the database enforce the limit. */
+  maxScreenshots?: number;
   /** Links aren't needed when there is a screenshot (or nothing is required). */
   linksOptional?: boolean;
   errors?: { links?: string; screenshots?: string };
@@ -115,18 +121,20 @@ export function ProofFields({
   const shotsId = `${idPrefix}-screenshots`;
   return (
     <>
-      <TextAreaField
-        id={`${idPrefix}-links`}
-        name="links"
-        label="Links"
-        optional={linksOptional}
-        rows={3}
-        autoComplete="off"
-        maxLength={MAX_LINKS_TEXT_LENGTH}
-        placeholder="https://www.instagram.com/p/…"
-        hint={`One link per line, up to ${MAX_PROOF_LINKS}. Each starts with http:// or https://.`}
-        error={errors?.links}
-      />
+      {showLinks && (
+        <TextAreaField
+          id={`${idPrefix}-links`}
+          name="links"
+          label="Links"
+          optional={linksOptional}
+          rows={3}
+          autoComplete="off"
+          maxLength={MAX_LINKS_TEXT_LENGTH}
+          placeholder="https://www.instagram.com/p/…"
+          hint={`One link per line, up to ${MAX_PROOF_LINKS}. Each starts with http:// or https://.`}
+          error={errors?.links}
+        />
+      )}
       <div>
         <FieldLabel htmlFor={shotsId}>
           Screenshots <span className="font-normal text-muted">(optional)</span>
@@ -148,7 +156,7 @@ export function ProofFields({
         />
         <FieldMessages
           id={shotsId}
-          hint={`Choose all your screenshots at once, up to ${MAX_PROOF_FILES}: JPEG, PNG or WebP. We shrink them and remove location data.`}
+          hint={`Choose all your screenshots at once, up to ${maxScreenshots}: JPEG, PNG or WebP. We shrink them and remove location data.`}
           error={errors?.screenshots}
         />
       </div>

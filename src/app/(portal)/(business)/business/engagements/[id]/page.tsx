@@ -14,6 +14,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { CampaignTimeline } from "@/components/campaigns/campaign-timeline";
+import { CheckpointList } from "@/components/checkpoints/checkpoint-list";
+import { CheckpointTrail } from "@/components/checkpoints/checkpoint-trail";
 import { ClickProofList } from "@/components/clicks/click-proof-list";
 import { ClickSummary } from "@/components/clicks/click-summary";
 import { DisputeForm } from "@/components/engagement/dispute-form";
@@ -29,6 +32,13 @@ import {
   PanelSkeleton,
 } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth";
+import { lagosToday } from "@/lib/campaign";
+import { dueDay } from "@/lib/checkpoint-words";
+import { lagosDate } from "@/lib/checkpoints";
+import {
+  listCheckpointEvents,
+  listHireCheckpoints,
+} from "@/lib/db/checkpoints";
 import { formatDateTime } from "@/lib/creator-profile";
 import { getEngagementDetails } from "@/lib/db/applications";
 import { listClickProofs } from "@/lib/db/click-proofs";
@@ -95,6 +105,17 @@ async function Engagement({ params }: { params: Params }) {
   // Null unless this is a per-click hire.
   const clicks = await getEngagementClicks(engagement.id);
   const proofs = clicks ? await listClickProofs(engagement.id) : [];
+  const campaign = engagement.campaign;
+  const checkpointRows = campaign.checkpointsEnabled
+    ? await listHireCheckpoints(engagement.id)
+    : [];
+  const checkpointEvents = campaign.checkpointsEnabled
+    ? await listCheckpointEvents(engagement.id)
+    : [];
+  const now = new Date();
+  // A checkpoint still missing is what opens the early dispute (the database
+  // gives the date; this only picks the words).
+  const checkpointOverdue = checkpointRows.some((r) => r.status === "overdue");
   const clicksOver =
     clicks?.clicksEndAt !== null &&
     clicks?.clicksEndAt !== undefined &&
@@ -229,6 +250,45 @@ async function Engagement({ params }: { params: Params }) {
               problem, raise it before the job settles.
             </Callout>
           )}
+          <SectionCard
+            id="campaign-timeline-title"
+            title="Campaign timeline"
+            padded
+          >
+            <CampaignTimeline
+              start={campaign.postFrom}
+              liveFrom={
+                engagement.approvedAt
+                  ? lagosDate(new Date(engagement.approvedAt))
+                  : lagosToday(now)
+              }
+              deliverBy={campaign.deliverBy}
+              endsOn={campaign.endsOn}
+              checkpoints={checkpointRows
+                .filter((r) => r.kind === "progress" && r.status !== "skipped")
+                .map(dueDay)}
+              today={lagosToday(now)}
+            />
+          </SectionCard>
+          {checkpointRows.length > 0 && (
+            <SectionCard id="checkpoints-title" title="Kickoff and checkpoints">
+              <p className="border-b border-hairline px-4 py-3 text-sm text-body sm:px-5">
+                Progress the creator has shown along the way. It’s evidence, not
+                an approval step: raise a concern in chat, or open a dispute if
+                work goes missing. No money is held back because of a missed
+                checkpoint.
+              </p>
+              <CheckpointList
+                rows={checkpointRows}
+                viewer="business"
+                engagementId={engagement.id}
+                required={campaign.checkpointEvidence}
+                platforms={[]}
+                now={now}
+                canSend={false}
+              />
+            </SectionCard>
+          )}
           {showReview && (
             <SectionCard id="review-title" title="Work to review">
               <Rounds rounds={[toReview]} />
@@ -288,6 +348,15 @@ async function Engagement({ params }: { params: Params }) {
             </ol>
           </SectionCard>
 
+          {checkpointEvents.length > 0 && (
+            <SectionCard id="checkpoint-trail-title" title="Checkpoint trail">
+              <CheckpointTrail
+                events={checkpointEvents}
+                rows={checkpointRows}
+              />
+            </SectionCard>
+          )}
+
           {status.canOpenDispute && (
             <DisputeForm
               engagementId={engagement.id}
@@ -297,7 +366,9 @@ async function Engagement({ params }: { params: Params }) {
                   ? `If the clicks look wrong (a click farm, a blocked channel, posts you didn’t agree to), open a dispute before this settles. An admin will read both sides and decide how the money is paid out. Nothing settles while it is open.`
                   : engagement.status === "denied"
                     ? `If you and ${engagement.creator.name} can’t agree about the work, open a dispute. An admin will read both sides and decide how the money is paid out. You and ${engagement.creator.name} can each add statements while it is open.`
-                    : `The delivery date has passed and ${engagement.creator.name} hasn’t sent in the work. Open a dispute and an admin will decide how the money is paid out. You and ${engagement.creator.name} can each add statements while it is open.`
+                    : checkpointOverdue
+                      ? `A checkpoint is more than 3 days overdue and ${engagement.creator.name} was warned. If work has gone missing, open a dispute and an admin will decide how the money is paid out. You and ${engagement.creator.name} can each add statements while it is open.`
+                      : `The delivery date has passed and ${engagement.creator.name} hasn’t sent in the work. Open a dispute and an admin will decide how the money is paid out. You and ${engagement.creator.name} can each add statements while it is open.`
               }
             />
           )}
