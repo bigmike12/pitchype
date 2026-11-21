@@ -7,11 +7,20 @@ import {
   type MoneyChecksResult,
   type MoneyCheckDeps,
 } from "./money-checks.ts";
-import { stuckPayoutCutoff, type TransferResult } from "./payments.ts";
+import { CrayError } from "./cray.ts";
+import {
+  stuckPayoutCutoff,
+  type CardPaymentResult,
+  type TransferResult,
+} from "./payments.ts";
 import { PaystackError } from "./paystack.ts";
 
 const NOW = new Date("2026-11-13T03:30:00.000Z");
-const RECON = { expectedCashKobo: 5_000_000, differenceKobo: -250, ledgerBalanced: true };
+const RECON = {
+  expectedCashKobo: 5_000_000,
+  differenceKobo: -250,
+  ledgerBalanced: true,
+};
 
 const realConsoleError = console.error;
 let logged: string[] = [];
@@ -32,12 +41,65 @@ type Script = {
   results?: Record<string, TransferResult | Error>;
   balance?: number | Error;
   recordFails?: Error;
+  // Cray (off unless a test turns it on).
+  crayConfigured?: boolean;
+  paystackConfigured?: boolean;
+  crayPayouts?: string[];
+  cardPayments?: string[];
+  cardResults?: Record<string, CardPaymentResult | Error>;
+  crayBalances?:
+    { totalKobo: number; parts: { name: string; kobo: number }[] } | Error;
+  crayRecordFails?: Error;
 };
 
 function fakes(script: Script = {}) {
   const calls: string[] = [];
-  const state = { cutoff: null as Date | null, recorded: [] as number[] };
+  const state = {
+    cutoff: null as Date | null,
+    recorded: [] as number[],
+    crayRecorded: [] as {
+      balance: number;
+      parts: { name: string; kobo: number }[];
+    }[],
+    cardWindow: null as {
+      olderThan: Date;
+      newerThan: Date;
+      limit: number;
+    } | null,
+  };
   const deps: MoneyCheckDeps = {
+    isPaystackConfigured: () => script.paystackConfigured ?? true,
+    isCrayConfigured: () => script.crayConfigured ?? false,
+    listProcessingCrayPayouts: async () =>
+      (script.crayPayouts ?? []).map((reference, i) => ({
+        id: `cray-id-${i}`,
+        reference,
+      })),
+    listInitiatedCrayCardPayments: async (olderThan, newerThan, limit) => {
+      state.cardWindow = { olderThan, newerThan, limit };
+      return (script.cardPayments ?? []).map((reference) => ({ reference }));
+    },
+    confirmCardPayment: async (reference) => {
+      calls.push(`card:${reference}`);
+      const result = script.cardResults?.[reference] ?? "funded";
+      if (result instanceof Error) throw result;
+      return result;
+    },
+    getCrayBalances: async () => {
+      calls.push("cray-balance");
+      const value = script.crayBalances ?? {
+        totalKobo: 7_000_000,
+        parts: [{ name: "Main Balance", kobo: 7_000_000 }],
+      };
+      if (value instanceof Error) throw value;
+      return value;
+    },
+    recordCrayReconciliation: async (balance, parts) => {
+      calls.push("cray-record");
+      if (script.crayRecordFails) throw script.crayRecordFails;
+      state.crayRecorded.push({ balance, parts });
+      return RECON;
+    },
     listProcessingPayoutsOlderThan: async (cutoff) => {
       state.cutoff = cutoff;
       return (script.payouts ?? []).map((reference, i) => ({
@@ -78,8 +140,13 @@ test("no stuck payouts: zero counts and the reconciliation is still recorded", a
     payoutsStillPending: 0,
     payoutsErrored: 0,
     payoutsLookupError: false,
+    cardPaymentsChecked: 0,
+    cardPaymentsFunded: 0,
+    cardPaymentsErrored: 0,
+    cardPaymentsLookupError: false,
     reconciliation: RECON,
     reconciliationError: false,
+    reconciliations: [{ provider: "paystack", ok: true }],
   });
   assert.deepEqual(state.recorded, [5_000_250]);
 });
@@ -189,12 +256,20 @@ test("cronStatus is 200 only when every step worked", () => {
     payoutsStillPending: 1,
     payoutsErrored: 0,
     payoutsLookupError: false,
+    cardPaymentsChecked: 0,
+    cardPaymentsFunded: 0,
+    cardPaymentsErrored: 0,
+    cardPaymentsLookupError: false,
     reconciliation: RECON,
     reconciliationError: false,
+    reconciliations: [{ provider: "paystack", ok: true }],
   };
   assert.equal(cronStatus(ok), 200);
   assert.equal(cronStatus({ ...ok, payoutsLookupError: true }), 500);
-  assert.equal(cronStatus({ ...ok, reconciliationError: true, reconciliation: null }), 500);
+  assert.equal(
+    cronStatus({ ...ok, reconciliationError: true, reconciliation: null }),
+    500,
+  );
   assert.equal(cronStatus({ ...ok, payoutsErrored: 1 }), 500);
 });
 
@@ -212,4 +287,180 @@ test("logs carry references and error classes, never messages that may hold secr
   assert.equal(text.includes("sk_test"), false);
   assert.equal(text.includes("SECRETVALUE"), false);
   assert.equal(text.includes("Bearer"), false);
+});
+
+// Cray ------------------------------------------------------------------------------------------
+
+test("with only Paystack configured, Cray is never called", async () => {
+  const { deps, calls } = fakes({ payouts: ["a"], results: { a: "paid" } });
+  const result = await runMoneyChecks(NOW, deps);
+  assert.equal(result.cardPaymentsChecked, 0);
+  assert.deepEqual(result.reconciliations, [
+    { provider: "paystack", ok: true },
+  ]);
+  assert.equal(
+    calls.some((c) => c.startsWith("cray") || c.startsWith("card")),
+    false,
+  );
+});
+
+test("a Cray card payment still initiated is confirmed, within a 10 minute to 7 day window", async () => {
+  const { deps, calls, state } = fakes({
+    crayConfigured: true,
+    cardPayments: ["pit_a", "pit_b", "pit_c"],
+    cardResults: { pit_a: "funded", pit_b: "pending", pit_c: "stranded" },
+  });
+  const result = await runMoneyChecks(NOW, deps);
+  assert.deepEqual(
+    calls.filter((c) => c.startsWith("card:")),
+    ["card:pit_a", "card:pit_b", "card:pit_c"],
+  );
+  assert.equal(result.cardPaymentsChecked, 3);
+  assert.equal(result.cardPaymentsFunded, 2);
+  assert.equal(result.cardPaymentsErrored, 0);
+  assert.equal(
+    state.cardWindow?.olderThan.toISOString(),
+    "2026-11-13T03:20:00.000Z",
+  );
+  assert.equal(
+    state.cardWindow?.newerThan.toISOString(),
+    "2026-11-06T03:30:00.000Z",
+  );
+  assert.equal(state.cardWindow?.limit, 200);
+});
+
+test("one card payment failing to confirm does not stop the rest and fails the run", async () => {
+  const { deps, calls } = fakes({
+    crayConfigured: true,
+    cardPayments: ["pit_a", "pit_b"],
+    cardResults: {
+      pit_a: new CrayError("Could not reach Cray", 0),
+      pit_b: "funded",
+    },
+  });
+  const result = await runMoneyChecks(NOW, deps);
+  assert.equal(result.cardPaymentsErrored, 1);
+  assert.equal(result.cardPaymentsFunded, 1);
+  assert.equal(calls.includes("card:pit_b"), true);
+  assert.equal(cronStatus(result), 500);
+  assert.match(
+    logged.join("\n"),
+    /cray card payment check failed pit_a CrayError 0/,
+  );
+});
+
+test("every processing Cray payout is checked, however old", async () => {
+  const { deps, calls } = fakes({
+    crayConfigured: true,
+    crayPayouts: ["pit_po_c1", "pit_po_c2", "pit_po_c3"],
+    results: {
+      pit_po_c1: "paid",
+      pit_po_c2: "sent",
+      pit_po_c3: "waiting_for_funds",
+    },
+  });
+  const result = await runMoneyChecks(NOW, deps);
+  assert.deepEqual(
+    calls.filter((c) => c.startsWith("start:")),
+    ["start:pit_po_c1", "start:pit_po_c2", "start:pit_po_c3"],
+  );
+  assert.equal(result.payoutsChecked, 3);
+  assert.equal(result.payoutsSettled, 1);
+  assert.equal(result.payoutsStillPending, 2);
+});
+
+test("a Cray payout that needs a person is logged for an admin and never counted settled", async () => {
+  const { deps } = fakes({
+    crayConfigured: true,
+    crayPayouts: ["pit_po_c1", "pit_po_c2"],
+    results: { pit_po_c1: "needs_reference", pit_po_c2: "name_changed" },
+  });
+  const result = await runMoneyChecks(NOW, deps);
+  assert.equal(result.payoutsSettled, 0);
+  assert.equal(result.payoutsStillPending, 2);
+  assert.match(
+    logged.join("\n"),
+    /payout needs attention pit_po_c1 needs_reference/,
+  );
+  assert.match(
+    logged.join("\n"),
+    /payout needs attention pit_po_c2 name_changed/,
+  );
+});
+
+test("a reversed Cray payout counts as settled", async () => {
+  const { deps } = fakes({
+    crayConfigured: true,
+    crayPayouts: ["pit_po_c1"],
+    results: { pit_po_c1: "reversed" },
+  });
+  assert.equal((await runMoneyChecks(NOW, deps)).payoutsSettled, 1);
+});
+
+test("each configured provider gets its own reconciliation run, with Cray's balance parts", async () => {
+  const { deps, state } = fakes({
+    crayConfigured: true,
+    crayBalances: {
+      totalKobo: 5_120_000,
+      parts: [
+        { name: "Main Balance", kobo: 5_000_000 },
+        { name: "Settlement Balance", kobo: 120_000 },
+      ],
+    },
+  });
+  const result = await runMoneyChecks(NOW, deps);
+  assert.deepEqual(state.recorded, [5_000_250]);
+  assert.deepEqual(state.crayRecorded, [
+    {
+      balance: 5_120_000,
+      parts: [
+        { name: "Main Balance", kobo: 5_000_000 },
+        { name: "Settlement Balance", kobo: 120_000 },
+      ],
+    },
+  ]);
+  assert.deepEqual(result.reconciliations, [
+    { provider: "paystack", ok: true },
+    { provider: "cray", ok: true },
+  ]);
+});
+
+test("one provider's balance failing does not stop the other's run, and fails the cron", async () => {
+  const { deps, state } = fakes({
+    crayConfigured: true,
+    crayBalances: new CrayError("Could not reach Cray", 0),
+  });
+  const result = await runMoneyChecks(NOW, deps);
+  assert.deepEqual(state.recorded, [5_000_250]);
+  assert.deepEqual(state.crayRecorded, []);
+  assert.deepEqual(result.reconciliations, [
+    { provider: "paystack", ok: true },
+    { provider: "cray", ok: false },
+  ]);
+  assert.equal(cronStatus(result), 500);
+  assert.match(logged.join("\n"), /cray reconciliation failed CrayError 0/);
+
+  const other = fakes({
+    crayConfigured: true,
+    balance: new PaystackError("Paystack unreachable", 503),
+  });
+  const second = await runMoneyChecks(NOW, other.deps);
+  assert.deepEqual(other.state.crayRecorded.length, 1);
+  assert.deepEqual(second.reconciliations, [
+    { provider: "paystack", ok: false },
+    { provider: "cray", ok: true },
+  ]);
+});
+
+test("a provider that isn't configured is not reconciled", async () => {
+  const { deps, state } = fakes({
+    paystackConfigured: false,
+    crayConfigured: true,
+  });
+  const result = await runMoneyChecks(NOW, deps);
+  assert.deepEqual(state.recorded, []);
+  assert.equal(state.crayRecorded.length, 1);
+  assert.deepEqual(result.reconciliations, [{ provider: "cray", ok: true }]);
+  assert.equal(result.reconciliation, null);
+  assert.equal(result.reconciliationError, false);
 });

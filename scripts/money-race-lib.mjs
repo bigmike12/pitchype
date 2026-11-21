@@ -382,6 +382,20 @@ export function charge(card) {
   );
 }
 
+// The payment provider switch (append-only rows). The existing scenarios are
+// about the Paystack path, so the runner pins Paystack; the Cray scenarios
+// switch to Cray and back.
+export async function getProvider() {
+  return run("select public.active_payment_provider();");
+}
+
+export async function setProvider(provider) {
+  if ((await getProvider()) === provider) return;
+  await run(
+    `insert into public.payment_provider_settings (provider, reason) values (${lit(provider)}, 'money race script');`,
+  );
+}
+
 export async function startPayment(hire) {
   const started = JSON.parse(
     await must(
@@ -593,14 +607,16 @@ export async function eventsStored(keys) {
 // and hire this script has ever made (so earlier runs are re-checked too).
 // Stored signs: cash and expense positive, liabilities and revenue negative,
 // so a wallet, escrow or payout in flight summing above zero is overdrawn.
+// "ps" is all cash (paystack + cray + bank) and "pf" all provider fees.
 export async function invariants() {
   const f = await json(`
 with totals as (select public.ledger_totals() as j),
 v as (
-  select (j ->> 'paystack')::numeric as ps, (j ->> 'escrow')::numeric as es,
+  select (j ->> 'paystack')::numeric + (j ->> 'cray')::numeric + (j ->> 'bank')::numeric as ps,
+         (j ->> 'escrow')::numeric as es,
          (j ->> 'business_wallet')::numeric as bw, (j ->> 'creator_wallet')::numeric as cw,
          (j ->> 'payout_in_flight')::numeric as pif, (j ->> 'platform_revenue')::numeric as pr,
-         (j ->> 'paystack_fees')::numeric as pf
+         (j ->> 'paystack_fees')::numeric + (j ->> 'cray_fees')::numeric as pf
     from totals
 ),
 race_users as (select id from public.users where email like ${lit(`%@${DOMAIN}`)})
@@ -690,4 +706,85 @@ export function checker() {
       else failures.push(`${label}${detail ? ` (${detail})` : ""}`);
     },
   };
+}
+
+// Cray ------------------------------------------------------------------------------------------------
+//
+// Bank-transfer deposits through a business's permanent account, and Cray
+// payouts. These need Cray to be the active provider (setProvider("cray")).
+
+// A completed transfer account for the hire's business, with a number no other
+// run has used.
+export async function transferAccount(business) {
+  const reference = await must(
+    as.service,
+    `public.deposit_account_reference(${lit(business.id)}, 'cray')`,
+  );
+  const number = `9${String(randomInt(0, 1e9)).padStart(9, "0")}`;
+  await must(
+    as.service,
+    `public.complete_deposit_account(${lit(reference)}, ${lit(`va_${RUN}_${number}`)}, ${lit(number)}, 'Bloc Bank', 'Pitchype - Race')`,
+  );
+  return { reference, number };
+}
+
+// The business starts a bank-transfer payment for the hire.
+export async function startTransfer(hire) {
+  return must(
+    as.user(hire.business),
+    `(public.start_payment(${lit(hire.id)}, true, 'transfer')) ->> 'method'`,
+  );
+}
+
+// One deposit webhook, as the server records it after checking the signature.
+export function depositCall(account, deposit) {
+  return `public.record_deposit('cray', ${lit(account.reference)}, ${lit(account.number)}, ${lit(deposit.reference)}, ${deposit.gross}::bigint, ${deposit.charge}::bigint, ${lit(deposit.key)}, '{}'::jsonb) ->> 'outcome'`;
+}
+
+export function newDeposit(gross, charge = 20000) {
+  const reference = `dep-${RUN}-${randomUUID().slice(0, 8)}`;
+  return { reference, key: `cray.deposit:${reference}`, gross, charge };
+}
+
+// How a deposit reached the ledger: groups (one per deposit reference), and
+// the net the wallet and the cray account got from it.
+export function depositFacts(deposit) {
+  return json(`
+select json_build_object(
+  'groups', (select count(distinct l.group_id) from public.ledger_entries l
+              where l.event_type = 'deposit_received' and l.paystack_reference = ${lit(deposit.reference)}),
+  'cray', coalesce((select sum(l.amount_kobo) from public.ledger_entries l
+                     where l.event_type = 'deposit_received' and l.paystack_reference = ${lit(deposit.reference)}
+                       and l.account = 'cray'), 0),
+  'events', (select count(*) from public.payment_events where event_key = ${lit(deposit.key)}))`);
+}
+
+// A creator whose wallet holds `release − fee` and who has a Cray bank account.
+export async function crayCreatorWithBalance(price, release) {
+  const hire = await newHire(price);
+  await fund(hire);
+  await must(
+    as.postgres,
+    settleCall(hire, release === price ? "release" : "split", release),
+  );
+  await must(
+    as.service,
+    `public.save_cray_bank_account_for(${lit(hire.creator.id)}, '000013', 'GTBank', '1234', 'RACE TESTER', 'v1:aXY=:dGFn:Y2lwaGVy')`,
+  );
+  return hire;
+}
+
+export function crayPayoutFacts(payoutId) {
+  return json(`
+select json_build_object(
+  'status', p.status,
+  'provider_reference', p.provider_reference,
+  'in_flight', coalesce((select sum(l.amount_kobo) from public.ledger_entries l
+                          where l.payout_id = p.id and l.account = 'payout_in_flight'), 0),
+  'cray', coalesce((select sum(l.amount_kobo) from public.ledger_entries l
+                     where l.payout_id = p.id and l.account = 'cray'), 0),
+  'groups', (select coalesce(json_object_agg(g.event_type, g.n), '{}'::json) from (
+               select l.event_type, count(distinct l.group_id) as n from public.ledger_entries l
+                where l.payout_id = p.id group by l.event_type) g)
+) from public.payouts p where p.id = ${lit(payoutId)}`);
 }

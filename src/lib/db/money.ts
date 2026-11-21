@@ -360,6 +360,30 @@ export async function getPaymentProvider(reference: string): Promise<{
   return { provider: data.provider, cardPartKobo: data.card_amount_kobo };
 }
 
+/**
+ * Cray card payments still waiting for an answer, started between `newerThan`
+ * and `olderThan`, oldest first (for the daily poll: Cray's webhook for them
+ * is unsigned and may be missed). Secret-key client.
+ */
+export async function listInitiatedCrayCardPayments(
+  olderThan: Date,
+  newerThan: Date,
+  limit = 200,
+): Promise<{ reference: string }[]> {
+  const { data, error } = await createAdminClient()
+    .from("payments")
+    .select("reference")
+    .eq("provider", "cray")
+    .eq("method", "card")
+    .eq("status", "initiated")
+    .lt("created_at", olderThan.toISOString())
+    .gt("created_at", newerThan.toISOString())
+    .order("created_at")
+    .limit(Math.max(1, Math.min(limit, 200)));
+  if (error) throw new Error(`card payments lookup failed (${error.code})`);
+  return data;
+}
+
 // Work and settlement ------------------------------------------------------------------------
 
 /** The creator starts work on a funded hire (funded → in_progress). */

@@ -4,8 +4,9 @@ import { sendDueEmailsSafely } from "@/lib/send-emails";
 
 import { authorised } from "../authorised";
 
-// Daily money checks: settles payouts stuck in `processing`, then records a
-// reconciliation run against Paystack's balance. Safe to call twice (see
+// Daily money checks: confirms Cray card payments that never heard back,
+// settles payouts stuck in `processing`, then records a reconciliation run per
+// payment provider that is set up. Safe to call twice (see
 // src/lib/money-checks.ts). Same body either way, but the status is 500 when
 // any step failed so the scheduler's log shows it. Vercel Cron calls it (vercel.json) with
 // `Authorization: Bearer $CRON_SECRET`; any other scheduler can do the same.

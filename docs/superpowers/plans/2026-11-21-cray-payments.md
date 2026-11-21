@@ -288,10 +288,10 @@
 - Produces: `runMoneyChecks` adds (a) Cray card poller: `confirmCardPayment` for each Cray card payment `initiated` 10 minutes–7 days old; (b) payouts: Paystack as today (stuck > 15 min); Cray: every `processing` payout (no age cut-off) through `confirmTransfer`; (c) reconciliation: one run per configured provider (`getBalanceKobo` for Paystack, `getBalances` for Cray with parts). `MoneyChecksResult` gains `cardPaymentsChecked`, `cardPaymentsFunded`, `cardPaymentsErrored`, `reconciliations: { provider, ok }[]`; `cronStatus` 500 if any of them errored.
 - Race scenarios (append to the list, numbered from 29): `29 same deposit twice at once`, `30 deposit vs lapse`, `31 deposit vs business cancel`, `32 deposit vs card payment for the same hire`, `33 provider switch during start_payment`, `34 two deposits for one hire at once`, `35 payout send record vs payout webhook finish`. Each asserts the existing `invariants()` plus: one deposit group per event key; a hire funded at most once; wallet never negative.
 
-- [ ] **Step 1: Failing tests** in `money-checks.test.ts` with fakes: a Cray card payment found by the poller is confirmed; a Cray processing payout with no age is checked; one provider's balance failure doesn't stop the other's run and makes `cronStatus` 500; with only Paystack configured, no Cray calls.
-- [ ] **Step 2–3:** implement; add race scenarios using the existing helpers in `money-race-lib.mjs` (add a `deposit(...)` helper there).
-- [ ] **Step 4:** `npm test`; `node scripts/money-race.mjs` → every scenario PASS (needs local Supabase running).
-- [ ] **Step 5: Commit** `Poll Cray card payments and payouts daily and race the deposit paths`.
+- [x] **Step 1: Failing tests** in `money-checks.test.ts` with fakes: a Cray card payment found by the poller is confirmed; a Cray processing payout with no age is checked; one provider's balance failure doesn't stop the other's run and makes `cronStatus` 500; with only Paystack configured, no Cray calls.
+- [x] **Step 2–3:** implement; add race scenarios using the existing helpers in `money-race-lib.mjs` (add a `deposit(...)` helper there).
+- [x] **Step 4:** `npm test`; `node scripts/money-race.mjs` → every scenario PASS (needs local Supabase running).
+- [x] **Step 5: Commit** `Poll Cray card payments and payouts daily and race the deposit paths`.
 
 ### Task 15: Documentation and final verification
 

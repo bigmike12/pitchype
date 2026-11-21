@@ -553,7 +553,7 @@ export async function getPayoutReference(
   return data?.reference ?? null;
 }
 
-/** Payouts sent to Paystack before `cutoff` and still waiting for an answer. Secret-key client. */
+/** Paystack payouts sent before `cutoff` and still waiting for an answer. Secret-key client. */
 export async function listProcessingPayoutsOlderThan(
   cutoff: Date,
 ): Promise<{ id: string; reference: string }[]> {
@@ -561,6 +561,7 @@ export async function listProcessingPayoutsOlderThan(
     .from("payouts")
     .select("id, reference")
     .eq("status", "processing")
+    .eq("provider", "paystack")
     .lt("approved_at", cutoff.toISOString())
     .order("approved_at")
     .limit(100);
@@ -599,4 +600,26 @@ export async function getPayoutForApproval(payoutId: string): Promise<{
     accountNumberEncrypted: data.account_number_encrypted,
     accountName: data.account_name,
   };
+}
+
+/**
+ * Every payout of a provider still processing, however old, oldest first.
+ * Cray payouts are checked whatever their age: only Cray's own word fails one.
+ * Secret-key client.
+ */
+export async function listProcessingPayouts(
+  provider: "cray" | "paystack",
+): Promise<{ id: string; reference: string }[]> {
+  const { data, error } = await createAdminClient()
+    .from("payouts")
+    .select("id, reference")
+    .eq("status", "processing")
+    .eq("provider", provider)
+    .order("approved_at")
+    .limit(100);
+  if (error)
+    throw new Error(`processing payouts lookup failed (${error.code})`);
+  return data.flatMap((row) =>
+    row.reference ? [{ id: row.id, reference: row.reference }] : [],
+  );
 }
