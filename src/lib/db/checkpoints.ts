@@ -8,7 +8,9 @@
 import "server-only";
 
 import { parseMetrics, type Metrics } from "@/lib/checkpoints";
+import type { CheckpointNoticeCounts } from "@/lib/review-deadlines";
 import { proofFileUrls } from "@/lib/storage";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createSessionClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
 
@@ -216,4 +218,30 @@ export async function submitCheckpoint(
   });
   if (error) return refused(error, "submit checkpoint");
   return { ok: true, value: data };
+}
+
+/**
+ * The daily job's checkpoint step: reminders, overdue notices, warnings and
+ * "dispute available" notices that are due, each sent once. Safe to run twice
+ * or late (run_checkpoint_notices()). `failed` counts hires that couldn't be
+ * finished this run; the next run retries them.
+ */
+export async function runCheckpointNotices(): Promise<CheckpointNoticeCounts> {
+  const { data, error } = await createAdminClient().rpc(
+    "run_checkpoint_notices",
+  );
+  if (error) throw new Error(`checkpoint notices failed (${error.code})`);
+  const counts =
+    typeof data === "object" && data !== null && !Array.isArray(data)
+      ? data
+      : {};
+  const count = (key: string) =>
+    typeof counts[key] === "number" ? counts[key] : 0;
+  return {
+    reminded: count("reminded"),
+    overdue: count("overdue"),
+    warned: count("warned"),
+    disputeAvailable: count("dispute_available"),
+    failed: count("failed"),
+  };
 }

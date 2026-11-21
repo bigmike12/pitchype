@@ -138,6 +138,10 @@ test("missing facts never show 'undefined'", () => {
     "kickoff_done",
     "checkpoint_done",
     "checkpoint_late",
+    "checkpoint_reminder",
+    "checkpoint_overdue",
+    "checkpoint_warning",
+    "checkpoint_dispute_available",
   ]) {
     const d = describeNotification(row(kind));
     assert.ok(d, kind);
@@ -704,4 +708,52 @@ test("checkpoint notices tell the business who sent what, and link to the hire",
   );
   assert.match(lateKickoff?.title ?? "", /kickoff/);
   assert.match(lateKickoff?.title ?? "", /after it was due/);
+});
+
+test("the reminder and warning go to the creator and never threaten money", () => {
+  const reminder = describeNotification(
+    row("checkpoint_reminder", {
+      ...hire,
+      kickoff: true,
+      due_at: "2026-12-07T09:00:00Z",
+    }),
+    "influencer",
+  );
+  assert.match(reminder?.title ?? "", /Your kickoff/);
+  assert.equal(reminder?.href, "/jobs/e1");
+
+  const warning = describeNotification(
+    row("checkpoint_warning", {
+      ...hire,
+      dispute_from: "2026-12-12T09:00:00Z",
+    }),
+    "influencer",
+  );
+  assert.match(warning?.body ?? "", /open a dispute/);
+  assert.match(warning?.body ?? "", /No money is held back/);
+  assert.equal(warning?.href, "/jobs/e1");
+});
+
+test("an overdue checkpoint reads differently for each side", () => {
+  const forBusiness = describeNotification(
+    row("checkpoint_overdue", { ...hire, name: "Tolu" }),
+    "business",
+  );
+  const forCreator = describeNotification(
+    row("checkpoint_overdue", { ...hire, name: "Ada Kitchen" }),
+    "influencer",
+  );
+  assert.match(forBusiness?.title ?? "", /Tolu’s checkpoint/);
+  assert.equal(forBusiness?.href, "/business/engagements/e1");
+  assert.match(forCreator?.title ?? "", /Your checkpoint/);
+  assert.equal(forCreator?.href, "/jobs/e1");
+});
+
+test("dispute available tells the business, and leads to the dispute page", () => {
+  const d = describeNotification(
+    row("checkpoint_dispute_available", { ...hire, name: "Tolu" }),
+    "business",
+  );
+  assert.match(d?.title ?? "", /open a dispute about missing work/);
+  assert.equal(d?.href, "/business/engagements/e1/dispute");
 });

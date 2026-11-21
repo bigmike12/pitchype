@@ -43,6 +43,10 @@ export const EMAIL_POLICY: Record<string, EmailPolicy> = {
   new_message: "messages",
 
   application_hired: "always",
+  checkpoint_reminder: "always",
+  checkpoint_overdue: "always",
+  checkpoint_warning: "always",
+  checkpoint_dispute_available: "always",
   hire_lapsed: "always",
   hire_funded: "always",
   funded_hire_cancelled: "always",
