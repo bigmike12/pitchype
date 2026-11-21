@@ -55,10 +55,12 @@ export type TransferDeps = {
   } | null>;
   finishPayout: (input: {
     reference: string;
-    outcome: "paid" | "failed";
+    outcome: "paid" | "failed" | "reversed";
     eventKey: string;
     payload: Json;
-  }) => Promise<"paid" | "failed" | "duplicate" | "ignored">;
+    sentKobo?: number | null;
+    chargeKobo?: number | null;
+  }) => Promise<"paid" | "failed" | "reversed" | "duplicate" | "ignored">;
   now: () => Date;
 };
 
@@ -165,7 +167,13 @@ export function stuckPayoutCutoff(now: Date): Date {
 }
 
 export type TransferResult =
-  "paid" | "failed" | "duplicate" | "ignored" | "pending" | "unknown";
+  | "paid"
+  | "failed"
+  | "reversed"
+  | "duplicate"
+  | "ignored"
+  | "pending"
+  | "unknown";
 
 /** Asks Paystack about a payout's transfer and settles the payout if Paystack has an answer. */
 export async function confirmTransfer(

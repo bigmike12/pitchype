@@ -191,6 +191,13 @@ export async function approvePayoutAction(
     return { status: "error", message: refusalText(approved.reason) };
   }
 
+  // Cray payouts are sent by their own path (the daily check picks up anything
+  // processing); only a Paystack payout is sent from here.
+  if (approved.value.provider !== "paystack") {
+    refresh();
+    return { status: "success", approved: true, message: "Approved." };
+  }
+
   try {
     await initiateTransfer({
       amountKobo: approved.value.sendKobo,

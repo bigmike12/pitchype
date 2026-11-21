@@ -114,7 +114,7 @@ async function WalletContent({ searchParams }: { searchParams: SearchParams }) {
       getWalletBalance(user.id, "creator_wallet"),
       getCreatorWalletSummary(user.id),
       listMyLedger(HISTORY_ROWS),
-      getMyBankAccount(),
+      getMyBankAccount("paystack"),
       listMyPayouts(),
     ]);
   const rows = ledger.filter((row) => row.account === "creator_wallet");

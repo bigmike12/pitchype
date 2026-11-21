@@ -138,6 +138,13 @@ export function payoutCheckOutcome(result: TransferResult): {
           "Paystack says it did not go through. The money is back in the creator’s wallet.",
         changed: true,
       };
+    case "reversed":
+      return {
+        status: "success",
+        message:
+          "The provider took this payout back. The money is back in the creator’s wallet.",
+        changed: true,
+      };
     case "pending":
       return {
         status: "success",

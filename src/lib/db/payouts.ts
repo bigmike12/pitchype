@@ -45,18 +45,46 @@ export async function saveBankAccount(input: {
   if (error) throw new Error(`bank account save failed (${error.code})`);
 }
 
+/**
+ * Saves (or replaces) a creator's Cray payout account. Secret-key client, like
+ * saveBankAccount: the CALLER passes the signed-in creator's id, only after
+ * Cray validated the account, with the number already encrypted
+ * (src/lib/account-crypto.ts). The plain number never reaches the database.
+ */
+export async function saveCrayBankAccount(input: {
+  userId: string;
+  bankCode: string;
+  bankName: string;
+  last4: string;
+  accountName: string;
+  accountNumberEncrypted: string;
+}): Promise<void> {
+  const { error } = await createAdminClient().rpc("save_cray_bank_account_for", {
+    person: input.userId,
+    bank_code: input.bankCode,
+    bank_name: input.bankName,
+    last4: input.last4,
+    account_name: input.accountName,
+    encrypted_number: input.accountNumberEncrypted,
+  });
+  if (error) throw new Error(`bank account save failed (${error.code})`);
+}
+
 export type BankAccount = {
   bankName: string;
   last4: string;
   accountName: string;
 };
 
-/** The signed-in creator's payout account, without the recipient code. */
-export async function getMyBankAccount(): Promise<BankAccount | null> {
+/** The signed-in creator's payout account for a provider, without the recipient code or number. */
+export async function getMyBankAccount(
+  provider: "cray" | "paystack",
+): Promise<BankAccount | null> {
   const supabase = await createSessionClient();
   const { data, error } = await supabase
     .from("bank_accounts")
     .select("bank_name, last4, account_name")
+    .eq("provider", provider)
     .limit(1)
     .maybeSingle();
   if (error) throw new Error(`bank account lookup failed (${error.code})`);
@@ -234,20 +262,36 @@ export async function listRecentDecidedPayouts(
 }
 
 /**
- * requested → processing. Returns what the server sends to Paystack: the
- * transfer reference (fixed now, so a retry cannot send twice) and the
- * destination saved at request time. The recipient code stays on the server.
+ * requested → processing. Returns what the server sends to the payout's
+ * provider: the transfer reference (fixed now, so a retry cannot send twice)
+ * and the destination saved at request time. For Paystack that is the
+ * recipient code; for Cray the bank code and the ENCRYPTED number, which only
+ * the send path decrypts.
  */
-export async function approvePayout(payoutId: string): Promise<
-  Result<{
-    reference: string;
-    recipientCode: string;
-    sendKobo: number;
-    bankName: string;
-    last4: string;
-    accountName: string;
-  }>
-> {
+export type ApprovedPayout =
+  | {
+      provider: "paystack";
+      reference: string;
+      recipientCode: string;
+      sendKobo: number;
+      bankName: string;
+      last4: string;
+      accountName: string;
+    }
+  | {
+      provider: "cray";
+      reference: string;
+      bankCode: string;
+      accountNumberEncrypted: string;
+      sendKobo: number;
+      bankName: string;
+      last4: string;
+      accountName: string;
+    };
+
+export async function approvePayout(
+  payoutId: string,
+): Promise<Result<ApprovedPayout>> {
   const supabase = await createSessionClient();
   const { data, error } = await supabase.rpc("approve_payout", {
     payout: payoutId,
@@ -255,21 +299,36 @@ export async function approvePayout(payoutId: string): Promise<
   if (error) return refused(error, "payout approval");
   const value = obj(data);
   const reference = str(value.reference);
-  const recipientCode = str(value.recipient_code);
   const sendKobo = value.send_kobo;
-  if (!reference || !recipientCode || typeof sendKobo !== "number") {
+  if (!reference || typeof sendKobo !== "number") {
+    throw new Error("payout approval returned an unexpected shape");
+  }
+  const common = {
+    reference,
+    sendKobo,
+    bankName: str(value.bank_name) ?? "",
+    last4: str(value.last4) ?? "",
+    accountName: str(value.account_name) ?? "",
+  };
+  // Paystack's answer has no `provider` key: it is exactly what it always was.
+  if (str(value.provider) === "cray") {
+    const bankCode = str(value.bank_code);
+    const accountNumberEncrypted = str(value.account_number_encrypted);
+    if (!bankCode || !accountNumberEncrypted) {
+      throw new Error("payout approval returned an unexpected shape");
+    }
+    return {
+      ok: true,
+      value: { provider: "cray", ...common, bankCode, accountNumberEncrypted },
+    };
+  }
+  const recipientCode = str(value.recipient_code);
+  if (!recipientCode) {
     throw new Error("payout approval returned an unexpected shape");
   }
   return {
     ok: true,
-    value: {
-      reference,
-      recipientCode,
-      sendKobo,
-      bankName: str(value.bank_name) ?? "",
-      last4: str(value.last4) ?? "",
-      accountName: str(value.account_name) ?? "",
-    },
+    value: { provider: "paystack", ...common, recipientCode },
   };
 }
 
@@ -290,26 +349,34 @@ export async function rejectPayout(
 // The server (webhook and stuck-payout poll) ---------------------------------------------------
 
 /**
- * Records a transfer result the server verified with Paystack. Secret-key
- * client. Idempotent in the database: a repeated event is 'duplicate', a
- * result contradicting a final payout is 'ignored'.
+ * Records a transfer result the server verified with the payout's provider.
+ * Secret-key client. Idempotent in the database: a repeated event is
+ * 'duplicate', a result contradicting a final payout is 'ignored'. For Cray,
+ * `sentKobo` and `chargeKobo` come from the verified requery; 'reversed' is
+ * only for a Cray payout recorded as paid.
  */
 export async function finishPayout(input: {
   reference: string;
-  outcome: "paid" | "failed";
+  outcome: "paid" | "failed" | "reversed";
   eventKey: string;
   payload: Json;
-}): Promise<"paid" | "failed" | "duplicate" | "ignored"> {
+  sentKobo?: number | null;
+  chargeKobo?: number | null;
+}): Promise<"paid" | "failed" | "reversed" | "duplicate" | "ignored"> {
   const { data, error } = await createAdminClient().rpc("finish_payout", {
     reference: input.reference,
     outcome: input.outcome,
     event_key: input.eventKey,
     payload: input.payload,
+    // Omitted when absent so the database default (null) applies.
+    ...(input.sentKobo == null ? {} : { sent_kobo: input.sentKobo }),
+    ...(input.chargeKobo == null ? {} : { charge_kobo: input.chargeKobo }),
   });
   if (error) throw new Error(`finish payout failed (${error.code})`);
   if (
     data === "paid" ||
     data === "failed" ||
+    data === "reversed" ||
     data === "duplicate" ||
     data === "ignored"
   ) {
@@ -318,18 +385,137 @@ export async function finishPayout(input: {
   throw new Error("finish payout returned an unexpected result");
 }
 
+export type PayoutToSend = {
+  id: string;
+  status: string;
+  provider: "cray" | "paystack";
+  reference: string | null;
+  providerReference: string | null;
+  approvedAt: string | null;
+  // What the bank receives: amount less the creator's transfer fee.
+  sendKobo: number;
+  // Cray only: the snapshotted destination, never the plain number.
+  bankCode: string | null;
+  accountNumberEncrypted: string | null;
+  accountName: string;
+};
+
+const PAYOUT_TO_SEND_COLUMNS =
+  "id, status, provider, reference, provider_reference, approved_at, amount_kobo, transfer_fee_kobo, bank_code, account_number_encrypted, account_name";
+
+type PayoutToSendRow = {
+  id: string;
+  status: string;
+  provider: string;
+  reference: string | null;
+  provider_reference: string | null;
+  approved_at: string | null;
+  amount_kobo: number;
+  transfer_fee_kobo: number;
+  bank_code: string | null;
+  account_number_encrypted: string | null;
+  account_name: string;
+};
+
+function toPayoutToSend(row: PayoutToSendRow): PayoutToSend {
+  if (row.provider !== "cray" && row.provider !== "paystack") {
+    throw new Error("payout has an unknown provider");
+  }
+  return {
+    id: row.id,
+    status: row.status,
+    provider: row.provider,
+    reference: row.reference,
+    providerReference: row.provider_reference,
+    approvedAt: row.approved_at,
+    sendKobo: row.amount_kobo - row.transfer_fee_kobo,
+    bankCode: row.bank_code,
+    accountNumberEncrypted: row.account_number_encrypted,
+    accountName: row.account_name,
+  };
+}
+
 /** The payout with this transfer reference, or null. Secret-key client. */
 export async function getPayoutByReference(
   reference: string,
-): Promise<{ id: string; status: string; approvedAt: string | null } | null> {
+): Promise<PayoutToSend | null> {
   const { data, error } = await createAdminClient()
     .from("payouts")
-    .select("id, status, approved_at")
+    .select(PAYOUT_TO_SEND_COLUMNS)
     .eq("reference", reference)
     .maybeSingle();
   if (error) throw new Error(`payout lookup failed (${error.code})`);
-  if (!data) return null;
-  return { id: data.id, status: data.status, approvedAt: data.approved_at };
+  return data ? toPayoutToSend(data) : null;
+}
+
+/** The Cray payout with Cray's own id, or null. Secret-key client. */
+export async function getPayoutByProviderReference(
+  providerReference: string,
+): Promise<PayoutToSend | null> {
+  const { data, error } = await createAdminClient()
+    .from("payouts")
+    .select(PAYOUT_TO_SEND_COLUMNS)
+    .eq("provider_reference", providerReference)
+    .maybeSingle();
+  if (error) throw new Error(`payout lookup failed (${error.code})`);
+  return data ? toPayoutToSend(data) : null;
+}
+
+/** Records Cray's id for a payout, once. Secret-key client. */
+export async function recordPayoutSend(
+  reference: string,
+  providerReference: string,
+): Promise<"set" | "already_set" | "conflict"> {
+  const { data, error } = await createAdminClient().rpc("record_payout_send", {
+    payout_reference: reference,
+    new_provider_reference: providerReference,
+  });
+  if (error) throw new Error(`record payout send failed (${error.code})`);
+  if (data === "set" || data === "already_set" || data === "conflict") {
+    return data;
+  }
+  throw new Error("record payout send returned an unexpected result");
+}
+
+/**
+ * Marks a processing Cray payout as waiting for funds (nothing was sent) or
+ * needing Cray's reference (the send may have gone out). It stays processing.
+ * Secret-key client.
+ */
+export async function flagPayout(
+  reference: string,
+  flag: "waiting_for_funds" | "needs_reference",
+): Promise<void> {
+  const { error } = await createAdminClient().rpc("flag_payout", {
+    payout_reference: reference,
+    flag,
+  });
+  if (error) throw new Error(`flag payout failed (${error.code})`);
+}
+
+/** An admin pastes Cray's id for a payout whose send is unclear (checked by requery before anything settles). */
+export async function attachPayoutReference(
+  payoutId: string,
+  providerReference: string,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const supabase = await createSessionClient();
+  const { error } = await supabase.rpc("attach_payout_reference", {
+    payout: payoutId,
+    new_provider_reference: providerReference,
+  });
+  if (error) {
+    if (
+      error.code === "P0001" &&
+      (error.message === "not_allowed" ||
+        error.message === "no_such_payout" ||
+        error.message === "payout_not_attachable")
+    ) {
+      return { ok: false, reason: error.message };
+    }
+    if (error.code === "42501") return { ok: false, reason: "not_allowed" };
+    throw new Error(`attach payout reference failed (${error.code})`);
+  }
+  return { ok: true };
 }
 
 /** A payout's transfer reference, for admins (row level security); null if none is fixed yet or no such payout. */

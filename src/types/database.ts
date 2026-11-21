@@ -88,34 +88,40 @@ export type Database = {
       bank_accounts: {
         Row: {
           account_name: string
+          account_number_encrypted: string | null
           bank_code: string
           bank_name: string
           created_at: string
           id: string
           last4: string
-          recipient_code: string
+          provider: string
+          recipient_code: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           account_name: string
+          account_number_encrypted?: string | null
           bank_code: string
           bank_name: string
           created_at?: string
           id?: string
           last4: string
-          recipient_code: string
+          provider?: string
+          recipient_code?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           account_name?: string
+          account_number_encrypted?: string | null
           bank_code?: string
           bank_name?: string
           created_at?: string
           id?: string
           last4?: string
-          recipient_code?: string
+          provider?: string
+          recipient_code?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -123,7 +129,7 @@ export type Database = {
           {
             foreignKeyName: "bank_accounts_user_id_fkey"
             columns: ["user_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -1480,60 +1486,93 @@ export type Database = {
       payouts: {
         Row: {
           account_name: string
+          account_number_encrypted: string | null
           amount_kobo: number
           approved_at: string | null
           approved_by: string | null
+          bank_code: string | null
           bank_name: string
           created_at: string
           decision_reason: string | null
           fee_config_id: string
           id: string
           last4: string
+          needs_reference: boolean
           paid_at: string | null
-          recipient_code: string
+          provider: string
+          provider_charge_kobo: number | null
+          provider_reference: string | null
+          recipient_code: string | null
           reference: string | null
+          reference_attached_at: string | null
+          reference_attached_by: string | null
+          reversed_kobo: number | null
+          sent_kobo: number | null
           status: string
           transfer_fee_kobo: number
           updated_at: string
           user_id: string
+          waiting_for_funds: boolean
         }
         Insert: {
           account_name: string
+          account_number_encrypted?: string | null
           amount_kobo: number
           approved_at?: string | null
           approved_by?: string | null
+          bank_code?: string | null
           bank_name: string
           created_at?: string
           decision_reason?: string | null
           fee_config_id: string
           id?: string
           last4: string
+          needs_reference?: boolean
           paid_at?: string | null
-          recipient_code: string
+          provider?: string
+          provider_charge_kobo?: number | null
+          provider_reference?: string | null
+          recipient_code?: string | null
           reference?: string | null
+          reference_attached_at?: string | null
+          reference_attached_by?: string | null
+          reversed_kobo?: number | null
+          sent_kobo?: number | null
           status?: string
           transfer_fee_kobo: number
           updated_at?: string
           user_id: string
+          waiting_for_funds?: boolean
         }
         Update: {
           account_name?: string
+          account_number_encrypted?: string | null
           amount_kobo?: number
           approved_at?: string | null
           approved_by?: string | null
+          bank_code?: string | null
           bank_name?: string
           created_at?: string
           decision_reason?: string | null
           fee_config_id?: string
           id?: string
           last4?: string
+          needs_reference?: boolean
           paid_at?: string | null
-          recipient_code?: string
+          provider?: string
+          provider_charge_kobo?: number | null
+          provider_reference?: string | null
+          recipient_code?: string | null
           reference?: string | null
+          reference_attached_at?: string | null
+          reference_attached_by?: string | null
+          reversed_kobo?: number | null
+          sent_kobo?: number | null
           status?: string
           transfer_fee_kobo?: number
           updated_at?: string
           user_id?: string
+          waiting_for_funds?: boolean
         }
         Relationships: [
           {
@@ -1548,6 +1587,13 @@ export type Database = {
             columns: ["fee_config_id"]
             isOneToOne: false
             referencedRelation: "fee_config"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payouts_reference_attached_by_fkey"
+            columns: ["reference_attached_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -2146,6 +2192,10 @@ export type Database = {
         Returns: string
       }
       approve_payout: { Args: { payout: string }; Returns: Json }
+      attach_payout_reference: {
+        Args: { new_provider_reference: string; payout: string }
+        Returns: undefined
+      }
       audit_name: { Args: { person: string }; Returns: string }
       block_user: { Args: { other: string }; Returns: undefined }
       call_send_emails_route: { Args: never; Returns: undefined }
@@ -2320,12 +2370,18 @@ export type Database = {
       }
       finish_payout: {
         Args: {
+          charge_kobo?: number
           event_key: string
           outcome: string
           payload: Json
           reference: string
+          sent_kobo?: number
         }
         Returns: string
+      }
+      flag_payout: {
+        Args: { flag: string; payout_reference: string }
+        Returns: undefined
       }
       follower_range_for: {
         Args: { follower_count: number }
@@ -2432,6 +2488,10 @@ export type Database = {
         Returns: undefined
       }
       payment_in_flight: { Args: { engagement: string }; Returns: boolean }
+      payout_fee_for: {
+        Args: { amount_kobo: number; which: string }
+        Returns: number
+      }
       post_ledger_group: {
         Args: {
           actor: string
@@ -2492,6 +2552,10 @@ export type Database = {
           payload: Json
         }
         Returns: Json
+      }
+      record_payout_send: {
+        Args: { new_provider_reference: string; payout_reference: string }
+        Returns: string
       }
       record_reconciliation: {
         Args: { paystack_balance_kobo: number }
@@ -2610,6 +2674,17 @@ export type Database = {
           verified_only: boolean
         }
         Returns: string
+      }
+      save_cray_bank_account_for: {
+        Args: {
+          account_name: string
+          bank_code: string
+          bank_name: string
+          encrypted_number: string
+          last4: string
+          person: string
+        }
+        Returns: undefined
       }
       save_email_preferences: {
         Args: { applications: boolean; campaigns: boolean; messages: boolean }
@@ -2834,6 +2909,7 @@ export type Database = {
         | "click_hold_started"
         | "clicks_stopped"
         | "deposit_received"
+        | "payout_reversed"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -3059,6 +3135,7 @@ export const Constants = {
         "click_hold_started",
         "clicks_stopped",
         "deposit_received",
+        "payout_reversed",
       ],
       payment_model: ["fixed", "per_click"],
       report_reason: [
