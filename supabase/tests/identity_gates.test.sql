@@ -112,6 +112,8 @@ values ('00000000-0000-0000-0000-0000000e1002', 'owner_bvn', 'verified', 'pit_id
         '000', 'v1:gate-bob', true, now());
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "e1e1e1e1-0000-0000-0000-0000000e1002"}';
+update public.campaigns set post_from = public.lagos_today() + 12, ends_on = deliver_by + 10
+ where title = 'Bob draft'; -- fixture: a new campaign needs a timeline (campaign_timeline migration)
 select is(public.transition_campaign((select id from public.campaigns where title = 'Bob draft'), 'submit')::text, 'pending_review',
   'a verified business sends a campaign for listing');
 select isnt(public.approve_application(

@@ -170,6 +170,35 @@ export type Database = {
           },
         ]
       }
+      campaign_checkpoints: {
+        Row: {
+          campaign_id: string
+          due_on: string
+          id: string
+          seq: number
+        }
+        Insert: {
+          campaign_id: string
+          due_on: string
+          id?: string
+          seq: number
+        }
+        Update: {
+          campaign_id?: string
+          due_on?: string
+          id?: string
+          seq?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_checkpoints_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_deliverables: {
         Row: {
           campaign_id: string
@@ -329,11 +358,16 @@ export type Database = {
           blocked_channels: string[]
           brief: string
           business_id: string
+          checkpoint_evidence: string[] | null
+          checkpoint_interval_days: number | null
+          checkpoints_enabled: boolean
           closed_at: string | null
           cpc_kobo: number | null
           created_at: string
           deliver_by: string
           destination_url: string | null
+          ends_on: string | null
+          final_requirements: string[]
           guidelines: string | null
           id: string
           niches: string[]
@@ -359,11 +393,16 @@ export type Database = {
           blocked_channels?: string[]
           brief: string
           business_id: string
+          checkpoint_evidence?: string[] | null
+          checkpoint_interval_days?: number | null
+          checkpoints_enabled?: boolean
           closed_at?: string | null
           cpc_kobo?: number | null
           created_at?: string
           deliver_by: string
           destination_url?: string | null
+          ends_on?: string | null
+          final_requirements?: string[]
           guidelines?: string | null
           id?: string
           niches?: string[]
@@ -389,11 +428,16 @@ export type Database = {
           blocked_channels?: string[]
           brief?: string
           business_id?: string
+          checkpoint_evidence?: string[] | null
+          checkpoint_interval_days?: number | null
+          checkpoints_enabled?: boolean
           closed_at?: string | null
           cpc_kobo?: number | null
           created_at?: string
           deliver_by?: string
           destination_url?: string | null
+          ends_on?: string | null
+          final_requirements?: string[]
           guidelines?: string | null
           id?: string
           niches?: string[]
@@ -2601,6 +2645,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["follower_range"]
       }
       fund_engagement: { Args: { payment: string }; Returns: boolean }
+      generate_campaign_checkpoints: {
+        Args: { campaign: string }
+        Returns: undefined
+      }
       get_campaign: { Args: { campaign: string }; Returns: Json }
       get_listed_creator: {
         Args: { creator_slug: string }
@@ -2931,10 +2979,15 @@ export type Database = {
           blocked_channels?: string[]
           brief: string
           campaign_id: string
+          checkpoint_evidence?: string[]
+          checkpoint_interval_days?: number
+          checkpoints_enabled?: boolean
           cpc_kobo?: number
           deliver_by: string
           deliverables: Json
           destination_url?: string
+          ends_on?: string
+          final_requirements?: string[]
           guidelines: string
           niches: string[]
           payment_model?: Database["public"]["Enums"]["payment_model"]

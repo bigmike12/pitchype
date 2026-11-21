@@ -98,6 +98,11 @@ test("a complete campaign form", () => {
       destinationUrl: null,
       utmTags: true,
       blockedChannels: [],
+      endsOn: null,
+      checkpointsEnabled: false,
+      checkpointIntervalDays: null,
+      checkpointEvidence: [],
+      finalRequirements: [],
     },
   });
 });
@@ -522,4 +527,174 @@ test("a per-click campaign's clicks stop at midnight Lagos after the end date", 
     clickWindowEnded("2026-12-24", new Date("2026-12-24T23:00:00Z")),
     true,
   );
+});
+
+// Timeline, checkpoints and final requirements ---------------------------------------------
+
+const TIMELINE: [string, string][] = [
+  ...replace("postFrom", "2026-11-21"),
+  ["endsOn", "2026-12-10"],
+];
+const timelineWith = (extra: [string, string][]) =>
+  form([...TIMELINE, ...extra]);
+
+test("a campaign with an end date and nothing else keeps checkpoints off", () => {
+  const parsed = parseCampaignForm(form(TIMELINE), NICHES, TODAY);
+  assert.ok(parsed.ok);
+  if (!parsed.ok) return;
+  assert.equal(parsed.value.endsOn, "2026-12-10");
+  assert.equal(parsed.value.checkpointsEnabled, false);
+  assert.equal(parsed.value.checkpointIntervalDays, null);
+  assert.deepEqual(parsed.value.checkpointEvidence, []);
+});
+
+test("the end date can't be before final delivery", () => {
+  const parsed = parseCampaignForm(
+    form([...replace("postFrom", "2026-11-21"), ["endsOn", "2026-11-29"]]),
+    NICHES,
+    TODAY,
+  );
+  assert.ok(!parsed.ok && parsed.errors.endsOn);
+});
+
+test("weekly checkpoints with the evidence they need", () => {
+  const parsed = parseCampaignForm(
+    timelineWith([
+      ["checkpointsEnabled", "on"],
+      ["checkpointFrequency", "7"],
+      ["checkpointEvidence", "progress_update"],
+      ["checkpointEvidence", "analytics"],
+      ["checkpointEvidence", "selfie"],
+      ["finalRequirements", "final_report"],
+    ]),
+    NICHES,
+    TODAY,
+  );
+  assert.ok(parsed.ok);
+  if (!parsed.ok) return;
+  assert.equal(parsed.value.checkpointsEnabled, true);
+  assert.equal(parsed.value.checkpointIntervalDays, 7);
+  assert.deepEqual(parsed.value.checkpointEvidence, [
+    "progress_update",
+    "analytics",
+  ]);
+  assert.deepEqual(parsed.value.finalRequirements, ["final_report"]);
+});
+
+test("a custom checkpoint interval is 2 to 30 days", () => {
+  const custom = (days: string) =>
+    parseCampaignForm(
+      timelineWith([
+        ["checkpointsEnabled", "on"],
+        ["checkpointFrequency", "custom"],
+        ["checkpointCustomDays", days],
+        ["checkpointEvidence", "progress_update"],
+      ]),
+      NICHES,
+      TODAY,
+    );
+  const four = custom("4");
+  assert.ok(four.ok && four.value.checkpointIntervalDays === 4);
+  for (const bad of ["1", "31", "2.5", "", "abc"]) {
+    const parsed = custom(bad);
+    assert.ok(!parsed.ok && parsed.errors.checkpointInterval, bad);
+  }
+});
+
+test("checkpoints need evidence, a start date and room before final delivery", () => {
+  const on: [string, string][] = [
+    ["checkpointsEnabled", "on"],
+    ["checkpointFrequency", "7"],
+    ["checkpointEvidence", "progress_update"],
+  ];
+  const noEvidence = parseCampaignForm(
+    timelineWith(on.filter(([n]) => n !== "checkpointEvidence")),
+    NICHES,
+    TODAY,
+  );
+  assert.ok(!noEvidence.ok && noEvidence.errors.checkpointEvidence);
+
+  const noStart = parseCampaignForm(
+    form([...replace("postFrom", ""), ["endsOn", "2026-12-10"], ...on]),
+    NICHES,
+    TODAY,
+  );
+  assert.ok(!noStart.ok && noStart.errors.postFrom);
+
+  // Start 21 Nov, final delivery 30 Nov: the first weekly checkpoint (28 Nov) fits;
+  // a 14-day one (5 Dec) does not.
+  const noRoom = parseCampaignForm(
+    timelineWith([
+      ["checkpointsEnabled", "on"],
+      ["checkpointFrequency", "14"],
+      ["checkpointEvidence", "progress_update"],
+    ]),
+    NICHES,
+    TODAY,
+  );
+  assert.ok(!noRoom.ok && noRoom.errors.checkpointInterval);
+});
+
+test("checkpoint settings are dropped when the switch is off", () => {
+  const parsed = parseCampaignForm(
+    timelineWith([
+      ["checkpointFrequency", "7"],
+      ["checkpointEvidence", "progress_update"],
+    ]),
+    NICHES,
+    TODAY,
+  );
+  assert.ok(parsed.ok);
+  if (!parsed.ok) return;
+  assert.equal(parsed.value.checkpointsEnabled, false);
+  assert.equal(parsed.value.checkpointIntervalDays, null);
+  assert.deepEqual(parsed.value.checkpointEvidence, []);
+});
+
+test("a pay-per-click campaign has no final requirements", () => {
+  const parsed = parseCampaignForm(
+    form([...PER_CLICK, ["finalRequirements", "final_report"]]),
+    NICHES,
+    TODAY,
+  );
+  assert.ok(!parsed.ok && parsed.errors.finalRequirements);
+  const without = parseCampaignForm(form(PER_CLICK), NICHES, TODAY);
+  assert.ok(without.ok && without.value.finalRequirements.length === 0);
+});
+
+test("a live edit can move the end date later but not earlier", () => {
+  const current = {
+    applicationsCloseOn: "2026-11-20",
+    deliverBy: "2026-11-30",
+    endsOn: "2026-12-10" as string | null,
+  };
+  const edit = (entries: [string, string][]) =>
+    parseLiveEditForm(
+      form([
+        ["title", "Zobo launch reels"],
+        ["brief", "Show our new hibiscus zobo to your followers."],
+        ["places", "3"],
+        ["applicationsCloseOn", "2026-11-20"],
+        ["deliverBy", "2026-11-30"],
+        ...entries,
+      ]),
+      current,
+    );
+  const later = edit([["endsOn", "2026-12-20"]]);
+  assert.ok(later.ok && later.value.endsOn === "2026-12-20");
+  const earlier = edit([["endsOn", "2026-12-05"]]);
+  assert.ok(!earlier.ok && earlier.errors.endsOn);
+  const untouched = edit([]);
+  assert.ok(untouched.ok && untouched.value.endsOn === undefined);
+  const pushed = parseLiveEditForm(
+    form([
+      ["title", "Zobo launch reels"],
+      ["brief", "Show our new hibiscus zobo to your followers."],
+      ["places", "3"],
+      ["applicationsCloseOn", "2026-11-20"],
+      ["deliverBy", "2026-12-15"],
+    ]),
+    current,
+  );
+  assert.ok(!pushed.ok && pushed.errors.endsOn);
 });
