@@ -54,6 +54,8 @@ test("money and deadline kinds always send", () => {
     "payout_failed",
     "payout_rejected",
     "payment_stranded",
+    "deposit_received",
+    "payout_reversed",
     "review_reminder",
     "work_submitted",
     "submission_denied",

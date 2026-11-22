@@ -9,13 +9,18 @@ import {
   TRANSFER_FEE_TIERS,
   TRANSFER_STAMP_DUTY_KOBO,
   TRANSFER_STAMP_DUTY_FROM_KOBO,
+  TRANSFER_IN_ALLOWANCE_KOBO,
   clickFeeKept,
   clickSettlement,
+  crayCardCharge,
+  crayTransferInCharge,
   creatorFee,
   faultRefund,
   feeExample,
   formatRate,
   paystackCharge,
+  payoutTransferFee,
+  transferAmountToSend,
   pricePerCreatorWithin,
   transferFee,
 } from "./fees.ts";
@@ -321,4 +326,46 @@ test("per click: a settlement pays the clicks and returns the rest", () => {
     paystackChargeKobo: 95_406,
   });
   assert.equal(capped.releasedKobo, 5_000_000);
+});
+
+test("Cray payouts cost a flat ₦50 with no stamp duty (provisional)", () => {
+  assert.equal(payoutTransferFee("cray", 1_000_000), 5_000);
+  assert.equal(payoutTransferFee("cray", 100_000), 5_000);
+  assert.equal(payoutTransferFee("cray", 50_000_000), 5_000);
+});
+
+test("Paystack payouts keep today's tier fee and stamp duty", () => {
+  for (const amount of [
+    100_000, 500_000, 500_001, 999_999, 1_000_000, 5_000_000, 5_000_001,
+  ]) {
+    assert.equal(payoutTransferFee("paystack", amount), transferFee(amount));
+  }
+});
+
+test("Cray card charge is 1.5% capped at ₦2,000 (an estimate for display)", () => {
+  assert.equal(crayCardCharge(5_250_000), 78_750);
+  assert.equal(crayCardCharge(50_000_000), 200_000);
+});
+
+test("Cray bank-transfer charge is 1% capped at ₦200 (an estimate for display)", () => {
+  assert.equal(TRANSFER_IN_ALLOWANCE_KOBO, 20_000);
+  assert.equal(crayTransferInCharge(1_000_000), 10_000);
+  assert.equal(crayTransferInCharge(5_250_000), 20_000);
+});
+
+test("Cray: the business carries the charge, so a fault refund returns price plus the whole fee", () => {
+  assert.equal(faultRefund(5_000_000, 250_000, 0), 5_250_000);
+});
+
+test("a bank transfer adds Cray's ₦200 charge allowance to what is still to pay", () => {
+  assert.equal(transferAmountToSend(1_250_000), 1_270_000);
+  assert.equal(transferAmountToSend(5_250_000), 5_270_000);
+});
+
+test("the amount to send is a whole number of kobo and more than is owed", () => {
+  for (const owed of [1, 100, 5_250_000, 99_999_999]) {
+    const send = transferAmountToSend(owed);
+    assert.ok(Number.isInteger(send));
+    assert.ok(send > owed);
+  }
 });

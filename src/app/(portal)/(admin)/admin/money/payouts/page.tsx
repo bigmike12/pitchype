@@ -14,6 +14,7 @@ import {
   SectionTitleSkeleton,
 } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth";
+import { getMainBalanceKobo } from "@/lib/cray";
 import { formatDateTime } from "@/lib/creator-profile";
 import { listLedger } from "@/lib/db/money";
 import {
@@ -24,7 +25,9 @@ import {
 import { formatNaira } from "@/lib/money";
 import { pageOf, pagedHref, parsePage } from "@/lib/paging";
 import { adminPayoutStatus } from "@/lib/payout-request";
+import { payoutFlagWords, providerName } from "@/lib/provider-words";
 
+import { AttachReference } from "../attach-reference";
 import { CheckPayout } from "../check-payout";
 import { PayoutDecision } from "../payout-decision";
 
@@ -87,6 +90,26 @@ async function Payouts({ searchParams }: { searchParams: SearchParams }) {
 
   // Recent wallet lines for the waiting payouts on this page only, so one
   // page never makes dozens of lookups.
+  // Cray pays out only from its Main Balance (collected money sits in a
+  // Settlement Balance until the next working day), so show it beside the
+  // Cray payouts. If it can't be read, say so rather than guess.
+  const hasCrayPayouts =
+    show === "waiting"
+      ? waiting.items.some((p) => p.provider === "cray")
+      : decided.items.some(
+          (p) => p.provider === "cray" && p.status === "processing",
+        );
+  let crayMainKobo: number | null = null;
+  let crayMainUnreadable = false;
+  if (hasCrayPayouts) {
+    try {
+      crayMainKobo = await getMainBalanceKobo();
+      crayMainUnreadable = crayMainKobo === null;
+    } catch {
+      crayMainUnreadable = true;
+    }
+  }
+
   const history =
     show === "waiting"
       ? await Promise.all(
@@ -108,8 +131,16 @@ async function Payouts({ searchParams }: { searchParams: SearchParams }) {
       <PageHeader
         title="Payouts"
         crumbs={[{ href: "/admin/money", label: "Money" }]}
-        lead="Check the bank account and the creator’s recent wallet activity, then approve or reject. Approving sends the money. A payout still waiting for the bank can be checked with Paystack."
+        lead="Check the bank account and the creator’s recent wallet activity, then approve or reject. Approving sends the money through the provider the payout was requested on. A payout still waiting for the bank can be checked with that provider."
       />
+
+      {hasCrayPayouts && (
+        <p className="mb-3 text-sm text-muted">
+          {crayMainUnreadable
+            ? "Cray’s Main Balance couldn’t be read just now."
+            : `Cray’s Main Balance (what payouts are sent from): ${formatNaira(crayMainKobo ?? 0)}.`}
+        </p>
+      )}
 
       <FilterTabs
         label="Which payouts"
@@ -148,6 +179,9 @@ async function Payouts({ searchParams }: { searchParams: SearchParams }) {
                       </p>
                       <p className="text-sm break-words text-muted">
                         {destination(p)}
+                      </p>
+                      <p className="text-sm text-muted">
+                        Sent through {providerName(p.provider)}
                       </p>
                     </div>
                     <p className="shrink-0 text-sm text-muted">
@@ -214,7 +248,7 @@ async function Payouts({ searchParams }: { searchParams: SearchParams }) {
                       </span>
                     </p>
                     <p className="shrink-0 font-medium text-ink">
-                      {adminPayoutStatus(p.status)}
+                      {adminPayoutStatus(p.status, p.provider)}
                     </p>
                   </div>
                   <p className="text-sm break-words text-muted">
@@ -233,10 +267,29 @@ async function Payouts({ searchParams }: { searchParams: SearchParams }) {
                       “{p.decisionReason}”
                     </p>
                   )}
+                  {p.status === "processing" && p.provider === "cray" && (
+                    <p className="mt-1 text-sm text-ink">
+                      {payoutFlagWords(p) ??
+                        (p.providerReference
+                          ? "Sent. Waiting for Cray to confirm."
+                          : "Not sent yet. The next check sends it.")}
+                    </p>
+                  )}
+                  {p.status === "reversed" && (
+                    <p className="mt-1 text-sm font-semibold text-danger">
+                      Flagged: Cray took this payout back after it was paid.
+                    </p>
+                  )}
                   <CheckPayout
                     payoutId={p.id}
                     processing={p.status === "processing"}
+                    provider={p.provider}
                   />
+                  {p.status === "processing" &&
+                    p.provider === "cray" &&
+                    p.providerReference === null && (
+                      <AttachReference payoutId={p.id} />
+                    )}
                 </li>
               ))}
             </ul>

@@ -7,7 +7,7 @@ import {
   PLATFORM_RULES,
   type Platform,
 } from "./creator-profile.ts";
-import { transferFee } from "./fees.ts";
+import { TRANSFER_IN_ALLOWANCE_KOBO, transferFee } from "./fees.ts";
 import { formatNaira } from "./money.ts";
 
 export type NotificationRow = {
@@ -236,6 +236,17 @@ export function describeNotification(
         body: "The money is back in your wallet. You can ask for it again.",
         href: "/wallet",
       };
+    case "payout_reversed": {
+      const credited = kobo(d.credited_kobo);
+      return {
+        title: `Your ${payoutAmount(d)}payout didn’t arrive`,
+        body:
+          credited === null
+            ? "The money is back in your wallet."
+            : `${formatNaira(credited)} is back in your wallet.`,
+        href: "/wallet",
+      };
+    }
     case "payout_rejected":
       return {
         title: `We couldn’t approve your ${payoutAmount(d)}payout`,
@@ -285,6 +296,8 @@ export function describeNotification(
         href: "/business/wallet",
       };
     }
+    case "deposit_received":
+      return describeDeposit(d);
     case "new_message": {
       const count = typeof d.count === "number" && d.count > 1 ? d.count : 1;
       const conversationId = text(d.conversation_id);
@@ -381,6 +394,93 @@ function platformLabel(value: unknown): string {
 }
 
 /** "₦47,500 " ready to sit before "payout", or "" if the amount is missing. */
+/**
+ * A bank transfer into the business's Pitchype account. Every wording says
+ * what arrived and what Cray's charge was (the business carries it), then what
+ * became of the money (docs/superpowers/specs/2026-11-21-cray-payments-design.md §5.3).
+ * Written as a title and a body that read as two sentences in a row.
+ */
+function describeDeposit(d: Record<string, unknown>): NotificationView {
+  const sent = kobo(d.amount_sent_kobo);
+  const charge = kobo(d.charge_kobo);
+  const credited = kobo(d.credited_kobo);
+  const stillNeeded = kobo(d.still_needed_kobo);
+  const walletAfter = kobo(d.wallet_after_kobo);
+  const engagementId = text(d.engagement_id);
+  const creator = text(d.name);
+  const outcome = text(d.outcome);
+
+  const received =
+    sent === null
+      ? "We received your bank transfer"
+      : charge === null
+        ? `We received ${formatNaira(sent)}`
+        : `We received ${formatNaira(sent)} (${formatNaira(charge)} bank charge)`;
+  const wallet = "/business/wallet";
+  const hire = engagementId ? `/business/engagements/${engagementId}` : wallet;
+  const pay = engagementId ? `${hire}/pay` : wallet;
+  const walletMoney = (amount: number | null, fallback: string) =>
+    amount === null ? fallback : formatNaira(amount);
+
+  if (outcome === "funded") {
+    return {
+      title: received,
+      body: creator
+        ? `Your hire with ${creator} is paid.`
+        : "Your hire is paid.",
+      href: hire,
+    };
+  }
+  if (outcome === "funded_with_extra") {
+    return {
+      title: received,
+      body:
+        walletAfter === null
+          ? "Your hire is paid and the extra is in your wallet."
+          : `Your hire is paid and the extra ${formatNaira(walletAfter)} is in your wallet.`,
+      href: hire,
+    };
+  }
+  if (outcome === "short") {
+    // What the hire needs is what is in the wallet plus what is still to pay.
+    const needs =
+      walletAfter !== null && stillNeeded !== null
+        ? walletAfter + stillNeeded
+        : null;
+    const parts = [
+      needs !== null && stillNeeded !== null
+        ? `This hire needs ${formatNaira(needs)}, so ${formatNaira(stillNeeded)} is still to pay.`
+        : "This hire isn’t fully paid yet.",
+      walletAfter === null
+        ? "The money is in your wallet and will be used first."
+        : `The ${formatNaira(walletAfter)} is in your wallet and will be used first.`,
+    ];
+    if (stillNeeded !== null) {
+      parts.push(
+        `Send ${formatNaira(stillNeeded + TRANSFER_IN_ALLOWANCE_KOBO)} by bank transfer to cover the bank charge.`,
+      );
+    }
+    return { title: received, body: parts.join(" "), href: pay };
+  }
+  if (outcome === "hire_ended") {
+    return {
+      title: `${received}, but the hire had already ended`,
+      body: "The money is in your wallet.",
+      href: wallet,
+    };
+  }
+  // credited: no transfer payment was waiting. If a hire is waiting for
+  // payment, say so, so it can be paid from the wallet.
+  const added = `${walletMoney(credited, "The money")} was added to your Pitchype wallet.`;
+  return {
+    title: received,
+    body: engagementId
+      ? `${added} You have a hire waiting for payment: pay it from your wallet.`
+      : added,
+    href: pay,
+  };
+}
+
 function payoutAmount(d: Record<string, unknown>): string {
   const amount = kobo(d.amount_kobo);
   return amount === null ? "" : `${formatNaira(amount)} `;

@@ -4,6 +4,7 @@ import { test } from "node:test";
 
 import {
   BUSINESS_FEE_BPS,
+  CRAY_FEES,
   INFLUENCER_FEE_BPS,
   MIN_FEE_KOBO,
   MIN_PAYOUT_KOBO,
@@ -62,4 +63,33 @@ test("seeded transfer fee tiers and stamp duty equal src/lib/fees.ts", () => {
     seed.transfer_stamp_duty_from_kobo,
     TRANSFER_STAMP_DUTY_FROM_KOBO,
   );
+});
+
+// The provider fees arrive in a later migration, seeded the same way.
+const providerMigration = readFileSync(
+  new URL(
+    "../../supabase/migrations/20261122100100_provider_fees.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const providerMatch = providerMigration.match(
+  /\$provider_fees_seed\$([\s\S]*?)\$provider_fees_seed\$/,
+);
+assert.ok(providerMatch, "the migration has a $provider_fees_seed$ block");
+const providerFees = JSON.parse(providerMatch[1]);
+
+test("seeded Cray fees equal src/lib/fees.ts", () => {
+  assert.deepEqual(providerFees.cray, CRAY_FEES);
+});
+
+test("seeded Paystack provider fees mirror the original fee_config columns", () => {
+  assert.deepEqual(providerFees.paystack, {
+    card: seed.paystack_rate,
+    payout: {
+      tiers: seed.transfer_fee_tiers,
+      stamp_duty_kobo: seed.transfer_stamp_duty_kobo,
+      stamp_duty_from_kobo: seed.transfer_stamp_duty_from_kobo,
+    },
+  });
 });

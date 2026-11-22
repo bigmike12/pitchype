@@ -271,3 +271,78 @@ export function transferFee(amountKobo: number): number {
     amountKobo >= TRANSFER_STAMP_DUTY_FROM_KOBO ? TRANSFER_STAMP_DUTY_KOBO : 0;
   return tier!.feeKobo + stampDuty;
 }
+
+// Cray Finance (docs/superpowers/specs/2026-11-21-cray-payments-design.md §5.7).
+// Every Cray charge is carried by the business or the creator, never by us:
+// card charges are added at checkout, a bank transfer's charge comes out of
+// what arrives, and the creator pays the payout cost. These figures are the
+// support agent's ("usually", "about 1%") and PROVISIONAL until Cray confirms
+// them in writing (docs/TODO.md). They seed fee_config.provider_fees.cray, and a
+// test keeps the two equal, so change both together.
+export const CRAY_FEES = {
+  card: { rate_bps: 150, cap_kobo: 200_000 },
+  transfer_in: { rate_bps: 100, cap_kobo: 20_000, allowance_kobo: 20_000 },
+  payout: {
+    tiers: [{ up_to_kobo: null, fee_kobo: 5_000 }] as {
+      up_to_kobo: number | null;
+      fee_kobo: number;
+    }[],
+    stamp_duty_kobo: 0,
+    stamp_duty_from_kobo: 0,
+  },
+};
+
+/**
+ * What a business adds to a bank transfer to cover Cray's charge (its stated
+ * cap, ₦200). Whatever the charge doesn't use stays in their wallet.
+ */
+export const TRANSFER_IN_ALLOWANCE_KOBO = CRAY_FEES.transfer_in.allowance_kobo;
+
+/**
+ * What the business sends by bank transfer: what is still to pay plus the
+ * allowance for the bank-transfer charge. Anything the charge doesn't use
+ * stays in their wallet.
+ */
+export function transferAmountToSend(cardPartKobo: number): number {
+  return cardPartKobo + TRANSFER_IN_ALLOWANCE_KOBO;
+}
+
+/** What Cray's card charge is expected to be on `kobo` (for display and tests only). */
+export function crayCardCharge(kobo: number): number {
+  requireWholeKobo("Charged amount", kobo, 1);
+  return Math.min(
+    Math.round((kobo * CRAY_FEES.card.rate_bps) / BPS_PER_WHOLE),
+    CRAY_FEES.card.cap_kobo,
+  );
+}
+
+/** What Cray's bank-transfer charge is expected to be on `kobo` (for display and tests only). */
+export function crayTransferInCharge(kobo: number): number {
+  requireWholeKobo("Transfer amount", kobo, 1);
+  return Math.min(
+    Math.round((kobo * CRAY_FEES.transfer_in.rate_bps) / BPS_PER_WHOLE),
+    CRAY_FEES.transfer_in.cap_kobo,
+  );
+}
+
+/**
+ * The total the creator pays to send `amountKobo` to their bank on the
+ * payout provider, shown before they confirm. Paystack: tier fee plus stamp
+ * duty. Cray: its flat fee (no stamp duty unless Cray confirms one).
+ */
+export function payoutTransferFee(
+  provider: "cray" | "paystack",
+  amountKobo: number,
+): number {
+  if (provider === "paystack") return transferFee(amountKobo);
+  requireWholeKobo("Transfer amount", amountKobo, 1);
+  const { tiers, stamp_duty_kobo, stamp_duty_from_kobo } = CRAY_FEES.payout;
+  const tier = tiers.find(
+    (t) => t.up_to_kobo === null || amountKobo <= t.up_to_kobo,
+  );
+  const stampDuty =
+    stamp_duty_kobo > 0 && amountKobo >= stamp_duty_from_kobo
+      ? stamp_duty_kobo
+      : 0;
+  return tier!.fee_kobo + stampDuty;
+}

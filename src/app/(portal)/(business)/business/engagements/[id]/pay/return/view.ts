@@ -9,7 +9,7 @@ export type ReturnView =
   | "lapsed" // the payment arrived after the hire lapsed; money in the wallet
   | "stranded" // the payment couldn't fund the hire; money in the wallet
   | "moved_on" // the hire has since been cancelled, refunded or settled
-  | "pending" // Paystack hasn't finished, or couldn't be reached: refresh
+  | "pending" // the provider hasn't finished, or couldn't be reached: refresh
   | "failed" // the payment didn't go through
   | "checking"; // needs a person (mismatch, unknown, needs review)
 
@@ -33,7 +33,7 @@ export function viewFromHire(
   return "moved_on";
 }
 
-/** For a payment this page just confirmed with Paystack. */
+/** For a payment this page just confirmed with the payment provider. */
 export function viewFromResult(
   result: CardPaymentResult,
   hire: Hire,
@@ -56,11 +56,58 @@ export function viewFromResult(
 }
 
 /**
- * When asking Paystack threw: an outage or rate limit is worth a refresh;
- * any other refusal needs a person, so no refresh is promised.
+ * When asking the payment provider threw: an outage or rate limit is worth a
+ * refresh; any other refusal needs a person, so no refresh is promised.
  */
-export function viewFromPaystackError(status: number): ReturnView {
+export function viewFromProviderError(status: number): ReturnView {
   return status === 0 || status === 429 || status >= 500
     ? "pending"
     : "checking";
+}
+
+/**
+ * The words for each view. Provider-neutral on purpose: people never need to
+ * know whether Cray or Paystack took the payment.
+ */
+export function returnCopy(
+  view: ReturnView,
+  creatorName: string,
+): { title: string; body: string } {
+  switch (view) {
+    case "funded":
+      return {
+        title: `Payment received. ${creatorName} can now start`,
+        body: "The money is held safely by Pitchype until the job is done.",
+      };
+    case "lapsed":
+      return {
+        title: "Your payment arrived after this hire lapsed",
+        body: "The money is in your Pitchype wallet; the hire was not started.",
+      };
+    case "stranded":
+      return {
+        title: "Your payment couldn’t be applied to this hire",
+        body: "The money is in your Pitchype wallet. Check the hire to see what to do next.",
+      };
+    case "pending":
+      return {
+        title: "Your payment is still being confirmed",
+        body: "This page will not change by itself; refresh in a minute.",
+      };
+    case "failed":
+      return {
+        title: "The payment didn’t go through",
+        body: "Nothing was charged to the hire.",
+      };
+    case "moved_on":
+      return {
+        title: "This hire has already moved on",
+        body: "See the hire for where things stand now.",
+      };
+    case "checking":
+      return {
+        title: "We’re checking this payment",
+        body: "If you were charged, nothing is lost; we’ll sort it out.",
+      };
+  }
 }

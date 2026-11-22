@@ -323,3 +323,25 @@ test("escrow lines on a hire that was never paid for are flagged", () => {
   const result = checkTrail(t);
   assert.equal(result.ok, false);
 });
+
+test("a hire funded by a bank transfer deposit adds up", () => {
+  // The deposit itself is a group without a hire; the hire's own trail shows
+  // the funding from the wallet.
+  const trail = released();
+  trail.groups[0] = group("hire_funded", [
+    line("escrow", -5_000_000),
+    line("platform_revenue", -250_000),
+    line("business_wallet", 5_250_000),
+  ]);
+  assert.deepEqual(checkTrail(trail), { ok: true, problems: [] });
+});
+
+test("a hire paid by Cray card, with no charge on our side, adds up", () => {
+  const trail = released();
+  trail.groups[0] = group("payment_received", [
+    line("escrow", -5_000_000),
+    line("platform_revenue", -250_000),
+    line("cray", 5_250_000),
+  ]);
+  assert.deepEqual(checkTrail(trail), { ok: true, problems: [] });
+});

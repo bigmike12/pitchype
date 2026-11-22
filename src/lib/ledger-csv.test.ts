@@ -67,3 +67,22 @@ test("a negative amount column is a number, not guarded", () => {
   const line = ledgerToCsv([row]).split("\r\n")[1] ?? "";
   assert.ok(line.includes(",-4750000,-47500.00,"));
 });
+
+test("a deposit row on the cray account exports like any other", () => {
+  const csv = ledgerToCsv([
+    {
+      ...row,
+      eventType: "deposit_received",
+      account: "cray",
+      ownerUserId: null,
+      ownerName: null,
+      engagementId: null,
+      paystackReference: "dep-1",
+      amountKobo: 5_250_000,
+      reason: null,
+    },
+  ]);
+  const line = csv.trimEnd().split("\r\n")[1] ?? "";
+  assert.ok(line.includes(",deposit_received,cray,"));
+  assert.ok(line.includes(",dep-1,5250000,52500.00,"));
+});

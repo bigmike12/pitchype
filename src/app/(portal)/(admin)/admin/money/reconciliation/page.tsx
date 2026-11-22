@@ -12,9 +12,11 @@ import { TABLE } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
 import {
+  getActivePaymentProvider,
   getLatestReconciliation,
   listReconciliationRuns,
 } from "@/lib/db/money";
+import { providerName } from "@/lib/provider-words";
 import { formatNaira } from "@/lib/money";
 import { pageOf, pagedHref, parsePage } from "@/lib/paging";
 
@@ -75,11 +77,17 @@ async function ReconciliationRuns({
   searchParams: SearchParams;
 }) {
   await requireRole("admin");
-  const [latest, runs, query] = await Promise.all([
-    getLatestReconciliation(),
+  const [cray, paystack, active, runs, query] = await Promise.all([
+    getLatestReconciliation("cray"),
+    getLatestReconciliation("paystack"),
+    getActivePaymentProvider(),
     listReconciliationRuns(RUNS_KEPT),
     searchParams,
   ]);
+  const latest = [
+    { provider: "cray" as const, run: cray },
+    { provider: "paystack" as const, run: paystack },
+  ].filter(({ provider, run }) => provider === active || run !== null);
   const paged = pageOf(runs, parsePage(query.page), PAGE_SIZE);
   const footer = (
     <Pagination
@@ -95,9 +103,13 @@ async function ReconciliationRuns({
       <PageHeader
         title="Reconciliation"
         crumbs={[{ href: "/admin/money", label: "Money" }]}
-        lead="Each daily check of the ledger against Paystack’s balance, newest first, in Lagos time. Difference is Paystack’s balance minus what the ledger expects."
+        lead="Each daily check of the ledger against a provider’s balance, newest first, in Lagos time. Difference is the provider’s balance minus what the ledger expects for that provider."
       />
-      <Reconciliation run={latest} />
+      <div className="space-y-3">
+        {latest.map(({ provider, run }) => (
+          <Reconciliation key={provider} run={run} provider={provider} />
+        ))}
+      </div>
 
       {paged.total > 0 && (
         <div className="mt-3">
@@ -107,12 +119,13 @@ async function ReconciliationRuns({
                 <li key={run.id} className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <p className="font-semibold text-ink">
-                      {formatDateTime(run.ranAt)}
+                      {formatDateTime(run.ranAt)} · {providerName(run.provider)}
                     </p>
                     <Difference kobo={run.differenceKobo} />
                   </div>
                   <p className="mt-1 text-sm text-muted">
-                    Paystack {formatNaira(run.paystackBalanceKobo)} · expected{" "}
+                    {providerName(run.provider)}{" "}
+                    {formatNaira(run.paystackBalanceKobo)} · expected{" "}
                     {formatNaira(run.expectedCashKobo)}
                   </p>
                   {run.note && (
@@ -135,7 +148,7 @@ async function ReconciliationRuns({
                       Checked
                     </th>
                     <th scope="col" className={`${TABLE.th} text-right`}>
-                      Paystack balance
+                      Provider balance
                     </th>
                     <th scope="col" className={`${TABLE.th} text-right`}>
                       Expected cash
@@ -153,6 +166,9 @@ async function ReconciliationRuns({
                         className="px-4 py-3 first:pl-5 last:pr-5 font-normal whitespace-nowrap"
                       >
                         {formatDateTime(run.ranAt)}
+                        <span className="block text-[0.8125rem] font-normal text-muted">
+                          {providerName(run.provider)}
+                        </span>
                         {run.note && (
                           <span className="block max-w-xs text-[0.8125rem] break-words whitespace-normal text-muted">
                             {run.note}

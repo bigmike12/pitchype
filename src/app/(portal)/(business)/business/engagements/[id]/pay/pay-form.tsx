@@ -16,11 +16,14 @@ export function PayForm({
   engagementId,
   cardAmountKobo,
   perClick = false,
+  bankTransferAvailable = false,
 }: {
   engagementId: string;
   cardAmountKobo: number;
   /** A per-click hire: the fee is kept only on what's spent. */
   perClick?: boolean;
+  /** Offered while the payment provider supports it; never when the wallet covers the hire. */
+  bankTransferAvailable?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<PayState, FormData>(
     payAction,
@@ -45,13 +48,33 @@ export function PayForm({
         </span>
       </label>
       <FormMessage status={state.status} message={state.message} />
-      <Button type="submit" size="lg" disabled={pending}>
-        {pending
-          ? "One moment…"
-          : fromWallet
-            ? "Pay from your wallet"
-            : `Pay ${formatNaira(cardAmountKobo)} by card`}
-      </Button>
+      <div className="flex flex-wrap gap-3">
+        <Button
+          type="submit"
+          name="method"
+          value="card"
+          size="lg"
+          disabled={pending}
+        >
+          {pending
+            ? "One moment…"
+            : fromWallet
+              ? "Pay from your wallet"
+              : `Pay ${formatNaira(cardAmountKobo)} by card`}
+        </Button>
+        {bankTransferAvailable && !fromWallet && (
+          <Button
+            type="submit"
+            name="method"
+            value="transfer"
+            variant="secondary"
+            size="lg"
+            disabled={pending}
+          >
+            Pay by bank transfer
+          </Button>
+        )}
+      </div>
     </form>
   );
 }

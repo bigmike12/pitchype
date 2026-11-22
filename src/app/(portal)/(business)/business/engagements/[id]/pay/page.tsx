@@ -1,4 +1,4 @@
-import { CircleSlash, Clock, Lock } from "lucide-react";
+import { CircleSlash, Clock, Landmark, Lock } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -17,9 +17,16 @@ import { maxClicks } from "@/lib/campaign";
 import { formatDateTime } from "@/lib/creator-profile";
 import { getEngagementDetails } from "@/lib/db/applications";
 import { getEngagementClicks } from "@/lib/db/clicks";
-import { getWalletBalance } from "@/lib/db/money";
-import { feeExample } from "@/lib/fees";
+import {
+  getActivePaymentProvider,
+  getMyDepositAccount,
+  getPaymentsForEngagement,
+  getWalletBalance,
+} from "@/lib/db/money";
+import { feeExample, transferAmountToSend } from "@/lib/fees";
 import { formatNaira } from "@/lib/money";
+
+import { TransferAccount } from "@/components/money/transfer-account";
 
 import { CancelHireForm } from "./cancel-hire-form";
 import { PayForm } from "./pay-form";
@@ -28,8 +35,15 @@ import { payView } from "./view";
 export const metadata: Metadata = { title: "Pay to start" };
 
 type Params = Promise<{ id: string }>;
+type SearchParams = Promise<{ transfer?: string }>;
 
-export default function PayPage({ params }: { params: Params }) {
+export default function PayPage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: SearchParams;
+}) {
   return (
     <div className="max-w-2xl">
       <Suspense
@@ -40,7 +54,7 @@ export default function PayPage({ params }: { params: Params }) {
           </PageLoading>
         }
       >
-        <Pay params={params} />
+        <Pay params={params} searchParams={searchParams} />
       </Suspense>
     </div>
   );
@@ -50,9 +64,16 @@ export default function PayPage({ params }: { params: Params }) {
 // hire lapses after 48 hours (CLAUDE.md §6.1, §6.2, §6.3). The wallet is
 // read for the signed-in business only; the server works the amounts out
 // again when the payment starts.
-async function Pay({ params }: { params: Params }) {
+async function Pay({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: SearchParams;
+}) {
   const user = await requireRole("business");
   const { id } = await params;
+  const { transfer } = await searchParams;
   const engagement = await getEngagementDetails(id);
   if (!engagement || engagement.business.id !== user.id) notFound();
   const view = payView(engagement, new Date());
@@ -69,6 +90,17 @@ async function Pay({ params }: { params: Params }) {
   const walletAppliedKobo = Math.min(walletKobo, fees.businessPaysKobo);
   const cardAmountKobo = fees.businessPaysKobo - walletAppliedKobo;
   const waiting = view === "waiting";
+  // Bank transfer is offered while Cray is the active provider.
+  const bankTransferAvailable = (await getActivePaymentProvider()) === "cray";
+  // After choosing bank transfer: show where to send the money, but only for a
+  // transfer payment that is really waiting (never on a bare ?transfer=1).
+  const waitingTransfer =
+    waiting && transfer === "1"
+      ? (await getPaymentsForEngagement(engagement.id)).find(
+          (p) => p.method === "transfer" && p.status === "initiated",
+        )
+      : undefined;
+  const transferAccount = waitingTransfer ? await getMyDepositAccount() : null;
   const applicationsHref = `/business/campaigns/${engagement.campaign.id}/applications`;
 
   return (
@@ -155,10 +187,39 @@ async function Pay({ params }: { params: Params }) {
             )}
           </div>
 
+          {waitingTransfer && (
+            <div className="mt-4 space-y-3">
+              <Callout
+                tone="info"
+                icon={Landmark}
+                title={`Send ${formatNaira(transferAmountToSend(cardAmountKobo))} by bank transfer`}
+              >
+                That’s {formatNaira(cardAmountKobo)} for this hire plus up to
+                ₦200 for the bank-transfer charge. Anything the charge doesn’t
+                use stays in your Pitchype wallet. If you send a different
+                amount it also goes into your wallet, and we’ll tell you what’s
+                left to pay. This page updates when the money arrives.
+              </Callout>
+              {transferAccount ? (
+                <TransferAccount
+                  bankName={transferAccount.bankName}
+                  accountNumber={transferAccount.accountNumber}
+                  accountName={transferAccount.accountName}
+                />
+              ) : (
+                <Callout tone="attention" icon={Clock} title="Almost ready">
+                  We’re still setting up your transfer account. Refresh in a
+                  minute.
+                </Callout>
+              )}
+            </div>
+          )}
+
           <PayForm
             engagementId={engagement.id}
             cardAmountKobo={cardAmountKobo}
             perClick={clicks !== null}
+            bankTransferAvailable={bankTransferAvailable}
           />
 
           <CancelHireForm engagementId={engagement.id} />

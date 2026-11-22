@@ -42,6 +42,12 @@ function labelFor(
       return business ? "Refund for a hire" : "Payment for a job";
     case "payout_requested":
       return creator && !into ? "Payout requested" : "Wallet activity";
+    case "deposit_received":
+      return business && into ? "Bank transfer received" : "Wallet activity";
+    case "payout_reversed":
+      return creator && into
+        ? "Payout reversed, returned to your wallet"
+        : "Wallet activity";
     case "payout_rejected":
     case "payout_failed":
       return creator && into

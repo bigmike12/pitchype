@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { viewFromHire, viewFromPaystackError, viewFromResult } from "./view.ts";
+import {
+  returnCopy,
+  viewFromHire,
+  viewFromProviderError,
+  viewFromResult,
+  type ReturnView,
+} from "./view.ts";
 
 const hire = (status: string, cancelReason: string | null = null) => ({
   status,
@@ -56,9 +62,35 @@ test("a fresh confirm result maps to its message", () => {
 
 test("only outages and rate limits promise a refresh", () => {
   for (const status of [0, 429, 500, 502, 503]) {
-    assert.equal(viewFromPaystackError(status), "pending", String(status));
+    assert.equal(viewFromProviderError(status), "pending", String(status));
   }
   for (const status of [400, 401, 403, 404]) {
-    assert.equal(viewFromPaystackError(status), "checking", String(status));
+    assert.equal(viewFromProviderError(status), "checking", String(status));
   }
+});
+
+const ALL_VIEWS: ReturnView[] = [
+  "funded",
+  "lapsed",
+  "stranded",
+  "moved_on",
+  "pending",
+  "failed",
+  "checking",
+];
+
+test("every message is provider-neutral and says something", () => {
+  for (const view of ALL_VIEWS) {
+    const copy = returnCopy(view, "Tolu");
+    assert.ok(copy.title.length > 10, view);
+    assert.ok(copy.body.length > 10, view);
+    assert.doesNotMatch(`${copy.title} ${copy.body}`, /paystack|cray/i, view);
+  }
+});
+
+test("the funded message names the creator", () => {
+  assert.equal(
+    returnCopy("funded", "Tolu").title,
+    "Payment received. Tolu can now start",
+  );
 });

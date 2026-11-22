@@ -23,12 +23,14 @@ import { getEngagementDetails } from "@/lib/db/applications";
 import { getPaymentsForEngagement } from "@/lib/db/money";
 import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { confirmCardPayment, type CardPaymentResult } from "@/lib/payments";
+import { CrayError } from "@/lib/cray";
 import { PaystackError } from "@/lib/paystack";
 import { CONTACT_EMAIL } from "@/lib/site";
 
 import {
+  returnCopy,
   viewFromHire,
-  viewFromPaystackError,
+  viewFromProviderError,
   viewFromResult,
   type ReturnView,
 } from "./view";
@@ -61,10 +63,12 @@ export default function PaymentReturnPage({
   );
 }
 
-// Paystack sends the business here after paying. The page believes nothing
-// in the URL except which payment to look up: it asks Paystack, then records
-// the result through the same function as the webhook (whichever comes first
-// funds the hire; the other is a duplicate). CLAUDE.md §6 rule 6.
+// The payment provider sends the business here after paying (the reference is
+// `reference` from Cray, `reference` or `trxref` from Paystack). The page
+// believes nothing in the URL except which payment to look up: it asks the
+// payment's own provider, then records the result through the same function
+// as the webhook (whichever comes first funds the hire; the other is a
+// duplicate). CLAUDE.md §6 rule 6.
 async function PaymentReturn({
   params,
   searchParams,
@@ -83,12 +87,13 @@ async function PaymentReturn({
   if (typeof reference !== "string") notFound();
   const payments = await getPaymentsForEngagement(engagement.id);
   const payment = payments.find(
-    (p) => p.reference === reference && p.cardAmountKobo > 0,
+    (p) =>
+      p.reference === reference && p.method === "card" && p.cardAmountKobo > 0,
   );
   if (!payment) notFound();
 
   // Already recorded (by the webhook or an earlier visit): describe the
-  // hire as it stands, without asking Paystack again on every reload.
+  // hire as it stands, without asking the provider again on every reload.
   let view: ReturnView = "checking";
   if (payment.status === "succeeded") {
     view = viewFromHire(engagement, true);
@@ -100,9 +105,11 @@ async function PaymentReturn({
       // it first ("duplicate"), and then this is a harmless empty run.
       sendEmailsAfterResponse();
     } catch (error) {
-      // The webhook still records the payment when Paystack answers it.
-      if (!(error instanceof PaystackError)) throw error;
-      view = viewFromPaystackError(error.status);
+      // The webhook still records the payment when the provider answers it.
+      if (!(error instanceof PaystackError || error instanceof CrayError)) {
+        throw error;
+      }
+      view = viewFromProviderError(error.status);
     }
     if (result === "duplicate") {
       // Recorded first by the webhook: read the state it left.
@@ -138,113 +145,105 @@ async function PaymentReturn({
         lead={`${engagement.creator.name}, for “${engagement.campaign.title}”.`}
       />
 
-      {view === "funded" ? (
-        <Callout
-          tone="success"
-          icon={CircleCheck}
-          title={`Payment received. ${engagement.creator.name} can now start`}
-          action={
-            <Link href={hireHref} className={buttonVariants()}>
-              Go to the hire
-            </Link>
-          }
-        >
-          The money is held safely by Pitchype until the job is done.
-        </Callout>
-      ) : view === "lapsed" || view === "stranded" ? (
-        <Callout
-          tone="info"
-          icon={Wallet}
-          title={
-            view === "lapsed"
-              ? "Your payment arrived after this hire lapsed"
-              : "Your payment couldn’t be applied to this hire"
-          }
-          action={
-            <Link
-              href={hireHref}
-              className={buttonVariants({ variant: "secondary" })}
-            >
-              Go to the hire
-            </Link>
-          }
-        >
-          {view === "lapsed"
-            ? "The money is in your Pitchype wallet; the hire was not started."
-            : "The money is in your Pitchype wallet. Check the hire to see what to do next."}
-        </Callout>
-      ) : view === "pending" ? (
-        <Callout
-          tone="attention"
-          icon={Clock}
-          title="Your payment is still being confirmed"
-          action={
-            <Link
-              href={refreshHref}
-              className={buttonVariants({ variant: "secondary" })}
-            >
-              Refresh
-            </Link>
-          }
-        >
-          This page will not change by itself; refresh in a minute.
-        </Callout>
-      ) : view === "failed" ? (
-        <Callout
-          tone="info"
-          icon={CircleSlash}
-          title="The payment didn’t go through"
-          action={
-            <Link
-              href={`/business/engagements/${engagement.id}/pay`}
-              className={buttonVariants()}
-            >
-              Try again
-            </Link>
-          }
-        >
-          Nothing was charged to the hire.
-        </Callout>
-      ) : view === "moved_on" ? (
-        <Callout
-          tone="info"
-          icon={CircleSlash}
-          title="This hire has already moved on"
-          action={
-            <Link
-              href={hireHref}
-              className={buttonVariants({ variant: "secondary" })}
-            >
-              Go to the hire
-            </Link>
-          }
-        >
-          See the hire for where things stand now.
-        </Callout>
-      ) : (
-        <Callout
-          tone="attention"
-          icon={SearchCheck}
-          title="We’re checking this payment"
-          action={
-            <Link
-              href={hireHref}
-              className={buttonVariants({ variant: "secondary" })}
-            >
-              Go to the hire
-            </Link>
-          }
-        >
-          If you were charged, nothing is lost; we’ll sort it out. Contact{" "}
-          <a
-            href={`mailto:${CONTACT_EMAIL}`}
-            className="font-semibold underline"
+      {(() => {
+        const copy = returnCopy(view, engagement.creator.name);
+        const secondary = (href: string, label: string) => (
+          <Link
+            href={href}
+            className={buttonVariants({ variant: "secondary" })}
           >
-            {CONTACT_EMAIL}
-          </a>{" "}
-          if this stays unresolved.
-        </Callout>
-      )}
+            {label}
+          </Link>
+        );
+        if (view === "funded") {
+          return (
+            <Callout
+              tone="success"
+              icon={CircleCheck}
+              title={copy.title}
+              action={
+                <Link href={hireHref} className={buttonVariants()}>
+                  Go to the hire
+                </Link>
+              }
+            >
+              {copy.body}
+            </Callout>
+          );
+        }
+        if (view === "lapsed" || view === "stranded") {
+          return (
+            <Callout
+              tone="info"
+              icon={Wallet}
+              title={copy.title}
+              action={secondary(hireHref, "Go to the hire")}
+            >
+              {copy.body}
+            </Callout>
+          );
+        }
+        if (view === "pending") {
+          return (
+            <Callout
+              tone="attention"
+              icon={Clock}
+              title={copy.title}
+              action={secondary(refreshHref, "Refresh")}
+            >
+              {copy.body}
+            </Callout>
+          );
+        }
+        if (view === "failed") {
+          return (
+            <Callout
+              tone="info"
+              icon={CircleSlash}
+              title={copy.title}
+              action={
+                <Link
+                  href={`/business/engagements/${engagement.id}/pay`}
+                  className={buttonVariants()}
+                >
+                  Try again
+                </Link>
+              }
+            >
+              {copy.body}
+            </Callout>
+          );
+        }
+        if (view === "moved_on") {
+          return (
+            <Callout
+              tone="info"
+              icon={CircleSlash}
+              title={copy.title}
+              action={secondary(hireHref, "Go to the hire")}
+            >
+              {copy.body}
+            </Callout>
+          );
+        }
+        return (
+          <Callout
+            tone="attention"
+            icon={SearchCheck}
+            title={copy.title}
+            action={secondary(hireHref, "Go to the hire")}
+          >
+            {copy.body} Contact{" "}
+            <a
+              href={`mailto:${CONTACT_EMAIL}`}
+              className="font-semibold underline"
+            >
+              {CONTACT_EMAIL}
+            </a>{" "}
+            if this stays unresolved.
+          </Callout>
+        );
+      })()}
     </>
   );
 }

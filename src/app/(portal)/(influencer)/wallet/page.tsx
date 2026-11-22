@@ -20,6 +20,7 @@ import {
 import { requireRole } from "@/lib/auth";
 import { formatDate } from "@/lib/creator-profile";
 import {
+  getActivePaymentProvider,
   getCreatorWalletSummary,
   getWalletBalance,
   listMyLedger,
@@ -27,10 +28,12 @@ import {
 import { getMyBankAccount, listMyPayouts } from "@/lib/db/payouts";
 import { formatNaira } from "@/lib/money";
 import { pageOf, pagedHref, parsePage } from "@/lib/paging";
-import { PaystackError, listBanks } from "@/lib/paystack";
+import { CrayError } from "@/lib/cray";
+import { PaystackError } from "@/lib/paystack";
 import { describePayoutStatus } from "@/lib/payout-request";
 import { cn } from "@/lib/utils";
 
+import { banksFor } from "./banks";
 import { BankAccountForm } from "./bank-account-form";
 import { PayoutForm } from "./payout-form";
 
@@ -109,14 +112,20 @@ async function WalletContent({ searchParams }: { searchParams: SearchParams }) {
   const { bank, page, payouts: payoutsPage } = await searchParams;
   // The balance is read with the secret-key client, so the id is the signed-in
   // person's, never anything from the request.
-  const [balanceKobo, summary, ledger, bankAccount, payouts] =
+  // Bank details belong to the provider that sends payouts. The active one is
+  // read here; details saved for the other one are only a reason to ask again.
+  const provider = await getActivePaymentProvider();
+  const otherProvider = provider === "cray" ? "paystack" : "cray";
+  const [balanceKobo, summary, ledger, bankAccount, oldBankAccount, payouts] =
     await Promise.all([
       getWalletBalance(user.id, "creator_wallet"),
       getCreatorWalletSummary(user.id),
       listMyLedger(HISTORY_ROWS),
-      getMyBankAccount(),
+      getMyBankAccount(provider),
+      getMyBankAccount(otherProvider),
       listMyPayouts(),
     ]);
+  const addAgain = bankAccount === null && oldBankAccount !== null;
   const rows = ledger.filter((row) => row.account === "creator_wallet");
   // Two lists page on their own: `page` is the history, `payouts` the payouts.
   const history = pageOf(rows, parsePage(page), HISTORY_PAGE_SIZE);
@@ -138,9 +147,13 @@ async function WalletContent({ searchParams }: { searchParams: SearchParams }) {
   let banksUnavailable = false;
   if (showBankForm) {
     try {
-      banks = (await listBanks()).sort((a, b) => a.name.localeCompare(b.name));
+      banks = (await banksFor(provider)).sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
     } catch (error) {
-      if (!(error instanceof PaystackError)) throw error;
+      if (!(error instanceof PaystackError || error instanceof CrayError)) {
+        throw error;
+      }
       banksUnavailable = true;
     }
   }
@@ -208,10 +221,19 @@ async function WalletContent({ searchParams }: { searchParams: SearchParams }) {
                 )}
               </div>
             ) : (
-              <BankAccountForm
-                banks={banks}
-                hasAccount={bankAccount !== null}
-              />
+              <div className="space-y-3">
+                {addAgain && (
+                  <p className="text-ink">
+                    <strong>Add your bank details again.</strong> We changed the
+                    payment provider that sends payouts, so the details you
+                    saved before can’t be used any more.
+                  </p>
+                )}
+                <BankAccountForm
+                  banks={banks}
+                  hasAccount={bankAccount !== null}
+                />
+              </div>
             )
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -233,6 +255,7 @@ async function WalletContent({ searchParams }: { searchParams: SearchParams }) {
           <PayoutForm
             balanceKobo={balanceKobo}
             hasBankAccount={bankAccount !== null}
+            provider={provider}
           />
         </SectionCard>
 

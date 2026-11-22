@@ -13,6 +13,10 @@ export const LEDGER_EVENTS = [
   "payout_failed",
   "paystack_fee",
   "correction",
+  "deposit_received",
+  "processor_fee",
+  "cash_moved",
+  "payout_reversed",
 ] as const;
 
 export type LedgerEvent = (typeof LEDGER_EVENTS)[number];

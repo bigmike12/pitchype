@@ -24,25 +24,33 @@ type Result<T> = { ok: true; value: T } | Refused;
 
 // Paying for a hire --------------------------------------------------------------------------
 
+export type PaymentProvider = "cray" | "paystack";
+
 /**
- * Starts a card payment for an approved hire. The amounts come from the
- * engagement row in the database, never from the caller (CLAUDE.md §6 rule 6).
+ * Starts a card or bank-transfer payment for an approved hire. The amounts
+ * come from the engagement row in the database, never from the caller
+ * (CLAUDE.md §6 rule 6), and so does the provider: the database stamps the
+ * active one on the payment, and the caller must follow `provider`.
  */
 export async function startPayment(
   engagementId: string,
   feeNoticeSeen: boolean,
+  method: "card" | "transfer" = "card",
 ): Promise<
   Result<{
     paymentId: string;
     reference: string;
     cardAmountKobo: number;
     email: string;
+    provider: PaymentProvider;
+    method: "card" | "transfer";
   }>
 > {
   const supabase = await createSessionClient();
   const { data, error } = await supabase.rpc("start_payment", {
     engagement: engagementId,
     fee_notice_seen: feeNoticeSeen,
+    method,
   });
   if (error) return refused(error, "start payment");
   const value = obj(data);
@@ -50,10 +58,100 @@ export async function startPayment(
   const reference = str(value.reference);
   const cardAmountKobo = num(value.card_amount_kobo);
   const email = str(value.email);
-  if (!paymentId || !reference || cardAmountKobo === null || !email) {
+  const provider = str(value.provider);
+  const startedMethod = str(value.method);
+  if (
+    !paymentId ||
+    !reference ||
+    cardAmountKobo === null ||
+    !email ||
+    (provider !== "cray" && provider !== "paystack") ||
+    (startedMethod !== "card" && startedMethod !== "transfer")
+  ) {
     throw new Error("start payment returned an unexpected shape");
   }
-  return { ok: true, value: { paymentId, reference, cardAmountKobo, email } };
+  return {
+    ok: true,
+    value: {
+      paymentId,
+      reference,
+      cardAmountKobo,
+      email,
+      provider,
+      method: startedMethod,
+    },
+  };
+}
+
+// The provider switch -------------------------------------------------------------------------
+
+/** Which provider new payments and payouts start on (the latest switch row). */
+export async function getActivePaymentProvider(): Promise<PaymentProvider> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase.rpc("active_payment_provider");
+  if (error) throw new Error(`active payment provider failed (${error.code})`);
+  if (data === "cray" || data === "paystack") return data;
+  throw new Error("active payment provider returned an unexpected value");
+}
+
+const SWITCH_REFUSALS = [
+  "not_admin",
+  "invalid_provider",
+  "reason_required",
+  "already_active",
+] as const;
+
+/** Admin only (checked inside): switches new payments and payouts to a provider. */
+export async function setPaymentProvider(
+  provider: PaymentProvider,
+  reason: string,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const supabase = await createSessionClient();
+  const { error } = await supabase.rpc("set_payment_provider", {
+    new_provider: provider,
+    change_reason: reason,
+  });
+  if (error) {
+    const known = SWITCH_REFUSALS.find((code) => code === error.message);
+    if (error.code === "P0001" && known) return { ok: false, reason: known };
+    if (error.code === "42501") return { ok: false, reason: "not_admin" };
+    throw new Error(`set payment provider failed (${error.code})`);
+  }
+  return { ok: true };
+}
+
+export type PaymentProviderChange = {
+  provider: PaymentProvider;
+  reason: string;
+  changedBy: string | null;
+  createdAt: string;
+};
+
+/** The switch history, newest first (admins only; others see nothing). */
+export async function listPaymentProviderHistory(
+  limit = 20,
+): Promise<PaymentProviderChange[]> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("payment_provider_settings")
+    .select("provider, reason, changed_by, created_at")
+    .order("seq", { ascending: false })
+    .limit(limit);
+  if (error) {
+    throw new Error(`list payment provider history failed (${error.code})`);
+  }
+  return data.flatMap((row) =>
+    row.provider === "cray" || row.provider === "paystack"
+      ? [
+          {
+            provider: row.provider,
+            reason: row.reason,
+            changedBy: row.changed_by,
+            createdAt: row.created_at,
+          },
+        ]
+      : [],
+  );
 }
 
 /** Funds a hire wholly from the business wallet. */
@@ -117,6 +215,173 @@ export async function recordCardPayment(input: {
     return data;
   }
   throw new Error("record card payment returned an unexpected result");
+}
+
+// Bank-transfer deposits -----------------------------------------------------------------------
+
+/**
+ * The business's transfer account reference (created the first time). The
+ * server then asks Cray to create the account under this reference, and
+ * retries with the same one on a timeout. Secret-key client.
+ */
+export async function getDepositAccountReference(
+  userId: string,
+): Promise<string> {
+  const { data, error } = await createAdminClient().rpc(
+    "deposit_account_reference",
+    { person: userId, which: "cray" },
+  );
+  if (error)
+    throw new Error(`deposit account reference failed (${error.code})`);
+  if (typeof data !== "string" || data === "") {
+    throw new Error("deposit account reference returned an unexpected result");
+  }
+  return data;
+}
+
+/** Records the account Cray created for a reference. Secret-key client. */
+export async function completeDepositAccount(input: {
+  reference: string;
+  providerAccountId: string;
+  accountNumber: string;
+  bankName: string;
+  accountName: string;
+}): Promise<void> {
+  const { error } = await createAdminClient().rpc("complete_deposit_account", {
+    account_reference: input.reference,
+    new_provider_account_id: input.providerAccountId,
+    new_account_number: input.accountNumber,
+    new_bank_name: input.bankName,
+    new_account_name: input.accountName,
+  });
+  if (error) throw new Error(`complete deposit account failed (${error.code})`);
+}
+
+/** The signed-in business's own transfer account, once Cray has created it. */
+export async function getMyDepositAccount(): Promise<{
+  accountNumber: string;
+  bankName: string;
+  accountName: string;
+} | null> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("deposit_accounts")
+    .select("account_number, bank_name, account_name")
+    .not("account_number", "is", null)
+    .maybeSingle();
+  if (error) throw new Error(`deposit account failed (${error.code})`);
+  if (!data || !data.account_number || !data.bank_name || !data.account_name) {
+    return null;
+  }
+  return {
+    accountNumber: data.account_number,
+    bankName: data.bank_name,
+    accountName: data.account_name,
+  };
+}
+
+export type DepositOutcome = {
+  outcome:
+    | "funded"
+    | "funded_with_extra"
+    | "short"
+    | "hire_ended"
+    | "credited"
+    | "duplicate"
+    | "unknown_account";
+  stillNeededKobo: number | null;
+};
+
+const DEPOSIT_OUTCOMES = new Set([
+  "funded",
+  "funded_with_extra",
+  "short",
+  "hire_ended",
+  "credited",
+  "duplicate",
+  "unknown_account",
+]);
+
+/**
+ * Records a deposit whose Cray webhook signature the server has verified (the
+ * signed webhook is the only evidence of a deposit). Secret-key client.
+ */
+export async function recordDeposit(input: {
+  provider: "cray";
+  accountReference: string;
+  accountNumber: string;
+  depositReference: string;
+  grossKobo: number;
+  chargeKobo: number;
+  eventKey: string;
+  payload: Json;
+}): Promise<DepositOutcome> {
+  const { data, error } = await createAdminClient().rpc("record_deposit", {
+    deposit_provider: input.provider,
+    account_reference: input.accountReference,
+    account_number: input.accountNumber,
+    deposit_reference: input.depositReference,
+    gross_kobo: input.grossKobo,
+    charge_kobo: input.chargeKobo,
+    event_key: input.eventKey,
+    payload: input.payload,
+  });
+  if (error) throw new Error(`record deposit failed (${error.code})`);
+  const value = obj(data);
+  const outcome = str(value.outcome);
+  if (!outcome || !DEPOSIT_OUTCOMES.has(outcome)) {
+    throw new Error("record deposit returned an unexpected result");
+  }
+  return {
+    outcome: outcome as DepositOutcome["outcome"],
+    stillNeededKobo: num(value.still_needed_kobo),
+  };
+}
+
+/**
+ * Which provider a payment started on, and its frozen card part, by reference.
+ * Null when no payment has this reference. Secret-key client: the webhooks and
+ * the return page act for no one person.
+ */
+export async function getPaymentProvider(reference: string): Promise<{
+  provider: PaymentProvider;
+  cardPartKobo: number;
+} | null> {
+  const { data, error } = await createAdminClient()
+    .from("payments")
+    .select("provider, card_amount_kobo")
+    .eq("reference", reference)
+    .maybeSingle();
+  if (error) throw new Error(`payment lookup failed (${error.code})`);
+  if (!data) return null;
+  if (data.provider !== "cray" && data.provider !== "paystack") {
+    throw new Error("payment has an unknown provider");
+  }
+  return { provider: data.provider, cardPartKobo: data.card_amount_kobo };
+}
+
+/**
+ * Cray card payments still waiting for an answer, started between `newerThan`
+ * and `olderThan`, oldest first (for the daily poll: Cray's webhook for them
+ * is unsigned and may be missed). Secret-key client.
+ */
+export async function listInitiatedCrayCardPayments(
+  olderThan: Date,
+  newerThan: Date,
+  limit = 200,
+): Promise<{ reference: string }[]> {
+  const { data, error } = await createAdminClient()
+    .from("payments")
+    .select("reference")
+    .eq("provider", "cray")
+    .eq("method", "card")
+    .eq("status", "initiated")
+    .lt("created_at", olderThan.toISOString())
+    .gt("created_at", newerThan.toISOString())
+    .order("created_at")
+    .limit(Math.max(1, Math.min(limit, 200)));
+  if (error) throw new Error(`card payments lookup failed (${error.code})`);
+  return data;
 }
 
 // Work and settlement ------------------------------------------------------------------------
@@ -271,6 +536,8 @@ export type PaymentRow = {
   id: string;
   reference: string;
   status: string;
+  provider: PaymentProvider;
+  method: "card" | "transfer" | "wallet";
   totalKobo: number;
   cardAmountKobo: number;
   walletPartKobo: number;
@@ -285,7 +552,7 @@ export async function getPaymentsForEngagement(
   const { data, error } = await supabase
     .from("payments")
     .select(
-      "id, reference, status, total_kobo, card_amount_kobo, wallet_part_kobo, created_at",
+      "id, reference, status, provider, method, total_kobo, card_amount_kobo, wallet_part_kobo, created_at",
     )
     .eq("engagement_id", engagementId)
     .order("created_at", { ascending: false });
@@ -293,15 +560,26 @@ export async function getPaymentsForEngagement(
     if (error.code === "22P02") return [];
     throw new Error(`payments lookup failed (${error.code})`);
   }
-  return data.map((row) => ({
-    id: row.id,
-    reference: row.reference,
-    status: row.status,
-    totalKobo: row.total_kobo,
-    cardAmountKobo: row.card_amount_kobo,
-    walletPartKobo: row.wallet_part_kobo,
-    createdAt: row.created_at,
-  }));
+  return data.flatMap((row) =>
+    (row.provider === "cray" || row.provider === "paystack") &&
+    (row.method === "card" ||
+      row.method === "transfer" ||
+      row.method === "wallet")
+      ? [
+          {
+            id: row.id,
+            reference: row.reference,
+            status: row.status,
+            provider: row.provider,
+            method: row.method,
+            totalKobo: row.total_kobo,
+            cardAmountKobo: row.card_amount_kobo,
+            walletPartKobo: row.wallet_part_kobo,
+            createdAt: row.created_at,
+          },
+        ]
+      : [],
+  );
 }
 
 // Admin audit reads --------------------------------------------------------------------------
@@ -794,71 +1072,89 @@ export async function getSettlementState(
 
 export type ReconciliationRun = {
   id: string;
+  provider: PaymentProvider;
   ranAt: string;
+  // The provider's reported balance (whichever provider the run is for).
   paystackBalanceKobo: number;
   expectedCashKobo: number;
   differenceKobo: number;
   note: string | null;
 };
 
-/** The latest reconciliation run, for admins (row level security); null if none yet. */
-export async function getLatestReconciliation(): Promise<ReconciliationRun | null> {
+const RECONCILIATION_COLUMNS =
+  "id, provider, ran_at, paystack_balance_kobo, expected_cash_kobo, difference_kobo, note";
+
+function toReconciliationRun(row: {
+  id: string;
+  provider: string;
+  ran_at: string;
+  paystack_balance_kobo: number;
+  expected_cash_kobo: number;
+  difference_kobo: number;
+  note: string | null;
+}): ReconciliationRun {
+  if (row.provider !== "cray" && row.provider !== "paystack") {
+    throw new Error("reconciliation run has an unknown provider");
+  }
+  return {
+    id: row.id,
+    provider: row.provider,
+    ranAt: row.ran_at,
+    paystackBalanceKobo: row.paystack_balance_kobo,
+    expectedCashKobo: row.expected_cash_kobo,
+    differenceKobo: row.difference_kobo,
+    note: row.note,
+  };
+}
+
+/** The latest reconciliation run for a provider, for admins (row level security); null if none yet. */
+export async function getLatestReconciliation(
+  provider: PaymentProvider,
+): Promise<ReconciliationRun | null> {
   const supabase = await createSessionClient();
   const { data, error } = await supabase
     .from("reconciliation_runs")
-    .select(
-      "id, ran_at, paystack_balance_kobo, expected_cash_kobo, difference_kobo, note",
-    )
+    .select(RECONCILIATION_COLUMNS)
+    .eq("provider", provider)
     .order("ran_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) throw new Error(`reconciliation lookup failed (${error.code})`);
-  if (!data) return null;
-  return {
-    id: data.id,
-    ranAt: data.ran_at,
-    paystackBalanceKobo: data.paystack_balance_kobo,
-    expectedCashKobo: data.expected_cash_kobo,
-    differenceKobo: data.difference_kobo,
-    note: data.note,
-  };
+  return data ? toReconciliationRun(data) : null;
 }
 
-/** The most recent reconciliation runs, newest first, for admins (row level security). */
+/** The most recent reconciliation runs of every provider, newest first, for admins (row level security). */
 export async function listReconciliationRuns(
   limit = 30,
 ): Promise<ReconciliationRun[]> {
   const supabase = await createSessionClient();
   const { data, error } = await supabase
     .from("reconciliation_runs")
-    .select(
-      "id, ran_at, paystack_balance_kobo, expected_cash_kobo, difference_kobo, note",
-    )
+    .select(RECONCILIATION_COLUMNS)
     .order("ran_at", { ascending: false })
     .limit(Math.max(1, Math.min(limit, 200)));
   if (error) throw new Error(`reconciliation list failed (${error.code})`);
-  return data.map((row) => ({
-    id: row.id,
-    ranAt: row.ran_at,
-    paystackBalanceKobo: row.paystack_balance_kobo,
-    expectedCashKobo: row.expected_cash_kobo,
-    differenceKobo: row.difference_kobo,
-    note: row.note,
-  }));
+  return data.map(toReconciliationRun);
 }
 
 /**
- * Stores a reconciliation run against Paystack's balance (fetched by the
- * server). Secret-key client: the scheduled job acts for no one person.
+ * Stores a reconciliation run against a provider's balance (fetched by the
+ * server). `parts` are the pieces of the balance the provider reported (Cray:
+ * Main and Settlement), kept in the run's note. Secret-key client: the
+ * scheduled job acts for no one person.
  */
-export async function recordReconciliation(balanceKobo: number): Promise<{
+export async function recordReconciliation(
+  provider: PaymentProvider,
+  balanceKobo: number,
+  parts: { name: string; kobo: number }[] = [],
+): Promise<{
   expectedCashKobo: number;
   differenceKobo: number;
   ledgerBalanced: boolean;
 }> {
   const { data, error } = await createAdminClient().rpc(
     "record_reconciliation",
-    { paystack_balance_kobo: balanceKobo },
+    { which: provider, balance_kobo: balanceKobo, note_parts: parts },
   );
   if (error) throw new Error(`reconciliation failed (${error.code})`);
   const root = obj(data);
@@ -867,4 +1163,44 @@ export async function recordReconciliation(balanceKobo: number): Promise<{
     differenceKobo: num(root.difference_kobo) ?? 0,
     ledgerBalanced: root.ledger_balanced === true,
   };
+}
+
+// Cash moved between places -------------------------------------------------------------------
+
+export type CashAccount = "paystack" | "cray" | "bank";
+
+const CASH_REFUSALS = [
+  "not_allowed",
+  "invalid_cash_account",
+  "reason_required",
+  "cash_not_available",
+  "invalid_amount",
+] as const;
+
+/**
+ * Admin only (checked inside): records money moved between Paystack, Cray and
+ * our bank as one balanced ledger group, with a required reason.
+ */
+export async function recordCashMovement(input: {
+  from: CashAccount;
+  to: CashAccount;
+  amountKobo: number;
+  reason: string;
+}): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const supabase = await createSessionClient();
+  const { error } = await supabase.rpc("record_cash_movement", {
+    from_account: input.from,
+    to_account: input.to,
+    amount_kobo: input.amountKobo,
+    reason: input.reason,
+  });
+  if (error) {
+    const known = CASH_REFUSALS.find((code) => code === error.message);
+    if (known && (error.code === "P0001" || error.code === "22023")) {
+      return { ok: false, reason: known };
+    }
+    if (error.code === "42501") return { ok: false, reason: "not_allowed" };
+    throw new Error(`cash movement failed (${error.code})`);
+  }
+  return { ok: true };
 }

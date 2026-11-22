@@ -169,3 +169,33 @@ test("no detail without a release, or when nothing was taken", () => {
   });
   assert.equal("detail" in refund, false);
 });
+
+test("a bank transfer into the business wallet is its own line", () => {
+  assert.deepEqual(row("deposit_received", "business_wallet", -5_250_000), {
+    label: "Bank transfer received",
+    direction: "in",
+    walletAmountKobo: 5_250_000,
+  });
+});
+
+test("a reversed payout puts the money back in the creator's wallet", () => {
+  assert.deepEqual(row("payout_reversed", "creator_wallet", -2_195_000), {
+    label: "Payout reversed, returned to your wallet",
+    direction: "in",
+    walletAmountKobo: 2_195_000,
+  });
+});
+
+test("provider fees, cash moves and the new accounts never read as wallet money", () => {
+  assert.equal(row("processor_fee", "cray_fees", 100).label, "Wallet activity");
+  assert.equal(row("cash_moved", "bank", -100).label, "Wallet activity");
+  assert.equal(row("cash_moved", "cray", 100).label, "Wallet activity");
+  assert.equal(
+    row("deposit_received", "business_wallet", 100).label,
+    "Wallet activity",
+  );
+  assert.equal(
+    row("payout_reversed", "creator_wallet", 100).label,
+    "Wallet activity",
+  );
+});

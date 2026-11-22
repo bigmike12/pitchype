@@ -11,6 +11,12 @@
 -- Run with: supabase test db
 begin;
 
+-- Cray is the default provider (payment_provider migration). This file proves
+-- the Paystack path, which stays supported behind the admin switch, so it
+-- pins Paystack for its own transaction; every assertion below is unchanged.
+insert into public.payment_provider_settings (provider, reason)
+values ('paystack', 'Test setup: exercise the Paystack path');
+
 create extension if not exists pgtap with schema extensions;
 
 select plan(137);
@@ -505,12 +511,15 @@ select is((select count(*)::integer from (
   'every group sums to zero');
 select is((select sum(value::bigint) from jsonb_each_text(public.ledger_totals())), 0::numeric,
   'ledger totals sum to zero after every flow');
-select ok((select (t ->> 'paystack')::bigint
+-- Generalised for the Cray work: once any Cray or bank row exists in the
+-- database the identity holds over ALL cash accounts and ALL fee accounts
+-- (with only Paystack rows it is the original statement).
+select ok((select (t ->> 'paystack')::bigint + (t ->> 'cray')::bigint + (t ->> 'bank')::bigint
                   = -((t ->> 'escrow')::bigint + (t ->> 'business_wallet')::bigint + (t ->> 'creator_wallet')::bigint
                       + (t ->> 'payout_in_flight')::bigint + (t ->> 'platform_revenue')::bigint)
-                    - (t ->> 'paystack_fees')::bigint
+                    - ((t ->> 'paystack_fees')::bigint + (t ->> 'cray_fees')::bigint)
              from public.ledger_totals() t),
-  'cash = escrow + wallets + payouts in flight + revenue − Paystack fees');
+  'cash = escrow + wallets + payouts in flight + revenue − provider fees');
 select is((select count(*)::integer from (
   select owner_user_id from public.ledger_entries where account = 'creator_wallet'
    group by owner_user_id having sum(amount_kobo) > 0) w), 0, 'no creator wallet is overdrawn');

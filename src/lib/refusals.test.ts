@@ -19,6 +19,7 @@ test("only known codes count as refusals", () => {
   assert.equal(isRefusal("release_invalid"), true);
   assert.equal(isRefusal("settle_reason_required"), true);
   assert.equal(isRefusal("fee_notice_required"), true);
+  assert.equal(isRefusal("transfer_not_available"), true);
   for (const code of [
     "no_bank_account",
     "payout_too_small",

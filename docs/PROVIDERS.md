@@ -114,7 +114,7 @@ RLS-protected tables are refused.
 | What | Where | Provider-specific? | To replace |
 |---|---|---|---|
 | Lapsing unpaid approvals (48 hours) | `src/app/api/cron/expire-engagements/route.ts`, a plain route handler protected by `CRON_SECRET`; it calls `expire_unpaid_engagements()` with the secret-key client | No | Call the URL daily from any scheduler (cron, `pg_cron` with `pg_net`, a GitHub Action) with `Authorization: Bearer $CRON_SECRET` |
-| Money checks (daily): settle payouts stuck in `processing`, then record a reconciliation run against Paystack's balance | `src/app/api/cron/money-checks/route.ts` and `src/lib/money-checks.ts`, protected by `CRON_SECRET`; it calls Paystack through `src/lib/paystack.ts` and the database through `src/lib/db/*` | No | Call the URL daily from any scheduler with `Authorization: Bearer $CRON_SECRET`. It answers 500 when any step failed, so alert on that |
+| Money checks (daily): confirm Cray card payments still `initiated`, settle payouts stuck in `processing` (Paystack after 15 minutes, Cray whatever their age), then record one reconciliation run per provider that is set up | `src/app/api/cron/money-checks/route.ts` and `src/lib/money-checks.ts`, protected by `CRON_SECRET`; it calls the providers through `src/lib/paystack.ts` and `src/lib/cray.ts` and the database through `src/lib/db/*` | No | Call the URL daily from any scheduler with `Authorization: Bearer $CRON_SECRET`. It answers 500 when any step failed, so alert on that |
 | Review deadlines (daily): release submitted work the business didn't review within 7 days, send the 3-day and 1-day review reminders, remove proof files never attached (rows, then the objects in the `work-proof` bucket) | `src/app/api/cron/review-deadlines/route.ts` and `src/lib/review-deadlines.ts`, protected by `CRON_SECRET`; it calls the database through `src/lib/db/submissions.ts` and storage through `src/lib/storage.ts`. Safe to run twice or late | No | Call the URL daily from any scheduler with `Authorization: Bearer $CRON_SECRET`. It answers 500 when any step failed or any hire couldn't be released, so alert on that |
 | The schedule | `vercel.json` (`crons`): `expire-engagements` at 03:00 UTC, `review-deadlines` at 03:15 UTC, `money-checks` at 03:30 UTC, `send-emails` at 03:45 UTC | Yes: Vercel Cron | Any of the schedulers above |
 | Sending due notification emails (Stage 8): chat emails once their 15 minutes pass, and retries of failed sends | `src/app/api/cron/send-emails/route.ts` and `src/lib/send-emails.ts`, protected by `CRON_SECRET`. Actions, webhooks and the other daily jobs call the same `sendDueEmails()`, so this route is only a backstop. It answers 500 when any send failed | No | Call the URL every minute from any scheduler with `Authorization: Bearer $CRON_SECRET` |
@@ -128,10 +128,51 @@ set, nothing is authorised, so set it in every environment that should run them.
 - **Google Fonts** via `next/font`: downloaded at build time and served from
   our own domain. The build needs internet access; visitors never contact Google.
 
-## Paystack (payments and payouts)
+## Cray Finance (payments, bank-transfer deposits and payouts; the default)
 
-One provider, no abstraction over it (CLAUDE.md §2). Amounts are integer kobo
-everywhere, which is also what Paystack uses, so nothing is converted.
+Cray is the default provider since 2026-11-21 (design:
+`docs/superpowers/specs/2026-11-21-cray-payments-design.md`). Paystack is kept
+working beside it and an admin can switch new payments and payouts back to it
+(`/admin/money/provider`); there is no abstraction layer between the two, only
+the boundary files and plain `switch`es on the provider stored on each payment
+and payout row (CLAUDE.md §2). Why Cray: it keeps collected money in a merchant
+wallet until we send it out, which is what escrow-as-a-ledger-concept needs;
+Paystack pays every collection out to the bank. Everything is **sandbox/test
+only** until the compliance flag in CLAUDE.md §6.4 is settled. Cray speaks naira
+with decimals; `src/lib/cray.ts` converts exactly to and from integer kobo
+(`koboToNaira`, `nairaToKobo`, which throw rather than round).
+
+| What | Where | Provider-specific? | To replace |
+|---|---|---|---|
+| Every call to Cray: `POST /checkout/initialize`, `GET /checkout/query/{reference}`, `POST /virtual-accounts/create`, `GET /payout/banks`, `POST /payout/accounts/validate`, `POST /payout/disburse`, `GET /payout/requery/{id}`, `GET /balance?currency=NGN`; request signing; the webhook hash check | `src/lib/cray.ts`, the only file that calls Cray. Plain `fetch`, 15 second timeout, no retries; every request carries `Authorization: Bearer <key>` (one scope per key: `collection` or `disbursement`) and an ES256 `X-Signature` over `METHOD\npath?sorted query\nt (ms)\nnonce\nsha256(body)`, using only `node:crypto`. Errors (`CrayError`) never carry a key or a full account number | Yes | Rewrite this file for the new provider, keeping the function names and results |
+| Card payments | Hosted checkout: `payAction` calls `initializeCheckout` with `feeBearer: "customer"` (Cray's charge is added to what the business pays, so Pitchype carries none) and `callback_url` = `/business/engagements/<id>/pay/return?reference=<ref>`. The return page, the webhook and the daily poll all call `confirmCardPayment`, which asks `queryCheckout` and records through `record_card_payment()` | Yes | Point the new provider's return URL at the same page; keep the server-side verification |
+| Bank transfers | One permanent Cray virtual account per business (`deposit_accounts`, created lazily with `createPermanentAccount`, Bloc, reference `pit_va_<32 hex>`). A deposit arrives as the **signed** webhook `collection.virtualaccount.successful`; there is no API to look a deposit up, so the signature is the evidence (documented exception to "verify with the provider"). `record_deposit()` credits the wallet net of Cray's charge and funds waiting hires that have a transfer payment | Yes | A provider with permanent virtual accounts and a signed deposit event naming the account; adapt `handleCrayWebhook` |
+| The webhook | `src/app/api/webhooks/cray/route.ts` (thin adapter) and `handleCrayWebhook` in `src/lib/payments.ts`. Only a `collection.virtualaccount.successful` body that passes `isValidWebhookHash` (base64 HMAC-SHA256 of `JSON.stringify(data)` with a key chosen by the `Cray-Webhook-Key` header, up to two keys for rotation) can credit money. `payin` and `payout` are unsigned and are hints only: the payment or payout is then verified with Cray. 200 stops retries; 5xx makes Cray retry | Yes: event names, hash, header | A new adapter mapping the provider's events onto `confirmCardPayment`, `confirmTransfer` and `record_deposit` |
+| Payouts | `listBanks`, `validateAccount`, `disburse`, `requeryPayout` from the admin approval (`admin/money/actions.ts`), `confirmTransfer` and the daily check. Cray rejects a repeated `customer_reference`, looks a payout up only by its own id and pays only from the Main Balance (collected money sits in a Settlement Balance until the next working day); see CLAUDE.md §6.6 for the rules that follow | Yes | A provider with bank transfers |
+| Creators' account numbers | `src/lib/account-crypto.ts` (AES-256-GCM, `v1:<iv>:<tag>:<ciphertext>`), the only code that encrypts or decrypts; `BANK_ACCOUNT_ENCRYPTION_KEY` | No (node:crypto) | Nothing to replace; rotate by adding a `v2` format |
+| Environment variables (server-only, never `NEXT_PUBLIC_`) | `CRAY_BASE_URL` (sandbox `http://sandbox.crayfi.io`, try https first; live `https://pay.crayfi.io`), `CRAY_COLLECTION_API_KEY`, `CRAY_DISBURSEMENT_API_KEY`, `CRAY_WEBHOOK_KEYS` (comma-separated, two at most), `CRAY_SIGNING_PRIVATE_KEY` (ES256 / P-256 PEM), `CRAY_SIGNING_KEY_ID`, `CRAY_SUBACCOUNT_TOKEN`, and `BANK_ACCOUNT_ENCRYPTION_KEY` (`openssl rand -base64 32`; keep a copy: losing it means every creator re-enters bank details) | Yes | The new provider's credentials |
+| Dashboard setup (once per environment) | Create the API keys (collection, disbursement, webhook), register the ES256 public key and note its `kid`, get the subaccount token, set the webhook URL to `https://<your domain>/api/webhooks/cray` and enable webhooks. **Settings, Settlement Configuration: settle to the Main Balance, not a bank account**, or collected money leaves Cray (the Paystack problem again). Cray IP whitelisting stays **off**: Vercel's IPs are not static | Yes | Equivalent settings elsewhere |
+| The switch | `payment_provider_settings` (append-only; the latest row is the active provider; `active_payment_provider()`, `set_payment_provider()`), `/admin/money/provider`. It governs only NEW card payments, the bank-transfer option, new payout requests (which snapshot that provider's bank details) and who sends them; anything started keeps its provider, and deposits into existing transfer accounts are always credited | No: plain Postgres | Nothing to change |
+| Ledger and reconciliation | Cash accounts `paystack`, `cray` and `bank` (our own bank account), fee accounts `paystack_fees` and `cray_fees`; events `deposit_received`, `processor_fee`, `cash_moved`, `payout_reversed`. One reconciliation run per provider (`reconciliation_runs.provider`; Cray's balance is Main plus Settlement); `record_cash_movement()` records money moved between places | No: plain Postgres | Add accounts with a migration |
+| Money settings that are data | `fee_config.provider_fees` (per-provider card, transfer-in and payout fees). The Cray figures are **provisional**: the support agent's "usually" and "about" (card 1.5% capped at ₦2,000, bank transfer about 1% capped at ₦200, payout a flat ₦50 with no stamp duty), mirrored in `src/lib/fees.ts` and kept equal by `fee-config.test.ts`. Get them in writing | No | Add a `fee_config` version |
+| Development tools | `scripts/sign-cray-webhook.mjs` builds a signed fake `collection.*` body for the local route | Dev only | Delete |
+
+**How to replace Cray:** rewrite `src/lib/cray.ts`, the webhook adapter and
+`handleCrayWebhook`, and the references in `payAction`; the ledger, escrow,
+settlement, payout and reconciliation rules do not know Cray exists, except
+that the ledger's cash and fee accounts are named `cray` and `cray_fees`.
+Names kept from Paystack (comment-only, rename later: `docs/TODO.md`):
+`payments.paystack_fee_kobo` now means "the processor's charge on this payment,
+whichever provider", and `paystack_reference` on ledger rows holds whichever
+reference the event carries.
+
+## Paystack (payments and payouts; kept, no longer the default)
+
+Still fully working, and chosen by an admin on `/admin/money/provider`; new
+payments and payouts start on it only while it is the active provider (§Cray
+above says how the switch works). No abstraction over it (CLAUDE.md §2).
+Amounts are integer kobo everywhere, which is also what Paystack uses, so
+nothing is converted.
 
 | What | Where | Provider-specific? | To replace |
 |---|---|---|---|
@@ -140,10 +181,10 @@ everywhere, which is also what Paystack uses, so nothing is converted.
 | The payment callback | `src/app/(portal)/(business)/business/engagements/[id]/pay/return/page.tsx`: the page Paystack's hosted checkout sends the business back to. It verifies the payment with Paystack server-side (`confirmCardPayment`) before showing a result | Yes: `callback_url` and hosted checkout | Point the new provider's return URL at it; keep the server-side verification |
 | Payouts | Paystack Transfer API through `initiateTransfer`, `verifyTransfer`, `createTransferRecipient`, called from the admin approval (`src/app/(portal)/(admin)/admin/money/actions.ts`), the webhook and the daily money check | Yes | A provider with bank transfers and a way to look a transfer up by our reference |
 | References we send | `pit_<32 hex>` for a card payment (made by `start_payment()`) and `pit_po_<32 hex>` for a payout (made by `approve_payout()`); the webhook accepts only these shapes | Format only | Keep the formats, or change the two constraints and the two patterns together |
-| Environment variable | `PAYSTACK_SECRET_KEY` (server-only, never a `NEXT_PUBLIC_` name). Test and live modes use different keys. Checkout is Paystack's hosted page, so no public key is used | Yes | The new provider's server credential |
+| Environment variable | `PAYSTACK_SECRET_KEY` (server-only, never a `NEXT_PUBLIC_` name). Test and live modes use different keys. Checkout is Paystack's hosted page, so no public key is used. The admin switch refuses to switch to Paystack while it is unset | Yes | The new provider's server credential |
 | Dashboard setup (once per environment) | Settings, API Keys and Webhooks: set the webhook URL to `https://<your domain>/api/webhooks/paystack` and receive `charge.success`, `transfer.success`, `transfer.failed` and `transfer.reversed`. Test and live modes each have their own URL and key. For payouts to work live, OTP confirmation for transfers must be switched off in the dashboard, or transfers wait for a code nobody will enter | Yes | Equivalent webhook and transfer settings elsewhere |
 | What the database depends on | The money functions in `supabase/migrations/20261113*.sql` are plain Postgres (plpgsql, `security definer`, `search_path = ''`) and never call Paystack: the server gives them verified numbers. The only Supabase-specific part is the grants, which name `anon`, `authenticated` and `service_role` (the roles the API uses, as in the Supabase Postgres section) | Partly | Grant the same functions to the app's own roles. Functions that check `current_user_id()` themselves are for signed-in people; the rest are for the server only. Never grant the server-only ones to a role the browser can reach |
-| Money settings that are data | `fee_config` (fees, minimum payout, transfer fee tiers, stamp duty, and Paystack's rate for one test) | No | Add a version; rows are never edited |
+| Money settings that are data | `fee_config` (fees, minimum payout, transfer fee tiers, stamp duty, and Paystack's rate for one test; `provider_fees.paystack` mirrors the same figures) | No | Add a version; rows are never edited |
 
 **How to replace Paystack:** change `src/lib/paystack.ts`, the webhook
 adapter and, if the new provider has different reference rules, the two

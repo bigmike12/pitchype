@@ -28,6 +28,15 @@ import { randomUUID } from "node:crypto";
 import {
   RUN,
   as,
+  crayCreatorWithBalance,
+  crayPayoutFacts,
+  depositCall,
+  depositFacts,
+  getProvider,
+  newDeposit,
+  setProvider,
+  startTransfer,
+  transferAccount,
   clickCall,
   clickHireFacts,
   heldClickHire,
@@ -1567,6 +1576,295 @@ async function clickVsSettlement(c) {
   return seen.join(", ");
 }
 
+// 29–35: Cray bank-transfer deposits, the provider switch and Cray payouts ----------------------------
+
+// The total a ₦50,000 hire costs the business (price plus the 5% fee), and what
+// they send for it: the total plus the ₦200 allowance, less Cray's ₦200 charge.
+const TOTAL = PRICE + 250_000;
+
+// A hire with a waiting bank-transfer payment and its transfer account.
+async function transferHire() {
+  const hire = await newHire(PRICE);
+  const account = await transferAccount(hire.business);
+  await startTransfer(hire);
+  return { hire, account };
+}
+
+async function sameDepositTwice(c) {
+  await setProvider("cray");
+  const { hire, account } = await transferHire();
+  const deposit = newDeposit(TOTAL + 20_000);
+  const outcomes = await race(
+    times(5, () => ({ who: as.service, call: depositCall(account, deposit) })),
+  );
+  sameCounts(c, "outcomes", outcomes, { funded: 1, duplicate: 4 });
+  const f = await hireFacts(hire);
+  const d = await depositFacts(deposit);
+  c.eq("hire", f.status, "funded");
+  c.eq("escrow", f.escrow, -PRICE);
+  c.eq("funding groups", f.fundings, 1);
+  c.eq("business wallet", f.business_wallet, 0);
+  c.eq("deposit groups", d.groups, 1);
+  c.eq("cray cash from the deposit", d.cray, TOTAL);
+  c.eq("events stored", d.events, 1);
+  return fmt(tally(outcomes));
+}
+
+async function depositVsLapse(c) {
+  await setProvider("cray");
+  // Inside the 30-minute hold the deposit always funds the hire.
+  const inHold = [];
+  for (let round = 1; round <= 4; round++) {
+    const { hire, account } = await transferHire();
+    await run(`
+update public.engagements set pay_by = now() - interval '1 minute' where id = ${lit(hire.id)};
+update public.payments set created_at = now() - interval '5 minutes' where engagement_id = ${lit(hire.id)};`);
+    const pair = await racePair(
+      {
+        who: as.service,
+        call: depositCall(account, newDeposit(TOTAL + 20_000)),
+      },
+      { who: as.service, call: expireCall(hire) },
+      round % 2 === 0,
+    );
+    inHold.push(...pair);
+    c.eq(`in hold round ${round}: [deposit, lapse]`, pair, ["funded", "0"]);
+    const f = await hireFacts(hire);
+    c.eq(
+      `in hold round ${round}: hire`,
+      [f.status, f.cancel_reason, f.escrow],
+      ["funded", null, -PRICE],
+    );
+  }
+
+  // Hold over: the hire ends and the money waits in the wallet, whichever is first.
+  const ended = [];
+  for (let round = 1; round <= 4; round++) {
+    const { hire, account } = await transferHire();
+    await run(`
+update public.engagements set pay_by = now() - interval '1 hour' where id = ${lit(hire.id)};
+update public.payments set created_at = now() - interval '40 minutes' where engagement_id = ${lit(hire.id)};`);
+    const pair = await racePair(
+      {
+        who: as.service,
+        call: depositCall(account, newDeposit(TOTAL + 20_000)),
+      },
+      { who: as.service, call: expireCall(hire) },
+      round % 2 === 0,
+    );
+    ended.push(pair[0]);
+    c.eq(`hold over round ${round}: deposit`, pair[0], "hire_ended");
+    const f = await hireFacts(hire);
+    c.eq(
+      `hold over round ${round}: hire`,
+      [f.status, f.cancel_reason, f.escrow, f.business_wallet],
+      ["cancelled", "payment_expired", 0, TOTAL],
+    );
+  }
+  return `in hold ${fmt(tally(inHold))} | over ${fmt(tally(ended))}`;
+}
+
+async function depositVsCancel(c) {
+  await setProvider("cray");
+  const seen = [];
+  for (let round = 1; round <= 4; round++) {
+    const { hire, account } = await transferHire();
+    const [deposit, cancel] = await racePair(
+      {
+        who: as.service,
+        call: depositCall(account, newDeposit(TOTAL + 20_000)),
+      },
+      {
+        who: as.user(hire.business),
+        call: `public.cancel_engagement(${lit(hire.id)})`,
+      },
+      round % 2 === 0,
+    );
+    seen.push(deposit);
+    c.eq(`round ${round}: deposit`, deposit, "funded");
+    c.ok(
+      `round ${round}: cancel refused (${cancel})`,
+      ["error:payment_in_progress", "error:engagement_locked"].includes(cancel),
+    );
+    const f = await hireFacts(hire);
+    c.eq(
+      `round ${round}: hire`,
+      [f.status, f.escrow, f.business_wallet],
+      ["funded", -PRICE, 0],
+    );
+  }
+  return fmt(tally(seen));
+}
+
+async function depositVsCardPayment(c) {
+  await setProvider("cray");
+  const seen = [];
+  for (let round = 1; round <= 6; round++) {
+    const { hire, account } = await transferHire();
+    const deposit = newDeposit(TOTAL + 20_000);
+    const pair = await racePair(
+      { who: as.service, call: depositCall(account, deposit) },
+      {
+        who: as.user(hire.business),
+        call: `(public.start_payment(${lit(hire.id)}, true, 'card')) ->> 'method'`,
+      },
+      round % 2 === 0,
+    );
+    seen.push(pair.join("+"));
+    // Either the deposit funded first and the card start was refused, or the
+    // card start superseded the transfer payment and the deposit was only credited.
+    const fundedFirst =
+      pair[0] === "funded" && pair[1] === "error:engagement_locked";
+    const cardFirst = pair[0] === "credited" && pair[1] === "card";
+    c.ok(
+      `round ${round}: a consistent pair (${pair.join(", ")})`,
+      fundedFirst || cardFirst,
+    );
+    const f = await hireFacts(hire);
+    c.ok(`round ${round}: funded at most once`, f.fundings <= 1);
+    if (fundedFirst) {
+      c.eq(
+        `round ${round}: funded hire`,
+        [f.status, f.escrow, f.business_wallet],
+        ["funded", -PRICE, 0],
+      );
+    } else if (cardFirst) {
+      c.eq(
+        `round ${round}: waiting hire, money in the wallet`,
+        [f.status, f.escrow, f.business_wallet],
+        ["awaiting_payment", 0, TOTAL],
+      );
+    }
+    c.eq(
+      `round ${round}: deposit groups`,
+      (await depositFacts(deposit)).groups,
+      1,
+    );
+  }
+  return fmt(tally(seen));
+}
+
+async function switchDuringStartPayment(c) {
+  const admin = await newAdmin();
+  const seen = [];
+  let current = await getProvider();
+  for (let round = 1; round <= 4; round++) {
+    const hire = await newHire(PRICE);
+    const target = current === "cray" ? "paystack" : "cray";
+    const pair = await racePair(
+      {
+        who: as.user(admin),
+        call: `public.set_payment_provider(${lit(target)}, 'race flip')`,
+      },
+      {
+        who: as.user(hire.business),
+        call: `(public.start_payment(${lit(hire.id)}, true, 'card')) ->> 'provider'`,
+      },
+      round % 2 === 0,
+    );
+    c.eq(`round ${round}: the switch`, pair[0], "ok");
+    // The payment is stamped with the provider it saw: the old or the new one.
+    c.ok(
+      `round ${round}: stamped ${pair[1]}`,
+      pair[1] === current || pair[1] === target,
+    );
+    seen.push(pair[1]);
+
+    // It then follows its own provider: cash lands in that provider's account.
+    const [payment] = await paymentsOf(hire);
+    const stamped = pair[1];
+    await must(
+      as.service,
+      `public.record_card_payment(${lit(payment.reference)}, ${payment.card}::bigint, 0::bigint, ${lit(eventKey("switch"))}, '{}'::jsonb)`,
+    );
+    const cash =
+      await json(`select coalesce(json_agg(distinct l.account), '[]'::json)
+        from public.ledger_entries l
+       where l.engagement_id = ${lit(hire.id)} and l.account in ('paystack', 'cray')`);
+    c.eq(`round ${round}: cash account follows the payment`, cash, [stamped]);
+    const f = await hireFacts(hire);
+    c.eq(`round ${round}: hire`, [f.status, f.escrow], ["funded", -PRICE]);
+    current = target;
+  }
+  c.winners("switch vs start_payment", seen);
+  return fmt(tally(seen));
+}
+
+async function twoDepositsOneHire(c) {
+  await setProvider("cray");
+  const seen = [];
+  for (let round = 1; round <= 3; round++) {
+    const { hire, account } = await transferHire();
+    // Each sends half the total (plus the charge), so only both together fund it.
+    const half = TOTAL / 2;
+    const a = newDeposit(half + 20_000);
+    const b = newDeposit(half + 20_000);
+    const outcomes = await race([
+      { who: as.service, call: depositCall(account, a) },
+      { who: as.service, call: depositCall(account, b) },
+    ]);
+    seen.push(...outcomes);
+    sameCounts(c, `round ${round}: outcomes`, outcomes, {
+      funded: 1,
+      short: 1,
+    });
+    const f = await hireFacts(hire);
+    c.eq(
+      `round ${round}: hire`,
+      [f.status, f.fundings, f.escrow, f.business_wallet],
+      ["funded", 1, -PRICE, 0],
+    );
+    c.eq(
+      `round ${round}: deposit groups`,
+      [(await depositFacts(a)).groups, (await depositFacts(b)).groups],
+      [1, 1],
+    );
+  }
+  return fmt(tally(seen));
+}
+
+async function payoutSendVsFinish(c) {
+  await setProvider("cray");
+  const admin = await newAdmin();
+  const seen = [];
+  for (let round = 1; round <= 4; round++) {
+    const hire = await crayCreatorWithBalance(PRICE, PRICE);
+    const payoutId = await requestPayout(hire.creator, 2_000_000);
+    const reference = await must(
+      as.user(admin),
+      `(public.approve_payout(${lit(payoutId)})) ->> 'reference'`,
+    );
+    const pair = await racePair(
+      {
+        who: as.service,
+        call: `public.record_payout_send(${lit(reference)}, ${lit(`CRAY-${RUN}-${round}`)})`,
+      },
+      {
+        who: as.service,
+        call: `public.finish_payout(${lit(reference)}, 'paid', ${lit(eventKey("send-vs-finish"))}, '{}'::jsonb, 1995000::bigint, 5000::bigint)`,
+      },
+      round % 2 === 0,
+    );
+    seen.push(pair.join("+"));
+    c.eq(`round ${round}: the finish`, pair[1], "paid");
+    c.ok(
+      `round ${round}: the send is recorded or refused because the payout was already paid (${pair[0]})`,
+      pair[0] === "set" || pair[0] === "error:payout_not_processing",
+    );
+    const f = await crayPayoutFacts(payoutId);
+    c.eq(`round ${round}: status`, f.status, "paid");
+    c.eq(`round ${round}: in flight is empty`, f.in_flight, 0);
+    c.eq(`round ${round}: cash left cray once`, f.cray, -2_000_000);
+    c.eq(`round ${round}: one payout_paid group`, f.groups.payout_paid, 1);
+    c.eq(
+      `round ${round}: Cray's id is set only when it was recorded in time`,
+      f.provider_reference,
+      pair[0] === "set" ? `CRAY-${RUN}-${round}` : null,
+    );
+  }
+  return fmt(tally(seen));
+}
+
 // Runner ------------------------------------------------------------------------------------------------
 
 const scenarios = [
@@ -1598,6 +1896,13 @@ const scenarios = [
   ["26 settle job vs open dispute", settleJobVsOpenDispute],
   ["27 settle job vs decide dispute", settleJobVsDecide],
   ["28 click vs settlement", clickVsSettlement],
+  ["29 same deposit twice at once", sameDepositTwice],
+  ["30 deposit vs lapse", depositVsLapse],
+  ["31 deposit vs business cancel", depositVsCancel],
+  ["32 deposit vs card payment for the same hire", depositVsCardPayment],
+  ["33 provider switch during start_payment", switchDuringStartPayment],
+  ["34 two deposits for one hire at once", twoDepositsOneHire],
+  ["35 payout send record vs payout webhook finish", payoutSendVsFinish],
 ];
 
 async function runOnce(scenario) {
@@ -1613,9 +1918,15 @@ async function runOnce(scenario) {
 }
 
 console.log(`money race, run ${RUN}`);
+// The first 28 scenarios are about the Paystack path, so Paystack is the
+// active provider for them; each Cray scenario switches to Cray itself. The
+// provider the local database had is put back at the end.
+const originalProvider = await getProvider();
 let failed = 0;
 const overall = { races: 0, spreadMs: 0, marginMs: Infinity };
 for (const [name, scenario] of scenarios) {
+  // Cray scenarios (29 onward) set Cray themselves; everything before is Paystack.
+  if (Number.parseInt(name, 10) < 29) await setProvider("paystack");
   let { c, counts, stats } = await runOnce(scenario);
   // A race where some call finished before another started proves nothing.
   // That can be a scheduler hiccup, so the scenario (fresh fixtures) runs once more.
@@ -1653,6 +1964,12 @@ for (const [name, scenario] of scenarios) {
     overall.spreadMs = Math.max(overall.spreadMs, stats.spreadMs);
     overall.marginMs = Math.min(overall.marginMs, stats.marginMs);
   }
+}
+
+try {
+  await setProvider(originalProvider);
+} catch (error) {
+  console.log(`Could not restore the payment provider: ${error.message}`);
 }
 
 let totals = "not read";

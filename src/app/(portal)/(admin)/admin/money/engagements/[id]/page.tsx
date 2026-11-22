@@ -272,7 +272,7 @@ function PaymentItem({
       <p className="text-sm break-all text-muted">
         {formatDateTime(p.createdAt)} · {p.reference}
         {p.paystackFeeKobo !== null &&
-          ` · Paystack charge ${formatNaira(p.paystackFeeKobo)}`}
+          ` · Processor charge ${formatNaira(p.paystackFeeKobo)}`}
       </p>
     </li>
   );
