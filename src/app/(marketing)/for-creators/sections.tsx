@@ -172,9 +172,10 @@ export function FindWorkSection() {
           }
         >
           <p>
-            Apply at the listed price, or propose your own (from {minPrice}) on
-            fixed-price campaigns. The business messages you first, and you
-            reply in that thread.
+            Apply at the listed price, or propose your own (from {minPrice}). On
+            pay-per-click campaigns you propose a price per click instead, since
+            the budget is fixed. The business messages you first, and you reply
+            in that thread.
           </p>
           <p>
             Phone numbers, email addresses and WhatsApp or Telegram links are
@@ -330,7 +331,7 @@ export const CREATOR_FAQ: FaqItem[] = [
   {
     question: "Can I negotiate a price?",
     answer:
-      "On fixed-price campaigns, yes. You can apply at the listed price or propose your own, and chat with the business to agree the details before any money moves. On pay-per-click campaigns the business sets the rate and your budget, so you apply on those terms.",
+      "Yes. On fixed-price campaigns you can apply at the listed price or propose your own. On pay-per-click campaigns you can propose your own price per click; the budget stays the business's, so a higher rate means fewer clicks to earn it. The business sees every rate before it hires, and you can chat to agree the details before any money moves.",
   },
   {
     question: "How are pay-per-click campaigns paid?",

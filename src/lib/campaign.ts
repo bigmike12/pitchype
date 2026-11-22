@@ -332,8 +332,35 @@ export function perClickGuidance(budgetKobo: number, cpcKobo: number) {
     /** What a creator keeps of the budget if they send all of them. */
     takeHomeKobo,
     creatorFeeKobo: budgetKobo - takeHomeKobo,
-    /** The lowest rate we allow, which creators can't counter on per-click. */
+    /** The lowest rate we allow. */
     atMinimum: cpcKobo <= MIN_CPC_NAIRA * KOBO_PER_NAIRA,
+  };
+}
+
+/**
+ * The whole-naira rates (₦50 and up) that fit a budget in whole clicks,
+ * nearest below and above a rate that doesn't, so a creator can be told what
+ * to try. Null when there is none on that side.
+ */
+export function fittingRatesNear(
+  budgetKobo: number,
+  rateKobo: number,
+): { below: number | null; above: number | null } {
+  const budgetNaira = budgetKobo / KOBO_PER_NAIRA;
+  const target = rateKobo / KOBO_PER_NAIRA;
+  let below: number | null = null;
+  let above: number | null = null;
+  for (let d = 1; d * d <= budgetNaira; d++) {
+    if (budgetNaira % d !== 0) continue;
+    for (const rate of [d, budgetNaira / d]) {
+      if (rate < MIN_CPC_NAIRA) continue;
+      if (rate <= target && (below === null || rate > below)) below = rate;
+      if (rate >= target && (above === null || rate < above)) above = rate;
+    }
+  }
+  return {
+    below: below === null ? null : below * KOBO_PER_NAIRA,
+    above: above === null ? null : above * KOBO_PER_NAIRA,
   };
 }
 

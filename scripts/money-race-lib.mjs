@@ -326,7 +326,10 @@ update public.campaigns set status = 'draft' where id = ${lit(hire.campaign)};
 update public.campaigns set payment_model = 'per_click', cpc_kobo = 5000,
        destination_url = 'https://shop.example.com/race'
  where id = ${lit(hire.campaign)};
-update public.campaigns set status = 'open' where id = ${lit(hire.campaign)};`);
+update public.campaigns set status = 'open' where id = ${lit(hire.campaign)};
+-- The hire was made before the campaign became per-click, so it was stored
+-- without a rate; a real hire is stamped with its rate when it is approved.
+update public.engagements set cpc_kobo = 5000 where id = ${lit(hire.id)};`);
   await fund(hire);
   await must(as.user(hire.creator), `public.start_engagement(${lit(hire.id)})`);
   hire.code = await run(
@@ -337,6 +340,29 @@ update public.campaigns set status = 'open' where id = ${lit(hire.campaign)};`);
                 where engagement_id = ${lit(hire.id)};`);
   }
   return hire;
+}
+
+// A live per-click campaign (₦50 a click, ₦5,000 per creator) with one
+// undecided application, for the approval and rate-change races.
+export async function rateApplication() {
+  const business = newPerson("business", "biz");
+  const creator = newPerson("influencer", "creator");
+  const campaign = randomUUID();
+  const application = randomUUID();
+  await run(`
+insert into public.users (id, auth_user_id, email, role) values ${userRow(business)}, ${userRow(creator)};
+insert into public.business_profiles (user_id, business_name, contact_name, state, city)
+values (${lit(business.id)}, 'Race Test Business', 'Race Tester', 'Lagos', 'Ikeja');
+insert into public.campaigns (id, business_id, status, title, brief, payment_model, cpc_kobo, price_kobo,
+                              destination_url, places, applications_close_on, deliver_by,
+                              published_at, submitted_at, approved_at)
+values (${lit(campaign)}, ${lit(business.id)}, 'open', 'Money race rate test',
+        'A brief that is long enough for the checks.', 'per_click', 5000, 500000,
+        'https://shop.example.com/race', 10, public.lagos_today() + 10, public.lagos_today() + 20,
+        now(), now(), now());
+insert into public.applications (id, campaign_id, creator_id, status)
+values (${lit(application)}, ${lit(campaign)}, ${lit(creator.id)}, 'submitted');`);
+  return { application, business, creator, campaign };
 }
 
 // A started per-click hire whose click window ended 4 days ago, so its 72-hour

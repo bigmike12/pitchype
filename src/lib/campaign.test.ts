@@ -6,6 +6,7 @@ import {
   checkDestinationUrl,
   clickWindowEnded,
   deliverableText,
+  fittingRatesNear,
   maxClicks,
   lagosToday,
   maxSpend,
@@ -239,6 +240,28 @@ test("destination links are stored normalised", () => {
 
 test("clicks per creator from the budget", () => {
   assert.equal(maxClicks(2_500_000, 5_000), 500);
+});
+
+test("rates that fit a budget in whole clicks, nearest a rate that doesn't", () => {
+  // ₦10,000: the whole-naira divisors from ₦50 are 50, 80, 100, 125, 200, 250 ...
+  assert.deepEqual(fittingRatesNear(1_000_000, 7_000), {
+    below: 5_000,
+    above: 8_000,
+  });
+  // A rate that fits is its own nearest on both sides.
+  assert.deepEqual(fittingRatesNear(1_000_000, 10_000), {
+    below: 10_000,
+    above: 10_000,
+  });
+  // Above every divisor: only a lower rate exists. Below the minimum: only higher.
+  assert.deepEqual(fittingRatesNear(1_000_000, 2_000_000), {
+    below: 1_000_000,
+    above: null,
+  });
+  assert.deepEqual(fittingRatesNear(1_000_000, 1_000), {
+    below: null,
+    above: 5_000,
+  });
 });
 
 test("per-click guidance: the minimum rate on the minimum budget", () => {

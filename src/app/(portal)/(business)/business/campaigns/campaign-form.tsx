@@ -683,7 +683,7 @@ export function CampaignForm({
                       required
                       inputMode="numeric"
                       placeholder="50"
-                      hint={`At least ₦${MIN_CPC_NAIRA}. Only real, unique visits count: link previews, bots and repeat visits within 24 hours don’t. Locked once the campaign is live.`}
+                      hint={`At least ₦${MIN_CPC_NAIRA}. Creators can suggest their own rate when they apply; you choose who to hire, at the rate you see. Only real, unique visits count: link previews, bots and repeat visits within 24 hours don’t. Locked once the campaign is live.`}
                       value={cpc}
                       onChange={(e) => setCpc(e.target.value)}
                       error={errors.cpc}
@@ -976,10 +976,11 @@ function SpendSummary({
           icon={TriangleAlert}
           title="This is the lowest rate we allow"
         >
-          Creators see your rate before they apply and can’t counter it on a
-          pay-per-click campaign, so a campaign at the minimum may get fewer
-          applications. A higher rate doesn’t raise the most you can spend,
-          which stays at the budget; it only pays more for each click.
+          Creators see your rate before they apply, so a campaign at the minimum
+          may get fewer applications. Creators can also suggest their own rate,
+          and you choose whether to hire at it. A higher rate doesn’t raise the
+          most you can spend, which stays at the budget; it only pays more for
+          each click.
         </Callout>
       )}
       {guidance && (

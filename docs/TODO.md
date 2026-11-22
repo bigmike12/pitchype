@@ -651,15 +651,22 @@ Portal rebuild (2026-11-16, the dashboard-kit look):
       Nigerian figures found were one agency blog (Meta, about ₦30–₦300 a
       click, by objective) and one unofficial guide, with nothing by niche or
       platform, which CLAUDE.md §3 doesn't let us ship as a statistic.
-- [ ] Pay-per-click rate guidance, phase 2: creators propose their own cost
-      per click when applying. Reverses the decided "creators can't propose a
-      price on per-click" rule (CLAUDE.md §5, §12 item 11), so get the owner's
-      decision first. Needs `applications.proposed_cpc_kobo`, an
-      `engagements.cpc_kobo` snapshot read by every click and settlement
-      function that now reads `campaigns.cpc_kobo`, an approval check for the
-      rate seen, a money-race scenario, and a business comparison table. Update
-      the "can't counter it" wording in the form's minimum-rate warning when it
-      ships.
+- [x] Pay-per-click rate guidance, phase 2 (2026-11-22): creators propose their
+      own cost per click, businesses compare and approve the rate they saw,
+      and the hire's rate is frozen on the engagement. Design:
+      `docs/superpowers/specs/2026-11-22-per-click-creator-rates-design.md`.
+- [ ] Phase 2 follow-ups: tell the business when a creator changes their rate
+      after applying (only the first application notifies today); decide
+      whether the business can counter a creator's rate (today it hires at it
+      or passes); and push migration `20261126100000` to the live project with
+      the app (production has no per-click campaigns yet).
+- [ ] Merge order: `apply_to_campaign()` and `approve_application()` carry
+      identity checks on other branches, and this change leaves both alone on
+      purpose. Whoever merges those branches should confirm the apply and
+      hire flows still work end to end, and that
+      `20261126100000` sorts after every migration that redefines the click or
+      application functions it replaces (`campaign_applications`,
+      `my_applications`, `engagement_json` and the click functions).
 - [ ] Pay-per-click rate guidance, phase 3: a typical-rate band from our own
       completed hires, by niche and platform, shown only above a sample size
       the owner sets, as aggregates that never expose one business's rate. The

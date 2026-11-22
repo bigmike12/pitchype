@@ -30,9 +30,18 @@ export function ApplicationPanel({
   paymentModel: PaymentModel;
 }) {
   const { status, engagement, campaign } = application;
-  const price = formatNaira(
-    application.proposedPriceKobo ?? campaign.priceKobo,
-  );
+  const perClick = paymentModel === "per_click";
+  const rateKobo = application.proposedCpcKobo ?? campaign.cpcKobo;
+  const price =
+    perClick && rateKobo !== null
+      ? `${formatNaira(rateKobo)} a click`
+      : formatNaira(application.proposedPriceKobo ?? campaign.priceKobo);
+  // What a hire was agreed at: the price per click and the cap on a
+  // per-click hire, the price on a fixed one.
+  const agreed = (hire: { agreedPriceKobo: number; cpcKobo: number | null }) =>
+    hire.cpcKobo === null
+      ? formatNaira(hire.agreedPriceKobo)
+      : `${formatNaira(hire.cpcKobo)} a click, up to ${formatNaira(hire.agreedPriceKobo)}`;
   const open = status === "submitted" || status === "shortlisted";
   const applyAgain = hireEndedUnpaid(application);
 
@@ -42,7 +51,7 @@ export function ApplicationPanel({
       tone: "success",
       icon: BadgeCheck,
       title: "You’re hired",
-      text: `Agreed at ${formatNaira(engagement.agreedPriceKobo)}. The business is paying into escrow; don’t start work until we show it’s paid.`,
+      text: `Agreed at ${agreed(engagement)}. The business is paying into escrow; don’t start work until we show it’s paid.`,
     };
   } else if (status === "approved" && engagement?.status === "cancelled") {
     view = {
@@ -62,7 +71,7 @@ export function ApplicationPanel({
       tone: "success",
       icon: BadgeCheck,
       title: "You’re hired",
-      text: `Agreed at ${engagement ? formatNaira(engagement.agreedPriceKobo) : price}.`,
+      text: `Agreed at ${engagement ? agreed(engagement) : price}.`,
     };
   } else if (status === "shortlisted") {
     view = {
@@ -119,6 +128,7 @@ export function ApplicationPanel({
           <ApplyForm
             campaignId={campaign.id}
             campaignPriceKobo={campaign.priceKobo}
+            campaignCpcKobo={campaign.cpcKobo}
             paymentModel={paymentModel}
           />
         </div>
@@ -128,12 +138,14 @@ export function ApplicationPanel({
         <div className="rounded-card panel p-5 sm:p-6">
           <details>
             <summary className="cursor-pointer font-semibold text-ink">
-              Change your price or note
+              Change your {perClick ? "rate" : "price"} or note
             </summary>
             <div className="mt-5">
               <ApplyForm
                 campaignId={campaign.id}
                 campaignPriceKobo={campaign.priceKobo}
+                campaignCpcKobo={campaign.cpcKobo}
+                paymentModel={paymentModel}
                 application={application}
               />
             </div>

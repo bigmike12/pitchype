@@ -58,6 +58,7 @@ import {
   payoutFacts,
   race,
   racePair,
+  rateApplication,
   recordCall,
   requestPayout,
   resetOverlap,
@@ -1569,6 +1570,117 @@ async function clickVsSettlement(c) {
 
 // Runner ------------------------------------------------------------------------------------------------
 
+// 29–30 -------------------------------------------------------------------------------------------------
+
+// What a per-click application and its hires look like afterwards.
+async function rateFacts(r) {
+  return json(`select jsonb_build_object(
+      'proposed', a.proposed_cpc_kobo,
+      'status', a.status,
+      'hires', (select count(*) from public.engagements e where e.application_id = a.id),
+      'hireRate', (select e.cpc_kobo from public.engagements e where e.application_id = a.id limit 1))
+    from public.applications a where a.id = ${lit(r.application)}`);
+}
+
+async function approveVsRateChange(c) {
+  // The business saw ₦50 a click (the creator had not proposed). The creator
+  // proposes ₦100 at the same moment. Either the approval is first, and the
+  // hire is at the ₦50 it saw and the change is refused, or the change is
+  // first, and the approval is refused as rate_changed. Never a hire at a
+  // rate the business did not see.
+  const seen = [];
+  const lateBy = [0, 0, 1, 1, 2, 0, 1, 1, 2, 2];
+  for (let round = 1; round <= lateBy.length; round++) {
+    const r = await rateApplication();
+    const [approve, change] = await racePair(
+      {
+        who: as.user(r.business),
+        call: `public.approve_application_at_rate(${lit(r.application)}, 500000, 5000)`,
+      },
+      {
+        who: as.user(r.creator),
+        call: `public.set_application_rate(${lit(r.application)}, 10000)`,
+        delayMs: lateBy[round - 1],
+      },
+      round % 2 === 0,
+    );
+    const f = await rateFacts(r);
+    if (change === "ok") {
+      seen.push("change first");
+      c.eq(`round ${round}: approval refused`, approve, "error:rate_changed");
+      // jsonb orders keys shortest first, then alphabetically.
+      c.eq(`round ${round}: no hire, rate kept`, f, {
+        hires: 0,
+        status: "submitted",
+        hireRate: null,
+        proposed: 10000,
+      });
+    } else {
+      seen.push("approval first");
+      c.eq(
+        `round ${round}: change refused`,
+        change,
+        "error:application_locked",
+      );
+      c.eq(
+        `round ${round}: approval went through`,
+        approve.startsWith("error:"),
+        false,
+      );
+      c.eq(`round ${round}: one hire at the rate seen`, f, {
+        hires: 1,
+        status: "approved",
+        hireRate: 5000,
+        proposed: null,
+      });
+    }
+  }
+  const order = new Set(seen);
+  if (order.size < 2)
+    c.warnings.push(`only ${[...order].join(" and ")} happened in 10 rounds`);
+  return seen.join(", ");
+}
+
+async function approveTwiceAtOnce(c) {
+  // A double click on Hire: exactly one hire, the other call refused, no deadlock.
+  for (let round = 1; round <= 6; round++) {
+    const r = await rateApplication();
+    await must(
+      as.user(r.creator),
+      `public.set_application_rate(${lit(r.application)}, 10000)`,
+    );
+    const outcomes = await racePair(
+      {
+        who: as.user(r.business),
+        call: `public.approve_application_at_rate(${lit(r.application)}, 500000, 10000)`,
+      },
+      {
+        who: as.user(r.business),
+        call: `public.approve_application_at_rate(${lit(r.application)}, 500000, 10000)`,
+      },
+      round % 2 === 0,
+    );
+    c.eq(
+      `round ${round}: one approval, one refused`,
+      outcomes.filter((o) => !o.startsWith("error:")).length,
+      1,
+    );
+    c.eq(
+      `round ${round}: the other is application_locked`,
+      outcomes.filter((o) => o.startsWith("error:")),
+      ["error:application_locked"],
+    );
+    const f = await rateFacts(r);
+    c.eq(`round ${round}: one hire at ₦100`, f, {
+      hires: 1,
+      status: "approved",
+      hireRate: 10000,
+      proposed: 10000,
+    });
+  }
+  return "6 rounds";
+}
+
 const scenarios = [
   ["1 same event key ×5", sameEventKey],
   ["2 same reference, 5 event keys", differentEventKeys],
@@ -1598,6 +1710,8 @@ const scenarios = [
   ["26 settle job vs open dispute", settleJobVsOpenDispute],
   ["27 settle job vs decide dispute", settleJobVsDecide],
   ["28 click vs settlement", clickVsSettlement],
+  ["29 approve vs rate change", approveVsRateChange],
+  ["30 approve twice at once", approveTwiceAtOnce],
 ];
 
 async function runOnce(scenario) {

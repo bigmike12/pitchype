@@ -10,6 +10,7 @@ import { requireRole, requireUser } from "@/lib/auth";
 import {
   applyToCampaign,
   editApplication,
+  setApplicationRate,
   withdrawApplication,
 } from "@/lib/db/applications";
 import {
@@ -121,7 +122,11 @@ export async function applyAction(
   const user = await requireRole("influencer");
   const campaignId = text(form, "campaignId");
   const applicationId = text(form, "applicationId");
-  const values = { price: text(form, "price"), note: text(form, "note") };
+  const values = {
+    price: text(form, "price"),
+    rate: text(form, "rate"),
+    note: text(form, "note"),
+  };
 
   if (await isApplyLimited(user.id)) {
     return {
@@ -138,6 +143,7 @@ export async function applyAction(
     form,
     campaign.priceKobo,
     campaign.paymentModel,
+    campaign.cpcKobo,
   );
   if (!parsed.ok) {
     return { status: "error", errors: parsed.errors, values: parsed.values };
@@ -149,12 +155,32 @@ export async function applyAction(
   if (!result.ok) {
     return { status: "error", message: refusalText(result.reason), values };
   }
+
+  // A per-click campaign's rate is a second call, made for every apply or
+  // edit so that applying again after a lapsed hire clears an old rate.
+  const perClick = campaign.paymentModel === "per_click";
+  if (perClick) {
+    const savedId = applicationId || (result.value as string);
+    const saved = await setApplicationRate(
+      savedId,
+      parsed.value.proposedCpcKobo,
+    );
+    if (!saved.ok) {
+      sendEmailsAfterResponse();
+      refresh();
+      return {
+        status: "error",
+        message: `${applicationId ? "Your note was saved" : "Your application was sent"}, but your rate wasn’t: ${refusalText(saved.reason)} Change it under “Change your rate or note”.`,
+        values,
+      };
+    }
+  }
   sendEmailsAfterResponse();
   refresh();
   return {
     status: "success",
     message: applicationId
-      ? "Saved. The business sees your new price and note."
+      ? `Saved. The business sees your new ${perClick ? "rate" : "price"} and note.`
       : "Applied. The business can now see your application.",
     values,
   };
