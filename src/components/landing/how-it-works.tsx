@@ -5,7 +5,6 @@ import { EXAMPLE_PRICE_KOBO, feeExample } from "@/lib/fees";
 import { formatNaira } from "@/lib/money";
 
 import { Avatar, Chip, ProductFragment } from "@/components/brand/fragments";
-import { HowItWorksTabs } from "./how-it-works-tabs";
 
 type Step = { title: string; text: string; fragment: ReactNode };
 
@@ -16,7 +15,7 @@ const price = formatNaira(job.agreedPriceKobo);
 export const BUSINESS_STEPS: Step[] = [
   {
     title: "Post a campaign",
-    text: "Describe the job, who you’re looking for, and what you’ll pay each creator.",
+    text: "Describe the job, the creators you need and the price for each one.",
     fragment: (
       <ProductFragment
         label={`a new campaign paying ${price} per creator, 5 creators needed`}
@@ -57,7 +56,7 @@ export const BUSINESS_STEPS: Step[] = [
   },
   {
     title: "Approve and fund",
-    text: "Approve the creators you want and pay into escrow. The money is held until the work is approved.",
+    text: "Approve the creators you want and pay into escrow. The money stays held until you accept the work or 7 days pass.",
     fragment: (
       <ProductFragment
         label={`${formatNaira(job.businessPaysKobo)} paid, ${price} held in escrow`}
@@ -72,7 +71,7 @@ export const BUSINESS_STEPS: Step[] = [
   },
   {
     title: "Approve the work",
-    text: "Check what they deliver. Accept it and the creator is paid, or decline with reasons.",
+    text: "Check what they deliver. Accept it and the creator is paid, or decline with your reasons. No reply in 7 days also pays the creator.",
     fragment: (
       <ProductFragment label="buttons to accept the work or decline it with reasons">
         <p className="font-semibold">Work submitted</p>
@@ -140,7 +139,7 @@ export const CREATOR_STEPS: Step[] = [
   },
   {
     title: "Deliver and get paid",
-    text: "Submit your work. Once it’s approved, or after 7 days with no reply, the money is yours.",
+    text: "Submit your work. The money moves to your wallet once it’s approved, or 7 days after you submit if the business doesn’t reply.",
     fragment: (
       <ProductFragment
         label={`work approved, ${formatNaira(job.influencerReceivesKobo)} added to the wallet`}
@@ -192,16 +191,30 @@ export function HowItWorks() {
       aria-labelledby="how-it-works-title"
       className="container-page section-y"
     >
-      <h2 id="how-it-works-title" className="text-display-lg reveal">
+      <h2 id="how-it-works-title" className="text-display-lg">
         How it works
       </h2>
-      <p className="mt-4 mb-8 max-w-[36rem] text-lg reveal">
-        Four steps from first post to payday, whichever side you’re on.
+      <p className="mt-4 mb-8 max-w-[36rem] text-lg">
+        Four steps on each side, from the first post to a paid job.
       </p>
-      <HowItWorksTabs
-        business={<StepList steps={BUSINESS_STEPS} />}
-        creator={<StepList steps={CREATOR_STEPS} />}
-      />
+      <div className="space-y-14">
+        <div role="group" aria-labelledby="how-business-title">
+          <p id="how-business-title" className="text-display-md">
+            For businesses
+          </p>
+          <div className="mt-6">
+            <StepList steps={BUSINESS_STEPS} />
+          </div>
+        </div>
+        <div role="group" aria-labelledby="how-creator-title">
+          <p id="how-creator-title" className="text-display-md">
+            For creators
+          </p>
+          <div className="mt-6">
+            <StepList steps={CREATOR_STEPS} />
+          </div>
+        </div>
+      </div>
     </section>
   );
 }

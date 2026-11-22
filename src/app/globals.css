@@ -364,20 +364,6 @@
 }
 
 /*
- * Entrance on scroll, driven by the scroll position itself (no JavaScript).
- * Browsers without scroll-driven animations simply show the content.
- */
-@utility reveal {
-  @media (prefers-reduced-motion: no-preference) {
-    @supports (animation-timeline: view()) {
-      animation: fade-up linear both;
-      animation-timeline: view();
-      animation-range: entry 0% entry 45%;
-    }
-  }
-}
-
-/*
  * A thin light that travels around a card's edge (the hero product, the
  * featured pricing card). Decorative; static with reduced motion.
  */

@@ -10,7 +10,7 @@ const ROWS = [
   {
     topic: "Getting paid before you’re famous",
     usual:
-      "Platform payouts come after you hit their numbers. TikTok’s needs 10,000 followers and isn’t open in Nigeria.",
+      "Platform creator funds set follower and view targets first, and aren’t open in every country.",
     pitchype:
       "No follower minimum to join. Businesses pay for the work, not the follower count.",
   },
@@ -30,7 +30,7 @@ const ROWS = [
     topic: "Paying and getting paid",
     usual: "Pay upfront and hope, or post first and chase the money.",
     pitchype:
-      "The business pays into escrow before work starts. The creator is paid on approval, or automatically after 7 days of silence.",
+      "The business pays into escrow before work starts. The creator is paid once the work is approved, or automatically if the business doesn’t respond within 7 days.",
   },
   {
     topic: "Approving the work",
@@ -51,7 +51,7 @@ export type ComparisonRow = { topic: string; usual: string; pitchype: string };
 /** "The usual way" against Pitchype, one row per topic. */
 export function ComparisonTable({ rows }: { rows: ComparisonRow[] }) {
   return (
-    <div className="mt-10 overflow-hidden rounded-frame panel reveal">
+    <div className="mt-10 overflow-hidden rounded-frame panel">
       {/* Column heads, for sighted users from 768px; each cell also
           carries its own label for phones and screen readers. */}
       <div
@@ -59,7 +59,7 @@ export function ComparisonTable({ rows }: { rows: ComparisonRow[] }) {
         className="hidden grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1.15fr)] border-b border-hairline md:grid"
       >
         <span className="px-6 py-4" />
-        <span className="px-6 py-4 text-sm font-semibold text-muted">
+        <span className="px-6 py-4 text-sm font-semibold text-body">
           The usual way
         </span>
         <span className="flex items-center gap-2 bg-[linear-gradient(135deg,rgb(221_210_255/0.45),rgb(250_211_230/0.35))] px-6 py-4 text-sm font-semibold text-ink">
@@ -77,7 +77,7 @@ export function ComparisonTable({ rows }: { rows: ComparisonRow[] }) {
             <h3 className="text-base font-semibold text-ink md:px-6 md:py-5">
               {row.topic}
             </h3>
-            <p className="flex gap-2.5 text-[0.9375rem] text-muted md:px-6 md:py-5">
+            <p className="flex gap-2.5 text-[0.9375rem] text-body md:px-6 md:py-5">
               <X
                 className="mt-1 size-4 shrink-0 text-muted"
                 aria-hidden="true"
@@ -115,15 +115,14 @@ export function WhyPitchype() {
       className="container-page section-y"
     >
       <div className="max-w-3xl">
-        <h2 id="why-title" className="text-display-lg reveal">
+        <h2 id="why-title" className="text-display-lg">
           Followers aren’t a paycheck.{" "}
-          <span className="text-gradient">Budgets aren’t a bet.</span>
+          <span className="text-gradient">Agreed work gets paid.</span>
         </h2>
-        <p className="mt-4 max-w-[40rem] text-lg reveal">
-          Social platforms are great at building audiences, but they don’t
-          promise anyone gets paid. Pitchype is the missing piece: businesses
-          that want to pay, creators who fit, and money that’s safe on both
-          sides.
+        <p className="mt-4 max-w-[40rem] text-lg">
+          Social platforms help people build audiences, but they don’t make sure
+          anyone is paid for a job. Pitchype covers what usually goes wrong: the
+          price, the payment and the approval.
         </p>
       </div>
 

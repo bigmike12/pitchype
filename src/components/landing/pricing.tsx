@@ -64,7 +64,7 @@ export function FeeReceipt({ receipt }: { receipt: Receipt }) {
   return (
     <article
       aria-labelledby={`pricing-${receipt.title}`}
-      className="relative isolate overflow-hidden rounded-panel p-6 panel reveal sm:p-8"
+      className="relative isolate overflow-hidden rounded-panel p-6 panel sm:p-8"
     >
       <div
         aria-hidden="true"
@@ -104,11 +104,11 @@ export function Pricing() {
       aria-labelledby="pricing-title"
       className="container-page section-y"
     >
-      <h2 id="pricing-title" className="text-display-lg reveal">
+      <h2 id="pricing-title" className="text-display-lg">
         Simple, honest fees
       </h2>
-      <p className="mt-4 max-w-[36rem] text-lg reveal">
-        You only pay when real work happens. Here’s a{" "}
+      <p className="mt-4 max-w-[36rem] text-lg">
+        Fees only apply to jobs that are funded and paid. Here’s a{" "}
         {formatNaira(job.agreedPriceKobo)} job, from both sides.
       </p>
 
@@ -120,7 +120,7 @@ export function Pricing() {
 
       <ul className="mt-8 grid gap-4 lg:grid-cols-3">
         {FEE_NOTES.map((note) => (
-          <li key={note} className="flex gap-3 text-[0.9375rem] reveal">
+          <li key={note} className="flex gap-3 text-[0.9375rem]">
             <Check
               className="mt-0.5 size-5 shrink-0 text-brand-green"
               aria-hidden="true"

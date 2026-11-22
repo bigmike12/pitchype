@@ -12,10 +12,13 @@ const PRODUCT_LINKS = [
   { href: BUSINESS_PAGE, label: "For businesses" },
   { href: CREATOR_PAGE, label: "For creators" },
   { href: "/#pricing", label: "Pricing" },
+  { href: "/how-escrow-works", label: "How escrow works" },
   { href: "/#faq", label: "FAQ" },
 ];
 
-const linkClass = "text-body hover:text-ink hover:underline underline-offset-4";
+// A 44px row on a phone (a tap target), back to a plain line from md up.
+const linkClass =
+  "inline-flex min-h-11 items-center text-body hover:text-ink hover:underline underline-offset-4 md:min-h-0";
 
 // Pages are prerendered, so reading the clock has to be cached explicitly
 // (Cache Components). Refreshing daily is plenty for a copyright year.
@@ -34,7 +37,8 @@ export function SiteFooter() {
             <Wordmark />
             <p className="mt-4 max-w-sm text-sm">
               Pitchype connects Nigerian businesses with micro and nano
-              creators, and holds the payment until the work is approved.
+              creators, and holds the payment in escrow until the work is
+              approved or 7 days pass.
             </p>
           </div>
 

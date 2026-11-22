@@ -628,6 +628,22 @@ Portal rebuild (2026-11-16, the dashboard-kit look):
       left out, because each needs data in the shell or client state.
 - [ ] A business's home has no list page behind "In progress" and
       "Completed" yet, so those two pipeline stages are not links.
+- [x] Pay per click is live in production. The For businesses page has a
+      pay-per-click section and FAQ, and the For creators page covers how
+      those campaigns pay (2026-11-22).
+- [x] Onboarding copy and the privacy and terms drafts now describe the live
+      product, not the waitlist (2026-11-22). Both stay drafts, noindex, for
+      lawyer review.
+- [ ] Privacy notice: the rate limiter stores each request's IP address in
+      `rate_limit_hits`, and old rows are only removed when the same address
+      tries again. Decide whether to purge them on a schedule, then state the
+      answer in the notice (2026-11-22).
+- [ ] Privacy and terms: set the retention period for payment, ledger, payout
+      and dispute records, which the notice says is still being set.
+- [ ] Landing copy: check the pages at 390px in a real browser. The
+      headless screenshot used on 2026-11-22 crops the right edge of every
+      page, including the unchanged privacy page, so it could not confirm the
+      new hero wrap.
 
 ## Done
 

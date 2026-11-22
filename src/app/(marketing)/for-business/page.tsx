@@ -10,6 +10,7 @@ import { BUSINESS_PAGE } from "@/lib/signup-link";
 
 import {
   BUSINESS_FAQ,
+  CampaignTypesSection,
   CostSection,
   HiringSection,
   MoneySection,
@@ -17,9 +18,9 @@ import {
 } from "./sections";
 
 export const metadata: Metadata = {
-  title: "For businesses",
+  title: "Hire creators in Nigeria for paid campaigns",
   description:
-    "Find micro and nano creators in Nigeria, agree the price up front and pay through escrow. Pitchype holds your money until you approve the work.",
+    "Find micro and nano creators in Nigeria, agree the price up front and pay through escrow. Pitchype holds your money until you accept the work or 7 days pass.",
   alternates: { canonical: BUSINESS_PAGE },
 };
 
@@ -32,19 +33,19 @@ export default function ForBusinessPage() {
         eyebrow="For businesses"
         title={
           <>
-            Hire creators your customers{" "}
-            <span className="text-gradient">already trust.</span>
+            Hire micro creators in Nigeria,{" "}
+            <span className="text-gradient">with the money in escrow.</span>
           </>
         }
-        lead="Find creators by niche, platform and city, agree the price up front and pay through escrow. Your money is held until you approve the work."
+        lead="Find creators by niche, platform, state and followers, agree the price up front and pay through escrow. Your money stays held until you accept the work or 7 days pass."
         primaryCta={{ href: SIGN_UP, label: "Create a business account" }}
         note="Free to join. A service fee applies only to jobs you fund."
       />
 
       <AudienceWhy
         id="why-business"
-        title="Creator marketing without the guesswork"
-        lead="Hiring creators usually means cold messages, prices that move and paying before you know what you’ll get. Here is what changes."
+        title="Hiring creators without the guesswork"
+        lead="Hiring creators usually means cold messages, prices that move and paying before you know what you’ll get. Here is what changes on Pitchype."
         rows={WHY_ROWS}
       />
 
@@ -53,16 +54,17 @@ export default function ForBusinessPage() {
         aria-labelledby="how-it-works-title"
         className="container-page section-y"
       >
-        <h2 id="how-it-works-title" className="text-display-lg reveal">
+        <h2 id="how-it-works-title" className="text-display-lg">
           How it works
         </h2>
-        <p className="mt-4 mb-8 max-w-[36rem] text-lg reveal">
-          Four steps from posting a campaign to approved work.
+        <p className="mt-4 mb-8 max-w-[36rem] text-lg">
+          Four steps from a campaign or a creator’s profile to approved work.
         </p>
         <StepList steps={BUSINESS_STEPS} />
       </section>
 
       <HiringSection />
+      <CampaignTypesSection />
       <MoneySection />
       <ForBusinesses />
       <CostSection />
@@ -75,7 +77,7 @@ export default function ForBusinessPage() {
             <span className="text-gradient">first creator?</span>
           </>
         }
-        text="Create a free business account, post a campaign, and pay only for work you approve."
+        text="Create a free business account, post a campaign or find creators, and pay through escrow."
         cta={{ href: SIGN_UP, label: "Create a business account" }}
       />
     </main>

@@ -19,7 +19,7 @@ const bricolage = Bricolage_Grotesque({
   display: "swap",
 });
 
-const TITLE = "Pitchype: brands meet creators, everybody gets paid";
+const TITLE = "Pitchype: hire creators in Nigeria, get paid for your work";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

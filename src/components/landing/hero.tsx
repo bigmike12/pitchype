@@ -13,7 +13,7 @@ export function Hero() {
   return (
     <section
       aria-labelledby="hero-title"
-      className="relative isolate -mt-16 overflow-hidden pt-16 sm:-mt-[4.75rem] sm:pt-[4.75rem]"
+      className="relative isolate -mt-14 overflow-hidden pt-14 sm:-mt-16 sm:pt-16"
     >
       {/* Backdrop: a drifting aurora that fades into the page, and a dot grid. */}
       <div
@@ -26,22 +26,22 @@ export function Hero() {
         {/* One block per sentence so lines never break across the full stop. */}
         <h1
           id="hero-title"
-          className="mx-auto mt-6 max-w-[15ch] text-display-xl enter"
+          className="mx-auto mt-6 max-w-[22ch] text-display-xl enter"
           style={delay(60)}
         >
-          <span className="block">Brands meet creators.</span>{" "}
           <span className="block">
-            Everybody <span className="text-gradient">gets paid.</span>
-          </span>
+            Hire <span className="text-gradient">creators.</span>
+          </span>{" "}
+          <span className="block">Get paid for your work.</span>
         </h1>
         <p
           className="mx-auto mt-6 max-w-[38rem] text-lg sm:text-xl enter"
           style={delay(120)}
         >
-          Social platforms help you grow an audience. Pitchype helps you get
-          paid for it. Businesses find creators who fit, agree the price up
-          front and pay through escrow; creators get paid when the work is
-          approved.
+          Pitchype connects Nigerian businesses with micro and nano creators for
+          paid campaigns. Agree the price up front, pay into escrow, and keep
+          the money held until the work is approved or 7 days pass without a
+          reply.
         </p>
 
         {/* Sign-up opens with the matching account type already chosen. */}

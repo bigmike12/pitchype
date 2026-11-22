@@ -9,7 +9,7 @@ import { signupHrefFor } from "@/lib/signup-link";
 
 function GetStartedLink({ href }: { href: string }) {
   return (
-    <Link href={href} className={buttonVariants()}>
+    <Link href={href} className={buttonVariants({ className: "max-sm:px-3" })}>
       Get started
     </Link>
   );
