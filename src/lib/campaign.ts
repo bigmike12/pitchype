@@ -319,6 +319,51 @@ export function maxClicks(budgetKobo: number, cpcKobo: number): number {
   return Math.floor(budgetKobo / cpcKobo);
 }
 
+/**
+ * What a per-click rate means for a creator, from the numbers the business
+ * typed. Exact arithmetic only: there is no market rate here until Pitchype
+ * has enough campaign history of its own to state one honestly (CLAUDE.md §3).
+ */
+export function perClickGuidance(budgetKobo: number, cpcKobo: number) {
+  const takeHomeKobo = creatorReceivesKobo(budgetKobo);
+  return {
+    /** Clicks a creator must send to earn the whole budget. */
+    clicks: maxClicks(budgetKobo, cpcKobo),
+    /** What a creator keeps of the budget if they send all of them. */
+    takeHomeKobo,
+    creatorFeeKobo: budgetKobo - takeHomeKobo,
+    /** The lowest rate we allow. */
+    atMinimum: cpcKobo <= MIN_CPC_NAIRA * KOBO_PER_NAIRA,
+  };
+}
+
+/**
+ * The whole-naira rates (₦50 and up) that fit a budget in whole clicks,
+ * nearest below and above a rate that doesn't, so a creator can be told what
+ * to try. Null when there is none on that side.
+ */
+export function fittingRatesNear(
+  budgetKobo: number,
+  rateKobo: number,
+): { below: number | null; above: number | null } {
+  const budgetNaira = budgetKobo / KOBO_PER_NAIRA;
+  const target = rateKobo / KOBO_PER_NAIRA;
+  let below: number | null = null;
+  let above: number | null = null;
+  for (let d = 1; d * d <= budgetNaira; d++) {
+    if (budgetNaira % d !== 0) continue;
+    for (const rate of [d, budgetNaira / d]) {
+      if (rate < MIN_CPC_NAIRA) continue;
+      if (rate <= target && (below === null || rate > below)) below = rate;
+      if (rate >= target && (above === null || rate < above)) above = rate;
+    }
+  }
+  return {
+    below: below === null ? null : below * KOBO_PER_NAIRA,
+    above: above === null ? null : above * KOBO_PER_NAIRA,
+  };
+}
+
 function parseCpc(raw: string): { kobo: number } | { error: string } {
   const cleaned = raw.replace(/[₦,\s]/g, "");
   if (cleaned === "") return { error: "Enter what you pay per click." };

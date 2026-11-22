@@ -10,7 +10,11 @@ import {
   type ApplicationInput,
   type ApplicationStatus,
 } from "@/lib/applications";
-import type { Deliverable, DeliverableKind } from "@/lib/campaign";
+import type {
+  Deliverable,
+  DeliverableKind,
+  PaymentModel,
+} from "@/lib/campaign";
 import { isPlatform, type PlatformListing } from "@/lib/creator-profile";
 import { profilePhotoUrl } from "@/lib/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -58,6 +62,24 @@ export async function editApplication(
   return { ok: true, value: null };
 }
 
+/**
+ * Sets (or with null clears) the price per click a creator proposes on a
+ * per-click application. A separate call from applying: the apply functions
+ * also carry identity checks that this one has no reason to repeat.
+ */
+export async function setApplicationRate(
+  applicationId: string,
+  rateKobo: number | null,
+): Promise<Result<null>> {
+  const supabase = await createSessionClient();
+  const { error } = await supabase.rpc("set_application_rate", {
+    application: applicationId,
+    rate_kobo: nullable<number>(rateKobo),
+  });
+  if (error) return refused(error, "application rate");
+  return { ok: true, value: null };
+}
+
 export async function withdrawApplication(
   applicationId: string,
 ): Promise<Result<null>> {
@@ -84,16 +106,28 @@ export async function decideApplication(
   return { ok: true, value: null };
 }
 
-/** Returns the new engagement's id. */
+/**
+ * Returns the new engagement's id. A per-click hire is approved at the rate
+ * the business saw (`expectedCpcKobo`); if the creator changed it since, the
+ * database refuses with rate_changed.
+ */
 export async function approveApplication(
   applicationId: string,
   expectedPriceKobo: number,
+  expectedCpcKobo: number | null = null,
 ): Promise<Result<string>> {
   const supabase = await createSessionClient();
-  const { data, error } = await supabase.rpc("approve_application", {
-    application: applicationId,
-    expected_price_kobo: expectedPriceKobo,
-  });
+  const { data, error } =
+    expectedCpcKobo === null
+      ? await supabase.rpc("approve_application", {
+          application: applicationId,
+          expected_price_kobo: expectedPriceKobo,
+        })
+      : await supabase.rpc("approve_application_at_rate", {
+          application: applicationId,
+          expected_price_kobo: expectedPriceKobo,
+          expected_cpc_kobo: expectedCpcKobo,
+        });
   if (error) return refused(error, "approve");
   return { ok: true, value: data };
 }
@@ -128,6 +162,8 @@ export type EngagementSummary = {
   id: string;
   status: EngagementStatus;
   agreedPriceKobo: number;
+  /** The price per click agreed at approval; null on a fixed-price hire. */
+  cpcKobo: number | null;
   approvedAt: string;
   payBy: string;
   cancelledAt: string | null;
@@ -153,6 +189,7 @@ export function toEngagement(
     id: str(value.id) ?? "",
     status: (str(value.status) ?? "awaiting_payment") as EngagementStatus,
     agreedPriceKobo: num(value.agreed_price_kobo) ?? 0,
+    cpcKobo: num(value.cpc_kobo),
     approvedAt: str(value.approved_at) ?? "",
     payBy: str(value.pay_by) ?? "",
     cancelledAt: str(value.cancelled_at),
@@ -189,6 +226,8 @@ export type CampaignApplication = {
   id: string;
   status: ApplicationStatus;
   proposedPriceKobo: number | null;
+  /** A per-click creator's own price per click; null: the campaign's. */
+  proposedCpcKobo: number | null;
   note: string | null;
   decisionNote: string | null;
   createdAt: string;
@@ -218,6 +257,7 @@ export async function listCampaignApplications(
         id: str(row.id) ?? "",
         status: (str(row.status) ?? "submitted") as ApplicationStatus,
         proposedPriceKobo: num(row.proposed_price_kobo),
+        proposedCpcKobo: num(row.proposed_cpc_kobo),
         note: str(row.note),
         decisionNote: str(row.decision_note),
         createdAt: str(row.created_at) ?? "",
@@ -247,6 +287,7 @@ export type MyApplication = {
   id: string;
   status: ApplicationStatus;
   proposedPriceKobo: number | null;
+  proposedCpcKobo: number | null;
   note: string | null;
   decisionNote: string | null;
   createdAt: string;
@@ -258,6 +299,9 @@ export type MyApplication = {
     title: string;
     status: string;
     priceKobo: number;
+    paymentModel: PaymentModel;
+    /** The campaign's price per click (per-click campaigns only). */
+    cpcKobo: number | null;
     applicationsCloseOn: string;
     businessId: string;
     businessName: string;
@@ -277,6 +321,7 @@ export async function listMyApplications(): Promise<MyApplication[]> {
         id: str(row.id) ?? "",
         status: (str(row.status) ?? "submitted") as ApplicationStatus,
         proposedPriceKobo: num(row.proposed_price_kobo),
+        proposedCpcKobo: num(row.proposed_cpc_kobo),
         note: str(row.note),
         decisionNote: str(row.decision_note),
         createdAt: str(row.created_at) ?? "",
@@ -288,6 +333,8 @@ export async function listMyApplications(): Promise<MyApplication[]> {
           title: str(k.title) ?? "",
           status: str(k.status) ?? "",
           priceKobo: num(k.price_kobo) ?? 0,
+          paymentModel: k.payment_model === "per_click" ? "per_click" : "fixed",
+          cpcKobo: num(k.cpc_kobo),
           applicationsCloseOn: str(k.applications_close_on) ?? "",
           businessId: str(k.business_id) ?? "",
           businessName: str(k.business_name) ?? "",

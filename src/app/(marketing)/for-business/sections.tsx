@@ -336,7 +336,7 @@ const CAMPAIGN_TYPES: CampaignType[] = [
     ),
     steps: [
       `Set a price per click (from ₦${MIN_CPC_NAIRA}), a budget for each creator (from ${minBudget}) and a secure link for visitors to land on. Our team reviews the campaign before it goes live.`,
-      "Approve creators and fund each budget. Each creator gets one short tracked link to share.",
+      "Creators apply at your price per click or suggest their own. Compare the rates, approve the creators you want and fund each budget. Each gets one short tracked link to share.",
       "Clicks count until the deliver-by date. You see them per creator and per day.",
       "72 hours later each creator is paid for their billable clicks, and unspent budget returns to your wallet.",
     ],
@@ -344,7 +344,7 @@ const CAMPAIGN_TYPES: CampaignType[] = [
       {
         term: "You set",
         value:
-          "The price per click, the budget for each creator, the destination link and the deliver-by date.",
+          "The price per click to start from, the budget for each creator, the destination link and the deliver-by date. You approve the rate you saw.",
       },
       {
         term: "You pay",
@@ -574,7 +574,7 @@ export const BUSINESS_FAQ: FaqItem[] = [
   {
     question: "Can I negotiate the price?",
     answer:
-      "On fixed-price campaigns, creators can apply at your listed price or propose their own, and you can chat before you approve. You approve the price you saw. On pay-per-click campaigns you set the rate and the budget, and creators apply on those terms.",
+      "Yes. On fixed-price campaigns, creators can apply at your listed price or propose their own. On pay-per-click campaigns they can apply at your rate or suggest a different price per click; the budget per creator stays yours, so a higher rate only means fewer clicks to earn it. You see every rate before you hire, you can chat first, and you approve the rate you saw.",
   },
   {
     question: "How does pay per click work?",

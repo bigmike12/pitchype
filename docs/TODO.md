@@ -644,6 +644,35 @@ Portal rebuild (2026-11-16, the dashboard-kit look):
       headless screenshot used on 2026-11-22 crops the right edge of every
       page, including the unchanged privacy page, so it could not confirm the
       new hero wrap.
+- [x] Pay-per-click rate guidance, phase 1 (2026-11-22): the campaign form's
+      spend summary shows clicks needed per creator and what a creator keeps
+      after our fee, and warns at the ₦50 minimum (`perClickGuidance()` in
+      `src/lib/campaign.ts`). It states no market rate on purpose: the only
+      Nigerian figures found were one agency blog (Meta, about ₦30–₦300 a
+      click, by objective) and one unofficial guide, with nothing by niche or
+      platform, which CLAUDE.md §3 doesn't let us ship as a statistic.
+- [x] Pay-per-click rate guidance, phase 2 (2026-11-22): creators propose their
+      own cost per click, businesses compare and approve the rate they saw,
+      and the hire's rate is frozen on the engagement. Design:
+      `docs/superpowers/specs/2026-11-22-per-click-creator-rates-design.md`.
+- [ ] Phase 2 follow-ups: tell the business when a creator changes their rate
+      after applying (only the first application notifies today); decide
+      whether the business can counter a creator's rate (today it hires at it
+      or passes); and push migration `20261126100000` to the live project with
+      the app (production has no per-click campaigns yet).
+- [ ] Merge order: `apply_to_campaign()` and `approve_application()` carry
+      identity checks on other branches, and this change leaves both alone on
+      purpose. Whoever merges those branches should confirm the apply and
+      hire flows still work end to end, and that
+      `20261126100000` sorts after every migration that redefines the click or
+      application functions it replaces (`campaign_applications`,
+      `my_applications`, `engagement_json` and the click functions).
+- [ ] Pay-per-click rate guidance, phase 3: a typical-rate band from our own
+      completed hires, by niche and platform, shown only above a sample size
+      the owner sets, as aggregates that never expose one business's rate. The
+      form says "We don't show a typical rate for your niche yet" until then.
+- [ ] Open from 2026-11-22: whether to raise the ₦50 minimum cost per click
+      (CLAUDE.md §12 item 11) now that businesses can choose the floor.
 
 ## Done
 

@@ -42,6 +42,7 @@ export type Database = {
           decision_note: string | null
           id: string
           note: string | null
+          proposed_cpc_kobo: number | null
           proposed_price_kobo: number | null
           status: Database["public"]["Enums"]["application_status"]
           updated_at: string
@@ -53,6 +54,7 @@ export type Database = {
           decision_note?: string | null
           id?: string
           note?: string | null
+          proposed_cpc_kobo?: number | null
           proposed_price_kobo?: number | null
           status?: Database["public"]["Enums"]["application_status"]
           updated_at?: string
@@ -64,6 +66,7 @@ export type Database = {
           decision_note?: string | null
           id?: string
           note?: string | null
+          proposed_cpc_kobo?: number | null
           proposed_price_kobo?: number | null
           status?: Database["public"]["Enums"]["application_status"]
           updated_at?: string
@@ -669,6 +672,7 @@ export type Database = {
           cancelled_at: string | null
           click_hold_notified_at: string | null
           clicks_stopped_at: string | null
+          cpc_kobo: number | null
           creator_fee_bps: number | null
           creator_id: string
           creator_min_fee_kobo: number | null
@@ -696,6 +700,7 @@ export type Database = {
           cancelled_at?: string | null
           click_hold_notified_at?: string | null
           clicks_stopped_at?: string | null
+          cpc_kobo?: number | null
           creator_fee_bps?: number | null
           creator_id: string
           creator_min_fee_kobo?: number | null
@@ -723,6 +728,7 @@ export type Database = {
           cancelled_at?: string | null
           click_hold_notified_at?: string | null
           clicks_stopped_at?: string | null
+          cpc_kobo?: number | null
           creator_fee_bps?: number | null
           creator_id?: string
           creator_min_fee_kobo?: number | null
@@ -2056,6 +2062,14 @@ export type Database = {
         Args: { application: string; expected_price_kobo: number }
         Returns: string
       }
+      approve_application_at_rate: {
+        Args: {
+          application: string
+          expected_cpc_kobo: number
+          expected_price_kobo: number
+        }
+        Returns: string
+      }
       approve_payout: { Args: { payout: string }; Returns: Json }
       audit_name: { Args: { person: string }; Returns: string }
       block_user: { Args: { other: string }; Returns: undefined }
@@ -2528,6 +2542,10 @@ export type Database = {
         Returns: Json
       }
       send_review_reminders: { Args: never; Returns: number }
+      set_application_rate: {
+        Args: { application: string; rate_kobo: number }
+        Returns: undefined
+      }
       set_creator_hidden: {
         Args: { creator: string; reason: string }
         Returns: undefined

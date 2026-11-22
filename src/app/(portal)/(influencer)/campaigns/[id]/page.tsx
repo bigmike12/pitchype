@@ -203,6 +203,7 @@ async function Campaign({ params }: { params: Params }) {
                 <ApplyForm
                   campaignId={campaign.id}
                   campaignPriceKobo={campaign.priceKobo}
+                  campaignCpcKobo={campaign.cpcKobo}
                   paymentModel={campaign.paymentModel}
                 />
               </section>
@@ -243,9 +244,10 @@ async function Campaign({ params }: { params: Params }) {
                   deliverBy={campaign.deliverBy}
                 />
                 <p className="mt-3 text-sm text-muted">
-                  You get your own short link when you start. Only real, unique
-                  visits count; link previews, bots and repeat visits within 24
-                  hours don’t.
+                  You can suggest a different price per click when you apply;
+                  the business decides. You get your own short link when you
+                  start. Only real, unique visits count; link previews, bots and
+                  repeat visits within 24 hours don’t.
                 </p>
               </SectionCard>
             )}

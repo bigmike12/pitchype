@@ -435,7 +435,8 @@ select is((select public.engagement_json(e) - array['id', 'approved_at', 'pay_by
              from public.engagements e where e.id = '5e000000-0000-0000-0000-0000000e0003'),
   jsonb_build_object('status', 'accepted', 'agreed_price_kobo', 5000000, 'cancel_reason', null,
                      'settle_outcome', 'split', 'released_kobo', 2000000, 'refunded_kobo', 3000000,
-                     'business_fee_kobo', 250000, 'creator_fee_bps', 500, 'creator_min_fee_kobo', 50000),
+                     'business_fee_kobo', 250000, 'creator_fee_bps', 500, 'creator_min_fee_kobo', 50000,
+                     'cpc_kobo', null),
   'engagement_json shows the settlement and the fee snapshot');
 select ok((select public.engagement_json(e) ?& array['id', 'approved_at', 'pay_by', 'cancelled_at', 'funded_at',
                                                      'started_at', 'settled_at']

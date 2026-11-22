@@ -95,6 +95,8 @@ type Card = CampaignApplication & {
   campaignId: string;
   campaignTitle: string;
   campaignPriceKobo: number;
+  /** The campaign's price per click; null on a fixed-price campaign. */
+  campaignCpcKobo: number | null;
 };
 
 const first = (value: string | string[] | undefined) =>
@@ -125,6 +127,7 @@ async function HiringBoard({ searchParams }: { searchParams: SearchParams }) {
       campaignId: c.id,
       campaignTitle: c.title,
       campaignPriceKobo: c.priceKobo ?? 0,
+      campaignCpcKobo: c.paymentModel === "per_click" ? c.cpcKobo : null,
     })),
   );
 
@@ -344,6 +347,11 @@ function HireCard({
   const reopened = hireEndedUnpaid(card);
   const applicantsHref = `/business/campaigns/${card.campaignId}/applications`;
   const priceKobo = card.proposedPriceKobo ?? card.campaignPriceKobo;
+  // Per click: the rate this creator is hired at (or would be).
+  const rateKobo =
+    card.campaignCpcKobo === null
+      ? null
+      : (engagement?.cpcKobo ?? card.proposedCpcKobo ?? card.campaignCpcKobo);
   const verified = creator.platforms.some((p) => p.verified);
 
   const stage =
@@ -386,7 +394,14 @@ function HireCard({
 
       <BoardCardAmount
         amount={formatNaira(amountKobo)}
-        note={column === "to_pay" ? "plus our fee" : undefined}
+        note={
+          [
+            rateKobo === null ? null : `at ${formatNaira(rateKobo)} a click`,
+            column === "to_pay" ? "plus our fee" : null,
+          ]
+            .filter(Boolean)
+            .join(", ") || undefined
+        }
         pill={stage.pill}
         tone={stage.tone}
       />
@@ -404,6 +419,9 @@ function HireCard({
             Applied {formatDate(card.createdAt)}
             {card.proposedPriceKobo !== null &&
               ` · asks ${formatNaira(card.proposedPriceKobo)}, your price ${formatNaira(card.campaignPriceKobo)}`}
+            {card.proposedCpcKobo !== null &&
+              card.campaignCpcKobo !== null &&
+              ` · asks ${formatNaira(card.proposedCpcKobo)} a click, your rate ${formatNaira(card.campaignCpcKobo)}`}
           </p>
           {reopened && (
             <p className="text-xs text-muted">
@@ -423,6 +441,7 @@ function HireCard({
                 applicationId={card.id}
                 creatorName={creator.displayName}
                 priceKobo={priceKobo}
+                cpcKobo={rateKobo}
                 again={reopened}
                 size="sm"
                 dropAction="to_pay"

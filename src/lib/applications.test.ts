@@ -5,6 +5,7 @@ import {
   applicationBucket,
   hireEndedUnpaid,
   parseApplicationForm,
+  parseProposedRate,
   holdsPlace,
 } from "./applications.ts";
 
@@ -21,7 +22,7 @@ test("no price, or the campaign price, means accepting the campaign price", () =
     const parsed = parseApplicationForm(form({ price, note: "" }), CAMPAIGN);
     assert.deepEqual(parsed, {
       ok: true,
-      value: { proposedPriceKobo: null, note: null },
+      value: { proposedPriceKobo: null, proposedCpcKobo: null, note: null },
     });
   }
 });
@@ -35,16 +36,83 @@ test("a per-click campaign takes no proposed price, even a bad one", () => {
     );
     assert.deepEqual(parsed, {
       ok: true,
-      value: { proposedPriceKobo: null, note: null },
+      value: { proposedPriceKobo: null, proposedCpcKobo: null, note: null },
     });
   }
+});
+
+// A per-click campaign: ₦10,000 per creator at ₦50 a click.
+const BUDGET = 1_000_000;
+const CAMPAIGN_RATE = 5_000;
+
+test("a per-click rate: none, or the campaign's own, means accepting it", () => {
+  for (const rate of ["", "50", "₦50"]) {
+    const parsed = parseApplicationForm(
+      form({ rate }),
+      BUDGET,
+      "per_click",
+      CAMPAIGN_RATE,
+    );
+    assert.deepEqual(parsed, {
+      ok: true,
+      value: { proposedPriceKobo: null, proposedCpcKobo: null, note: null },
+    });
+  }
+});
+
+test("a different per-click rate is a proposal that fits the budget", () => {
+  const parsed = parseApplicationForm(
+    form({ rate: "100", note: "" }),
+    BUDGET,
+    "per_click",
+    CAMPAIGN_RATE,
+  );
+  assert.deepEqual(parsed, {
+    ok: true,
+    value: { proposedPriceKobo: null, proposedCpcKobo: 10_000, note: null },
+  });
+});
+
+test("a per-click rate below the minimum, or not whole naira, is refused", () => {
+  assert.deepEqual(parseProposedRate("49", BUDGET), {
+    error: "The lowest price per click is ₦50.",
+  });
+  assert.deepEqual(parseProposedRate("100.50", BUDGET), {
+    error: "Enter a whole number of naira, like 100.",
+  });
+  assert.deepEqual(parseProposedRate("abc", BUDGET), {
+    error: "Enter a whole number of naira, like 100.",
+  });
+});
+
+test("a per-click rate that does not fit the budget says what to try", () => {
+  // ₦70 does not divide ₦10,000; ₦50 and ₦80 (125 clicks) do.
+  const refused = parseProposedRate("70", BUDGET);
+  assert.ok("error" in refused);
+  assert.match(refused.error, /fit the ₦10,000 budget in whole clicks/);
+  assert.match(refused.error, /Try ₦50 or ₦80\./);
+  // Bigger than the budget: only a smaller rate is offered.
+  const huge = parseProposedRate("20,000", BUDGET);
+  assert.ok("error" in huge);
+  assert.match(huge.error, /Try ₦10,000\./);
+});
+
+test("a fixed-price campaign ignores a rate", () => {
+  const parsed = parseApplicationForm(
+    form({ rate: "100", price: "", note: "" }),
+    CAMPAIGN,
+  );
+  assert.deepEqual(parsed, {
+    ok: true,
+    value: { proposedPriceKobo: null, proposedCpcKobo: null, note: null },
+  });
 });
 
 test("a different price is a proposal in whole naira, from ₦5,000", () => {
   const ok = parseApplicationForm(form({ price: "65,000" }), CAMPAIGN);
   assert.deepEqual(ok, {
     ok: true,
-    value: { proposedPriceKobo: 6_500_000, note: null },
+    value: { proposedPriceKobo: 6_500_000, proposedCpcKobo: null, note: null },
   });
 
   const low = parseApplicationForm(form({ price: "4,999" }), CAMPAIGN);
@@ -63,7 +131,11 @@ test("the note is optional, short, and free of contact details", () => {
   );
   assert.deepEqual(ok, {
     ok: true,
-    value: { proposedPriceKobo: null, note: "I post food reels daily" },
+    value: {
+      proposedPriceKobo: null,
+      proposedCpcKobo: null,
+      note: "I post food reels daily",
+    },
   });
 
   const long = parseApplicationForm(form({ note: "x".repeat(501) }), CAMPAIGN);
