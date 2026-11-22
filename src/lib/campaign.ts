@@ -319,6 +319,24 @@ export function maxClicks(budgetKobo: number, cpcKobo: number): number {
   return Math.floor(budgetKobo / cpcKobo);
 }
 
+/**
+ * What a per-click rate means for a creator, from the numbers the business
+ * typed. Exact arithmetic only: there is no market rate here until Pitchype
+ * has enough campaign history of its own to state one honestly (CLAUDE.md §3).
+ */
+export function perClickGuidance(budgetKobo: number, cpcKobo: number) {
+  const takeHomeKobo = creatorReceivesKobo(budgetKobo);
+  return {
+    /** Clicks a creator must send to earn the whole budget. */
+    clicks: maxClicks(budgetKobo, cpcKobo),
+    /** What a creator keeps of the budget if they send all of them. */
+    takeHomeKobo,
+    creatorFeeKobo: budgetKobo - takeHomeKobo,
+    /** The lowest rate we allow, which creators can't counter on per-click. */
+    atMinimum: cpcKobo <= MIN_CPC_NAIRA * KOBO_PER_NAIRA,
+  };
+}
+
 function parseCpc(raw: string): { kobo: number } | { error: string } {
   const cleaned = raw.replace(/[₦,\s]/g, "");
   if (cleaned === "") return { error: "Enter what you pay per click." };
