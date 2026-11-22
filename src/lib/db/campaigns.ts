@@ -42,6 +42,9 @@ export type OwnCampaignSummary = {
   title: string;
   status: CampaignStatus;
   priceKobo: number | null;
+  paymentModel: PaymentModel;
+  /** The price per click on a per-click campaign. */
+  cpcKobo: number | null;
   places: number;
   applicationsCloseOn: string;
   /** An admin's note when a first campaign was sent back to draft. */
@@ -57,7 +60,7 @@ export async function listOwnCampaigns(
   const { data, error } = await supabase
     .from("campaigns")
     .select(
-      "id, title, status, price_kobo, places, applications_close_on, review_note, removed_reason, updated_at",
+      "id, title, status, price_kobo, payment_model, cpc_kobo, places, applications_close_on, review_note, removed_reason, updated_at",
     )
     .eq("business_id", businessId)
     .order("updated_at", { ascending: false })
@@ -68,6 +71,8 @@ export async function listOwnCampaigns(
     title: c.title,
     status: c.status,
     priceKobo: c.price_kobo,
+    paymentModel: c.payment_model,
+    cpcKobo: c.cpc_kobo,
     places: c.places,
     applicationsCloseOn: c.applications_close_on,
     reviewNote: c.review_note,

@@ -35,7 +35,7 @@ export const WHY_ROWS: ComparisonRow[] = [
   {
     topic: "Getting paid before you’re famous",
     usual:
-      "Platform payouts come after you hit their numbers. TikTok’s needs 10,000 followers and isn’t open in Nigeria.",
+      "Platform creator funds set follower and view targets first, and aren’t open in every country.",
     pitchype:
       "No follower minimum to join. Businesses pay for the work, not the follower count.",
   },
@@ -56,7 +56,7 @@ export const WHY_ROWS: ComparisonRow[] = [
     topic: "Getting paid",
     usual: "Post first and chase the money.",
     pitchype:
-      "You start once the business has paid into escrow. You’re paid when the work is approved, or automatically after 7 days of silence.",
+      "You start once the business has paid into escrow. You’re paid once the work is approved, or automatically if the business doesn’t respond within 7 days.",
   },
   {
     topic: "When the business says no",
@@ -80,7 +80,7 @@ function Card({
   fragment: ReactNode;
 }) {
   return (
-    <li className="flex flex-col rounded-panel p-5 panel reveal sm:p-6">
+    <li className="flex flex-col rounded-panel p-5 panel sm:p-6">
       <ClayTile icon={icon} tone={tone} size="lg" />
       <h3 className="mt-4 text-display-md">{title}</h3>
       <div className="mt-2 mb-6 space-y-3 text-[0.9375rem]">{children}</div>
@@ -96,10 +96,10 @@ export function FindWorkSection() {
       aria-labelledby="find-work-title"
       className="container-page section-y"
     >
-      <h2 id="find-work-title" className="text-display-lg reveal">
+      <h2 id="find-work-title" className="text-display-lg">
         Find work and apply
       </h2>
-      <p className="mt-4 mb-10 max-w-[38rem] text-lg reveal">
+      <p className="mt-4 mb-10 max-w-[38rem] text-lg">
         Get found in the directory, or go looking. Either way you see the terms
         before you commit to anything.
       </p>
@@ -172,12 +172,15 @@ export function FindWorkSection() {
           }
         >
           <p>
-            Apply at the listed price, or propose your own (from {minPrice}).
-            The business messages you first, and you reply in that thread.
+            Apply at the listed price, or propose your own (from {minPrice}). On
+            pay-per-click campaigns you propose a price per click instead, since
+            the budget is fixed. The business messages you first, and you reply
+            in that thread.
           </p>
           <p>
-            Phone numbers and links to other apps are blocked in chat, so the
-            deal stays on Pitchype, where escrow protects you.
+            Phone numbers, email addresses and WhatsApp or Telegram links are
+            blocked in chat, so the deal stays on Pitchype, where escrow
+            protects you.
           </p>
         </Card>
       </ul>
@@ -207,7 +210,7 @@ const PAID_STEPS: {
     icon: Clock,
     tone: "peach",
     title: "Approved, or 7 days",
-    text: "The business has 7 days to review. If they accept, or don’t respond, the money is released to your wallet, less our fee. If they decline, you get their reasons and can resubmit up to 3 times.",
+    text: "The business has 7 days to review. If they accept the work, or don’t respond within 7 days, the money is released to your wallet, less our fee. If they decline, you get their reasons and can resubmit up to 3 times.",
   },
   {
     icon: Wallet,
@@ -224,18 +227,18 @@ export function GetPaidSection() {
       aria-labelledby="get-paid-title"
       className="container-page section-y"
     >
-      <h2 id="get-paid-title" className="text-display-lg reveal">
+      <h2 id="get-paid-title" className="text-display-lg">
         How you get paid
       </h2>
-      <p className="mt-4 mb-10 max-w-[38rem] text-lg reveal">
-        You never invoice anyone or wait on a promise. Every job goes through
-        the same four stages.
+      <p className="mt-4 mb-10 max-w-[38rem] text-lg">
+        You don’t send invoices or chase payments. Every job goes through the
+        same four stages.
       </p>
       <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {PAID_STEPS.map((step, index) => (
           <li
             key={step.title}
-            className="flex flex-col rounded-panel p-5 panel reveal sm:p-6"
+            className="flex flex-col rounded-panel p-5 panel sm:p-6"
           >
             <div className="flex items-center justify-between">
               <ClayTile icon={step.icon} tone={step.tone} />
@@ -251,10 +254,15 @@ export function GetPaidSection() {
           </li>
         ))}
       </ol>
-      <p className="mt-6 max-w-[40rem] text-sm text-muted">
+      <p className="mt-6 max-w-[40rem] text-sm text-body">
         If you and a business can’t agree after a decline, either of you can
         open a dispute. The money stays held while an admin reads both sides and
         decides.
+      </p>
+      <p className="mt-3 max-w-[40rem] text-sm text-body">
+        Pay-per-click campaigns have no review step. Your tracked link counts
+        the clicks, and 72 hours after the deliver-by date you’re paid for the
+        billable ones, up to the budget.
       </p>
     </section>
   );
@@ -267,16 +275,16 @@ export function CostSection() {
       aria-labelledby="cost-title"
       className="container-page section-y"
     >
-      <h2 id="cost-title" className="text-display-lg reveal">
+      <h2 id="cost-title" className="text-display-lg">
         What it costs
       </h2>
-      <p className="mt-4 max-w-[38rem] text-lg reveal">
+      <p className="mt-4 max-w-[38rem] text-lg">
         Joining is free and there’s no subscription. We take a small fee from
         what you earn, only when you’re paid.
       </p>
       <div className="mt-10 grid items-center gap-6 md:grid-cols-2">
         <FeeReceipt receipt={CREATOR_RECEIPT} />
-        <ul className="space-y-3 text-[0.9375rem] reveal">
+        <ul className="space-y-3 text-[0.9375rem]">
           <li>
             Our fee is at least {formatNaira(MIN_FEE_KOBO)} per job, so very
             small jobs pay the minimum.
@@ -323,7 +331,12 @@ export const CREATOR_FAQ: FaqItem[] = [
   {
     question: "Can I negotiate a price?",
     answer:
-      "Yes. You can apply at the listed price or propose your own, and chat with the business to agree the details before any money moves.",
+      "Yes. On fixed-price campaigns you can apply at the listed price or propose your own. On pay-per-click campaigns you can propose your own price per click; the budget stays the business's, so a higher rate means fewer clicks to earn it. The business sees every rate before it hires, and you can chat to agree the details before any money moves.",
+  },
+  {
+    question: "How are pay-per-click campaigns paid?",
+    answer:
+      "When you start work you get a tracked link. Clicks count until the deliver-by date, and 72 hours later you’re paid for the billable clicks, up to your budget. The same fee applies as on any job. If you withdraw after starting, the clicks stop and you’re paid for the clicks so far.",
   },
   {
     question: "How do I get verified?",
@@ -333,6 +346,6 @@ export const CREATOR_FAQ: FaqItem[] = [
   {
     question: "Why can’t I share my phone number in chat?",
     answer:
-      "Chat blocks phone numbers, emails and links to other apps. Keeping the deal on Pitchype keeps escrow and dispute help in place for you.",
+      "Chat blocks phone numbers, email addresses and WhatsApp or Telegram links. Keeping the deal on Pitchype keeps escrow and dispute help in place for you.",
   },
 ];

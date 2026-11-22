@@ -20,10 +20,10 @@ export function AudienceWhy({
       className="container-page section-y"
     >
       <div className="max-w-3xl">
-        <h2 id={titleId} className="text-display-lg reveal">
+        <h2 id={titleId} className="text-display-lg">
           {title}
         </h2>
-        <p className="mt-4 max-w-[40rem] text-lg reveal">{lead}</p>
+        <p className="mt-4 max-w-[40rem] text-lg">{lead}</p>
       </div>
       <ComparisonTable rows={rows} />
     </section>

@@ -15,15 +15,17 @@ export function GetStarted() {
         <div aria-hidden="true" className="absolute inset-0 -z-10 dot-grid" />
         <h2
           id="get-started-title"
-          className="mx-auto max-w-[16ch] text-display-lg reveal"
+          className="mx-auto max-w-[16ch] text-display-lg"
         >
-          One platform. <span className="text-gradient">Two ways to win.</span>
+          Hire creators, or{" "}
+          <span className="text-gradient">get paid for yours.</span>
         </h2>
-        <p className="mx-auto mt-4 max-w-[34rem] text-lg text-ink reveal">
-          Creators: get discovered, get booked, get paid. Businesses: find
-          creators, run campaigns, pay only for work you approve.
+        <p className="mx-auto mt-4 max-w-[34rem] text-lg text-ink">
+          Businesses: find creators, agree the price and pay through escrow.
+          Creators: find paid campaigns, agree your price and get paid for
+          approved work.
         </p>
-        <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row reveal">
+        <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
           <Link
             href="/signup?role=business"
             className={buttonVariants({ size: "lg", className: "group" })}
@@ -41,7 +43,7 @@ export function GetStarted() {
             Join as a creator
           </Link>
         </div>
-        <p className="mt-5 text-sm text-ink reveal">
+        <p className="mt-5 text-sm text-ink">
           Already have an account?{" "}
           <Link href="/login" className="link">
             Log in

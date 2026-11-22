@@ -144,7 +144,6 @@ no-preference`; with reduced motion the page is complete and still.
 | Utility | What it does | Where |
 |---|---|---|
 | `enter` | Rise 8px, fade in, a touch of focus (0.7s, ease-out-expo). Stagger 50–60ms with `style={{ "--delay": "60ms" }}` | Hero lines, auth and onboarding content, the portal's `<main>` |
-| `reveal` | The same, driven by scroll position (`animation-timeline: view()`). Browsers without scroll-driven animations just show the content | Landing headings, cards, list items |
 | `motion-safe:animate-aurora` | Very slow drift (40s) of the aurora's colour fields | Hero, auth panel, closing band |
 | `motion-safe:animate-marquee` | Endless, slow (90s) horizontal scroll; pause on hover; with reduced motion the row wraps instead | The niches and kinds-of-work rows |
 | `motion-safe:animate-float` | A 4px bob with a tilt (9s) | Stickers |
@@ -221,9 +220,13 @@ the need before adding it (CLAUDE.md §2).
 
 ## Page patterns
 
-- **Marketing pages:** a floating glass header (a rounded bar 8–12px from
-  the top), sections using `container-page` + `section-y`, headings in
-  `text-display-lg` with `reveal`, cards as `panel`s. The landing page runs:
+- **Marketing pages:** a header attached to the top edge (a solid white `panel` bar with square top
+  corners and `rounded-panel` bottom corners, inset 8–16px from the sides and
+  sticky, after Clay’s nav: the links sit next to the wordmark, a hairline
+  divider and the actions at the far right; 56px tall, 64px from 640px, which
+  is the offset the heroes pull up by), sections using `container-page` + `section-y`, headings in
+  `text-display-lg`, cards as `panel`s. Nothing on the marketing pages moves
+  with the scroll. The landing page runs:
   hero (centred copy on a drifting aurora with a dot grid, sign-up buttons
   that preselect the account type, then the product window), the niches
   marquee and "Built for micro and nano creators", "Why Pitchype" (a
@@ -242,11 +245,15 @@ the need before adding it (CLAUDE.md §2).
   illustration), `AudienceWhy` (the usual-way-against-Pitchype
   `ComparisonTable`, for one side), the shared "How it works" `StepList`,
   page-specific sections co-located in the page's `sections.tsx` (icon
-  `ClayTile` cards with sample `ProductFragment`s), the side's audience
+  `ClayTile` cards with sample `ProductFragment`s; on `/for-business`,
+  `CampaignTypesSection` compares the two campaign types as two `panel`
+  articles side by side from 1024px, each with a sample fragment, numbered
+  "How it works" steps and a "You set / You pay / Creators are paid" list
+  pinned to the bottom so the two line up), the side's audience
   section with its calculator and sourced figures (`landing/audiences.tsx`),
   a `FeeReceipt`, a `Faq` with that side's questions, and `AudienceCta`.
-  Every sign-up button on the page carries `?role=` (the header's too, via
-  `signupHrefFor`), so sign-up doesn't ask which side again. Copy covers only
+  Every sign-up button on the page carries `?role=` (the header’s too, via
+  `signupHrefFor`), so sign-up doesn’t ask which side again. Copy covers only
   what is built. A new product (UGC first) adds a section to the right page.
 - **Figures from outside sources** (`landing/stats.tsx`, `StatGrid`): big
   number, one sentence, and a "Source:" link under each, plus a line saying

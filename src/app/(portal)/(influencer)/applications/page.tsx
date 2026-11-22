@@ -302,6 +302,11 @@ function WorkCard({
   const priceKobo =
     e?.agreedPriceKobo ?? a.proposedPriceKobo ?? a.campaign.priceKobo;
   const jobHref = e ? `/jobs/${e.id}` : null;
+  // Per click: the rate this job pays, shown beside the budget.
+  const rateKobo =
+    a.campaign.paymentModel === "per_click"
+      ? (e?.cpcKobo ?? a.proposedCpcKobo ?? a.campaign.cpcKobo)
+      : null;
   const stage =
     column === "applied"
       ? {
@@ -343,6 +348,11 @@ function WorkCard({
 
       <BoardCardAmount
         amount={formatNaira(column === "paid" && e ? netKobo(e) : priceKobo)}
+        note={
+          rateKobo !== null && column !== "paid"
+            ? `at ${formatNaira(rateKobo)} a click`
+            : undefined
+        }
         pill={stage.pill}
         tone={stage.tone}
       />

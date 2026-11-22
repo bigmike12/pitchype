@@ -25,13 +25,13 @@ export function ForCreators() {
           <span className="text-gradient">before you’re famous.</span>
         </>
       }
-      lead="You don’t need 10,000 followers to be worth paying. Businesses on Pitchype pay for posts, reviews and videos from creators their customers already trust, with the money held safely before you start."
+      lead="You don’t need 10,000 followers to get paid for your work. Businesses on Pitchype hire creators for posts, reels, stories and videos, and the money is held in escrow before you start."
       points={[
         "No follower minimum to join.",
         "Browse open campaigns by niche and platform, see only the ones you qualify for, or get found in the directory.",
         "Apply at the listed price or propose your own.",
         "Start once the business has paid, so the money is already there.",
-        "Get paid when your work is approved, or automatically after 7 days of silence.",
+        "Get paid once your work is approved, or automatically if the business doesn’t respond within 7 days.",
         `A ${formatRate(INFLUENCER_FEE_BPS)} fee only when you’re paid. No subscription.`,
       ]}
       cta={{
@@ -57,12 +57,13 @@ export function ForBusinesses() {
           <span className="text-gradient">work harder.</span>
         </>
       }
-      lead="One big influencer is one audience and one bet. The same budget can pay several creators whose followers are your customers, so you reach more of the right people and learn who actually moves them."
+      lead="One big influencer is one audience and one bet. The same budget can pay several creators, so you can see which ones actually move your customers."
       points={[
-        "Find creators by niche, platform, location, audience size and price.",
-        "Spread one budget across several creators, niches and cities.",
-        "Set a price per creator, or agree one in chat.",
-        "Your money is held until you approve the work.",
+        "Find creators by niche, platform, state, followers and rate.",
+        "Spread one budget across several creators, niches and states.",
+        "Set a price on your campaign, or approve a creator’s proposed price.",
+        "Or pay per click on a tracked link, with a budget for each creator.",
+        "Your money stays in escrow until you accept the work or 7 days pass.",
         `No subscription. A ${formatRate(BUSINESS_FEE_BPS)} service fee, only on jobs you fund.`,
       ]}
       cta={{
@@ -119,16 +120,16 @@ function AudienceSection({
       >
         <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
           <div className={cn(flip && "lg:order-last")}>
-            <p className="inline-flex rounded-full bg-white/70 px-3 py-1 text-sm font-semibold text-ink ring-1 ring-ink/[0.06] reveal">
+            <p className="inline-flex rounded-full bg-white/70 px-3 py-1 text-sm font-semibold text-ink ring-1 ring-ink/[0.06]">
               {eyebrow}
             </p>
-            <h2 id={titleId} className="mt-4 text-display-lg reveal">
+            <h2 id={titleId} className="mt-4 text-display-lg">
               {title}
             </h2>
-            <p className="mt-4 text-lg text-ink reveal">{lead}</p>
+            <p className="mt-4 text-lg text-ink">{lead}</p>
             <ul className="mt-6 space-y-3">
               {points.map((point) => (
-                <li key={point} className="flex gap-3 text-ink reveal">
+                <li key={point} className="flex gap-3 text-ink">
                   <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-ink text-white">
                     <Check className="size-3.5" aria-hidden="true" />
                   </span>
@@ -150,7 +151,7 @@ function AudienceSection({
               />
             </Link>
           </div>
-          <div className="reveal">{tool}</div>
+          <div>{tool}</div>
         </div>
       </div>
 

@@ -34,7 +34,7 @@ function SideCard({
       id={id}
       aria-labelledby={titleId}
       className={cn(
-        "relative isolate flex flex-col overflow-hidden rounded-frame p-6 ring-1 ring-hairline reveal sm:p-10",
+        "relative isolate flex flex-col overflow-hidden rounded-frame p-6 ring-1 ring-hairline sm:p-10",
         surface,
       )}
     >
@@ -56,7 +56,10 @@ function SideCard({
             className="motion-safe:transition-transform motion-safe:group-hover:translate-x-0.5"
           />
         </Link>
-        <Link href={signUp.href} className="link text-center sm:px-2">
+        <Link
+          href={signUp.href}
+          className="link inline-flex min-h-11 items-center justify-center text-center sm:px-2"
+        >
           {signUp.label}
         </Link>
       </div>
@@ -70,10 +73,10 @@ export function AudienceSplit() {
       aria-labelledby="audience-split-title"
       className="container-page section-y"
     >
-      <h2 id="audience-split-title" className="text-display-lg reveal">
-        Whichever side you’re on
+      <h2 id="audience-split-title" className="text-display-lg">
+        Start on your side
       </h2>
-      <p className="mt-4 max-w-[36rem] text-lg reveal">
+      <p className="mt-4 max-w-[36rem] text-lg">
         Pitchype works differently for creators and for businesses. Pick yours
         to see how.
       </p>
@@ -83,11 +86,13 @@ export function AudienceSplit() {
           eyebrow="For creators"
           title={
             <>
-              Your influence should pay{" "}
-              <span className="text-gradient">before you’re famous.</span>
+              Get paid for your content,{" "}
+              <span className="text-gradient">
+                whatever your follower count.
+              </span>
             </>
           }
-          lead="No follower minimum. Apply to paid campaigns, start once the money is held in escrow, and get paid when the work is approved."
+          lead="No follower minimum. Apply to paid campaigns, start once the money is in escrow, and get paid once your work is approved or 7 days pass without a reply."
           page={{ href: CREATOR_PAGE, label: "See how it works for creators" }}
           signUp={{
             href: "/signup?role=influencer",
@@ -100,11 +105,11 @@ export function AudienceSplit() {
           eyebrow="For businesses"
           title={
             <>
-              Make your marketing budget{" "}
-              <span className="text-gradient">work harder.</span>
+              Hire several creators,{" "}
+              <span className="text-gradient">not one big bet.</span>
             </>
           }
-          lead="Find creators who fit, agree the price up front and pay through escrow. Your money is held until you approve the work."
+          lead="Find creators by niche, platform, state and followers, agree the price up front and pay through escrow. Your money stays held until you accept the work or 7 days pass."
           page={{
             href: BUSINESS_PAGE,
             label: "See how it works for businesses",

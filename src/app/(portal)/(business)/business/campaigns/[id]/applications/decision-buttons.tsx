@@ -5,6 +5,7 @@ import { useActionState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { TextAreaField } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
+import { maxClicks } from "@/lib/campaign";
 import { feeExample } from "@/lib/fees";
 import { formatNaira } from "@/lib/money";
 
@@ -17,13 +18,15 @@ import {
 
 /**
  * Approve, after a confirmation (a native dialog) showing what the business
- * agrees to pay. The price sent back is the one shown, so a price the
- * creator changed meanwhile is refused rather than approved unseen.
+ * agrees to pay. The price (and, on a per-click campaign, the rate) sent back
+ * is the one shown, so one the creator changed meanwhile is refused rather
+ * than approved unseen.
  */
 export function ApproveButton({
   applicationId,
   creatorName,
   priceKobo,
+  cpcKobo = null,
   again = false,
   size,
   dropAction,
@@ -31,6 +34,8 @@ export function ApproveButton({
   applicationId: string;
   creatorName: string;
   priceKobo: number;
+  /** The price per click this creator would be hired at (per-click campaigns). */
+  cpcKobo?: number | null;
   /** The creator's earlier hire ended without being paid for. */
   again?: boolean;
   size?: "sm";
@@ -62,13 +67,28 @@ export function ApproveButton({
         <form action={formAction} className="p-6">
           <input type="hidden" name="applicationId" value={applicationId} />
           <input type="hidden" name="expectedPriceKobo" value={priceKobo} />
+          {cpcKobo !== null && (
+            <input type="hidden" name="expectedCpcKobo" value={cpcKobo} />
+          )}
           <h2 id={`hire-${applicationId}`} className="text-display-md">
             Hire {creatorName}
             {again ? " again" : ""}?
           </h2>
           <dl className="mt-5 space-y-2">
+            {cpcKobo !== null && (
+              <div className="flex justify-between gap-4">
+                <dt>Price per click</dt>
+                <dd className="font-semibold text-ink">
+                  {formatNaira(cpcKobo)}
+                </dd>
+              </div>
+            )}
             <div className="flex justify-between gap-4">
-              <dt>Agreed price</dt>
+              <dt>
+                {cpcKobo === null
+                  ? "Agreed price"
+                  : `Budget (up to ${maxClicks(fees.agreedPriceKobo, cpcKobo).toLocaleString("en-NG")} clicks)`}
+              </dt>
               <dd className="font-semibold text-ink">
                 {formatNaira(fees.agreedPriceKobo)}
               </dd>

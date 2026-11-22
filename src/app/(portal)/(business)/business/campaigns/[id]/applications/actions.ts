@@ -55,8 +55,9 @@ export async function rejectAction(
 export type ApproveState = FormState<never>;
 
 /**
- * Approves at the price the business saw. If the creator changed it in the
- * meantime, the database refuses and the page shows the new price.
+ * Approves at the price (and, per click, the rate) the business saw. If the
+ * creator changed it in the meantime, the database refuses and the page shows
+ * the new one.
  */
 export async function approveAction(
   _previous: ApproveState,
@@ -67,9 +68,19 @@ export async function approveAction(
   if (!Number.isSafeInteger(expected) || expected <= 0) {
     return { status: "error", message: refusalText("price_changed") };
   }
+  // A per-click hire is approved at the rate shown too.
+  const rawRate = text(form, "expectedCpcKobo");
+  const expectedRate = rawRate === "" ? null : Number(rawRate);
+  if (
+    expectedRate !== null &&
+    (!Number.isSafeInteger(expectedRate) || expectedRate <= 0)
+  ) {
+    return { status: "error", message: refusalText("rate_changed") };
+  }
   const result = await approveApplication(
     text(form, "applicationId"),
     expected,
+    expectedRate,
   );
   if (!result.ok) {
     refresh();

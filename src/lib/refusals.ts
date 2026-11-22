@@ -17,7 +17,12 @@ const REFUSAL_TEXT = {
   per_click_no_review:
     "This job is paid by its clicks, so there’s no work to send for review.",
   price_fixed_per_click:
-    "The price per click is fixed on this campaign, so there’s no price to propose.",
+    "The budget per creator is fixed on this campaign. You can propose a different price per click instead.",
+  rate_invalid:
+    "Enter a price per click of ₦50 or more that fits the budget in whole clicks.",
+  rate_per_click_only: "Only pay-per-click campaigns have a price per click.",
+  rate_changed:
+    "The creator changed their price per click since you opened this page. Check the new rate and approve again.",
   note_too_long: "Keep your note to 500 characters or fewer.",
   application_locked: "This application has already been decided.",
   no_such_application: "We couldn’t find that application.",

@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Tag,
   Trash2,
+  TriangleAlert,
   Users,
   Wallet,
   type LucideIcon,
@@ -55,8 +56,8 @@ import {
   formatDay,
   isDeliverableKind,
   kindLabel,
-  maxClicks,
   maxSpend,
+  perClickGuidance,
   type CampaignInput,
   type PaymentModel,
 } from "@/lib/campaign";
@@ -687,7 +688,7 @@ export function CampaignForm({
                       required
                       inputMode="numeric"
                       placeholder="50"
-                      hint={`At least ₦${MIN_CPC_NAIRA}. Only real, unique visits count: link previews, bots and repeat visits within 24 hours don’t. Locked once the campaign is live.`}
+                      hint={`At least ₦${MIN_CPC_NAIRA}. Creators can suggest their own rate when they apply; you choose who to hire, at the rate you see. Only real, unique visits count: link previews, bots and repeat visits within 24 hours don’t. Locked once the campaign is live.`}
                       value={cpc}
                       onChange={(e) => setCpc(e.target.value)}
                       error={errors.cpc}
@@ -938,32 +939,62 @@ function SpendSummary({
     return null;
   }
   const spend = maxSpend(naira * KOBO_PER_NAIRA, count);
+  const guidance =
+    cpcNaira === null
+      ? null
+      : perClickGuidance(naira * KOBO_PER_NAIRA, cpcNaira * KOBO_PER_NAIRA);
   return (
-    <div role="status" className="rounded-card bg-surface-card p-5 text-ink">
-      {cpcNaira !== null && (
-        <p className="mb-1">
-          Up to{" "}
-          <strong>
-            {maxClicks(naira, cpcNaira).toLocaleString("en-NG")} clicks
-          </strong>{" "}
-          per creator at {formatNaira(cpcNaira * KOBO_PER_NAIRA)} each.
+    <>
+      <div role="status" className="rounded-card bg-surface-card p-5 text-ink">
+        {guidance && cpcNaira !== null && (
+          <>
+            <p className="mb-1">
+              Up to{" "}
+              <strong>{guidance.clicks.toLocaleString("en-NG")} clicks</strong>{" "}
+              per creator at {formatNaira(cpcNaira * KOBO_PER_NAIRA)} each.
+            </p>
+            <p className="mb-1">
+              A creator who sends them all keeps{" "}
+              <strong>{formatNaira(guidance.takeHomeKobo)}</strong> after our{" "}
+              {formatNaira(guidance.creatorFeeKobo)} fee.
+            </p>
+          </>
+        )}
+        <p>
+          Each creator: {formatNaira(naira * KOBO_PER_NAIRA)} plus our{" "}
+          {formatNaira(spend.feePerCreatorKobo)} fee ={" "}
+          <strong>{formatNaira(spend.perCreatorKobo)}</strong>.
+        </p>
+        <p className="mt-1">
+          Most you could spend ({count} {count === 1 ? "creator" : "creators"}):{" "}
+          <strong>{formatNaira(spend.totalKobo)}</strong>.
+        </p>
+        <p className="mt-2 text-sm text-muted">
+          {cpcNaira !== null
+            ? "Nothing is charged now. You pay each creator’s budget when you accept them; it’s held, and after the campaign you pay only for the clicks they sent. The rest comes back to your wallet."
+            : "Nothing is charged now. You pay for each creator when you accept them, and the money is held until their work is approved."}
+        </p>
+      </div>
+      {guidance?.atMinimum && (
+        <Callout
+          tone="attention"
+          icon={TriangleAlert}
+          title="This is the lowest rate we allow"
+        >
+          Creators see your rate before they apply, so a campaign at the minimum
+          may get fewer applications. Creators can also suggest their own rate,
+          and you choose whether to hire at it. A higher rate doesn’t raise the
+          most you can spend, which stays at the budget; it only pays more for
+          each click.
+        </Callout>
+      )}
+      {guidance && (
+        <p className="text-sm text-muted">
+          We don’t show a typical rate for your niche yet. We’ll add one here
+          once enough Pitchype campaigns have run to back it up.
         </p>
       )}
-      <p>
-        Each creator: {formatNaira(naira * KOBO_PER_NAIRA)} plus our{" "}
-        {formatNaira(spend.feePerCreatorKobo)} fee ={" "}
-        <strong>{formatNaira(spend.perCreatorKobo)}</strong>.
-      </p>
-      <p className="mt-1">
-        Most you could spend ({count} {count === 1 ? "creator" : "creators"}):{" "}
-        <strong>{formatNaira(spend.totalKobo)}</strong>.
-      </p>
-      <p className="mt-2 text-sm text-muted">
-        {cpcNaira !== null
-          ? "Nothing is charged now. You pay each creator’s budget when you accept them; it’s held, and after the campaign you pay only for the clicks they sent. The rest comes back to your wallet."
-          : "Nothing is charged now. You pay for each creator when you accept them, and the money is held until their work is approved."}
-      </p>
-    </div>
+    </>
   );
 }
 

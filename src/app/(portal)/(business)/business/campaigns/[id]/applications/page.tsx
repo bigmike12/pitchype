@@ -30,10 +30,11 @@ import {
 import { getOwnCampaign } from "@/lib/db/campaigns";
 import { listNiches } from "@/lib/db/creators";
 import { applicationBucket, hireEndedUnpaid } from "@/lib/applications";
-import { placesStatus } from "@/lib/campaign";
+import { maxClicks, placesStatus } from "@/lib/campaign";
 import { formatNaira } from "@/lib/money";
 import { pageOf, pagedHref, parsePage } from "@/lib/paging";
 import { stateLabel, type NigerianState } from "@/lib/profile";
+import { cn } from "@/lib/utils";
 
 import { shortlistAction } from "./actions";
 import { ApproveButton, RejectForm } from "./decision-buttons";
@@ -51,6 +52,14 @@ const TABS = [
 type Tab = (typeof TABS)[number]["key"];
 
 const PAGE_SIZE = 10;
+
+// A per-click campaign's applications can be ordered by the rate each creator
+// asks, to compare them.
+const SORTS = [
+  { key: "applied", label: "Order applied" },
+  { key: "rate", label: "Lowest rate" },
+] as const;
+type Sort = (typeof SORTS)[number]["key"];
 
 // A hire that lapsed (or was cancelled before payment) is back under "To
 // decide": the place is open again, so it must not read as a filled one.
@@ -110,12 +119,29 @@ async function Applications({
   const tab: Tab = TABS.some((t) => t.key === requested)
     ? (requested as Tab)
     : "waiting";
+  // A per-click campaign: each creator asks a price per click, or takes yours.
+  const campaignCpcKobo =
+    campaign.paymentModel === "per_click" ? campaign.cpcKobo : null;
+  const rateOf = (a: CampaignApplication) =>
+    a.proposedCpcKobo ?? campaignCpcKobo ?? 0;
+  const requestedSort = Array.isArray(query.sort) ? query.sort[0] : query.sort;
+  const sort: Sort =
+    campaignCpcKobo !== null && requestedSort === "rate" ? "rate" : "applied";
+  const inThisTab = applications.filter((a) => inTab(a, tab));
   const shown = pageOf(
-    applications.filter((a) => inTab(a, tab)),
+    sort === "rate"
+      ? [...inThisTab].sort(
+          (x, y) =>
+            rateOf(x) - rateOf(y) ||
+            Date.parse(x.createdAt) - Date.parse(y.createdAt),
+        )
+      : inThisTab,
     parsePage(query.page),
     PAGE_SIZE,
   );
+  const sortParam = sort === "rate" ? "rate" : undefined;
   const base = `/business/campaigns/${campaign.id}/applications`;
+  const deciding = applications.filter((a) => inTab(a, "waiting"));
 
   return (
     <>
@@ -125,7 +151,7 @@ async function Applications({
           { href: "/business/board", label: "Hiring board" },
           { href: `/business/campaigns/${campaign.id}`, label: campaign.title },
         ]}
-        lead={`${campaign.places} ${campaign.places === 1 ? "place" : "places"} at ${formatNaira(campaign.priceKobo)} per creator. ${places.filled}${places.left > 0 ? `, ${places.needed}` : ""}.`}
+        lead={`${campaign.places} ${campaign.places === 1 ? "place" : "places"} at ${formatNaira(campaign.priceKobo)} per creator${campaignCpcKobo === null ? "" : `, ${formatNaira(campaignCpcKobo)} a click`}. ${places.filled}${places.left > 0 ? `, ${places.needed}` : ""}.`}
       />
 
       <FilterTabs
@@ -136,9 +162,25 @@ async function Applications({
           key: t.key,
           label: t.label,
           count: applications.filter((a) => inTab(a, t.key)).length,
-          href: pagedHref(base, { tab: t.key }, 1),
+          href: pagedHref(base, { tab: t.key, sort: sortParam }, 1),
         }))}
       />
+
+      {campaignCpcKobo !== null && (
+        <RateComparison
+          campaignCpcKobo={campaignCpcKobo}
+          budgetKobo={campaign.priceKobo}
+          deciding={deciding}
+          sort={sort}
+          hrefFor={(key) =>
+            pagedHref(
+              base,
+              { tab, sort: key === "rate" ? "rate" : undefined },
+              1,
+            )
+          }
+        />
+      )}
 
       {shown.total === 0 ? (
         <EmptyState
@@ -159,6 +201,7 @@ async function Applications({
               key={a.id}
               application={a}
               campaignPriceKobo={campaign.priceKobo}
+              campaignCpcKobo={campaignCpcKobo}
               nicheNames={a.creator.niches.flatMap(
                 (s) => nicheName.get(s) ?? [],
               )}
@@ -169,22 +212,87 @@ async function Applications({
       <Pagination
         {...shown}
         noun={["application", "applications"]}
-        hrefFor={(page) => pagedHref(base, { tab }, page)}
+        hrefFor={(page) => pagedHref(base, { tab, sort: sortParam }, page)}
       />
     </>
+  );
+}
+
+/**
+ * For a per-click campaign: the rates the creators still to decide on are
+ * asking, next to the business's own, and a way to order the list by them.
+ */
+function RateComparison({
+  campaignCpcKobo,
+  budgetKobo,
+  deciding,
+  sort,
+  hrefFor,
+}: {
+  campaignCpcKobo: number;
+  budgetKobo: number;
+  deciding: CampaignApplication[];
+  sort: Sort;
+  hrefFor: (sort: Sort) => string;
+}) {
+  const rates = deciding.map((a) => a.proposedCpcKobo ?? campaignCpcKobo);
+  const own = deciding.filter((a) => a.proposedCpcKobo === null).length;
+  return (
+    <div className="mb-3 space-y-2 rounded-card p-4 panel sm:p-5">
+      <p className="text-sm text-muted">
+        You set {formatNaira(campaignCpcKobo)} a click, up to{" "}
+        {formatNaira(budgetKobo)} per creator (
+        {maxClicks(budgetKobo, campaignCpcKobo).toLocaleString("en-NG")}{" "}
+        clicks). Creators can take that or suggest their own rate, and you
+        approve the rate you see.
+      </p>
+      {rates.length > 0 && (
+        <p className="font-semibold text-ink">
+          Still to decide: {rates.length}{" "}
+          {rates.length === 1 ? "creator" : "creators"}, asking{" "}
+          {Math.min(...rates) === Math.max(...rates)
+            ? formatNaira(Math.min(...rates))
+            : `${formatNaira(Math.min(...rates))} to ${formatNaira(Math.max(...rates))}`}{" "}
+          a click. {own} {own === 1 ? "takes" : "take"} your rate.
+        </p>
+      )}
+      <p className="flex items-center gap-3 text-sm text-muted">
+        Sort by
+        {SORTS.map((s) => (
+          <Link
+            key={s.key}
+            href={hrefFor(s.key)}
+            aria-current={s.key === sort ? "page" : undefined}
+            className={cn(
+              "inline-flex min-h-11 items-center underline-offset-4 lg:min-h-8",
+              s.key === sort
+                ? "font-semibold text-ink underline"
+                : "hover:text-ink hover:underline",
+            )}
+          >
+            {s.label}
+          </Link>
+        ))}
+      </p>
+    </div>
   );
 }
 
 function ApplicationCard({
   application: a,
   campaignPriceKobo,
+  campaignCpcKobo,
   nicheNames,
 }: {
   application: CampaignApplication;
   campaignPriceKobo: number;
+  campaignCpcKobo: number | null;
   nicheNames: string[];
 }) {
   const priceKobo = a.proposedPriceKobo ?? campaignPriceKobo;
+  // Per click: the rate this creator would be hired at.
+  const rateKobo =
+    campaignCpcKobo === null ? null : (a.proposedCpcKobo ?? campaignCpcKobo);
   const open = a.status === "submitted" || a.status === "shortlisted";
   // Hired before, but the hire ended without being paid for: hire again or pass.
   const reopened = hireEndedUnpaid(a);
@@ -240,11 +348,25 @@ function ApplicationCard({
         </div>
       </div>
 
-      <p className="mt-4 font-semibold text-ink">
-        {a.proposedPriceKobo === null
-          ? `At your price, ${formatNaira(campaignPriceKobo)}`
-          : `Asks ${formatNaira(a.proposedPriceKobo)} · your price ${formatNaira(campaignPriceKobo)}`}
-      </p>
+      {rateKobo !== null && campaignCpcKobo !== null ? (
+        <>
+          <p className="mt-4 font-semibold text-ink">
+            {a.proposedCpcKobo === null
+              ? `At your rate, ${formatNaira(campaignCpcKobo)} a click`
+              : `Asks ${formatNaira(rateKobo)} a click · your rate ${formatNaira(campaignCpcKobo)}`}
+          </p>
+          <p className="text-sm text-muted">
+            {maxClicks(priceKobo, rateKobo).toLocaleString("en-NG")} clicks
+            would use the full {formatNaira(priceKobo)} budget.
+          </p>
+        </>
+      ) : (
+        <p className="mt-4 font-semibold text-ink">
+          {a.proposedPriceKobo === null
+            ? `At your price, ${formatNaira(campaignPriceKobo)}`
+            : `Asks ${formatNaira(a.proposedPriceKobo)} · your price ${formatNaira(campaignPriceKobo)}`}
+        </p>
+      )}
       {a.note && (
         <blockquote className="mt-2 border-l-2 border-hairline pl-3 whitespace-pre-line">
           {a.note}
@@ -278,6 +400,7 @@ function ApplicationCard({
             applicationId={a.id}
             creatorName={a.creator.displayName}
             priceKobo={priceKobo}
+            cpcKobo={rateKobo}
             again={reopened}
           />
         )}

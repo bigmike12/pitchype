@@ -23,14 +23,14 @@ export function AudienceCta({
         <div aria-hidden="true" className="absolute inset-0 -z-10 dot-grid" />
         <h2
           id="audience-cta-title"
-          className="mx-auto max-w-[18ch] text-display-lg reveal"
+          className="mx-auto max-w-[18ch] text-display-lg"
         >
           {title}
         </h2>
-        <p className="mx-auto mt-4 max-w-[34rem] text-lg text-ink reveal">
+        <p className="mx-auto mt-4 max-w-[34rem] text-lg text-ink">
           {text}
         </p>
-        <div className="mt-9 flex justify-center reveal">
+        <div className="mt-9 flex justify-center">
           <Link
             href={cta.href}
             className={buttonVariants({
@@ -45,7 +45,7 @@ export function AudienceCta({
             />
           </Link>
         </div>
-        <p className="mt-5 text-sm text-ink reveal">
+        <p className="mt-5 text-sm text-ink">
           Already have an account?{" "}
           <Link href="/login" className="link">
             Log in

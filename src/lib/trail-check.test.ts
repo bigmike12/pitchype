@@ -34,6 +34,7 @@ function released(): EngagementTrail {
       id: "e1",
       status: "accepted",
       agreedPriceKobo: 5_000_000,
+      cpcKobo: null,
       approvedAt: "",
       payBy: "",
       cancelledAt: null,

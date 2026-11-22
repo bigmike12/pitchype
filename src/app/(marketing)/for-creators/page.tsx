@@ -17,9 +17,9 @@ import {
 } from "./sections";
 
 export const metadata: Metadata = {
-  title: "For creators",
+  title: "Paid brand collaborations for creators in Nigeria",
   description:
-    "Apply to paid campaigns from Nigerian businesses, agree your price and start once the money is held in escrow. No follower minimum to join Pitchype.",
+    "Apply to paid campaigns from Nigerian businesses, agree your price and start once the money is in escrow. No follower minimum to join Pitchype.",
   alternates: { canonical: CREATOR_PAGE },
 };
 
@@ -32,19 +32,19 @@ export default function ForCreatorsPage() {
         eyebrow="For creators"
         title={
           <>
-            Get paid for your influence,{" "}
+            Paid brand collaborations in Nigeria,{" "}
             <span className="text-gradient">whatever your follower count.</span>
           </>
         }
-        lead="Apply to paid campaigns from Nigerian businesses, agree your price, and start once the money is held in escrow. There’s no follower minimum to join."
+        lead="Apply to paid campaigns from Nigerian businesses, agree your price, and start once the money is in escrow. There’s no follower minimum to join."
         primaryCta={{ href: SIGN_UP, label: "Create a creator account" }}
         note="Free to join. Our fee only applies when you’re paid."
       />
 
       <AudienceWhy
         id="why-creators"
-        title="Followers aren’t a paycheck. This is."
-        lead="Social platforms are good at building an audience, but they don’t promise you’ll be paid for it. Here is what changes."
+        title="Followers aren’t a paycheck. Here’s the difference."
+        lead="Platforms help you build an audience. They don’t promise you’ll be paid for the work. Here is what changes on Pitchype."
         rows={WHY_ROWS}
       />
 
@@ -53,10 +53,10 @@ export default function ForCreatorsPage() {
         aria-labelledby="how-it-works-title"
         className="container-page section-y"
       >
-        <h2 id="how-it-works-title" className="text-display-lg reveal">
+        <h2 id="how-it-works-title" className="text-display-lg">
           How it works
         </h2>
-        <p className="mt-4 mb-8 max-w-[36rem] text-lg reveal">
+        <p className="mt-4 mb-8 max-w-[36rem] text-lg">
           Four steps from setting up your profile to money in your wallet.
         </p>
         <StepList steps={CREATOR_STEPS} />
@@ -75,7 +75,7 @@ export default function ForCreatorsPage() {
             <span className="text-gradient">your content?</span>
           </>
         }
-        text="Create a free creator account, find a campaign that fits, and get paid when the work is approved."
+        text="Create a free creator account, find a campaign that fits, and get paid through escrow once your work is approved."
         cta={{ href: SIGN_UP, label: "Create a creator account" }}
       />
     </main>

@@ -20,8 +20,8 @@ type Feature = {
 
 const FEATURES: Feature[] = [
   {
-    title: "Safe by default",
-    text: "The business pays up front, and the money is held until the work is approved.",
+    title: "Money held in escrow",
+    text: "The business pays before work starts. Pitchype holds the agreed price until the work is approved or 7 days pass.",
     card: "sm:col-span-2 lg:col-span-2 [--glow:var(--color-brand-peach)]",
     fragment: (
       <ProductFragment
@@ -54,7 +54,7 @@ const FEATURES: Feature[] = [
   },
   {
     title: "Find the right creators",
-    text: "Filter by niche, platform, location, followers and price.",
+    text: "Filter by niche, platform, state, followers and rate.",
     card: "[--glow:var(--color-brand-mint)]",
     fragment: (
       <ProductFragment label="creator search filtered to fashion creators in Lagos, showing two results">
@@ -86,7 +86,7 @@ const FEATURES: Feature[] = [
   },
   {
     title: "Chat and negotiate",
-    text: "Agree the price and the details before anyone starts.",
+    text: "Agree the price and details before work starts. Phone numbers and email addresses are blocked in chat.",
     card: "[--glow:var(--color-brand-lilac)]",
     fragment: (
       <ProductFragment label="a chat where a business and a creator agree on two reels for ₦60,000">
@@ -105,8 +105,8 @@ const FEATURES: Feature[] = [
     ),
   },
   {
-    title: "7-day auto-release",
-    text: "If a business doesn’t respond to submitted work within 7 days, the creator is paid automatically.",
+    title: "A review deadline",
+    text: "Businesses have 7 days from each submission to accept or decline the work. If they don’t respond, the creator is paid automatically.",
     card: "lg:col-span-2 [--glow:var(--color-brand-sun)]",
     fragment: (
       <ProductFragment label="submitted work with 5 of 7 review days used, auto-release in 2 days">
@@ -132,7 +132,7 @@ const FEATURES: Feature[] = [
   },
   {
     title: "Simple wallet and payouts",
-    text: "Earnings land in your wallet. Cash out to your bank, with any transfer fee shown up front.",
+    text: "Earnings land in your wallet. Cash out to your bank, see the transfer fee before you confirm, and our team reviews each payout.",
     card: "lg:col-span-2 [--glow:var(--color-brand-sky)]",
     fragment: (
       <ProductFragment
@@ -180,15 +180,15 @@ export function Features() {
       aria-labelledby="features-title"
       className="container-page section-y"
     >
-      <h2 id="features-title" className="max-w-[18ch] text-display-lg reveal">
-        Fair for businesses. Fair for creators.
+      <h2 id="features-title" className="max-w-[18ch] text-display-lg">
+        From first message to payout.
       </h2>
       <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {FEATURES.map((feature) => (
           <li
             key={feature.title}
             className={cn(
-              "relative isolate flex flex-col overflow-hidden rounded-panel p-6 panel reveal sm:p-8",
+              "relative isolate flex flex-col overflow-hidden rounded-panel p-6 panel sm:p-8",
               feature.card,
             )}
           >

@@ -14,7 +14,7 @@ const QUESTIONS: FaqItem[] = [
   {
     question: "What is Pitchype?",
     answer:
-      "A marketplace where Nigerian businesses hire micro and nano creators for social media work. Businesses post campaigns or invite creators directly, and payment is held until the work is approved.",
+      "A marketplace where Nigerian businesses hire micro and nano creators for paid social media work. Businesses post campaigns and message creators from their profiles. The payment is held in escrow until the work is approved or 7 days pass.",
   },
   {
     question: "Who can join?",
@@ -23,11 +23,11 @@ const QUESTIONS: FaqItem[] = [
   },
   {
     question: "How does escrow work?",
-    answer: `When a business hires a creator, it pays the agreed price plus a ${businessFee} service fee up front. Pitchype holds the agreed price until the business approves the work, then releases it to the creator’s wallet.`,
+    answer: `When a business hires a creator, it pays the agreed price plus a ${businessFee} service fee up front. Pitchype holds the agreed price until the business accepts the work, or 7 days pass without a reply, then releases it to the creator’s wallet.`,
   },
   {
     question: "When do creators get paid?",
-    answer: `As soon as the business approves your work, the money moves to your Pitchype wallet, minus our ${creatorFee} fee. From there you can cash out to your bank account.`,
+    answer: `Once the business approves your work, or 7 days after you submit it if the business doesn’t reply, the money moves to your Pitchype wallet, minus our ${creatorFee} fee. From there you can cash out to your bank account.`,
   },
   {
     question: "What if a business doesn’t respond?",

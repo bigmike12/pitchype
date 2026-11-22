@@ -3,9 +3,15 @@
 // rules that protect places, prices and standing live in
 // supabase/migrations/20261110100100_create_applications.sql.
 
-import { parsePrice, type PaymentModel } from "./campaign.ts";
+import {
+  MIN_CPC_NAIRA,
+  fittingRatesNear,
+  parsePrice,
+  type PaymentModel,
+} from "./campaign.ts";
 import { findContactDetails } from "./contact-details.ts";
 import { text, type FieldErrors, type Parsed } from "./form-data.ts";
+import { formatNaira, KOBO_PER_NAIRA } from "./money.ts";
 
 export const MAX_NOTE_LENGTH = 500;
 
@@ -28,23 +34,63 @@ export function hireEndedUnpaid(application: {
   );
 }
 
-export type ApplicationField = "price" | "note";
+export type ApplicationField = "price" | "rate" | "note";
 
 export type ApplicationInput = {
-  /** Null: the creator accepts the campaign price. */
+  /** Null: the creator accepts the campaign price. Fixed-price campaigns only. */
   proposedPriceKobo: number | null;
+  /** Null: the creator accepts the campaign's price per click. Per-click campaigns only. */
+  proposedCpcKobo: number | null;
   note: string | null;
 };
+
+/**
+ * A creator's own price per click: whole naira, at least the minimum, and one
+ * that fits the budget in whole clicks (the rule the campaign's own rate
+ * follows). The database checks the same; this says what to try instead.
+ */
+export function parseProposedRate(
+  raw: string,
+  budgetKobo: number,
+): { kobo: number } | { error: string } {
+  const cleaned = raw.replace(/[₦,\s]/g, "");
+  if (!/^\d+$/.test(cleaned)) {
+    return { error: "Enter a whole number of naira, like 100." };
+  }
+  const naira = Number(cleaned);
+  if (naira < MIN_CPC_NAIRA) {
+    return {
+      error: `The lowest price per click is ${formatNaira(MIN_CPC_NAIRA * KOBO_PER_NAIRA)}.`,
+    };
+  }
+  const kobo = naira * KOBO_PER_NAIRA;
+  if (!Number.isSafeInteger(kobo) || budgetKobo % kobo !== 0) {
+    const near = fittingRatesNear(
+      budgetKobo,
+      Number.isSafeInteger(kobo) ? kobo : budgetKobo,
+    );
+    const tries = [near.below, near.above]
+      .filter((rate): rate is number => rate !== null && rate !== kobo)
+      .map((rate) => formatNaira(rate));
+    return {
+      error: `Your rate has to fit the ${formatNaira(budgetKobo)} budget in whole clicks.${tries.length > 0 ? ` Try ${tries.join(" or ")}.` : ""}`,
+    };
+  }
+  return { kobo };
+}
 
 export function parseApplicationForm(
   form: FormData,
   campaignPriceKobo: number,
   paymentModel: PaymentModel = "fixed",
+  campaignCpcKobo: number | null = null,
 ): Parsed<ApplicationInput, ApplicationField> {
   const errors: FieldErrors<ApplicationField> = {};
-  // A per-click campaign's price per click and cap are the terms; nothing to propose.
-  const rawPrice =
-    paymentModel === "per_click" ? "" : text(form, "price").trim();
+  // A per-click campaign's budget is fixed; the creator proposes a price per
+  // click instead. A fixed-price campaign has no rate to propose.
+  const perClick = paymentModel === "per_click";
+  const rawPrice = perClick ? "" : text(form, "price").trim();
+  const rawRate = perClick ? text(form, "rate").trim() : "";
   const note = text(form, "note").trim();
 
   let proposedPriceKobo: number | null = null;
@@ -52,6 +98,13 @@ export function parseApplicationForm(
     const price = parsePrice(rawPrice);
     if ("error" in price) errors.price = price.error;
     else if (price.kobo !== campaignPriceKobo) proposedPriceKobo = price.kobo;
+  }
+
+  let proposedCpcKobo: number | null = null;
+  if (rawRate !== "") {
+    const rate = parseProposedRate(rawRate, campaignPriceKobo);
+    if ("error" in rate) errors.rate = rate.error;
+    else if (rate.kobo !== campaignCpcKobo) proposedCpcKobo = rate.kobo;
   }
 
   const contact = findContactDetails(note);
@@ -62,9 +115,16 @@ export function parseApplicationForm(
   }
 
   if (Object.keys(errors).length > 0) {
-    return { ok: false, errors, values: { price: rawPrice, note } };
+    return {
+      ok: false,
+      errors,
+      values: { price: rawPrice, rate: rawRate, note },
+    };
   }
-  return { ok: true, value: { proposedPriceKobo, note: note || null } };
+  return {
+    ok: true,
+    value: { proposedPriceKobo, proposedCpcKobo, note: note || null },
+  };
 }
 
 export type ApplicationStatus =
