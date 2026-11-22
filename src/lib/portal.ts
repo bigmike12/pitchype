@@ -42,8 +42,6 @@ export type NavItem = {
 
 /** Who the shell is drawn for. */
 export type PortalViewer = {
-  /** Stable application-owned user UUID, used for analytics identity. */
-  id: string;
   role: PortalRole;
   /** Business name, creator display name, "Admin", or the email's first part before onboarding. */
   name: string;

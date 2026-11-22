@@ -2,7 +2,6 @@
 
 import { Camera, Lock, Mail, MailCheck, Store } from "lucide-react";
 import Link from "next/link";
-import posthog from "posthog-js";
 import { useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -41,17 +40,7 @@ export function SignUpForm({
   initialRole?: SignupRole;
 }) {
   const [state, formAction, pending] = useActionState<SignUpState, FormData>(
-    async (previous, form) => {
-      const next = await signUpAction(previous, form);
-      const role = form.get("role");
-      if (
-        next.status === "success" &&
-        (role === "business" || role === "influencer")
-      ) {
-        posthog.capture("signup_completed", { signup_role: role });
-      }
-      return next;
-    },
+    signUpAction,
     { status: "idle" },
   );
 

@@ -175,7 +175,7 @@ async function Account() {
 
         <Section id="sign-out" title="Sign out">
           <p className="max-w-xl">Sign out of Pitchype on this device.</p>
-          <form action={signOutAction} className="mt-5" data-posthog-sign-out>
+          <form action={signOutAction} className="mt-5">
             <Button type="submit" variant="secondary">
               <LogOut aria-hidden="true" />
               Sign out

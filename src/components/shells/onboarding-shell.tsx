@@ -1,8 +1,5 @@
-"use client";
-
 import Link from "next/link";
-import posthog from "posthog-js";
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { Wordmark } from "@/components/brand/wordmark";
 import { Button } from "@/components/ui/button";
@@ -16,19 +13,10 @@ import { Button } from "@/components/ui/button";
 export function OnboardingShell({
   children,
   signOutAction,
-  user,
 }: {
   children: ReactNode;
   signOutAction: () => Promise<void>;
-  user: { id: string; email: string; role: string };
 }) {
-  useEffect(() => {
-    posthog.identify(user.id, {
-      email: user.email,
-      role: user.role,
-    });
-  }, [user.email, user.id, user.role]);
-
   return (
     <div className="flex min-h-dvh flex-col bg-canvas">
       <header className="relative flex h-16 items-center justify-between gap-4 px-4 pt-1 sm:h-20 sm:px-6">
@@ -39,11 +27,7 @@ export function OnboardingShell({
         >
           <Wordmark />
         </Link>
-        <form
-          action={signOutAction}
-          className="sm:ml-auto"
-          onSubmit={() => posthog.reset()}
-        >
+        <form action={signOutAction} className="sm:ml-auto">
           <Button type="submit" variant="ghost">
             Sign out
           </Button>

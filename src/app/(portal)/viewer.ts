@@ -20,7 +20,6 @@ export const getPortalViewer = cache(async (): Promise<PortalViewer | null> => {
 
   if (user.role === "admin") {
     return {
-      id: user.id,
       role: "admin",
       name: "Admin",
       email: user.email,
@@ -36,7 +35,6 @@ export const getPortalViewer = cache(async (): Promise<PortalViewer | null> => {
       unreadMessageCount(),
     ]);
     return {
-      id: user.id,
       role: "influencer",
       name: profile?.displayName ?? emailName(user.email),
       email: user.email,
@@ -51,7 +49,6 @@ export const getPortalViewer = cache(async (): Promise<PortalViewer | null> => {
     unreadMessageCount(),
   ]);
   return {
-    id: user.id,
     role: "business",
     name:
       profile?.role === "business"

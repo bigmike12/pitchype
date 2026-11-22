@@ -1,6 +1,3 @@
-import { after } from "next/server";
-
-import { flushPostHogLogs, logPostHogInfo } from "@/instrumentation";
 import { cronStatus, runMoneyChecks } from "@/lib/money-checks";
 import { reportServerError } from "@/lib/observability";
 import { sendDueEmailsSafely } from "@/lib/send-emails";
@@ -27,10 +24,5 @@ export async function GET(request: Request) {
       "GET /api/cron/money-checks",
     );
   }
-  logPostHogInfo("money checks job completed", {
-    "http.response.status_code": status,
-    "job.name": "money_checks",
-  });
-  after(flushPostHogLogs);
   return Response.json(result, { status });
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import posthog from "posthog-js";
 import { useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -30,16 +29,7 @@ export function PayForm({
   const fromWallet = cardAmountKobo === 0;
 
   return (
-    <form
-      action={formAction}
-      className="mt-6 space-y-4"
-      onSubmit={() =>
-        posthog.capture("engagement_payment_started", {
-          payment_method: fromWallet ? "wallet" : "card",
-          payment_model: perClick ? "per_click" : "fixed",
-        })
-      }
-    >
+    <form action={formAction} className="mt-6 space-y-4">
       <input type="hidden" name="engagementId" value={engagementId} />
       <label className="flex cursor-pointer items-start gap-3 rounded-card panel p-4">
         <input

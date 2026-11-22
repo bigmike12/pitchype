@@ -1,6 +1,5 @@
 "use client";
 
-import posthog from "posthog-js";
 import { startTransition, useActionState, useState } from "react";
 
 import { DeliverableList } from "@/components/campaigns/campaign-facts";
@@ -35,13 +34,7 @@ export function SubmitForm({
   roundsLeft: number;
 }) {
   const [state, formAction, pending] = useActionState<SubmitState, FormData>(
-    async (previous, form) => {
-      const next = await submitWorkAction(previous, form);
-      if (next.status === "success") {
-        posthog.capture("work_submitted", { is_resubmission: resubmit });
-      }
-      return next;
-    },
+    submitWorkAction,
     { status: "idle" },
   );
   const [preparing, setPreparing] = useState(false);

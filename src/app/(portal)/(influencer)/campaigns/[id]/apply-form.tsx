@@ -1,6 +1,5 @@
 "use client";
 
-import posthog from "posthog-js";
 import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -43,16 +42,7 @@ export function ApplyForm({
   };
 }) {
   const [state, formAction, pending] = useActionState<ApplyState, FormData>(
-    async (previous, form) => {
-      const next = await applyAction(previous, form);
-      if (next.status === "success") {
-        posthog.capture("campaign_application_submitted", {
-          application_action: application ? "updated" : "created",
-          payment_model: paymentModel,
-        });
-      }
-      return next;
-    },
+    applyAction,
     { status: "idle" },
   );
   const priceKobo = application?.proposedPriceKobo ?? campaignPriceKobo;

@@ -1,6 +1,5 @@
 "use client";
 
-import posthog from "posthog-js";
 import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -121,13 +120,7 @@ function AcceptForm({
   onCancel: () => void;
 }) {
   const [state, formAction, pending] = useActionState<ReviewState, FormData>(
-    async (previous, form) => {
-      const next = await acceptSubmissionAction(previous, form);
-      if (next.status === "success") {
-        posthog.capture("work_approved", { closes_dispute: closesDispute });
-      }
-      return next;
-    },
+    acceptSubmissionAction,
     { status: "idle" },
   );
   return (
