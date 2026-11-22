@@ -18,39 +18,48 @@ const NAV_LINKS: NavLink[] = [
 
 export function SiteHeader() {
   return (
-    // A floating glass bar: content scrolls under it, softened by the blur.
-    <header className="sticky top-0 z-40 px-2 pt-2 sm:px-4 sm:pt-3">
+    // A solid white bar attached to the top edge with rounded bottom corners,
+    // after Clay’s nav: the links sit next to the wordmark, the actions at the
+    // far right. Its height (56px, 64px from 640px) is what the heroes pull
+    // themselves up by, so change them together.
+    <header className="sticky top-0 z-40 px-2 sm:px-4">
       <a
         href="#main"
         className="sr-only rounded-lg bg-ink px-4 py-3 font-semibold text-white focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50"
       >
         Skip to content
       </a>
-      <div className="relative mx-auto flex h-14 max-w-[76rem] items-center justify-between gap-4 rounded-2xl pr-2 pl-3 shadow-card ring-1 ring-ink/[0.07] glass sm:h-16 sm:rounded-[1.25rem] sm:pl-4">
-        <Link
-          href="/"
-          aria-label="Pitchype home"
-          className="-m-1 rounded-lg p-1"
-        >
-          <Wordmark />
-        </Link>
+      <div className="relative mx-auto flex h-14 max-w-[76rem] items-center justify-between gap-2 rounded-b-2xl pr-2 pl-3 panel sm:h-16 sm:gap-4 sm:rounded-b-panel sm:pl-5">
+        <div className="flex items-center gap-6 xl:gap-8">
+          <Link
+            href="/"
+            aria-label="Pitchype home"
+            className="-m-1 inline-flex min-h-11 items-center rounded-lg p-1"
+          >
+            <Wordmark />
+          </Link>
 
-        <nav aria-label="Main" className="hidden lg:block">
-          <ul className="flex items-center gap-0.5 lg:gap-1">
-            {NAV_LINKS.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  className="rounded-full px-2.5 py-2 text-sm font-medium text-body hover:bg-ink/5 hover:text-ink motion-safe:transition-colors lg:px-3.5"
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+          <nav aria-label="Main" className="hidden lg:block">
+            <ul className="flex items-center gap-0.5 xl:gap-1">
+              {NAV_LINKS.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="rounded-full px-2.5 py-2 whitespace-nowrap xl:px-3.5 text-[0.9375rem] font-medium text-ink hover:bg-surface-soft motion-safe:transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="mr-1 hidden h-6 w-px bg-hairline-strong lg:block"
+          />
           <Link
             href="/login"
             className={buttonVariants({

@@ -49,7 +49,7 @@ export function MobileMenu({ links }: { links: NavLink[] }) {
       <div
         id={panelId}
         hidden={!open}
-        className="absolute inset-x-0 top-full mt-2 rounded-2xl px-4 pt-2 pb-4 shadow-pop ring-1 ring-ink/[0.07] glass motion-safe:animate-[fade-up_0.4s_var(--ease-out-expo)]"
+        className="absolute inset-x-0 top-full mt-2 rounded-2xl bg-surface px-4 pt-2 pb-4 shadow-pop ring-1 ring-hairline motion-safe:animate-[fade-up_0.4s_var(--ease-out-expo)]"
       >
         <nav aria-label="Main">
           <ul>

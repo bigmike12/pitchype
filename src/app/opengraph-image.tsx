@@ -4,7 +4,7 @@ import { PitchypeMark } from "@/components/brand/wordmark";
 
 // Generated at build time and served as the Open Graph image. X/Twitter falls
 // back to og:image, so there's no separate twitter-image.
-export const alt = "Pitchype: brands meet creators, everybody gets paid";
+export const alt = "Pitchype: hire creators in Nigeria, get paid for your work";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -67,7 +67,7 @@ export default function OpengraphImage() {
           letterSpacing: -3,
         }}
       >
-        Brands meet creators. Everybody gets paid.
+        Influencer work in Nigeria. Creators get paid.
       </div>
 
       {/* No ₦ here: the image renderer's built-in font has no naira glyph. */}

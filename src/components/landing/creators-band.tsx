@@ -12,20 +12,20 @@ const POINTS: {
   {
     icon: Wallet,
     tone: "mint",
-    title: "Affordable",
-    text: "Rates a small business can plan for, agreed before any work starts.",
+    title: "Plannable",
+    text: "A price agreed before any work starts, so the budget is clear from the first day.",
   },
   {
     icon: HeartHandshake,
     tone: "rose",
-    title: "Authentic",
-    text: "Recommendations from someone followers already know and listen to.",
+    title: "Personal",
+    text: "Recommendations from people their followers already know and listen to.",
   },
   {
     icon: MapPin,
     tone: "sky",
     title: "Local",
-    text: "Creators in Lagos, Abuja, Port Harcourt and beyond, talking to people near you.",
+    text: "Filter creators by state, from Lagos and Abuja to Kano and Rivers.",
   },
 ];
 
@@ -109,29 +109,26 @@ function Marquee({
 export function CreatorsBand() {
   return (
     <section aria-labelledby="creators-band-title" className="section-y">
-      <div className="space-y-3 reveal">
+      <div className="space-y-3">
         <Marquee items={NICHES} label="Creator niches" />
         <Marquee items={WORK} label="Kinds of work" reverse />
       </div>
 
       <div className="container-page mt-16 grid gap-10 lg:mt-24 lg:grid-cols-12">
-        <h2
-          id="creators-band-title"
-          className="text-display-lg reveal lg:col-span-5"
-        >
+        <h2 id="creators-band-title" className="text-display-lg lg:col-span-5">
           Built for micro and nano creators
         </h2>
         <div className="lg:col-span-7">
-          <p className="max-w-[40rem] text-lg reveal">
+          <p className="max-w-[40rem] text-lg">
             You don’t need a celebrity to sell a product. Creators with a few
-            thousand to around 100,000 followers often know their audience
-            personally, and people tend to trust a recommendation that feels
-            like it came from a friend. They’re also priced for real budgets, so
-            you can work with several instead of betting everything on one.
+            thousand to around 100,000 followers tend to have smaller, closer
+            audiences, and a recommendation from someone they follow can feel
+            more personal than an ad. A smaller budget also goes further: you
+            can work with several creators instead of betting everything on one.
           </p>
           <ul className="mt-10 grid gap-4 sm:grid-cols-3">
             {POINTS.map(({ icon, tone, title, text }) => (
-              <li key={title} className="rounded-card p-5 panel reveal">
+              <li key={title} className="rounded-card p-5 panel">
                 <ClayTile icon={icon} tone={tone} />
                 <h3 className="mt-4 text-base font-semibold">{title}</h3>
                 <p className="mt-1 text-[0.9375rem] text-muted">{text}</p>

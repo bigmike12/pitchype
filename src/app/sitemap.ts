@@ -38,6 +38,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     })),
     { url: `${SITE_URL}/creators`, changeFrequency: "daily", priority: 0.8 },
+    {
+      url: `${SITE_URL}/how-escrow-works`,
+      changeFrequency: "monthly",
+      priority: 0.6,
+    },
     ...creators.map((creator) => ({
       url: `${SITE_URL}/creators/${creator.slug}`,
       lastModified: creator.updatedAt,

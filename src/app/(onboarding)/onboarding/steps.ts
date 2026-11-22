@@ -109,7 +109,7 @@ export const DONE_COPY: Record<
     tone: "mint",
     why: {
       title: "Your money stays safe",
-      text: "When you hire, you pay into escrow. The creator is paid once you approve the work, or after 7 days without a reply.",
+      text: "When you hire, you pay into escrow. The creator is paid once you accept the work, or automatically if you don’t reply within 7 days of their submission.",
     },
   },
   influencer: {
@@ -119,7 +119,7 @@ export const DONE_COPY: Record<
     tone: "mint",
     why: {
       title: "Paid when the work is approved",
-      text: "Businesses fund each job before you start. Once they approve your work, or after 7 days of silence, the money moves to your wallet.",
+      text: "Businesses fund each job before you start. The money moves to your wallet once they approve your work, or 7 days after you submit if they don’t reply.",
     },
   },
 };

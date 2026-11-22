@@ -28,7 +28,7 @@ export function AudienceHero({
   return (
     <section
       aria-labelledby="audience-hero-title"
-      className="relative isolate -mt-16 overflow-hidden pt-16 sm:-mt-[4.75rem] sm:pt-[4.75rem]"
+      className="relative isolate -mt-14 overflow-hidden pt-14 sm:-mt-16 sm:pt-16"
     >
       <div
         aria-hidden="true"

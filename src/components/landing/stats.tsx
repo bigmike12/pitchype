@@ -26,11 +26,6 @@ export const CREATOR_STATS: Stat[] = [
     source: TIKTOK_CREATOR_REWARDS,
   },
   {
-    value: "8",
-    text: "countries where TikTok’s Creator Rewards is open. Nigeria isn’t one of them.",
-    source: TIKTOK_CREATOR_REWARDS,
-  },
-  {
     value: "41%",
     text: "of creators say late payment is their biggest problem when working with brands.",
     source: {
@@ -82,7 +77,7 @@ export const BUSINESS_STATS: Stat[] = [
   },
 ];
 
-/** Four figures in a row (two on phones), each with its source. */
+/** Figures in a row (two on phones), each with its source. */
 export function StatGrid({
   stats,
   label,
@@ -96,14 +91,15 @@ export function StatGrid({
     <ul
       aria-label={label}
       className={cn(
-        "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4",
+        "grid grid-cols-1 gap-3 sm:grid-cols-2",
+        stats.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4",
         className,
       )}
     >
       {stats.map((stat) => (
         <li
           key={stat.value + stat.text}
-          className="flex flex-col rounded-card p-5 panel reveal"
+          className="flex flex-col rounded-card p-5 panel"
         >
           <p className="font-display text-[2.5rem] leading-none tracking-[-0.04em] text-ink tabular-nums">
             {stat.value}
@@ -113,7 +109,7 @@ export function StatGrid({
             href={stat.source.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-auto inline-flex items-start gap-1 pt-4 text-xs text-muted underline-offset-4 hover:text-ink hover:underline"
+            className="mt-auto inline-flex min-h-11 items-center gap-1 pt-4 text-xs text-muted underline-offset-4 hover:text-ink hover:underline"
           >
             <span>
               Source: {stat.source.name}

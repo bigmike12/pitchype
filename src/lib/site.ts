@@ -24,4 +24,4 @@ export const SOCIAL_PROFILES = [
 export const X_HANDLE = "@pitchype";
 
 export const SITE_DESCRIPTION =
-  "Pitchype connects Nigerian businesses with micro and nano creators. Post a campaign, choose the creators you like, and pay through escrow: the money is held until the work is approved.";
+  "Pitchype connects Nigerian businesses with micro and nano creators for paid campaigns. Agree the price up front and pay through escrow: the money is held until the work is approved or 7 days pass.";
