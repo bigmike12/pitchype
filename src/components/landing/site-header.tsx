@@ -45,7 +45,7 @@ export function SiteHeader() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="rounded-full px-2.5 py-2 whitespace-nowrap xl:px-3.5 text-[0.9375rem] font-medium text-ink hover:bg-surface-soft motion-safe:transition-colors"
+                    className="rounded-full px-2.5 py-2 whitespace-nowrap xl:px-3.5 text-[0.9rem] font-medium text-ink hover:bg-surface-soft motion-safe:transition-colors"
                   >
                     {link.label}
                   </Link>
