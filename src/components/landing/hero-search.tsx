@@ -35,7 +35,10 @@ export async function HeroSearch() {
     <div className="sm:-mx-2 lg:-mx-4 xl:mx-0 rounded-panel bg-surface p-4 text-left shadow-[0_1px_2px_rgb(14_14_16/0.04),0_24px_56px_-20px_rgb(14_14_16/0.24)] ring-1 ring-hairline sm:p-6 lg:p-8">
       <form action="/creators" role="search" aria-label="Find creators">
         <label htmlFor="hero-q" className="font-semibold text-ink">
-          Find creators across Nigeria
+          <span className="hidden sm:inline">
+            Find creators across Niches, Locations and Platforms
+          </span>
+          <span className="inline sm:hidden">Find creators</span>
         </label>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <div className="relative flex-1">
