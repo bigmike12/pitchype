@@ -83,6 +83,41 @@ Design direction recorded below. Rewrite `directory.tsx`, `directory-filters.tsx
 
 Update the docs in spec §6; lint, typecheck, tests, `supabase test db`, local-env build, visual checks 390/768/1280 signed out + business + reduced motion; impeccable critique and fixes; commit.
 
-## Design direction
+## Design direction (set 2026-11-23 with design-taste-frontend and impeccable)
 
-(Filled in after the design skills run; see below.)
+Refinement inside "porcelain and aurora", not a new world. Where the skills'
+defaults conflicted with CLAUDE.md §4a (dealt palettes, stock photographs,
+"never violet", shader grounds, their own starter kit and gate) the project
+won; their principles were kept: show the real thing (the creators' own
+photos and work), equal edges, hover that answers, one authored entrance, no
+explanatory captions on pictures. Modes: discovery is Operate with a
+Persuade opening; the portfolio is Experience (the creator's work leads, the
+interface recedes).
+
+**Discovery ("the index").** No aurora: a type-led masthead on the canvas.
+A left-aligned `text-display-xl` h1, one line of truth (real listed count),
+then search as the hero action (one large field + ink button). Under it, the
+niche list set as an index in Bricolage (wrapping words on desktop, one
+swipeable line on phones), each a link to that niche: the page's one type
+moment. A slim toolbar follows: the real result count on the left, Sort and
+(below 1024px) a Filters button that opens the remaining filters as a bottom
+sheet; from 1024px the same fields sit inline. One `<form>` (GET) holds
+everything, so every view is a URL. Results are an equal-width grid on
+purpose: varying card sizes by position would read as paid prominence
+(CLAUDE.md §10 fairness) and ragged rows break the sort order; rhythm comes
+from content instead (a cover band with an overlapping portrait vs a full
+portrait, a two-line bio excerpt). 1 column at 390, 2 from 640, 3 from 1024,
+4 from 1280.
+
+**Portfolio ("the creator's own space").** A cover band (`rounded-frame`,
+16:9 on phones, ~2.6:1 from 1024px). With no cover, the band is a flat pastel
+from the creator's own tone with their first name set huge in Bricolage
+(ink on pastel): the sparse case is designed, not empty. The square photo
+overlaps the band's bottom edge with a white ring; beside it the h1, place,
+niches, then Share (secondary) and the business action. Below, two columns
+from 1024px: About (bio at `text-xl`, 60ch), Work (samples, 2/3 columns,
+4:5 tiles, figure + creator's caption, a dialog lightbox), Platforms; the
+22rem aside holds the facts (jobs completed when > 0, on Pitchype since,
+rate for businesses) and the call to action, sticky. One entrance (`enter`)
+on the identity block; tiles zoom 1.02 on hover; everything still with
+reduced motion.
