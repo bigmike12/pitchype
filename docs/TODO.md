@@ -674,6 +674,41 @@ Portal rebuild (2026-11-16, the dashboard-kit look):
 - [ ] Open from 2026-11-22: whether to raise the ₦50 minimum cost per click
       (CLAUDE.md §12 item 11) now that businesses can choose the floor.
 
+## 13. From the creator portfolio (2026-11-23)
+
+- [ ] **You:** ship the creator portfolio to production, in this order
+      (decided 2026-11-23: pictures move from `<user id>/…` to
+      `<media key>/…` folders, migration `20261127100200`). Copy, never move:
+      the live app reads the old paths until step 3.
+      1. Push migrations `20261127100000` to `20261127100400` (they sort after
+         every migration on the other open branches, up to `20261126100000`).
+         From here until step 3, signed-out visitors and creators see
+         broken photos on the old app (it builds image addresses from the
+         user id, which these functions no longer send them; businesses are
+         unaffected), so do steps 1 to 3 back to back.
+      2. `node --env-file=<production env> scripts/move-photos-to-media-keys.mjs`
+         (dry run: check the counts, `missingSource` should be 0), then the
+         same with `--apply`.
+      3. Deploy the app from this branch.
+      4. Run `--apply` again: it copies anything the old app stored between
+         steps 2 and 3 and skips the rest.
+      5. Check a few creator pages and the business inbox show photos.
+      6. `--delete-old` (dry run: the old object count), then
+         `--delete-old --apply`. It refuses unless every current picture is at
+         its new path.
+- [ ] Automatic image moderation for covers and samples. Today: the report
+      button and an admin takedown.
+- [x] Tell the creator when an admin removes their cover or takes down a
+      sample: `cover_removed` and `portfolio_sample_hidden` notices with the
+      reason, always emailed (2026-11-23, migration `20261127100400`).
+- [x] Public image addresses no longer carry user ids: folders are named by
+      `influencer_profiles.media_key` (2026-11-23).
+- [ ] Replacing a sample's picture in place (today: remove it and add another).
+- [ ] The directory's GET form sends empty fields (`?q=&niche=…`); harmless,
+      but the URLs could be tidier.
+- [ ] Run Lighthouse on `/creators` and a profile (not run in this change; CLS
+      measured 0 on both).
+
 ## Done
 
 - [x] Database migrations for Stages 1–3 pushed to the live project

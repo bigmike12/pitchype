@@ -871,10 +871,12 @@ export type Database = {
           allow_indexing: boolean
           bio: string | null
           city: string
+          cover_version: number | null
           created_at: string
           display_name: string
           hidden_at: string | null
           hidden_reason: string | null
+          media_key: string
           niches: string[]
           photo_version: number | null
           published: boolean
@@ -888,10 +890,12 @@ export type Database = {
           allow_indexing?: boolean
           bio?: string | null
           city: string
+          cover_version?: number | null
           created_at?: string
           display_name: string
           hidden_at?: string | null
           hidden_reason?: string | null
+          media_key?: string
           niches?: string[]
           photo_version?: number | null
           published?: boolean
@@ -905,10 +909,12 @@ export type Database = {
           allow_indexing?: boolean
           bio?: string | null
           city?: string
+          cover_version?: number | null
           created_at?: string
           display_name?: string
           hidden_at?: string | null
           hidden_reason?: string | null
+          media_key?: string
           niches?: string[]
           photo_version?: number | null
           published?: boolean
@@ -1477,6 +1483,66 @@ export type Database = {
           },
         ]
       }
+      portfolio_samples: {
+        Row: {
+          caption: string | null
+          created_at: string
+          hidden_at: string | null
+          hidden_by: string | null
+          hidden_reason: string | null
+          id: string
+          image_version: number | null
+          platform: Database["public"]["Enums"]["social_platform"] | null
+          position: number
+          post_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          hidden_at?: string | null
+          hidden_by?: string | null
+          hidden_reason?: string | null
+          id?: string
+          image_version?: number | null
+          platform?: Database["public"]["Enums"]["social_platform"] | null
+          position: number
+          post_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          hidden_at?: string | null
+          hidden_by?: string | null
+          hidden_reason?: string | null
+          id?: string
+          image_version?: number | null
+          platform?: Database["public"]["Enums"]["social_platform"] | null
+          position?: number
+          post_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_samples_hidden_by_fkey"
+            columns: ["hidden_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portfolio_samples_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profile_reports: {
         Row: {
           created_at: string
@@ -1966,10 +2032,12 @@ export type Database = {
           allow_indexing: boolean | null
           bio: string | null
           city: string | null
+          cover_version: number | null
           created_at: string | null
           display_name: string | null
           hidden_at: string | null
           hidden_reason: string | null
+          media_key: string | null
           niches: string[] | null
           photo_version: number | null
           published: boolean | null
@@ -1983,10 +2051,12 @@ export type Database = {
           allow_indexing?: boolean | null
           bio?: string | null
           city?: string | null
+          cover_version?: number | null
           created_at?: string | null
           display_name?: string | null
           hidden_at?: string | null
           hidden_reason?: string | null
+          media_key?: string | null
           niches?: string[] | null
           photo_version?: number | null
           published?: boolean | null
@@ -2000,10 +2070,12 @@ export type Database = {
           allow_indexing?: boolean | null
           bio?: string | null
           city?: string | null
+          cover_version?: number | null
           created_at?: string | null
           display_name?: string | null
           hidden_at?: string | null
           hidden_reason?: string | null
+          media_key?: string | null
           niches?: string[] | null
           photo_version?: number | null
           published?: boolean | null
@@ -2120,6 +2192,10 @@ export type Database = {
       }
       clean_note: { Args: { note: string }; Returns: string }
       clean_reason: { Args: { reason: string }; Returns: string }
+      clear_cover: {
+        Args: { creator: string; reason: string }
+        Returns: number
+      }
       click_settles_at: { Args: { deliver_by: string }; Returns: string }
       click_window_end: { Args: { deliver_by: string }; Returns: string }
       click_window_open: {
@@ -2136,9 +2212,28 @@ export type Database = {
         Args: { requested_role: Database["public"]["Enums"]["user_role"] }
         Returns: string
       }
+      creator_completed_jobs: { Args: { creator: string }; Returns: number }
+      creator_media_keys: {
+        Args: { creators: string[] }
+        Returns: {
+          media_key: string
+          user_id: string
+        }[]
+      }
       creator_platforms_json: {
         Args: { creator: string; with_handles: boolean }
         Returns: Json
+      }
+      creator_portfolio: {
+        Args: { creator_slug: string }
+        Returns: {
+          caption: string
+          id: string
+          image_version: number
+          platform: Database["public"]["Enums"]["social_platform"]
+          position: number
+          post_url: string
+        }[]
       }
       creator_wallet_summary: {
         Args: { person: string }
@@ -2249,8 +2344,13 @@ export type Database = {
           allow_indexing: boolean
           bio: string
           city: string
+          completed_jobs: number
+          cover_version: number
           details_visible: boolean
           display_name: string
+          is_self: boolean
+          media_key: string
+          member_since: string
           niches: string[]
           photo_version: number
           platforms: Json
@@ -2262,6 +2362,10 @@ export type Database = {
         }[]
       }
       held_places: { Args: { campaign: string }; Returns: number }
+      hide_portfolio_sample: {
+        Args: { reason: string; sample: string }
+        Returns: undefined
+      }
       hire_ended_unpaid: { Args: { application: string }; Returns: boolean }
       indexable_creators: {
         Args: never
@@ -2355,6 +2459,13 @@ export type Database = {
           reference: string
         }
         Returns: string
+      }
+      post_url_fits_platform: {
+        Args: {
+          on_platform: Database["public"]["Enums"]["social_platform"]
+          url: string
+        }
+        Returns: boolean
       }
       reconciliation_figures: {
         Args: { paystack_balance_kobo: number; totals: Json }
@@ -2522,10 +2633,14 @@ export type Database = {
           page_offset?: number
           page_size?: number
           search?: string
+          sort?: string
         }
         Returns: {
+          bio: string
           city: string
+          cover_version: number
           display_name: string
+          media_key: string
           niches: string[]
           photo_version: number
           platforms: Json
@@ -2533,7 +2648,6 @@ export type Database = {
           starting_rate_kobo: number
           state: string
           total_count: number
-          user_id: string
         }[]
       }
       search_pattern: { Args: { words: string }; Returns: string }
@@ -2612,6 +2726,10 @@ export type Database = {
           note: string
         }
         Returns: string
+      }
+      swap_portfolio_samples: {
+        Args: { first_sample: string; second_sample: string }
+        Returns: undefined
       }
       transfer_fee_for: { Args: { amount_kobo: number }; Returns: number }
       transition_campaign: {
@@ -2695,6 +2813,8 @@ export type Database = {
         | "strike_voided"
         | "suspension_lifted"
         | "appeal_declined"
+        | "portfolio_sample_hidden"
+        | "cover_removed"
       notification_kind:
         | "application_received"
         | "application_updated"
@@ -2730,6 +2850,8 @@ export type Database = {
         | "click_cap_reached"
         | "click_hold_started"
         | "clicks_stopped"
+        | "portfolio_sample_hidden"
+        | "cover_removed"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -2918,6 +3040,8 @@ export const Constants = {
         "strike_voided",
         "suspension_lifted",
         "appeal_declined",
+        "portfolio_sample_hidden",
+        "cover_removed",
       ],
       notification_kind: [
         "application_received",
@@ -2954,6 +3078,8 @@ export const Constants = {
         "click_cap_reached",
         "click_hold_started",
         "clicks_stopped",
+        "portfolio_sample_hidden",
+        "cover_removed",
       ],
       payment_model: ["fixed", "per_click"],
       report_reason: [

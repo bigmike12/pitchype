@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 
-import { HeroIllustration } from "./hero-illustration";
+import { HeroSearch } from "./hero-search";
 
 const delay = (ms: number) => ({ "--delay": `${ms}ms` }) as CSSProperties;
 
@@ -76,7 +76,9 @@ export function Hero() {
         className="container-page mt-14 pb-16 sm:mt-20 enter"
         style={delay(280)}
       >
-        <HeroIllustration />
+        {/* Experiment (2026-11-23): the creator search in place of
+            HeroIllustration (./hero-illustration), which is kept to switch back. */}
+        <HeroSearch />
       </div>
     </section>
   );

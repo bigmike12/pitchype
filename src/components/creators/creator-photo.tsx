@@ -11,7 +11,7 @@ const TONES = [
 ] as const;
 
 /** The same tone for the same name, every time. */
-function toneFor(name: string) {
+export function toneFor(name: string) {
   let sum = 0;
   for (const char of name) sum = (sum + char.codePointAt(0)!) % 997;
   return TONES[sum % TONES.length];

@@ -4,12 +4,7 @@ import { Suspense } from "react";
 import { Directory } from "@/components/creators/directory";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth";
-import {
-  CardGridSkeleton,
-  FiltersSkeleton,
-  PageLoading,
-  Skeleton,
-} from "@/components/ui/skeleton";
+import { DirectorySkeleton } from "@/components/creators/directory-skeleton";
 
 export const metadata: Metadata = { title: "Find creators" };
 
@@ -28,15 +23,7 @@ export default function BusinessCreatorsPage({
         title="Find creators"
         lead="Micro and nano creators across Nigeria. Follower counts are marked self-reported, or verified when we’ve checked the account."
       />
-      <Suspense
-        fallback={
-          <PageLoading label="Loading creators…">
-            <FiltersSkeleton />
-            <Skeleton className="mt-6 h-4 w-32" />
-            <CardGridSkeleton variant="creator" count={8} className="mt-5" />
-          </PageLoading>
-        }
-      >
+      <Suspense fallback={<DirectorySkeleton inPortal />}>
         <Creators searchParams={searchParams} />
       </Suspense>
     </>

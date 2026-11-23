@@ -8,6 +8,7 @@
 import { createSessionClient } from "@/lib/supabase/server";
 import { profilePhotoUrl } from "@/lib/storage";
 
+import { mediaKeysFor } from "./creators";
 import { bool, isObject, list, num, obj, str } from "./json";
 import { refused, type Refused } from "./refusal";
 
@@ -105,6 +106,14 @@ export async function listMyConversations(): Promise<ConversationSummary[]> {
   const supabase = await createSessionClient();
   const { data, error } = await supabase.rpc("my_conversations");
   if (error) throw new Error(`conversations failed (${error.code})`);
+  // Creators' photos live under their media key, not their user id.
+  const mediaKeys = await mediaKeysFor(
+    list(data).flatMap((row) => {
+      if (!isObject(row)) return [];
+      const other = obj(row.other);
+      return str(other.role) === "influencer" ? (str(other.id) ?? []) : [];
+    }),
+  );
   return list(data).flatMap((row) => {
     if (!isObject(row) || !str(row.id)) return [];
     const other = obj(row.other);
@@ -131,8 +140,11 @@ export async function listMyConversations(): Promise<ConversationSummary[]> {
           name: str(other.name) ?? "",
           slug: str(other.slug),
           photoUrl:
-            role === "influencer"
-              ? profilePhotoUrl(otherId, num(other.photo_version))
+            role === "influencer" && mediaKeys.has(otherId)
+              ? profilePhotoUrl(
+                  mediaKeys.get(otherId)!,
+                  num(other.photo_version),
+                )
               : null,
         },
         blockedByMe: bool(row.blocked_by_me),

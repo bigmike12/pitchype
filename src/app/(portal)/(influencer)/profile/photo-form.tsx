@@ -12,36 +12,10 @@ import {
   uploadPhotoAction,
   type PhotoState,
 } from "./actions";
+import { shrinkForUpload } from "./shrink-image";
 
 // Big enough for the server's 512px square crop with room to spare.
 const MAX_EDGE = 1024;
-
-/**
- * Shrinks the photo in the browser before upload: quicker on mobile data,
- * and under the hosting limit on request size. The server processes it
- * again either way, so if this fails the original goes up instead.
- */
-async function shrinkForUpload(file: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(file); // applies EXIF rotation
-  const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("no canvas");
-  // JPEG has no transparency: put see-through PNGs on white, not black.
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  return new Promise((resolve, reject) =>
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("no blob"))),
-      "image/jpeg",
-      0.9,
-    ),
-  );
-}
 
 export function PhotoForm({
   name,
@@ -63,7 +37,7 @@ export function PhotoForm({
     if (!file) return; // the browser's own "required" message shows
     event.preventDefault();
     setPreparing(true);
-    const prepared = await shrinkForUpload(file).catch(() => file);
+    const prepared = await shrinkForUpload(file, MAX_EDGE).catch(() => file);
     setPreparing(false);
     const data = new FormData();
     data.set("photo", prepared, "photo.jpg");
@@ -81,22 +55,24 @@ export function PhotoForm({
       />
       <div className="min-w-0 flex-1">
         <form action={formAction} onSubmit={upload} className="space-y-3">
-          <label htmlFor="photo" className="font-semibold text-ink">
+          <label htmlFor="photo-file" className="font-semibold text-ink">
             {photoUrl ? "Change your photo" : "Add a photo"}
           </label>
           <input
             ref={input}
-            id="photo"
+            id="photo-file"
             name="photo"
             type="file"
             accept="image/jpeg,image/png,image/webp"
             required
             aria-invalid={error ? true : undefined}
-            aria-describedby={error ? "photo-hint photo-error" : "photo-hint"}
+            aria-describedby={
+              error ? "photo-file-hint photo-file-error" : "photo-file-hint"
+            }
             className="block w-full text-sm text-body file:mr-4 file:h-11 file:cursor-pointer file:rounded-control file:border file:border-field file:bg-canvas file:px-4 file:font-semibold file:text-ink hover:file:bg-surface-card"
           />
           <FieldMessages
-            id="photo"
+            id="photo-file"
             hint="A clear, recent photo of you. JPEG, PNG or WebP, up to 5MB. We crop it square and remove location data."
             error={error}
           />

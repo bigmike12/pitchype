@@ -1,7 +1,8 @@
 // Data access for creator profiles and the directory.
 //
 // The directory is read through database functions that decide what the
-// viewer may see (handles, bios and rates only for businesses and admins), so
+// viewer may see (handles, post links and rates only for businesses and
+// admins), so
 // it always runs with the viewer's session: the database, not the page, is
 // what keeps those fields from visitors. A creator's own profile is read and
 // written with their session, under row level security.
@@ -19,10 +20,11 @@ import {
   type Platform,
   type PlatformInput,
   type PlatformListing,
+  type SampleInput,
 } from "@/lib/creator-profile";
 import { KOBO_PER_NAIRA } from "@/lib/money";
 import type { NigerianState } from "@/lib/profile";
-import { profilePhotoUrl } from "@/lib/storage";
+import { coverUrl, profilePhotoUrl, sampleUrl } from "@/lib/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   createAnonServerClient,
@@ -50,6 +52,9 @@ export type CreatorCard = {
   slug: string;
   displayName: string;
   photoUrl: string | null;
+  coverUrl: string | null;
+  /** Public since 2026-11-23; null when the creator hasn't written one. */
+  bio: string | null;
   state: NigerianState;
   city: string;
   niches: string[];
@@ -59,14 +64,23 @@ export type CreatorCard = {
 };
 
 export type CreatorPage = CreatorCard & {
-  /** Our user id, for messaging and blocking from the business portal. */
-  userId: string;
-  /** Null when empty, or when this viewer may not see it. */
-  bio: string | null;
+  /**
+   * Our user id, for messaging and blocking: only businesses and admins get
+   * it (null for everyone else). Server-side only; never render it.
+   */
+  userId: string | null;
+  /** Whether the signed-in person is this creator. */
+  isSelf: boolean;
+  /** Names the creator's storage folder (for sample URLs). Server-side only. */
+  mediaKey: string;
   allowIndexing: boolean;
   updatedAt: string;
-  /** Whether this viewer sees handles, bio and rate (businesses and admins). */
+  /** Whether this viewer sees handles, post links and rate (businesses and admins). */
   detailsVisible: boolean;
+  /** Hires that paid this creator; shown only when above zero. */
+  completedJobs: number;
+  /** When they joined Pitchype. */
+  memberSince: string;
 };
 
 export async function searchCreators(
@@ -84,6 +98,7 @@ export async function searchCreators(
     page_size: DIRECTORY_PAGE_SIZE,
     page_offset: (filters.page - 1) * DIRECTORY_PAGE_SIZE,
     search: filters.search,
+    sort: filters.sort,
   });
   if (error) throw new Error(`creator search failed (${error.code})`);
 
@@ -91,7 +106,9 @@ export async function searchCreators(
     creators: data.map((row) => ({
       slug: row.slug,
       displayName: row.display_name,
-      photoUrl: profilePhotoUrl(row.user_id, row.photo_version ?? null),
+      photoUrl: profilePhotoUrl(row.media_key, row.photo_version ?? null),
+      coverUrl: coverUrl(row.media_key, row.cover_version ?? null),
+      bio: row.bio ?? null,
       state: row.state as NigerianState,
       city: row.city,
       niches: row.niches,
@@ -113,10 +130,13 @@ export const getListedCreator = cache(
     if (error) throw new Error(`creator lookup failed (${error.code})`);
     if (!data) return null;
     return {
-      userId: data.user_id,
+      userId: data.user_id ?? null,
+      isSelf: data.is_self,
+      mediaKey: data.media_key,
       slug: data.slug,
       displayName: data.display_name,
-      photoUrl: profilePhotoUrl(data.user_id, data.photo_version ?? null),
+      photoUrl: profilePhotoUrl(data.media_key, data.photo_version ?? null),
+      coverUrl: coverUrl(data.media_key, data.cover_version ?? null),
       state: data.state as NigerianState,
       city: data.city,
       niches: data.niches,
@@ -126,9 +146,60 @@ export const getListedCreator = cache(
       allowIndexing: data.allow_indexing,
       updatedAt: data.updated_at,
       detailsVisible: data.details_visible,
+      completedJobs: data.completed_jobs,
+      memberSince: data.member_since,
     };
   },
 );
+
+export type PortfolioSample = {
+  id: string;
+  imageUrl: string;
+  caption: string | null;
+  platform: Platform | null;
+  /** Only for businesses and admins: a post's address names the account. */
+  postUrl: string | null;
+};
+
+/**
+ * A listed creator's visible samples, in order. `mediaKey` comes from
+ * getListedCreator (it names the files).
+ */
+export const getCreatorPortfolio = cache(
+  async (slug: string, mediaKey: string): Promise<PortfolioSample[]> => {
+    const supabase = await createSessionClient();
+    const { data, error } = await supabase.rpc("creator_portfolio", {
+      creator_slug: slug,
+    });
+    if (error) throw new Error(`portfolio lookup failed (${error.code})`);
+    return data.map((row) => ({
+      id: row.id,
+      imageUrl: sampleUrl(mediaKey, row.id, row.image_version),
+      caption: row.caption ?? null,
+      platform: row.platform ?? null,
+      postUrl: row.post_url ?? null,
+    }));
+  },
+);
+
+/**
+ * The storage folder keys of creators the caller already has ids for (the
+ * portal's lists of applicants and conversations), for their photo URLs.
+ */
+export async function mediaKeysFor(
+  userIds: string[],
+): Promise<Map<string, string>> {
+  const keys = new Map<string, string>();
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (ids.length === 0) return keys;
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase.rpc("creator_media_keys", {
+    creators: ids,
+  });
+  if (error) throw new Error(`media keys lookup failed (${error.code})`);
+  for (const row of data) keys.set(row.user_id, row.media_key);
+  return keys;
+}
 
 /** Listed creators who allow search engines, for the sitemap. */
 export async function listIndexableCreators(): Promise<
@@ -187,6 +258,10 @@ export type OwnCreatorProfile = {
   startingRateKobo: number | null;
   photoVersion: number | null;
   photoUrl: string | null;
+  coverVersion: number | null;
+  coverUrl: string | null;
+  /** Names the creator's storage folder. */
+  mediaKey: string;
   /** Set on first publish. */
   slug: string | null;
   published: boolean;
@@ -205,7 +280,7 @@ export const getOwnCreatorProfile = cache(async function getOwnCreatorProfile(
     supabase
       .from("influencer_profiles")
       .select(
-        "display_name, bio, niches, state, city, starting_rate_kobo, photo_version, slug, published, allow_indexing, hidden_reason",
+        "display_name, bio, niches, state, city, starting_rate_kobo, photo_version, cover_version, media_key, slug, published, allow_indexing, hidden_reason",
       )
       .eq("user_id", userId)
       .maybeSingle(),
@@ -232,7 +307,10 @@ export const getOwnCreatorProfile = cache(async function getOwnCreatorProfile(
     city: row.city,
     startingRateKobo: row.starting_rate_kobo,
     photoVersion: row.photo_version,
-    photoUrl: profilePhotoUrl(userId, row.photo_version),
+    photoUrl: profilePhotoUrl(row.media_key, row.photo_version),
+    coverVersion: row.cover_version,
+    coverUrl: coverUrl(row.media_key, row.cover_version),
+    mediaKey: row.media_key,
     slug: row.slug,
     published: row.published,
     allowIndexing: row.allow_indexing,
@@ -358,4 +436,152 @@ export async function setPhotoVersion(
     .update({ photo_version: version })
     .eq("user_id", userId);
   if (error) throw new Error(`photo version update failed (${error.code})`);
+}
+
+/** Records which cover is current (null: none). Secret key, like the photo. */
+export async function setCoverVersion(
+  userId: string,
+  version: number | null,
+): Promise<void> {
+  const { error } = await createAdminClient()
+    .from("influencer_profiles")
+    .update({ cover_version: version })
+    .eq("user_id", userId);
+  if (error) throw new Error(`cover version update failed (${error.code})`);
+}
+
+// A creator's own samples ------------------------------------------------------------
+
+export type OwnSample = {
+  id: string;
+  position: number;
+  /** Null while the image is still being stored (or if storing it failed). */
+  imageVersion: number | null;
+  imageUrl: string | null;
+  caption: string | null;
+  platform: Platform | null;
+  postUrl: string | null;
+  /** Set when an admin took it down. */
+  hiddenReason: string | null;
+};
+
+/** `mediaKey` is the creator's own (OwnCreatorProfile.mediaKey). */
+export async function listOwnSamples(
+  userId: string,
+  mediaKey: string,
+): Promise<OwnSample[]> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("portfolio_samples")
+    .select(
+      "id, position, image_version, caption, platform, post_url, hidden_reason",
+    )
+    .eq("user_id", userId)
+    .order("position");
+  if (error) throw new Error(`samples lookup failed (${error.code})`);
+  return data.map((row) => ({
+    id: row.id,
+    position: row.position,
+    imageVersion: row.image_version,
+    // A taken-down sample's file is deleted, so there's nothing to show.
+    imageUrl:
+      row.image_version === null || row.hidden_reason !== null
+        ? null
+        : sampleUrl(mediaKey, row.id, row.image_version),
+    caption: row.caption,
+    platform: row.platform,
+    postUrl: row.post_url,
+    hiddenReason: row.hidden_reason,
+  }));
+}
+
+/**
+ * Adds a sample row at `position` (the image follows with
+ * setSampleImageVersion). Returns its id, or "taken" when that position was
+ * filled meanwhile (a second tab, a double click).
+ */
+export async function createSample(
+  userId: string,
+  position: number,
+  input: SampleInput,
+): Promise<{ id: string } | "taken"> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("portfolio_samples")
+    .insert({
+      user_id: userId,
+      position,
+      caption: input.caption,
+      platform: input.platform,
+      post_url: input.postUrl,
+    })
+    .select("id")
+    .single();
+  if (error?.code === "23505" || error?.code === "23514") return "taken";
+  if (error) throw new Error(`sample insert failed (${error.code})`);
+  return { id: data.id };
+}
+
+export async function updateSample(
+  userId: string,
+  sampleId: string,
+  input: SampleInput,
+): Promise<void> {
+  const supabase = await createSessionClient();
+  const { error } = await supabase
+    .from("portfolio_samples")
+    .update({
+      caption: input.caption,
+      platform: input.platform,
+      post_url: input.postUrl,
+    })
+    .eq("user_id", userId)
+    .eq("id", sampleId);
+  if (error) throw new Error(`sample update failed (${error.code})`);
+}
+
+/** Deletes one of the creator's samples; returns its image version, if any. */
+export async function deleteSample(
+  userId: string,
+  sampleId: string,
+): Promise<{ imageVersion: number | null } | null> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("portfolio_samples")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", sampleId)
+    .select("image_version");
+  if (error) throw new Error(`sample delete failed (${error.code})`);
+  return data[0] ? { imageVersion: data[0].image_version } : null;
+}
+
+/**
+ * Points a sample at a stored image. Secret key: creators can't write this
+ * column. Callers pass the signed-in creator's id, so only their own rows match.
+ */
+export async function setSampleImageVersion(
+  userId: string,
+  sampleId: string,
+  version: number,
+): Promise<void> {
+  const { error } = await createAdminClient()
+    .from("portfolio_samples")
+    .update({ image_version: version })
+    .eq("user_id", userId)
+    .eq("id", sampleId);
+  if (error) throw new Error(`sample image update failed (${error.code})`);
+}
+
+/** Swaps two of the signed-in creator's samples (row level security applies). */
+export async function swapSamples(
+  first: string,
+  second: string,
+): Promise<void> {
+  const supabase = await createSessionClient();
+  const { error } = await supabase.rpc("swap_portfolio_samples", {
+    first_sample: first,
+    second_sample: second,
+  });
+  if (error) throw new Error(`sample swap failed (${error.code})`);
 }

@@ -10,7 +10,9 @@ import {
   parseDirectoryFilters,
   parseNiches,
   parsePlatformForm,
+  parsePostUrl,
   parseRate,
+  parseSampleForm,
   publishProblems,
   startingRateText,
   verificationView,
@@ -230,6 +232,7 @@ test("directory filters: known values kept, the rest ignored", () => {
     minFollowers: "10k_50k",
     state: "Lagos",
     maxRateNaira: 50_000,
+    sort: "newest",
     page: 2,
   });
   assert.equal(
@@ -249,6 +252,7 @@ test("directory filters: known values kept, the rest ignored", () => {
     minFollowers: undefined,
     state: undefined,
     maxRateNaira: undefined,
+    sort: "newest",
     page: 1,
   });
   assert.equal(directoryQuery(junk), "");
@@ -396,4 +400,104 @@ test("niches: known, deduplicated, one to three", () => {
       chosen: ["food", "fashion", "travel", "tech"],
     },
   );
+});
+
+// Portfolio samples -------------------------------------------------------------------
+
+test("a post link is https on the chosen platform's site", () => {
+  assert.deepEqual(
+    parsePostUrl("instagram", " https://www.instagram.com/p/AbC123/ "),
+    { ok: true, url: "https://www.instagram.com/p/AbC123/", platform: "instagram" },
+  );
+  assert.deepEqual(parsePostUrl("youtube", "https://youtu.be/abc"), {
+    ok: true,
+    url: "https://youtu.be/abc",
+    platform: "youtube",
+  });
+  assert.deepEqual(parsePostUrl("x", "https://twitter.com/a/status/1"), {
+    ok: true,
+    url: "https://twitter.com/a/status/1",
+    platform: "x",
+  });
+  assert.deepEqual(parsePostUrl("tiktok", "https://vm.tiktok.com/ZM123/"), {
+    ok: true,
+    url: "https://vm.tiktok.com/ZM123/",
+    platform: "tiktok",
+  });
+  assert.equal(parsePostUrl("instagram", "https://www.tiktok.com/@a/video/1").ok, false);
+  assert.equal(parsePostUrl("instagram", "http://www.instagram.com/p/x/").ok, false);
+  assert.equal(parsePostUrl("instagram", "https://evilinstagram.com/p/x").ok, false);
+  assert.equal(parsePostUrl("instagram", "instagram.com/p/x").ok, false);
+});
+
+test("a post link without a platform picks the platform from the link", () => {
+  assert.deepEqual(parsePostUrl(null, "https://www.tiktok.com/@a/video/1"), {
+    ok: true,
+    url: "https://www.tiktok.com/@a/video/1",
+    platform: "tiktok",
+  });
+  assert.equal(parsePostUrl(null, "https://example.com/post").ok, false);
+});
+
+test("a blank post link is fine", () => {
+  assert.deepEqual(parsePostUrl("instagram", "  "), {
+    ok: true,
+    url: null,
+    platform: "instagram",
+  });
+});
+
+test("sample form: caption, platform and link", () => {
+  const parsed = parseSampleForm(
+    form([
+      ["caption", "  Thrift haul  "],
+      ["platform", ""],
+      ["postUrl", "https://www.instagram.com/p/AbC/"],
+    ]),
+  );
+  assert.deepEqual(parsed, {
+    ok: true,
+    value: {
+      caption: "Thrift haul",
+      platform: "instagram",
+      postUrl: "https://www.instagram.com/p/AbC/",
+    },
+  });
+  assert.deepEqual(parseSampleForm(form([])), {
+    ok: true,
+    value: { caption: null, platform: null, postUrl: null },
+  });
+});
+
+test("sample form refuses long captions and contact details", () => {
+  const long = parseSampleForm(form([["caption", "a".repeat(141)]]));
+  assert.equal(long.ok, false);
+  if (!long.ok) assert.match(long.errors.caption ?? "", /140/);
+
+  const phone = parseSampleForm(form([["caption", "Call 0803 123 4567"]]));
+  assert.equal(phone.ok, false);
+  if (!phone.ok) assert.match(phone.errors.caption ?? "", /phone number/);
+
+  const badLink = parseSampleForm(
+    form([
+      ["platform", "youtube"],
+      ["postUrl", "https://www.instagram.com/p/x/"],
+    ]),
+  );
+  assert.equal(badLink.ok, false);
+  if (!badLink.ok) assert.ok(badLink.errors.postUrl);
+});
+
+test("directory sort is read from the URL and kept in links", () => {
+  const filters = parseDirectoryFilters({ sort: "followers" }, NICHES, {
+    canFilterByRate: false,
+  });
+  assert.equal(filters.sort, "followers");
+  assert.equal(directoryQuery(filters), "?sort=followers");
+
+  const fallback = parseDirectoryFilters({ sort: "cheapest" }, NICHES, {
+    canFilterByRate: false,
+  });
+  assert.equal(fallback.sort, "newest");
+  assert.equal(directoryQuery(fallback), "");
 });

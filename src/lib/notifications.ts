@@ -333,6 +333,23 @@ export function describeNotification(
         body: note,
         href: "/profile",
       };
+    case "portfolio_sample_hidden": {
+      // The admin's reason is the second line (null if missing, never blank).
+      const caption = text(d.caption);
+      return {
+        title: caption
+          ? `We took down a work sample: “${caption}”`
+          : "We took down one of your work samples",
+        body: note,
+        href: "/profile#samples",
+      };
+    }
+    case "cover_removed":
+      return {
+        title: "We removed your cover picture",
+        body: note,
+        href: "/profile#cover",
+      };
     case "profile_restored":
       return {
         title: "Your profile is back in the directory",

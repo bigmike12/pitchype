@@ -2,7 +2,8 @@ import "server-only";
 
 // File storage boundary (CLAUDE.md §2a): the only code that knows photos live
 // in Supabase Storage. Moving to S3, R2 or a disk means rewriting this file;
-// callers pass a user id and version and get a URL back. See docs/PROVIDERS.md.
+// callers pass a creator's media key and a version and get a URL back. See
+// docs/PROVIDERS.md.
 
 import { registerProofFile } from "@/lib/db/proof-files";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -11,44 +12,108 @@ import { supabaseEnv } from "@/lib/supabase/env";
 // Created by supabase/migrations/20261109133550_create_profile_photos_bucket.sql.
 const BUCKET = "profile-photos";
 
-// A new version gets a new name, so a photo's URL never changes content and
+// Each creator's pictures sit in a folder named by their media key
+// (influencer_profiles.media_key), a random id that is not their user id, so
+// public image addresses don't carry user ids (migration 20261127100200).
+// A new version gets a new name, so an image's URL never changes content and
 // can be cached for good.
-const photoPath = (userId: string, version: number) =>
-  `${userId}/${version}.webp`;
+const photoPath = (mediaKey: string, version: number) =>
+  `${mediaKey}/${version}.webp`;
+const coverPath = (mediaKey: string, version: number) =>
+  `${mediaKey}/cover-${version}.webp`;
+const samplePath = (mediaKey: string, sampleId: string, version: number) =>
+  `${mediaKey}/sample-${sampleId}-${version}.webp`;
 
-export function profilePhotoUrl(
-  userId: string,
-  version: number | null,
-): string | null {
-  if (version === null) return null;
+function publicUrl(path: string): string {
   const { url } = supabaseEnv();
-  return `${url}/storage/v1/object/public/${BUCKET}/${photoPath(userId, version)}`;
+  return `${url}/storage/v1/object/public/${BUCKET}/${path}`;
 }
 
-/** Stores an already-processed photo (lib/profile-photo.ts). */
-export async function saveProfilePhoto(
-  userId: string,
-  version: number,
-  webp: Buffer,
-): Promise<void> {
+async function uploadImage(path: string, webp: Buffer): Promise<void> {
   const { error } = await createAdminClient()
     .storage.from(BUCKET)
-    .upload(photoPath(userId, version), webp, {
+    .upload(path, webp, {
       contentType: "image/webp",
       cacheControl: "31536000",
       upsert: false,
     });
-  if (error) throw new Error(`photo upload failed: ${error.message}`);
+  if (error) throw new Error(`image upload failed: ${error.message}`);
 }
 
-export async function deleteProfilePhoto(
-  userId: string,
-  version: number,
-): Promise<void> {
+async function deleteImage(path: string): Promise<void> {
   const { error } = await createAdminClient()
     .storage.from(BUCKET)
-    .remove([photoPath(userId, version)]);
-  if (error) throw new Error(`photo delete failed: ${error.message}`);
+    .remove([path]);
+  if (error) throw new Error(`image delete failed: ${error.message}`);
+}
+
+export function profilePhotoUrl(
+  mediaKey: string,
+  version: number | null,
+): string | null {
+  return version === null ? null : publicUrl(photoPath(mediaKey, version));
+}
+
+/** Stores an already-processed photo (lib/profile-photo.ts). */
+export function saveProfilePhoto(
+  mediaKey: string,
+  version: number,
+  webp: Buffer,
+): Promise<void> {
+  return uploadImage(photoPath(mediaKey, version), webp);
+}
+
+export function deleteProfilePhoto(
+  mediaKey: string,
+  version: number,
+): Promise<void> {
+  return deleteImage(photoPath(mediaKey, version));
+}
+
+// Covers and work samples live in the same public bucket, beside the photo.
+
+export function coverUrl(
+  mediaKey: string,
+  version: number | null,
+): string | null {
+  return version === null ? null : publicUrl(coverPath(mediaKey, version));
+}
+
+export function saveCover(
+  mediaKey: string,
+  version: number,
+  webp: Buffer,
+): Promise<void> {
+  return uploadImage(coverPath(mediaKey, version), webp);
+}
+
+export function deleteCover(mediaKey: string, version: number): Promise<void> {
+  return deleteImage(coverPath(mediaKey, version));
+}
+
+export function sampleUrl(
+  mediaKey: string,
+  sampleId: string,
+  version: number,
+): string {
+  return publicUrl(samplePath(mediaKey, sampleId, version));
+}
+
+export function saveSampleImage(
+  mediaKey: string,
+  sampleId: string,
+  version: number,
+  webp: Buffer,
+): Promise<void> {
+  return uploadImage(samplePath(mediaKey, sampleId, version), webp);
+}
+
+export function deleteSampleImage(
+  mediaKey: string,
+  sampleId: string,
+  version: number,
+): Promise<void> {
+  return deleteImage(samplePath(mediaKey, sampleId, version));
 }
 
 // Proof of work (screenshots) -------------------------------------------------------------------------------------

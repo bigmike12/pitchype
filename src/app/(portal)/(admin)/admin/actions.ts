@@ -6,7 +6,10 @@ import { requireRole } from "@/lib/auth";
 import { resolveCampaignReport, transitionCampaign } from "@/lib/db/campaigns";
 import { setPhotoVersion } from "@/lib/db/creators";
 import {
-  getCreatorPhotoVersion,
+  clearCover,
+  getCreatorImages,
+  getSampleImage,
+  hideSample,
   resolveReport,
   setCreatorHidden,
 } from "@/lib/db/reports";
@@ -15,7 +18,11 @@ import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { text, type FormState } from "@/lib/form-data";
 import { answerAppeal, liftSuspension, voidStrike } from "@/lib/db/moderation";
 import { refusalText } from "@/lib/refusals";
-import { deleteProfilePhoto } from "@/lib/storage";
+import {
+  deleteCover,
+  deleteProfilePhoto,
+  deleteSampleImage,
+} from "@/lib/storage";
 
 // Each action checks the admin role itself; the database functions check it
 // again (they refuse anyone else).
@@ -86,12 +93,54 @@ export async function removeReportedPhotoAction(form: FormData): Promise<void> {
   const creatorId = text(form, "creatorId");
   if (!UUID.test(reportId) || !UUID.test(creatorId)) return;
 
-  const version = await getCreatorPhotoVersion(creatorId);
-  if (version !== null) {
+  const images = await getCreatorImages(creatorId);
+  if (images && images.photoVersion !== null) {
     await setPhotoVersion(creatorId, null);
-    await deleteProfilePhoto(creatorId, version);
+    await deleteProfilePhoto(images.mediaKey, images.photoVersion);
   }
   await resolveReport(reportId);
+  refresh();
+}
+
+/** A reason as typed: spaces tidied, or null when it isn't 2 to 200 characters. */
+function takedownReason(form: FormData): string | null {
+  const reason = text(form, "reason").trim().replace(/\s+/g, " ");
+  return reason.length >= 2 && reason.length <= 200 ? reason : null;
+}
+
+/**
+ * Takes one work sample off the creator's page, with a reason they see, and
+ * deletes its file so the picture's address stops working too. The report
+ * stays open: there may be more to look at.
+ */
+export async function hideReportedSampleAction(form: FormData): Promise<void> {
+  await requireRole("admin");
+  const sampleId = text(form, "sampleId");
+  const reason = takedownReason(form);
+  if (!UUID.test(sampleId) || !reason) return;
+
+  const sample = await getSampleImage(sampleId);
+  if (!sample) return;
+  await hideSample(sampleId, reason);
+  if (sample.imageVersion !== null) {
+    await deleteSampleImage(sample.mediaKey, sampleId, sample.imageVersion);
+  }
+  refresh();
+}
+
+/**
+ * Removes the creator's cover and deletes its file. The creator is told, with
+ * the reason (clear_cover sends the notice).
+ */
+export async function removeReportedCoverAction(form: FormData): Promise<void> {
+  await requireRole("admin");
+  const creatorId = text(form, "creatorId");
+  const reason = takedownReason(form);
+  if (!UUID.test(creatorId) || !reason) return;
+
+  const images = await getCreatorImages(creatorId);
+  const removed = await clearCover(creatorId, reason);
+  if (removed !== null && images) await deleteCover(images.mediaKey, removed);
   refresh();
 }
 

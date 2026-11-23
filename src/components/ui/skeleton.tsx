@@ -165,8 +165,10 @@ export function CardGridSkeleton({
         <div
           key={card}
           className={cn(
-            "flex flex-col rounded-card panel",
-            variant === "creator" ? "p-3" : "p-4 sm:p-5",
+            "flex flex-col panel",
+            variant === "creator"
+              ? "rounded-panel p-2"
+              : "rounded-card p-4 sm:p-5",
           )}
         >
           {variant === "action" && (
@@ -178,14 +180,18 @@ export function CardGridSkeleton({
           )}
           {variant === "creator" && (
             <>
-              <Skeleton className="aspect-[5/4] w-full rounded-card" />
-              <Skeleton className="mt-4 h-5 w-1/2" />
-              <Skeleton className="mt-2 h-4 w-1/3" />
-              <div className="mt-4 flex gap-1.5">
-                <Skeleton className="h-6 w-16 rounded-full" />
-                <Skeleton className="h-6 w-20 rounded-full" />
+              <Skeleton className="aspect-[4/3] w-full rounded-card" />
+              <div className="px-2 pb-2">
+                <Skeleton className="mt-4 h-5 w-1/2" />
+                <Skeleton className="mt-2 h-3.5 w-1/3" />
+                <Skeleton className="mt-3 h-3.5 w-full" />
+                <Skeleton className="mt-1.5 h-3.5 w-4/5" />
+                <div className="mt-3 flex gap-1.5">
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </div>
+                <Skeleton className="mt-5 h-4 w-2/5" />
               </div>
-              <Skeleton className="mt-4 mb-1 h-4 w-3/4" />
             </>
           )}
           {variant === "campaign" && (
