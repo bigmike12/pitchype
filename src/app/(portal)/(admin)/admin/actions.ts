@@ -18,7 +18,11 @@ import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { text, type FormState } from "@/lib/form-data";
 import { answerAppeal, liftSuspension, voidStrike } from "@/lib/db/moderation";
 import { refusalText } from "@/lib/refusals";
-import { deleteCover, deleteProfilePhoto, deleteSampleImage } from "@/lib/storage";
+import {
+  deleteCover,
+  deleteProfilePhoto,
+  deleteSampleImage,
+} from "@/lib/storage";
 
 // Each action checks the admin role itself; the database functions check it
 // again (they refuse anyone else).

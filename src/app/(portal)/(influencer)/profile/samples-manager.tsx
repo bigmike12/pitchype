@@ -40,17 +40,23 @@ export function SamplesManager({ samples }: { samples: OwnSample[] }) {
                 </p>
                 {sample.platform && (
                   <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted">
-                    <PlatformIcon platform={sample.platform} className="size-4" />
+                    <PlatformIcon
+                      platform={sample.platform}
+                      className="size-4"
+                    />
                     {PLATFORM_RULES[sample.platform].label}
                     {sample.postUrl && ", with a link to the post"}
                   </p>
                 )}
                 {sample.hiddenReason && (
                   <p className="mt-2 flex items-start gap-1.5 text-sm text-danger">
-                    <EyeOff className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                    <EyeOff
+                      className="mt-0.5 size-4 shrink-0"
+                      aria-hidden="true"
+                    />
                     <span>
-                      Taken down by Pitchype, so it isn’t on your page: “{sample.hiddenReason}” Remove it, then
-                      add another.
+                      Taken down by Pitchype, so it isn’t on your page: “
+                      {sample.hiddenReason}” Remove it, then add another.
                     </span>
                   </p>
                 )}
@@ -59,7 +65,12 @@ export function SamplesManager({ samples }: { samples: OwnSample[] }) {
                   <form action={moveSampleAction}>
                     <input type="hidden" name="sampleId" value={sample.id} />
                     <input type="hidden" name="direction" value="up" />
-                    <Button type="submit" variant="secondary" size="sm" disabled={index === 0}>
+                    <Button
+                      type="submit"
+                      variant="secondary"
+                      size="sm"
+                      disabled={index === 0}
+                    >
                       <ArrowUp aria-hidden="true" />
                       Earlier
                     </Button>
@@ -107,9 +118,15 @@ export function SamplesManager({ samples }: { samples: OwnSample[] }) {
       )}
 
       {room > 0 ? (
-        <div className={samples.length > 0 ? "border-t border-hairline pt-6" : undefined}>
+        <div
+          className={
+            samples.length > 0 ? "border-t border-hairline pt-6" : undefined
+          }
+        >
           <h3 className="font-semibold text-ink">
-            {samples.length === 0 ? "Add your first sample" : `Add a sample (${room} more possible)`}
+            {samples.length === 0
+              ? "Add your first sample"
+              : `Add a sample (${room} more possible)`}
           </h3>
           <div className="mt-4">
             <AddSampleForm />
@@ -117,7 +134,8 @@ export function SamplesManager({ samples }: { samples: OwnSample[] }) {
         </div>
       ) : (
         <p className="text-sm text-muted">
-          That’s {MAX_SAMPLES}, the most a profile shows. Remove one to add another.
+          That’s {MAX_SAMPLES}, the most a profile shows. Remove one to add
+          another.
         </p>
       )}
     </div>

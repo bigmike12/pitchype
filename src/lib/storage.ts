@@ -37,7 +37,9 @@ async function uploadImage(path: string, webp: Buffer): Promise<void> {
 }
 
 async function deleteImage(path: string): Promise<void> {
-  const { error } = await createAdminClient().storage.from(BUCKET).remove([path]);
+  const { error } = await createAdminClient()
+    .storage.from(BUCKET)
+    .remove([path]);
   if (error) throw new Error(`image delete failed: ${error.message}`);
 }
 
@@ -66,11 +68,18 @@ export function deleteProfilePhoto(
 
 // Covers and work samples live in the same public bucket, beside the photo.
 
-export function coverUrl(userId: string, version: number | null): string | null {
+export function coverUrl(
+  userId: string,
+  version: number | null,
+): string | null {
   return version === null ? null : publicUrl(coverPath(userId, version));
 }
 
-export function saveCover(userId: string, version: number, webp: Buffer): Promise<void> {
+export function saveCover(
+  userId: string,
+  version: number,
+  webp: Buffer,
+): Promise<void> {
   return uploadImage(coverPath(userId, version), webp);
 }
 
@@ -78,7 +87,11 @@ export function deleteCover(userId: string, version: number): Promise<void> {
   return deleteImage(coverPath(userId, version));
 }
 
-export function sampleUrl(userId: string, sampleId: string, version: number): string {
+export function sampleUrl(
+  userId: string,
+  sampleId: string,
+  version: number,
+): string {
   return publicUrl(samplePath(userId, sampleId, version));
 }
 

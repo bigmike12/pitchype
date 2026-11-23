@@ -57,7 +57,9 @@ export function ShareProfileButton({
   }
 
   return (
-    <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-1", className)}>
+    <div
+      className={cn("flex flex-wrap items-center gap-x-3 gap-y-1", className)}
+    >
       <Button type="button" variant={variant} onClick={share}>
         {status === "copied" ? (
           <Check aria-hidden="true" />
@@ -69,10 +71,15 @@ export function ShareProfileButton({
       <p aria-live="polite" className="text-sm text-muted">
         {status === "failed" && (
           <>
-            Copy this link: <span className="font-medium break-all text-ink select-all">{url}</span>
+            Copy this link:{" "}
+            <span className="font-medium break-all text-ink select-all">
+              {url}
+            </span>
           </>
         )}
-        {status === "copied" && <span className="sr-only">Link copied to your clipboard.</span>}
+        {status === "copied" && (
+          <span className="sr-only">Link copied to your clipboard.</span>
+        )}
       </p>
     </div>
   );

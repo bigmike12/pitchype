@@ -4,7 +4,10 @@
  * either way, so if this fails the caller sends the original instead.
  * `maxEdge` is the longest side kept: comfortably above what the server stores.
  */
-export async function shrinkForUpload(file: File, maxEdge: number): Promise<Blob> {
+export async function shrinkForUpload(
+  file: File,
+  maxEdge: number,
+): Promise<Blob> {
   const bitmap = await createImageBitmap(file); // applies EXIF rotation
   const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");

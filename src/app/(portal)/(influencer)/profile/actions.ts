@@ -126,7 +126,8 @@ const isVerificationRateLimited = createRateLimiter({
 export async function requestVerificationAction(form: FormData): Promise<void> {
   const user = await requireRole("influencer");
   const platform = text(form, "platform");
-  if (!isPlatform(platform) || await isVerificationRateLimited(user.id)) return;
+  if (!isPlatform(platform) || (await isVerificationRateLimited(user.id)))
+    return;
   await requestVerification(platform);
   refresh();
 }
@@ -174,7 +175,8 @@ const isUploadRateLimited = createRateLimiter({
   windowMs: 10 * 60 * 1000,
 });
 
-const TOO_MANY_UPLOADS = "That’s a lot of uploads. Wait a few minutes, then try again.";
+const TOO_MANY_UPLOADS =
+  "That’s a lot of uploads. Wait a few minutes, then try again.";
 
 const PHOTO_PROBLEMS = {
   too_large: "That photo is over 5MB. Choose a smaller one.",
@@ -262,9 +264,15 @@ export async function uploadCoverAction(
     return { status: "error", errors: { cover: TOO_MANY_UPLOADS } };
   }
 
-  const result = await processImage(new Uint8Array(await file.arrayBuffer()), "cover");
+  const result = await processImage(
+    new Uint8Array(await file.arrayBuffer()),
+    "cover",
+  );
   if (!result.ok) {
-    return { status: "error", errors: { cover: COVER_PROBLEMS[result.reason] } };
+    return {
+      status: "error",
+      errors: { cover: COVER_PROBLEMS[result.reason] },
+    };
   }
 
   try {
@@ -334,9 +342,15 @@ export async function addSampleAction(
   const taken = new Set(samples.map((s) => s.position));
   const position = [0, 1, 2, 3, 4, 5].find((p) => !taken.has(p)) ?? 0;
 
-  const result = await processImage(new Uint8Array(await file.arrayBuffer()), "sample");
+  const result = await processImage(
+    new Uint8Array(await file.arrayBuffer()),
+    "sample",
+  );
   if (!result.ok) {
-    return { status: "error", errors: { image: COVER_PROBLEMS[result.reason] } };
+    return {
+      status: "error",
+      errors: { image: COVER_PROBLEMS[result.reason] },
+    };
   }
 
   let sampleId: string | null = null;
@@ -345,7 +359,8 @@ export async function addSampleAction(
     if (created === "taken") {
       return {
         status: "error",
-        message: "Your samples changed in another tab. Reload the page and try again.",
+        message:
+          "Your samples changed in another tab. Reload the page and try again.",
       };
     }
     sampleId = created.id;
@@ -388,8 +403,8 @@ export async function removeSampleAction(form: FormData): Promise<void> {
   if (!isUuid(sampleId)) return;
   const removed = await deleteSample(user.id, sampleId);
   if (removed?.imageVersion != null) {
-    await deleteSampleImage(user.id, sampleId, removed.imageVersion).catch((error) =>
-      logFailure("sample image delete", error),
+    await deleteSampleImage(user.id, sampleId, removed.imageVersion).catch(
+      (error) => logFailure("sample image delete", error),
     );
   }
   refresh();

@@ -472,7 +472,9 @@ export const POST_HOSTS: Record<Platform, string[]> = {
 
 function platformForHost(host: string): Platform | null {
   for (const platform of PLATFORMS) {
-    if (POST_HOSTS[platform].some((h) => host === h || host.endsWith(`.${h}`))) {
+    if (
+      POST_HOSTS[platform].some((h) => host === h || host.endsWith(`.${h}`))
+    ) {
       return platform;
     }
   }
@@ -491,7 +493,9 @@ export function parsePostUrl(
   | { ok: false; error: string } {
   const value = raw.trim();
   if (value === "") return { ok: true, url: null, platform };
-  const host = value.match(/^https:\/\/([^/?#:\s]+)[^\s]*$/i)?.[1]?.toLowerCase();
+  const host = value
+    .match(/^https:\/\/([^/?#:\s]+)[^\s]*$/i)?.[1]
+    ?.toLowerCase();
   if (!host || value.length > 500) {
     return {
       ok: false,
@@ -519,7 +523,9 @@ export type SampleInput = {
 export type SampleField = "caption" | "platform" | "postUrl";
 
 /** The caption, platform and post link of a sample (the image is separate). */
-export function parseSampleForm(form: FormData): Parsed<SampleInput, SampleField> {
+export function parseSampleForm(
+  form: FormData,
+): Parsed<SampleInput, SampleField> {
   const caption = text(form, "caption").trim();
   const rawPlatform = text(form, "platform");
   const rawUrl = text(form, "postUrl");

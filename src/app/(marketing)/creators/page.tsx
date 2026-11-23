@@ -1,17 +1,26 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, type CSSProperties } from "react";
 
 import { Directory } from "@/components/creators/directory";
+import { DirectorySkeleton } from "@/components/creators/directory-skeleton";
 import { buttonVariants } from "@/components/ui/button";
 import { getSignedInUser } from "@/lib/auth";
 
+const DESCRIPTION =
+  "Browse micro and nano creators across Nigeria by niche, platform, followers and state, with their work and honest follower counts.";
+
 export const metadata: Metadata = {
   title: "Find Nigerian creators",
-  description:
-    "Browse micro and nano creators across Nigeria by niche, platform, followers and state. Follower counts are labelled self-reported or verified.",
+  description: DESCRIPTION,
   // Filtered views are the same page with fewer results.
   alternates: { canonical: "/creators" },
+  openGraph: {
+    title: "Find Nigerian creators on Pitchype",
+    description: DESCRIPTION,
+    url: "/creators",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -22,15 +31,27 @@ export default function CreatorsPage({
   searchParams: SearchParams;
 }) {
   return (
-    <main id="main" className="container-page py-12 lg:py-16">
-      <h1 className="text-display-lg">Find creators</h1>
-      <p className="mt-3 max-w-2xl text-lg">
-        Micro and nano creators across Nigeria. Follower counts are marked
-        self-reported, or verified when we’ve checked the account.
-      </p>
-      <Suspense fallback={<DirectoryLoading />}>
-        <PublicDirectory searchParams={searchParams} />
-      </Suspense>
+    <main
+      id="main"
+      className="container-page pt-10 pb-16 sm:pt-14 lg:pt-20 lg:pb-24"
+    >
+      <header className="max-w-4xl">
+        <h1 className="max-w-[15ch] text-display-xl enter">
+          Find Nigerian creators for your brand
+        </h1>
+        <p
+          className="mt-5 max-w-[38rem] text-lg enter sm:text-xl"
+          style={{ "--delay": "60ms" } as CSSProperties}
+        >
+          Micro and nano creators, with their work and their follower counts:
+          self-reported, or verified when we’ve checked the account.
+        </p>
+      </header>
+      <div className="mt-8 sm:mt-10">
+        <Suspense fallback={<DirectorySkeleton />}>
+          <PublicDirectory searchParams={searchParams} />
+        </Suspense>
+      </div>
     </main>
   );
 }
@@ -56,12 +77,13 @@ async function PublicDirectory({
 // Signed-out visitors: the reason to sign up as a business.
 function BusinessPrompt() {
   return (
-    <aside className="mt-16 flex flex-col gap-5 rounded-panel p-6 ring-1 ring-hairline aurora-warm sm:flex-row sm:items-center sm:justify-between sm:p-8">
+    <aside className="mt-16 flex flex-col gap-5 rounded-frame p-6 ring-1 ring-hairline aurora-warm sm:flex-row sm:items-center sm:justify-between sm:p-10">
       <div>
         <h2 className="text-display-md">Hiring creators for your business?</h2>
         <p className="mt-2 max-w-xl text-ink">
-          Businesses on Pitchype see each creator’s handles, bio and starting
-          rate, and can filter by budget.
+          With a business account you see each creator’s handles, the links to
+          their posts and their starting rate, filter by budget and message
+          them.
         </p>
       </div>
       <Link
@@ -71,13 +93,5 @@ function BusinessPrompt() {
         Create a business account
       </Link>
     </aside>
-  );
-}
-
-function DirectoryLoading() {
-  return (
-    <p role="status" aria-busy="true" className="mt-8 text-muted">
-      Loading creators…
-    </p>
   );
 }

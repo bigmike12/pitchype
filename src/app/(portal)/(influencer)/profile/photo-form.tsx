@@ -66,7 +66,9 @@ export function PhotoForm({
             accept="image/jpeg,image/png,image/webp"
             required
             aria-invalid={error ? true : undefined}
-            aria-describedby={error ? "photo-file-hint photo-file-error" : "photo-file-hint"}
+            aria-describedby={
+              error ? "photo-file-hint photo-file-error" : "photo-file-hint"
+            }
             className="block w-full text-sm text-body file:mr-4 file:h-11 file:cursor-pointer file:rounded-control file:border file:border-field file:bg-canvas file:px-4 file:font-semibold file:text-ink hover:file:bg-surface-card"
           />
           <FieldMessages

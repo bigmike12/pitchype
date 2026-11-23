@@ -251,7 +251,10 @@ function Visibility({ profile }: { profile: OwnCreatorProfile }) {
           <div className="min-w-0">
             <p className="font-semibold text-ink">Your public page</p>
             <p className="truncate text-sm text-muted">
-              {`${SITE_URL}/creators/${profile.slug}`.replace(/^https?:\/\//, "")}
+              {`${SITE_URL}/creators/${profile.slug}`.replace(
+                /^https?:\/\//,
+                "",
+              )}
             </p>
           </div>
           <ShareProfileButton

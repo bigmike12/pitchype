@@ -18,10 +18,25 @@ export const MAX_STORED_BYTES = 1024 * 1024;
 export type ImageKind = "photo" | "cover" | "sample";
 
 const RESIZE: Record<ImageKind, ResizeOptions> = {
-  photo: { width: PHOTO_SIZE, height: PHOTO_SIZE, fit: "cover", position: "centre" },
-  cover: { width: COVER_WIDTH, height: COVER_HEIGHT, fit: "cover", position: "attention" },
+  photo: {
+    width: PHOTO_SIZE,
+    height: PHOTO_SIZE,
+    fit: "cover",
+    position: "centre",
+  },
+  cover: {
+    width: COVER_WIDTH,
+    height: COVER_HEIGHT,
+    fit: "cover",
+    position: "attention",
+  },
   // Keeps the shape; never enlarges a small image.
-  sample: { width: SAMPLE_EDGE, height: SAMPLE_EDGE, fit: "inside", withoutEnlargement: true },
+  sample: {
+    width: SAMPLE_EDGE,
+    height: SAMPLE_EDGE,
+    fit: "inside",
+    withoutEnlargement: true,
+  },
 };
 
 // Tried in turn until the result fits the bucket; real photos fit at the first.

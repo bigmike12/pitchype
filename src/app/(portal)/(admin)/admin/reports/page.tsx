@@ -187,7 +187,8 @@ function ReportItem({ report }: { report: OpenReport }) {
       {(creator.coverUrl || creator.samples.length > 0) && (
         <details className="mt-4 border-t border-hairline pt-4">
           <summary className="link inline-flex min-h-11 cursor-pointer items-center text-sm lg:min-h-8">
-            Their cover and work samples ({(creator.coverUrl ? 1 : 0) + creator.samples.length})
+            Their cover and work samples (
+            {(creator.coverUrl ? 1 : 0) + creator.samples.length})
           </summary>
           <ul className="mt-3 grid gap-3 sm:grid-cols-2">
             {creator.coverUrl && (
@@ -267,9 +268,18 @@ function TakedownItem({
         <div
           className={`relative shrink-0 overflow-hidden rounded-lg bg-surface-soft ${wide ? "aspect-video w-28" : "aspect-[4/5] w-16"}`}
         >
-          <Image src={imageUrl} alt={label} fill unoptimized sizes="7rem" className="object-cover" />
+          <Image
+            src={imageUrl}
+            alt={label}
+            fill
+            unoptimized
+            sizes="7rem"
+            className="object-cover"
+          />
         </div>
-        <p className="min-w-0 text-sm font-medium break-words text-ink">{label}</p>
+        <p className="min-w-0 text-sm font-medium break-words text-ink">
+          {label}
+        </p>
       </div>
       <form action={action} className="mt-3 flex flex-col gap-2">
         {Object.entries(hidden).map(([name, value]) => (

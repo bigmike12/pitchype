@@ -7,7 +7,11 @@ import { Button } from "@/components/ui/button";
 import { FieldMessages } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 
-import { removeCoverAction, uploadCoverAction, type CoverState } from "./actions";
+import {
+  removeCoverAction,
+  uploadCoverAction,
+  type CoverState,
+} from "./actions";
 import { shrinkForUpload } from "./shrink-image";
 
 // Above the server's 1600px-wide crop, small enough for slow connections.
@@ -50,7 +54,8 @@ export function CoverForm({ coverUrl }: { coverUrl: string | null }) {
           />
         ) : (
           <p className="absolute inset-0 grid place-items-center px-6 text-center text-sm text-muted">
-            No cover yet. Your page shows a plain colour band with your name instead.
+            No cover yet. Your page shows a plain colour band with your name
+            instead.
           </p>
         )}
       </div>
@@ -66,7 +71,9 @@ export function CoverForm({ coverUrl }: { coverUrl: string | null }) {
           accept="image/jpeg,image/png,image/webp"
           required
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? "cover-file-hint cover-file-error" : "cover-file-hint"}
+          aria-describedby={
+            error ? "cover-file-hint cover-file-error" : "cover-file-hint"
+          }
           className="block w-full text-sm text-body file:mr-4 file:h-11 file:cursor-pointer file:rounded-control file:border file:border-field file:bg-canvas file:px-4 file:font-semibold file:text-ink hover:file:bg-surface-soft"
         />
         <FieldMessages

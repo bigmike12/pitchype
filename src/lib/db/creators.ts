@@ -438,7 +438,9 @@ export async function listOwnSamples(userId: string): Promise<OwnSample[]> {
   const supabase = await createSessionClient();
   const { data, error } = await supabase
     .from("portfolio_samples")
-    .select("id, position, image_version, caption, platform, post_url, hidden_reason")
+    .select(
+      "id, position, image_version, caption, platform, post_url, hidden_reason",
+    )
     .eq("user_id", userId)
     .order("position");
   if (error) throw new Error(`samples lookup failed (${error.code})`);
@@ -537,7 +539,10 @@ export async function setSampleImageVersion(
 }
 
 /** Swaps two of the signed-in creator's samples (row level security applies). */
-export async function swapSamples(first: string, second: string): Promise<void> {
+export async function swapSamples(
+  first: string,
+  second: string,
+): Promise<void> {
   const supabase = await createSessionClient();
   const { error } = await supabase.rpc("swap_portfolio_samples", {
     first_sample: first,

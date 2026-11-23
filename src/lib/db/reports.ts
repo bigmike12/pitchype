@@ -83,14 +83,21 @@ export async function listOpenReports(): Promise<OpenReport[]> {
         slug: r.influencer_profiles?.slug ?? null,
         photoVersion,
         photoUrl: profilePhotoUrl(r.user_id, photoVersion),
-        coverUrl: coverUrl(r.user_id, r.influencer_profiles?.cover_version ?? null),
+        coverUrl: coverUrl(
+          r.user_id,
+          r.influencer_profiles?.cover_version ?? null,
+        ),
         hidden: Boolean(r.influencer_profiles?.hidden_at),
         samples: samples.data.flatMap((sample) =>
           sample.user_id === r.user_id && sample.image_version !== null
             ? [
                 {
                   id: sample.id,
-                  imageUrl: sampleUrl(r.user_id, sample.id, sample.image_version),
+                  imageUrl: sampleUrl(
+                    r.user_id,
+                    sample.id,
+                    sample.image_version,
+                  ),
                   caption: sample.caption,
                 },
               ]
@@ -164,7 +171,10 @@ export async function setCreatorHidden(
 }
 
 /** Takes a work sample down, with a reason the creator sees. Admins only. */
-export async function hideSample(sampleId: string, reason: string): Promise<void> {
+export async function hideSample(
+  sampleId: string,
+  reason: string,
+): Promise<void> {
   const supabase = await createSessionClient();
   const { error } = await supabase.rpc("hide_portfolio_sample", {
     sample: sampleId,
@@ -201,5 +211,7 @@ export async function getSampleImage(
     .eq("id", sampleId)
     .maybeSingle();
   if (error) throw new Error(`sample lookup failed (${error.code})`);
-  return data ? { userId: data.user_id, imageVersion: data.image_version } : null;
+  return data
+    ? { userId: data.user_id, imageVersion: data.image_version }
+    : null;
 }

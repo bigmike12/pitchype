@@ -1,6 +1,12 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useRef, useState } from "react";
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import { FieldMessages, SelectField, TextField } from "@/components/ui/field";
@@ -12,7 +18,11 @@ import {
   type Platform,
 } from "@/lib/creator-profile";
 
-import { addSampleAction, updateSampleAction, type SampleState } from "./actions";
+import {
+  addSampleAction,
+  updateSampleAction,
+  type SampleState,
+} from "./actions";
 import { shrinkForUpload } from "./shrink-image";
 
 // Above the server's 1200px edge, small enough for slow connections.
@@ -115,7 +125,9 @@ export function AddSampleForm() {
           accept="image/jpeg,image/png,image/webp"
           required
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? "sample-image-hint sample-image-error" : "sample-image-hint"}
+          aria-describedby={
+            error ? "sample-image-hint sample-image-error" : "sample-image-hint"
+          }
           className="mt-2 block w-full text-sm text-body file:mr-4 file:h-11 file:cursor-pointer file:rounded-control file:border file:border-field file:bg-canvas file:px-4 file:font-semibold file:text-ink hover:file:bg-surface-soft"
         />
         <FieldMessages
