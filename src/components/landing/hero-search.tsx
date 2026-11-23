@@ -57,13 +57,17 @@ export async function HeroSearch() {
         </div>
       </form>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
         {niches.length > 0 && (
-          <>
-            <span className="text-sm text-muted">Popular:</span>
+          // Phones: one swipeable line running to the card's edges (like the
+          // directory's niche row). From 640px it wraps.
+          <div className="-mx-4 flex snap-x scroll-px-4 items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:contents">
+            <span className="shrink-0 snap-start text-sm text-muted">
+              Popular:
+            </span>
             <ul className="contents" aria-label="Popular niches">
               {niches.map((niche) => (
-                <li key={niche.slug}>
+                <li key={niche.slug} className="shrink-0 snap-start">
                   <Link
                     href={`/creators?niche=${encodeURIComponent(niche.slug)}`}
                     className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2"
@@ -75,11 +79,11 @@ export async function HeroSearch() {
                 </li>
               ))}
             </ul>
-          </>
+          </div>
         )}
         <Link
           href="/creators"
-          className="link ml-auto inline-flex items-center gap-1 text-sm font-medium"
+          className="link inline-flex items-center gap-1 self-start text-sm font-medium sm:ml-auto sm:self-auto"
         >
           Browse all creators
           <ArrowRight aria-hidden="true" className="size-4" />
