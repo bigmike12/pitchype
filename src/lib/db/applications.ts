@@ -21,7 +21,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createSessionClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/types/database";
 
-import { toPlatformListings } from "./creators";
+import { mediaKeysFor, toPlatformListings } from "./creators";
 import { bool, isObject, list, num, obj, str } from "./json";
 import { refused, type Refused } from "./refusal";
 
@@ -248,10 +248,17 @@ export async function listCampaignApplications(
     if (error.message === "no_such_campaign") return null;
     throw new Error(`applications lookup failed (${error.code})`);
   }
+  // Photos live under each creator's media key, not their user id.
+  const mediaKeys = await mediaKeysFor(
+    list(data).flatMap((row) =>
+      isObject(row) ? (str(obj(row.creator).id) ?? []) : [],
+    ),
+  );
   return list(data).flatMap((row) => {
     if (!isObject(row) || !str(row.id)) return [];
     const c = obj(row.creator);
     const creatorId = str(c.id) ?? "";
+    const mediaKey = mediaKeys.get(creatorId);
     return [
       {
         id: str(row.id) ?? "",
@@ -267,7 +274,9 @@ export async function listCampaignApplications(
           id: creatorId,
           displayName: str(c.display_name) ?? "",
           slug: str(c.slug),
-          photoUrl: profilePhotoUrl(creatorId, num(c.photo_version)),
+          photoUrl: mediaKey
+            ? profilePhotoUrl(mediaKey, num(c.photo_version))
+            : null,
           city: str(c.city) ?? "",
           state: str(c.state) ?? "",
           niches: list(c.niches).flatMap((n) => str(n) ?? []),

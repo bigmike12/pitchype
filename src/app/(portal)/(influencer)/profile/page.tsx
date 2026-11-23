@@ -62,13 +62,13 @@ export default function ProfilePage() {
 
 async function ProfileEditor() {
   const user = await requireRole("influencer");
-  const [profile, requests, niches, samples] = await Promise.all([
+  const [profile, requests, niches] = await Promise.all([
     getOwnCreatorProfile(user.id),
     listOwnVerificationRequests(user.id),
     listNiches(),
-    listOwnSamples(user.id),
   ]);
   if (!profile) redirect("/onboarding");
+  const samples = await listOwnSamples(user.id, profile.mediaKey);
   const now = new Date();
 
   return (

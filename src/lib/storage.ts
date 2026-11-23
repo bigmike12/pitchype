@@ -2,7 +2,8 @@ import "server-only";
 
 // File storage boundary (CLAUDE.md §2a): the only code that knows photos live
 // in Supabase Storage. Moving to S3, R2 or a disk means rewriting this file;
-// callers pass a user id and version and get a URL back. See docs/PROVIDERS.md.
+// callers pass a creator's media key and a version and get a URL back. See
+// docs/PROVIDERS.md.
 
 import { registerProofFile } from "@/lib/db/proof-files";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -11,14 +12,17 @@ import { supabaseEnv } from "@/lib/supabase/env";
 // Created by supabase/migrations/20261109133550_create_profile_photos_bucket.sql.
 const BUCKET = "profile-photos";
 
+// Each creator's pictures sit in a folder named by their media key
+// (influencer_profiles.media_key), a random id that is not their user id, so
+// public image addresses don't carry user ids (migration 20261127100200).
 // A new version gets a new name, so an image's URL never changes content and
 // can be cached for good.
-const photoPath = (userId: string, version: number) =>
-  `${userId}/${version}.webp`;
-const coverPath = (userId: string, version: number) =>
-  `${userId}/cover-${version}.webp`;
-const samplePath = (userId: string, sampleId: string, version: number) =>
-  `${userId}/sample-${sampleId}-${version}.webp`;
+const photoPath = (mediaKey: string, version: number) =>
+  `${mediaKey}/${version}.webp`;
+const coverPath = (mediaKey: string, version: number) =>
+  `${mediaKey}/cover-${version}.webp`;
+const samplePath = (mediaKey: string, sampleId: string, version: number) =>
+  `${mediaKey}/sample-${sampleId}-${version}.webp`;
 
 function publicUrl(path: string): string {
   const { url } = supabaseEnv();
@@ -44,72 +48,72 @@ async function deleteImage(path: string): Promise<void> {
 }
 
 export function profilePhotoUrl(
-  userId: string,
+  mediaKey: string,
   version: number | null,
 ): string | null {
-  return version === null ? null : publicUrl(photoPath(userId, version));
+  return version === null ? null : publicUrl(photoPath(mediaKey, version));
 }
 
 /** Stores an already-processed photo (lib/profile-photo.ts). */
 export function saveProfilePhoto(
-  userId: string,
+  mediaKey: string,
   version: number,
   webp: Buffer,
 ): Promise<void> {
-  return uploadImage(photoPath(userId, version), webp);
+  return uploadImage(photoPath(mediaKey, version), webp);
 }
 
 export function deleteProfilePhoto(
-  userId: string,
+  mediaKey: string,
   version: number,
 ): Promise<void> {
-  return deleteImage(photoPath(userId, version));
+  return deleteImage(photoPath(mediaKey, version));
 }
 
 // Covers and work samples live in the same public bucket, beside the photo.
 
 export function coverUrl(
-  userId: string,
+  mediaKey: string,
   version: number | null,
 ): string | null {
-  return version === null ? null : publicUrl(coverPath(userId, version));
+  return version === null ? null : publicUrl(coverPath(mediaKey, version));
 }
 
 export function saveCover(
-  userId: string,
+  mediaKey: string,
   version: number,
   webp: Buffer,
 ): Promise<void> {
-  return uploadImage(coverPath(userId, version), webp);
+  return uploadImage(coverPath(mediaKey, version), webp);
 }
 
-export function deleteCover(userId: string, version: number): Promise<void> {
-  return deleteImage(coverPath(userId, version));
+export function deleteCover(mediaKey: string, version: number): Promise<void> {
+  return deleteImage(coverPath(mediaKey, version));
 }
 
 export function sampleUrl(
-  userId: string,
+  mediaKey: string,
   sampleId: string,
   version: number,
 ): string {
-  return publicUrl(samplePath(userId, sampleId, version));
+  return publicUrl(samplePath(mediaKey, sampleId, version));
 }
 
 export function saveSampleImage(
-  userId: string,
+  mediaKey: string,
   sampleId: string,
   version: number,
   webp: Buffer,
 ): Promise<void> {
-  return uploadImage(samplePath(userId, sampleId, version), webp);
+  return uploadImage(samplePath(mediaKey, sampleId, version), webp);
 }
 
 export function deleteSampleImage(
-  userId: string,
+  mediaKey: string,
   sampleId: string,
   version: number,
 ): Promise<void> {
-  return deleteImage(samplePath(userId, sampleId, version));
+  return deleteImage(samplePath(mediaKey, sampleId, version));
 }
 
 // Proof of work (screenshots) -------------------------------------------------------------------------------------

@@ -51,8 +51,11 @@ async function Creator({ params }: { params: Params }) {
     listMyBlocks(),
   ]);
   if (!creator) notFound();
-  const samples = await getCreatorPortfolio(creator.slug, creator.userId);
-  const blockedByMe = blocks.some((b) => b.id === creator.userId);
+  // Businesses always get the user id (they message and block by it).
+  const creatorId = creator.userId;
+  if (!creatorId) notFound();
+  const samples = await getCreatorPortfolio(creator.slug, creator.mediaKey);
+  const blockedByMe = blocks.some((b) => b.id === creatorId);
   const nicheName = new Map(niches.map((n) => [n.slug, n.name]));
 
   return (
@@ -70,7 +73,7 @@ async function Creator({ params }: { params: Params }) {
           />
           {!blockedByMe && (
             <form action={startConversationAction}>
-              <input type="hidden" name="creatorId" value={creator.userId} />
+              <input type="hidden" name="creatorId" value={creatorId} />
               <Button type="submit">
                 <MessageCircle aria-hidden="true" />
                 Message {creator.displayName.split(/\s+/)[0]}
@@ -87,7 +90,7 @@ async function Creator({ params }: { params: Params }) {
           </p>
           <div className="mt-3">
             <BlockControl
-              otherId={creator.userId}
+              otherId={creatorId}
               otherName={creator.displayName}
               blockedByMe={blockedByMe}
             />

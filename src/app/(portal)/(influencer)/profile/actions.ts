@@ -220,11 +220,11 @@ export async function uploadPhotoAction(
     const previous = profile.photoVersion;
     const next = nextImageVersion(previous);
 
-    await saveProfilePhoto(user.id, next, result.webp);
+    await saveProfilePhoto(profile.mediaKey, next, result.webp);
     await setPhotoVersion(user.id, next);
     if (previous !== null) {
       // Best effort: a leftover old file is harmless, a failed upload isn't.
-      await deleteProfilePhoto(user.id, previous).catch((error) =>
+      await deleteProfilePhoto(profile.mediaKey, previous).catch((error) =>
         logFailure("old photo delete", error),
       );
     }
@@ -241,8 +241,8 @@ export async function removePhotoAction(): Promise<void> {
   const profile = await getOwnCreatorProfile(user.id);
   if (profile?.photoVersion == null) return;
   await setPhotoVersion(user.id, null);
-  await deleteProfilePhoto(user.id, profile.photoVersion).catch((error) =>
-    logFailure("photo delete", error),
+  await deleteProfilePhoto(profile.mediaKey, profile.photoVersion).catch(
+    (error) => logFailure("photo delete", error),
   );
   refresh();
 }
@@ -285,10 +285,10 @@ export async function uploadCoverAction(
     const previous = profile.coverVersion;
     const next = nextImageVersion(previous);
 
-    await saveCover(user.id, next, result.webp);
+    await saveCover(profile.mediaKey, next, result.webp);
     await setCoverVersion(user.id, next);
     if (previous !== null) {
-      await deleteCover(user.id, previous).catch((error) =>
+      await deleteCover(profile.mediaKey, previous).catch((error) =>
         logFailure("old cover delete", error),
       );
     }
@@ -305,7 +305,7 @@ export async function removeCoverAction(): Promise<void> {
   const profile = await getOwnCreatorProfile(user.id);
   if (profile?.coverVersion == null) return;
   await setCoverVersion(user.id, null);
-  await deleteCover(user.id, profile.coverVersion).catch((error) =>
+  await deleteCover(profile.mediaKey, profile.coverVersion).catch((error) =>
     logFailure("cover delete", error),
   );
   refresh();
@@ -335,7 +335,9 @@ export async function addSampleAction(
     return { status: "error", errors: { image: TOO_MANY_UPLOADS } };
   }
 
-  const samples = await listOwnSamples(user.id);
+  const profile = await getOwnCreatorProfile(user.id);
+  if (!profile) return { status: "error", message: SAVE_FAILED };
+  const samples = await listOwnSamples(user.id, profile.mediaKey);
   if (samples.length >= MAX_SAMPLES) {
     return {
       status: "error",
@@ -368,7 +370,7 @@ export async function addSampleAction(
       };
     }
     sampleId = created.id;
-    await saveSampleImage(user.id, sampleId, 1, result.webp);
+    await saveSampleImage(profile.mediaKey, sampleId, 1, result.webp);
     await setSampleImageVersion(user.id, sampleId, 1);
   } catch (error) {
     logFailure("sample", error);
@@ -405,11 +407,15 @@ export async function removeSampleAction(form: FormData): Promise<void> {
   const user = await requireRole("influencer");
   const sampleId = text(form, "sampleId");
   if (!isUuid(sampleId)) return;
+  const profile = await getOwnCreatorProfile(user.id);
+  if (!profile) return;
   const removed = await deleteSample(user.id, sampleId);
   if (removed?.imageVersion != null) {
-    await deleteSampleImage(user.id, sampleId, removed.imageVersion).catch(
-      (error) => logFailure("sample image delete", error),
-    );
+    await deleteSampleImage(
+      profile.mediaKey,
+      sampleId,
+      removed.imageVersion,
+    ).catch((error) => logFailure("sample image delete", error));
   }
   refresh();
 }
@@ -420,7 +426,9 @@ export async function moveSampleAction(form: FormData): Promise<void> {
   const sampleId = text(form, "sampleId");
   const direction = text(form, "direction");
   if (!isUuid(sampleId) || (direction !== "up" && direction !== "down")) return;
-  const samples = await listOwnSamples(user.id);
+  const profile = await getOwnCreatorProfile(user.id);
+  if (!profile) return;
+  const samples = await listOwnSamples(user.id, profile.mediaKey);
   const index = samples.findIndex((s) => s.id === sampleId);
   const neighbour = samples[direction === "up" ? index - 1 : index + 1];
   if (index === -1 || !neighbour) return;

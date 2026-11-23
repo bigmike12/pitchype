@@ -199,7 +199,6 @@ function ReportItem({ report }: { report: OpenReport }) {
                 action={removeReportedCoverAction}
                 hidden={{ creatorId: creator.userId }}
                 fieldId={`cover-reason-${report.id}`}
-                reasonLabel="Reason (kept on record)"
                 button="Remove cover"
               />
             )}
@@ -211,7 +210,6 @@ function ReportItem({ report }: { report: OpenReport }) {
                 action={hideReportedSampleAction}
                 hidden={{ sampleId: sample.id }}
                 fieldId={`sample-reason-${report.id}-${sample.id}`}
-                reasonLabel="Reason (the creator sees this)"
                 button="Take down"
               />
             ))}
@@ -250,7 +248,6 @@ function TakedownItem({
   action,
   hidden,
   fieldId,
-  reasonLabel,
   button,
 }: {
   imageUrl: string;
@@ -259,7 +256,6 @@ function TakedownItem({
   action: (form: FormData) => Promise<void>;
   hidden: Record<string, string>;
   fieldId: string;
-  reasonLabel: string;
   button: string;
 }) {
   return (
@@ -288,7 +284,7 @@ function TakedownItem({
         <TextField
           compact
           id={fieldId}
-          label={reasonLabel}
+          label="Reason (the creator sees this)"
           name="reason"
           required
           minLength={2}

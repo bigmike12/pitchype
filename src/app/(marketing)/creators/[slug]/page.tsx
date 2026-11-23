@@ -85,15 +85,14 @@ async function Profile({ params }: { params: Params }) {
   const { slug } = await params;
   const creator = await getListedCreator(slug);
   if (!creator) notFound();
-  // userId stays on the server: it names the files, nothing more.
   const [niches, samples, viewer] = await Promise.all([
     nicheNames(creator),
-    getCreatorPortfolio(creator.slug, creator.userId),
+    getCreatorPortfolio(creator.slug, creator.mediaKey),
     getSignedInUser(),
   ]);
   const first = creator.displayName.split(/\s+/)[0];
   const pageUrl = `${SITE_URL}/creators/${creator.slug}`;
-  const isOwner = viewer?.id === creator.userId;
+  const isOwner = creator.isSelf;
 
   const share = <ShareProfileButton url={pageUrl} name={creator.displayName} />;
   let actions;

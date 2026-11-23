@@ -7,7 +7,7 @@ import { resolveCampaignReport, transitionCampaign } from "@/lib/db/campaigns";
 import { setPhotoVersion } from "@/lib/db/creators";
 import {
   clearCover,
-  getCreatorPhotoVersion,
+  getCreatorImages,
   getSampleImage,
   hideSample,
   resolveReport,
@@ -93,10 +93,10 @@ export async function removeReportedPhotoAction(form: FormData): Promise<void> {
   const creatorId = text(form, "creatorId");
   if (!UUID.test(reportId) || !UUID.test(creatorId)) return;
 
-  const version = await getCreatorPhotoVersion(creatorId);
-  if (version !== null) {
+  const images = await getCreatorImages(creatorId);
+  if (images && images.photoVersion !== null) {
     await setPhotoVersion(creatorId, null);
-    await deleteProfilePhoto(creatorId, version);
+    await deleteProfilePhoto(images.mediaKey, images.photoVersion);
   }
   await resolveReport(reportId);
   refresh();
@@ -123,20 +123,24 @@ export async function hideReportedSampleAction(form: FormData): Promise<void> {
   if (!sample) return;
   await hideSample(sampleId, reason);
   if (sample.imageVersion !== null) {
-    await deleteSampleImage(sample.userId, sampleId, sample.imageVersion);
+    await deleteSampleImage(sample.mediaKey, sampleId, sample.imageVersion);
   }
   refresh();
 }
 
-/** Removes the creator's cover (recorded with a reason) and deletes its file. */
+/**
+ * Removes the creator's cover and deletes its file. The creator is told, with
+ * the reason (clear_cover sends the notice).
+ */
 export async function removeReportedCoverAction(form: FormData): Promise<void> {
   await requireRole("admin");
   const creatorId = text(form, "creatorId");
   const reason = takedownReason(form);
   if (!UUID.test(creatorId) || !reason) return;
 
+  const images = await getCreatorImages(creatorId);
   const removed = await clearCover(creatorId, reason);
-  if (removed !== null) await deleteCover(creatorId, removed);
+  if (removed !== null && images) await deleteCover(images.mediaKey, removed);
   refresh();
 }
 

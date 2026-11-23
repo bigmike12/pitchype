@@ -64,8 +64,15 @@ export type CreatorCard = {
 };
 
 export type CreatorPage = CreatorCard & {
-  /** Our user id, for messaging and blocking from the business portal. */
-  userId: string;
+  /**
+   * Our user id, for messaging and blocking: only businesses and admins get
+   * it (null for everyone else). Server-side only; never render it.
+   */
+  userId: string | null;
+  /** Whether the signed-in person is this creator. */
+  isSelf: boolean;
+  /** Names the creator's storage folder (for sample URLs). Server-side only. */
+  mediaKey: string;
   allowIndexing: boolean;
   updatedAt: string;
   /** Whether this viewer sees handles, post links and rate (businesses and admins). */
@@ -99,8 +106,8 @@ export async function searchCreators(
     creators: data.map((row) => ({
       slug: row.slug,
       displayName: row.display_name,
-      photoUrl: profilePhotoUrl(row.user_id, row.photo_version ?? null),
-      coverUrl: coverUrl(row.user_id, row.cover_version ?? null),
+      photoUrl: profilePhotoUrl(row.media_key, row.photo_version ?? null),
+      coverUrl: coverUrl(row.media_key, row.cover_version ?? null),
       bio: row.bio ?? null,
       state: row.state as NigerianState,
       city: row.city,
@@ -123,11 +130,13 @@ export const getListedCreator = cache(
     if (error) throw new Error(`creator lookup failed (${error.code})`);
     if (!data) return null;
     return {
-      userId: data.user_id,
+      userId: data.user_id ?? null,
+      isSelf: data.is_self,
+      mediaKey: data.media_key,
       slug: data.slug,
       displayName: data.display_name,
-      photoUrl: profilePhotoUrl(data.user_id, data.photo_version ?? null),
-      coverUrl: coverUrl(data.user_id, data.cover_version ?? null),
+      photoUrl: profilePhotoUrl(data.media_key, data.photo_version ?? null),
+      coverUrl: coverUrl(data.media_key, data.cover_version ?? null),
       state: data.state as NigerianState,
       city: data.city,
       niches: data.niches,
@@ -153,11 +162,11 @@ export type PortfolioSample = {
 };
 
 /**
- * A listed creator's visible samples, in order. `userId` comes from
- * getListedCreator (it names the files); it stays on the server.
+ * A listed creator's visible samples, in order. `mediaKey` comes from
+ * getListedCreator (it names the files).
  */
 export const getCreatorPortfolio = cache(
-  async (slug: string, userId: string): Promise<PortfolioSample[]> => {
+  async (slug: string, mediaKey: string): Promise<PortfolioSample[]> => {
     const supabase = await createSessionClient();
     const { data, error } = await supabase.rpc("creator_portfolio", {
       creator_slug: slug,
@@ -165,13 +174,32 @@ export const getCreatorPortfolio = cache(
     if (error) throw new Error(`portfolio lookup failed (${error.code})`);
     return data.map((row) => ({
       id: row.id,
-      imageUrl: sampleUrl(userId, row.id, row.image_version),
+      imageUrl: sampleUrl(mediaKey, row.id, row.image_version),
       caption: row.caption ?? null,
       platform: row.platform ?? null,
       postUrl: row.post_url ?? null,
     }));
   },
 );
+
+/**
+ * The storage folder keys of creators the caller already has ids for (the
+ * portal's lists of applicants and conversations), for their photo URLs.
+ */
+export async function mediaKeysFor(
+  userIds: string[],
+): Promise<Map<string, string>> {
+  const keys = new Map<string, string>();
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (ids.length === 0) return keys;
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase.rpc("creator_media_keys", {
+    creators: ids,
+  });
+  if (error) throw new Error(`media keys lookup failed (${error.code})`);
+  for (const row of data) keys.set(row.user_id, row.media_key);
+  return keys;
+}
 
 /** Listed creators who allow search engines, for the sitemap. */
 export async function listIndexableCreators(): Promise<
@@ -232,6 +260,8 @@ export type OwnCreatorProfile = {
   photoUrl: string | null;
   coverVersion: number | null;
   coverUrl: string | null;
+  /** Names the creator's storage folder. */
+  mediaKey: string;
   /** Set on first publish. */
   slug: string | null;
   published: boolean;
@@ -250,7 +280,7 @@ export const getOwnCreatorProfile = cache(async function getOwnCreatorProfile(
     supabase
       .from("influencer_profiles")
       .select(
-        "display_name, bio, niches, state, city, starting_rate_kobo, photo_version, cover_version, slug, published, allow_indexing, hidden_reason",
+        "display_name, bio, niches, state, city, starting_rate_kobo, photo_version, cover_version, media_key, slug, published, allow_indexing, hidden_reason",
       )
       .eq("user_id", userId)
       .maybeSingle(),
@@ -277,9 +307,10 @@ export const getOwnCreatorProfile = cache(async function getOwnCreatorProfile(
     city: row.city,
     startingRateKobo: row.starting_rate_kobo,
     photoVersion: row.photo_version,
-    photoUrl: profilePhotoUrl(userId, row.photo_version),
+    photoUrl: profilePhotoUrl(row.media_key, row.photo_version),
     coverVersion: row.cover_version,
-    coverUrl: coverUrl(userId, row.cover_version),
+    coverUrl: coverUrl(row.media_key, row.cover_version),
+    mediaKey: row.media_key,
     slug: row.slug,
     published: row.published,
     allowIndexing: row.allow_indexing,
@@ -434,7 +465,11 @@ export type OwnSample = {
   hiddenReason: string | null;
 };
 
-export async function listOwnSamples(userId: string): Promise<OwnSample[]> {
+/** `mediaKey` is the creator's own (OwnCreatorProfile.mediaKey). */
+export async function listOwnSamples(
+  userId: string,
+  mediaKey: string,
+): Promise<OwnSample[]> {
   const supabase = await createSessionClient();
   const { data, error } = await supabase
     .from("portfolio_samples")
@@ -452,7 +487,7 @@ export async function listOwnSamples(userId: string): Promise<OwnSample[]> {
     imageUrl:
       row.image_version === null || row.hidden_reason !== null
         ? null
-        : sampleUrl(userId, row.id, row.image_version),
+        : sampleUrl(mediaKey, row.id, row.image_version),
     caption: row.caption,
     platform: row.platform,
     postUrl: row.post_url,
