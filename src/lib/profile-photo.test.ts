@@ -4,8 +4,13 @@ import { test } from "node:test";
 import sharp from "sharp";
 
 import {
+  COVER_HEIGHT,
+  COVER_WIDTH,
   MAX_PHOTO_BYTES,
+  MAX_STORED_BYTES,
   PHOTO_SIZE,
+  SAMPLE_EDGE,
+  processImage,
   processProfilePhoto,
 } from "./profile-photo.ts";
 
@@ -125,3 +130,67 @@ function randomPixels(width: number, height: number) {
   for (let i = 0; i < pixels.length; i++) pixels[i] = (i * 2654435761) >>> 24;
   return pixels;
 }
+
+// Covers and work samples ----------------------------------------------------------
+
+test("a cover is cropped to 1600x900 WebP without EXIF", async () => {
+  const result = await processImage(await phonePhoto(), "cover");
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const output = await sharp(result.webp).metadata();
+  assert.equal(output.format, "webp");
+  assert.equal(output.width, COVER_WIDTH);
+  assert.equal(output.height, COVER_HEIGHT);
+  assert.equal(output.exif, undefined);
+});
+
+test("a sample keeps its shape, longest side 1200", async () => {
+  const tall = await sharp({
+    create: { width: 1500, height: 3000, channels: 3, background: "#336699" },
+  })
+    .jpeg()
+    .toBuffer();
+  const result = await processImage(tall, "sample");
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const output = await sharp(result.webp).metadata();
+  assert.equal(output.height, SAMPLE_EDGE);
+  assert.equal(output.width, 600);
+});
+
+test("a small sample is not enlarged", async () => {
+  const small = await sharp({
+    create: { width: 640, height: 480, channels: 3, background: "#996633" },
+  })
+    .png()
+    .toBuffer();
+  const result = await processImage(small, "sample");
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const output = await sharp(result.webp).metadata();
+  assert.equal(output.width, 640);
+  assert.equal(output.height, 480);
+});
+
+test("even a noisy cover fits the bucket's 1MB limit", async () => {
+  const noisy = await sharp(Buffer.from(randomPixels(2400, 1350)), {
+    raw: { width: 2400, height: 1350, channels: 3 },
+  })
+    .png()
+    .toBuffer();
+  const result = await processImage(noisy, "cover");
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.ok(result.webp.byteLength <= MAX_STORED_BYTES, `${result.webp.byteLength} bytes`);
+});
+
+test("covers and samples refuse what photos refuse", async () => {
+  assert.deepEqual(
+    await processImage(Buffer.from("not an image"), "sample"),
+    { ok: false, reason: "unsupported" },
+  );
+  assert.deepEqual(
+    await processImage(new Uint8Array(MAX_PHOTO_BYTES + 1), "cover"),
+    { ok: false, reason: "too_large" },
+  );
+});

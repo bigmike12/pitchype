@@ -11,44 +11,92 @@ import { supabaseEnv } from "@/lib/supabase/env";
 // Created by supabase/migrations/20261109133550_create_profile_photos_bucket.sql.
 const BUCKET = "profile-photos";
 
-// A new version gets a new name, so a photo's URL never changes content and
+// A new version gets a new name, so an image's URL never changes content and
 // can be cached for good.
 const photoPath = (userId: string, version: number) =>
   `${userId}/${version}.webp`;
+const coverPath = (userId: string, version: number) =>
+  `${userId}/cover-${version}.webp`;
+const samplePath = (userId: string, sampleId: string, version: number) =>
+  `${userId}/sample-${sampleId}-${version}.webp`;
+
+function publicUrl(path: string): string {
+  const { url } = supabaseEnv();
+  return `${url}/storage/v1/object/public/${BUCKET}/${path}`;
+}
+
+async function uploadImage(path: string, webp: Buffer): Promise<void> {
+  const { error } = await createAdminClient()
+    .storage.from(BUCKET)
+    .upload(path, webp, {
+      contentType: "image/webp",
+      cacheControl: "31536000",
+      upsert: false,
+    });
+  if (error) throw new Error(`image upload failed: ${error.message}`);
+}
+
+async function deleteImage(path: string): Promise<void> {
+  const { error } = await createAdminClient().storage.from(BUCKET).remove([path]);
+  if (error) throw new Error(`image delete failed: ${error.message}`);
+}
 
 export function profilePhotoUrl(
   userId: string,
   version: number | null,
 ): string | null {
-  if (version === null) return null;
-  const { url } = supabaseEnv();
-  return `${url}/storage/v1/object/public/${BUCKET}/${photoPath(userId, version)}`;
+  return version === null ? null : publicUrl(photoPath(userId, version));
 }
 
 /** Stores an already-processed photo (lib/profile-photo.ts). */
-export async function saveProfilePhoto(
+export function saveProfilePhoto(
   userId: string,
   version: number,
   webp: Buffer,
 ): Promise<void> {
-  const { error } = await createAdminClient()
-    .storage.from(BUCKET)
-    .upload(photoPath(userId, version), webp, {
-      contentType: "image/webp",
-      cacheControl: "31536000",
-      upsert: false,
-    });
-  if (error) throw new Error(`photo upload failed: ${error.message}`);
+  return uploadImage(photoPath(userId, version), webp);
 }
 
-export async function deleteProfilePhoto(
+export function deleteProfilePhoto(
   userId: string,
   version: number,
 ): Promise<void> {
-  const { error } = await createAdminClient()
-    .storage.from(BUCKET)
-    .remove([photoPath(userId, version)]);
-  if (error) throw new Error(`photo delete failed: ${error.message}`);
+  return deleteImage(photoPath(userId, version));
+}
+
+// Covers and work samples live in the same public bucket, beside the photo.
+
+export function coverUrl(userId: string, version: number | null): string | null {
+  return version === null ? null : publicUrl(coverPath(userId, version));
+}
+
+export function saveCover(userId: string, version: number, webp: Buffer): Promise<void> {
+  return uploadImage(coverPath(userId, version), webp);
+}
+
+export function deleteCover(userId: string, version: number): Promise<void> {
+  return deleteImage(coverPath(userId, version));
+}
+
+export function sampleUrl(userId: string, sampleId: string, version: number): string {
+  return publicUrl(samplePath(userId, sampleId, version));
+}
+
+export function saveSampleImage(
+  userId: string,
+  sampleId: string,
+  version: number,
+  webp: Buffer,
+): Promise<void> {
+  return uploadImage(samplePath(userId, sampleId, version), webp);
+}
+
+export function deleteSampleImage(
+  userId: string,
+  sampleId: string,
+  version: number,
+): Promise<void> {
+  return deleteImage(samplePath(userId, sampleId, version));
 }
 
 // Proof of work (screenshots) -------------------------------------------------------------------------------------

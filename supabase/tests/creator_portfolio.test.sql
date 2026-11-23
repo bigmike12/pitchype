@@ -8,7 +8,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(46);
+select plan(48);
 
 -- Setup, as the database owner ------------------------------------------------
 -- Ama is a business, Kemi and Tunde are listed creators, Uche is a creator
@@ -108,6 +108,14 @@ select lives_ok(
 select is((select caption from public.portfolio_samples where position = 1),
   'Thrift haul for Lagos Fashion Week', 'the swap moved the sample');
 update public.portfolio_samples set position = case position when 0 then 1 else 0 end where position in (0, 1);
+update public.portfolio_samples set caption = 'Was fourth' where position = 4;
+select lives_ok(
+  $$ select public.swap_portfolio_samples(
+       (select id from public.portfolio_samples where position = 4),
+       (select id from public.portfolio_samples where position = 5)) $$,
+  'swap_portfolio_samples swaps two of her own samples');
+select is((select position from public.portfolio_samples where caption = 'Was fourth'),
+  5::smallint, 'and they changed places');
 select is((select count(*)::int from public.portfolio_samples), 6, 'Kemi has six samples');
 select throws_ok(
   $$ update public.portfolio_samples set image_version = 9 where position = 0 $$,

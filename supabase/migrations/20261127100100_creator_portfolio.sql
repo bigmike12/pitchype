@@ -122,6 +122,25 @@ create trigger portfolio_samples_before_write
   before insert or update on public.portfolio_samples
   for each row execute function public.portfolio_samples_before_write();
 
+-- Swaps two of the caller's samples in one statement (the position index is
+-- deferrable). Runs with the caller's rights, so row level security decides
+-- whose samples can move.
+create function public.swap_portfolio_samples(first_sample uuid, second_sample uuid)
+returns void
+language sql
+volatile
+set search_path = ''
+as $$
+  update public.portfolio_samples s
+     set position = case s.id
+                      when first_sample then (select o.position from public.portfolio_samples o where o.id = second_sample)
+                      else (select o.position from public.portfolio_samples o where o.id = first_sample)
+                    end
+   where s.id in (first_sample, second_sample)
+     and first_sample <> second_sample
+     and (select count(*) from public.portfolio_samples o where o.id in (first_sample, second_sample)) = 2
+$$;
+
 -- Track record ------------------------------------------------------------------
 
 create function public.creator_completed_jobs(creator uuid)
@@ -435,6 +454,9 @@ $$;
 revoke all on function public.post_url_fits_platform(text, public.social_platform) from public, anon, authenticated;
 revoke all on function public.portfolio_samples_before_write() from public, anon, authenticated;
 revoke all on function public.creator_completed_jobs(uuid) from public, anon, authenticated;
+
+revoke all on function public.swap_portfolio_samples(uuid, uuid) from public, anon;
+grant execute on function public.swap_portfolio_samples(uuid, uuid) to authenticated;
 
 revoke all on function public.get_listed_creator(text) from public;
 revoke all on function public.creator_portfolio(text) from public;

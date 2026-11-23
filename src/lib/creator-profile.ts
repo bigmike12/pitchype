@@ -453,9 +453,122 @@ export function publishProblems(profile: {
   return problems;
 }
 
+// Portfolio samples -----------------------------------------------------------------
+
+export const MAX_SAMPLES = 6;
+export const MAX_CAPTION_LENGTH = 140;
+
+/**
+ * The sites a post link may come from, per platform; subdomains count
+ * (vm.tiktok.com, m.youtube.com). Mirrored in post_url_fits_platform()
+ * (migration 20261127100100).
+ */
+export const POST_HOSTS: Record<Platform, string[]> = {
+  instagram: ["instagram.com"],
+  tiktok: ["tiktok.com"],
+  youtube: ["youtube.com", "youtu.be"],
+  x: ["x.com", "twitter.com"],
+};
+
+function platformForHost(host: string): Platform | null {
+  for (const platform of PLATFORMS) {
+    if (POST_HOSTS[platform].some((h) => host === h || host.endsWith(`.${h}`))) {
+      return platform;
+    }
+  }
+  return null;
+}
+
+/**
+ * A link to the original post: https on the chosen platform's site. With no
+ * platform chosen, the link decides it. Blank means no link.
+ */
+export function parsePostUrl(
+  platform: Platform | null,
+  raw: string,
+):
+  | { ok: true; url: string | null; platform: Platform | null }
+  | { ok: false; error: string } {
+  const value = raw.trim();
+  if (value === "") return { ok: true, url: null, platform };
+  const host = value.match(/^https:\/\/([^/?#:\s]+)[^\s]*$/i)?.[1]?.toLowerCase();
+  if (!host || value.length > 500) {
+    return {
+      ok: false,
+      error: "Paste the full link to the post, starting with https://",
+    };
+  }
+  const linked = platformForHost(host);
+  if (!linked || (platform && linked !== platform)) {
+    return {
+      ok: false,
+      error: platform
+        ? `That isn’t a ${PLATFORM_RULES[platform].label} link.`
+        : "Link a post on Instagram, TikTok, YouTube or X.",
+    };
+  }
+  return { ok: true, url: value, platform: linked };
+}
+
+export type SampleInput = {
+  caption: string | null;
+  platform: Platform | null;
+  postUrl: string | null;
+};
+
+export type SampleField = "caption" | "platform" | "postUrl";
+
+/** The caption, platform and post link of a sample (the image is separate). */
+export function parseSampleForm(form: FormData): Parsed<SampleInput, SampleField> {
+  const caption = text(form, "caption").trim();
+  const rawPlatform = text(form, "platform");
+  const rawUrl = text(form, "postUrl");
+  const errors: FieldErrors<SampleField> = {};
+
+  const contact = findContactDetails(caption);
+  if (caption.length > MAX_CAPTION_LENGTH) {
+    errors.caption = `Use ${MAX_CAPTION_LENGTH} characters or fewer (you have ${caption.length}).`;
+  } else if (contact) {
+    errors.caption = `Remove the ${contact}. Businesses contact you through Pitchype.`;
+  }
+
+  const platform = isPlatform(rawPlatform) ? rawPlatform : null;
+  const link = parsePostUrl(platform, rawUrl);
+  if (!link.ok) errors.postUrl = link.error;
+
+  if (!link.ok || Object.keys(errors).length > 0) {
+    return {
+      ok: false,
+      errors,
+      values: { caption, platform: rawPlatform, postUrl: rawUrl.trim() },
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      caption: caption === "" ? null : caption,
+      platform: link.platform,
+      postUrl: link.url,
+    },
+  };
+}
+
 // The directory's filters --------------------------------------------------------------
 
 export const DIRECTORY_PAGE_SIZE = 24;
+
+export const DIRECTORY_SORTS = ["newest", "followers", "verified"] as const;
+export type DirectorySort = (typeof DIRECTORY_SORTS)[number];
+
+export const DIRECTORY_SORT_LABELS: Record<DirectorySort, string> = {
+  newest: "Newest",
+  followers: "Most followers",
+  verified: "Verified first",
+};
+
+function isDirectorySort(value: string): value is DirectorySort {
+  return (DIRECTORY_SORTS as readonly string[]).includes(value);
+}
 
 export type DirectoryFilters = {
   /** Words to find in a creator's name, city or niches. */
@@ -466,6 +579,7 @@ export type DirectoryFilters = {
   state?: NigerianState;
   /** Businesses only. */
   maxRateNaira?: number;
+  sort: DirectorySort;
   page: number;
 };
 
@@ -489,6 +603,7 @@ export function parseDirectoryFilters(
   const state = first(params.state);
   const maxRate = Number(first(params.maxRate));
   const page = Number(first(params.page));
+  const sort = first(params.sort);
 
   return {
     search: parseSearch(params.q),
@@ -501,6 +616,7 @@ export function parseDirectoryFilters(
       (MAX_RATE_OPTIONS_NAIRA as readonly number[]).includes(maxRate)
         ? maxRate
         : undefined,
+    sort: isDirectorySort(sort) ? sort : "newest",
     page: Number.isInteger(page) && page >= 1 && page <= 1000 ? page : 1,
   };
 }
@@ -514,6 +630,7 @@ export function directoryQuery(filters: DirectoryFilters): string {
   if (filters.minFollowers) query.set("followers", filters.minFollowers);
   if (filters.state) query.set("state", filters.state);
   if (filters.maxRateNaira) query.set("maxRate", String(filters.maxRateNaira));
+  if (filters.sort !== "newest") query.set("sort", filters.sort);
   if (filters.page > 1) query.set("page", String(filters.page));
   const result = query.toString();
   return result ? `?${result}` : "";

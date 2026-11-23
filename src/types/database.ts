@@ -2710,6 +2710,10 @@ export type Database = {
         }
         Returns: string
       }
+      swap_portfolio_samples: {
+        Args: { first_sample: string; second_sample: string }
+        Returns: undefined
+      }
       transfer_fee_for: { Args: { amount_kobo: number }; Returns: number }
       transition_campaign: {
         Args: { action: string; campaign_id: string; note?: string }
