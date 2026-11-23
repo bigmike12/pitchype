@@ -58,7 +58,7 @@ Details: README, "Deploy to Vercel".
       only". They must cover accounts, public creator profiles and photos,
       verification and reports, reviewed by a lawyer. Then drop the draft
       banner and `noindex`, and add them to the sitemap.
-- [ ] **You:** name PostHog as a processor in the privacy notice (error reports
+- [x] **You:** name PostHog as a processor in the privacy notice (error reports
       go to PostHog, see `docs/PROVIDERS.md`), and have the lawyer review the
       cross-border transfer. Then create the PostHog project and set
       `POSTHOG_PROJECT_API_KEY` and `POSTHOG_HOST` in Vercel.
