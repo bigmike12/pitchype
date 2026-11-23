@@ -676,21 +676,33 @@ Portal rebuild (2026-11-16, the dashboard-kit look):
 
 ## 13. From the creator portfolio (2026-11-23)
 
-- [ ] **You:** push migrations `20261127100000` and `20261127100100` to the
-      live project with the app. They are numbered after every migration on
-      the other open branches (up to `20261126100000`), so merge order doesn't
-      matter for them; `get_listed_creator` and `search_creators` are dropped
-      and recreated with new columns.
-- [ ] Decide: storage paths carry our internal user id
-      (`profile-photos/<user id>/…`, since Stage 3 for photos and now covers
-      and samples), so it is visible in public image URLs. Nothing else on the
-      public pages sends it. Moving to an opaque folder key means moving the
-      existing files in production, so it wasn't done here.
+- [ ] **You:** ship the creator portfolio to production, in this order
+      (decided 2026-11-23: pictures move from `<user id>/…` to
+      `<media key>/…` folders, migration `20261127100200`). Copy, never move:
+      the live app reads the old paths until step 3.
+      1. Push migrations `20261127100000` to `20261127100400` (they sort after
+         every migration on the other open branches, up to `20261126100000`).
+         From here until step 3, signed-out visitors and creators see
+         broken photos on the old app (it builds image addresses from the
+         user id, which these functions no longer send them; businesses are
+         unaffected), so do steps 1 to 3 back to back.
+      2. `node --env-file=<production env> scripts/move-photos-to-media-keys.mjs`
+         (dry run: check the counts, `missingSource` should be 0), then the
+         same with `--apply`.
+      3. Deploy the app from this branch.
+      4. Run `--apply` again: it copies anything the old app stored between
+         steps 2 and 3 and skips the rest.
+      5. Check a few creator pages and the business inbox show photos.
+      6. `--delete-old` (dry run: the old object count), then
+         `--delete-old --apply`. It refuses unless every current picture is at
+         its new path.
 - [ ] Automatic image moderation for covers and samples. Today: the report
       button and an admin takedown.
-- [ ] Tell the creator when an admin removes their cover (the reason is only
-      in `moderation_events`; a taken-down sample shows its reason in the
-      profile editor).
+- [x] Tell the creator when an admin removes their cover or takes down a
+      sample: `cover_removed` and `portfolio_sample_hidden` notices with the
+      reason, always emailed (2026-11-23, migration `20261127100400`).
+- [x] Public image addresses no longer carry user ids: folders are named by
+      `influencer_profiles.media_key` (2026-11-23).
 - [ ] Replacing a sample's picture in place (today: remove it and add another).
 - [ ] The directory's GET form sends empty fields (`?q=&niche=…`); harmless,
       but the URLs could be tidier.

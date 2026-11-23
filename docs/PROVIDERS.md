@@ -50,10 +50,15 @@ Creators' photos, covers and work samples are processed on our server
 (`src/lib/profile-photo.ts`, using `sharp`, which runs anywhere Node does) and
 only the result is stored, in the public `profile-photos` bucket:
 
-- photo: a 512px square WebP, `<user id>/<version>.webp`
-- cover (since 2026-11-23): 1600×900 WebP, `<user id>/cover-<version>.webp`
+- photo: a 512px square WebP, `<media key>/<version>.webp`
+- cover (since 2026-11-23): 1600×900 WebP, `<media key>/cover-<version>.webp`
 - work sample (since 2026-11-23): longest side 1200px, shape kept,
-  `<user id>/sample-<sample id>-<version>.webp`
+  `<media key>/sample-<sample id>-<version>.webp`
+
+The folder is the creator's `influencer_profiles.media_key`, a random id that
+is not their user id, so public image addresses don't reveal user ids (since
+2026-11-23; before that, folders were named by user id, and
+`scripts/move-photos-to-media-keys.mjs` copies those across).
 
 Every file is under the bucket's 1MB limit (the pipeline lowers the quality
 until it fits). The database stores only version numbers (and sample ids), so

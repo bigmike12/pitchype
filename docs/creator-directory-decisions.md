@@ -95,9 +95,14 @@ Owner decisions; design and reasons in
   it. **Only businesses and admins get the post link**: a post's address names
   the account. Positions run 0 to 5 and are unique per creator, so the cap of
   six holds in the database, also under two uploads at once.
-- **Takedown:** an admin can take a sample down (the creator sees the reason
-  on their profile editor) or remove a cover, from a report; both are written
-  to `moderation_events`, and the file is deleted.
+- **Takedown:** an admin can take a sample down or remove a cover, from a
+  report, with a reason. Both are written to `moderation_events`, the file is
+  deleted, and the creator is told with the reason (`portfolio_sample_hidden`,
+  `cover_removed`; always emailed). A taken-down sample also shows its reason
+  in the profile editor.
+- **Storage folders:** a creator's pictures live under their random
+  `media_key`, not their user id, and the public read functions send user ids
+  only to businesses and admins (who message by them).
 - **Track record:** jobs that paid the creator through Pitchype (an accepted
   or auto-released hire with money released; hidden at zero) and when they
   joined. Real records only; no engagement rates or analytics.
