@@ -17,6 +17,8 @@ const PRIVATE_PATHS = [
   "/wallet",
   "/api/",
   "/auth/",
+  // Creators' tracked links: a crawler following one would only add noise.
+  "/r/",
 ];
 
 export default function robots(): MetadataRoute.Robots {

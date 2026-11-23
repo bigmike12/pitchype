@@ -6,6 +6,7 @@ import { Directory } from "@/components/creators/directory";
 import { DirectorySkeleton } from "@/components/creators/directory-skeleton";
 import { buttonVariants } from "@/components/ui/button";
 import { getSignedInUser } from "@/lib/auth";
+import { SITE_NAME } from "@/lib/site";
 
 const DESCRIPTION =
   "Browse micro and nano creators across Nigeria by niche, platform, followers and state, with their work and honest follower counts.";
@@ -15,10 +16,24 @@ export const metadata: Metadata = {
   description: DESCRIPTION,
   // Filtered views are the same page with fewer results.
   alternates: { canonical: "/creators" },
+  // A page's openGraph replaces the root layout's whole block, image included,
+  // so the site card, name and locale are repeated here. Without them a shared
+  // link to the directory had no preview picture.
   openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "en_NG",
     title: "Find Nigerian creators on Pitchype",
     description: DESCRIPTION,
     url: "/creators",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "Pitchype: hire creators in Nigeria, get paid for your work",
+      },
+    ],
   },
   twitter: { card: "summary_large_image" },
 };
