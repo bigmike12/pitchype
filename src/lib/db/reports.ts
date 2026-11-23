@@ -189,3 +189,17 @@ export async function clearCover(
   if (error) throw new Error(`clear cover failed (${error.code})`);
   return data ?? null;
 }
+
+/** A sample's owner and image version, for deleting its file. Admins only (RLS). */
+export async function getSampleImage(
+  sampleId: string,
+): Promise<{ userId: string; imageVersion: number | null } | null> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("portfolio_samples")
+    .select("user_id, image_version")
+    .eq("id", sampleId)
+    .maybeSingle();
+  if (error) throw new Error(`sample lookup failed (${error.code})`);
+  return data ? { userId: data.user_id, imageVersion: data.image_version } : null;
+}

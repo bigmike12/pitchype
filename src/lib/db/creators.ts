@@ -446,8 +446,9 @@ export async function listOwnSamples(userId: string): Promise<OwnSample[]> {
     id: row.id,
     position: row.position,
     imageVersion: row.image_version,
+    // A taken-down sample's file is deleted, so there's nothing to show.
     imageUrl:
-      row.image_version === null
+      row.image_version === null || row.hidden_reason !== null
         ? null
         : sampleUrl(userId, row.id, row.image_version),
     caption: row.caption,

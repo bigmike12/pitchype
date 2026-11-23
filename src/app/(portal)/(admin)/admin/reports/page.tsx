@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -23,6 +24,8 @@ import { pageOf, pagedHref, parsePage } from "@/lib/paging";
 
 import {
   hideReportedCreatorAction,
+  hideReportedSampleAction,
+  removeReportedCoverAction,
   removeReportedPhotoAction,
   resolveCampaignReportAction,
   resolveReportAction,
@@ -181,6 +184,40 @@ function ReportItem({ report }: { report: OpenReport }) {
         )}
       </div>
 
+      {(creator.coverUrl || creator.samples.length > 0) && (
+        <details className="mt-4 border-t border-hairline pt-4">
+          <summary className="link inline-flex min-h-11 cursor-pointer items-center text-sm lg:min-h-8">
+            Their cover and work samples ({(creator.coverUrl ? 1 : 0) + creator.samples.length})
+          </summary>
+          <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+            {creator.coverUrl && (
+              <TakedownItem
+                imageUrl={creator.coverUrl}
+                label="Cover"
+                wide
+                action={removeReportedCoverAction}
+                hidden={{ creatorId: creator.userId }}
+                fieldId={`cover-reason-${report.id}`}
+                reasonLabel="Reason (kept on record)"
+                button="Remove cover"
+              />
+            )}
+            {creator.samples.map((sample, index) => (
+              <TakedownItem
+                key={sample.id}
+                imageUrl={sample.imageUrl}
+                label={sample.caption ?? `Sample ${index + 1}`}
+                action={hideReportedSampleAction}
+                hidden={{ sampleId: sample.id }}
+                fieldId={`sample-reason-${report.id}-${sample.id}`}
+                reasonLabel="Reason (the creator sees this)"
+                button="Take down"
+              />
+            ))}
+          </ul>
+        </details>
+      )}
+
       {!creator.hidden && (
         <form
           action={hideReportedCreatorAction}
@@ -200,6 +237,57 @@ function ReportItem({ report }: { report: OpenReport }) {
           <Button type="submit">Hide profile and close</Button>
         </form>
       )}
+    </li>
+  );
+}
+
+/** One picture an admin can take down, with the reason the creator will see. */
+function TakedownItem({
+  imageUrl,
+  label,
+  wide,
+  action,
+  hidden,
+  fieldId,
+  reasonLabel,
+  button,
+}: {
+  imageUrl: string;
+  label: string;
+  wide?: boolean;
+  action: (form: FormData) => Promise<void>;
+  hidden: Record<string, string>;
+  fieldId: string;
+  reasonLabel: string;
+  button: string;
+}) {
+  return (
+    <li className="rounded-card bg-canvas p-3 ring-1 ring-hairline">
+      <div className="flex items-start gap-3">
+        <div
+          className={`relative shrink-0 overflow-hidden rounded-lg bg-surface-soft ${wide ? "aspect-video w-28" : "aspect-[4/5] w-16"}`}
+        >
+          <Image src={imageUrl} alt={label} fill unoptimized sizes="7rem" className="object-cover" />
+        </div>
+        <p className="min-w-0 text-sm font-medium break-words text-ink">{label}</p>
+      </div>
+      <form action={action} className="mt-3 flex flex-col gap-2">
+        {Object.entries(hidden).map(([name, value]) => (
+          <input key={name} type="hidden" name={name} value={value} />
+        ))}
+        <TextField
+          compact
+          id={fieldId}
+          label={reasonLabel}
+          name="reason"
+          required
+          minLength={2}
+          maxLength={200}
+        />
+        <Button type="submit" variant="secondary" size="sm">
+          {button}
+        </Button>
+      </form>
     </li>
   );
 }
