@@ -33,7 +33,11 @@ import {
 } from "@/lib/db/creators";
 import { requestVerification, submitVerification } from "@/lib/db/verification";
 import { isUuid, text, type FormState } from "@/lib/form-data";
-import { processImage, processProfilePhoto } from "@/lib/profile-photo";
+import {
+  nextImageVersion,
+  processImage,
+  processProfilePhoto,
+} from "@/lib/profile-photo";
 import { createRateLimiter } from "@/lib/rate-limit";
 import {
   deleteCover,
@@ -214,7 +218,7 @@ export async function uploadPhotoAction(
     const profile = await getOwnCreatorProfile(user.id);
     if (!profile) return { status: "error", message: SAVE_FAILED };
     const previous = profile.photoVersion;
-    const next = (previous ?? 0) + 1;
+    const next = nextImageVersion(previous);
 
     await saveProfilePhoto(user.id, next, result.webp);
     await setPhotoVersion(user.id, next);
@@ -279,7 +283,7 @@ export async function uploadCoverAction(
     const profile = await getOwnCreatorProfile(user.id);
     if (!profile) return { status: "error", message: SAVE_FAILED };
     const previous = profile.coverVersion;
-    const next = (previous ?? 0) + 1;
+    const next = nextImageVersion(previous);
 
     await saveCover(user.id, next, result.webp);
     await setCoverVersion(user.id, next);

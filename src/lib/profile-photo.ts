@@ -96,3 +96,17 @@ export async function processImage(
     return { ok: false, reason: "unreadable" };
   }
 }
+
+/**
+ * The version for a newly stored image. Files are cached for a year under
+ * their version, so a version must never come back: counting on from the
+ * previous one would reuse 1 after a removal (or an admin's takedown) and
+ * show the old picture from caches. Minutes since 1970 always move on, and
+ * stay far inside a Postgres integer.
+ */
+export function nextImageVersion(
+  previous: number | null,
+  now = new Date(),
+): number {
+  return Math.max((previous ?? 0) + 1, Math.floor(now.getTime() / 60_000));
+}

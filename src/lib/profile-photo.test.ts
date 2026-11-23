@@ -10,6 +10,7 @@ import {
   MAX_STORED_BYTES,
   PHOTO_SIZE,
   SAMPLE_EDGE,
+  nextImageVersion,
   processImage,
   processProfilePhoto,
 } from "./profile-photo.ts";
@@ -181,16 +182,33 @@ test("even a noisy cover fits the bucket's 1MB limit", async () => {
   const result = await processImage(noisy, "cover");
   assert.equal(result.ok, true);
   if (!result.ok) return;
-  assert.ok(result.webp.byteLength <= MAX_STORED_BYTES, `${result.webp.byteLength} bytes`);
+  assert.ok(
+    result.webp.byteLength <= MAX_STORED_BYTES,
+    `${result.webp.byteLength} bytes`,
+  );
 });
 
 test("covers and samples refuse what photos refuse", async () => {
-  assert.deepEqual(
-    await processImage(Buffer.from("not an image"), "sample"),
-    { ok: false, reason: "unsupported" },
-  );
+  assert.deepEqual(await processImage(Buffer.from("not an image"), "sample"), {
+    ok: false,
+    reason: "unsupported",
+  });
   assert.deepEqual(
     await processImage(new Uint8Array(MAX_PHOTO_BYTES + 1), "cover"),
     { ok: false, reason: "too_large" },
+  );
+});
+
+test("a new image version never repeats one used before, even after a removal", () => {
+  const now = new Date("2026-11-23T12:00:00Z");
+  const minutes = Math.floor(now.getTime() / 60_000);
+  // After a removal there is no previous version, but the clock has moved on.
+  assert.equal(nextImageVersion(null, now), minutes);
+  assert.equal(nextImageVersion(1, now), minutes);
+  // Two uploads in the same minute still differ.
+  assert.equal(nextImageVersion(minutes, now), minutes + 1);
+  assert.ok(
+    nextImageVersion(null, now) < 2_147_483_647,
+    "fits a Postgres integer",
   );
 });
