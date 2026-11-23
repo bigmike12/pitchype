@@ -28,7 +28,7 @@ insert into public.influencer_profiles (user_id, display_name, state, city) valu
 -- (the claims set below decide what the functions reveal).
 create temporary view test_creators as
   select * from public.search_creators(page_size => 50)
-   where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003');
+   where slug in ('bayo-cooks', 'chidi-styles');
 grant select on test_creators to anon, authenticated;
 
 -- Visitors ---------------------------------------------------------------------
@@ -152,47 +152,47 @@ select throws_ok($$ select * from public.search_creators(max_rate_kobo => 600000
 
 select is(
   (select array_agg(slug) from public.search_creators(niche_slug => 'food-and-drinks')
-    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+    where slug in ('bayo-cooks', 'chidi-styles')),
   array['bayo-cooks'], 'filter by niche');
 select is(
   (select array_agg(slug) from public.search_creators(on_platform => 'tiktok')
-    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+    where slug in ('bayo-cooks', 'chidi-styles')),
   array['chidi-styles'], 'filter by platform');
 select is(
   (select array_agg(slug) from public.search_creators(min_followers => '50k_100k')
-    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+    where slug in ('bayo-cooks', 'chidi-styles')),
   array['chidi-styles'], 'filter by followers on any platform');
 select is(
   (select count(*)::int from public.search_creators(on_platform => 'instagram', min_followers => '50k_100k')
-    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+    where slug in ('bayo-cooks', 'chidi-styles')),
   0, 'platform and followers filter the same platform');
 select is(
   (select array_agg(slug) from public.search_creators(in_state => 'Oyo')
-    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+    where slug in ('bayo-cooks', 'chidi-styles')),
   array['bayo-cooks'], 'filter by state');
 select is(
   (select array_agg(slug) from public.search_creators(search => '  bayo ')
-    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+    where slug in ('bayo-cooks', 'chidi-styles')),
   array['bayo-cooks'], 'search by name, ignoring case and outer spaces');
 select is(
   (select array_agg(slug) from public.search_creators(search => 'yaba')
-    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+    where slug in ('bayo-cooks', 'chidi-styles')),
   array['chidi-styles'], 'search by city');
 select is(
   (select array_agg(slug) from public.search_creators(search => 'oyo')
-    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+    where slug in ('bayo-cooks', 'chidi-styles')),
   array['bayo-cooks'], 'search by state');
 select is(
   (select array_agg(slug) from public.search_creators(search => 'food and')
-    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+    where slug in ('bayo-cooks', 'chidi-styles')),
   array['bayo-cooks'], 'search by niche name');
 select is(
   (select count(*)::int from public.search_creators(search => '%')
-    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+    where slug in ('bayo-cooks', 'chidi-styles')),
   0, 'a typed % is a character, not a wildcard');
 select is(
   (select count(*)::int from public.search_creators(search => '   ')
-    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+    where slug in ('bayo-cooks', 'chidi-styles')),
   2, 'a blank search filters nothing');
 
 select is(
@@ -222,7 +222,7 @@ select is(
   'Budget Nigerian recipes, every week.', 'businesses see bios');
 select is(
   (select array_agg(slug) from public.search_creators(max_rate_kobo => 6000000)
-    where user_id in ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000c003')),
+    where slug in ('bayo-cooks', 'chidi-styles')),
   array['bayo-cooks'], 'businesses filter by rate (negotiable rates are left out)');
 select is(
   (select count(*)::int from public.influencer_profiles where user_id <> '00000000-0000-0000-0000-00000000a001'),

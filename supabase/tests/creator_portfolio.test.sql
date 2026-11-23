@@ -8,7 +8,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(48);
+select plan(60);
 
 -- Setup, as the database owner ------------------------------------------------
 -- Ama is a business, Kemi and Tunde are listed creators, Uche is a creator
@@ -76,7 +76,7 @@ alter table public.engagements enable trigger user;
 -- This test's creators as the directory returns them to whoever is asking.
 create temporary view test_creators as
   select * from public.search_creators(page_size => 50)
-   where user_id in ('00000000-0000-0000-0000-0000000f0b02', '00000000-0000-0000-0000-0000000f0c03');
+   where slug in ('kemi-portfolio', 'tunde-portfolio');
 grant select on test_creators to anon, authenticated;
 
 -- Kemi, a creator ----------------------------------------------------------------
@@ -126,6 +126,13 @@ select throws_ok(
 select throws_ok(
   $$ update public.influencer_profiles set cover_version = 3 $$,
   '42501', null, 'only the server sets the cover');
+select throws_ok(
+  $$ update public.influencer_profiles set media_key = gen_random_uuid() $$,
+  '42501', null, 'only the server sets the storage folder key');
+select is((select is_self from public.get_listed_creator('kemi-portfolio')), true,
+  'a creator is told the page is their own');
+select is((select user_id from public.get_listed_creator('kemi-portfolio')), null::uuid,
+  'even on their own page, a creator gets no user id from the public function');
 select throws_ok(
   $$ update public.portfolio_samples set caption = 'DM me on 08031234567' where position = 1 $$,
   'P0001', 'contact_details', 'captions refuse contact details');
@@ -182,6 +189,15 @@ select is((select caption from public.creator_portfolio('kemi-portfolio') where 
 select is((select count(*)::int from public.creator_portfolio('uche-portfolio')), 0,
   'a draft profile''s samples are not public');
 select is(
+  (select row(user_id, is_self, media_key is not null)::text from public.get_listed_creator('kemi-portfolio')),
+  row(null::uuid, false, true)::text,
+  'visitors get the storage folder key, never the user id');
+select throws_ok($$ select user_id from public.search_creators() $$, '42703', null,
+  'search results carry no user id');
+select throws_ok(
+  $$ select * from public.creator_media_keys(array['00000000-0000-0000-0000-0000000f0b02'::uuid]) $$,
+  '42501', null, 'visitors cannot look up storage folder keys');
+select is(
   (select row(bio, cover_version, completed_jobs, member_since, starting_rate_kobo, details_visible)::text
      from public.get_listed_creator('kemi-portfolio')),
   row('Thrift fashion and styling on a budget.', 2, 2, '2026-01-15 10:00+00'::timestamptz, null::bigint, false)::text,
@@ -204,17 +220,17 @@ select throws_ok($$ select * from public.search_creators(max_rate_kobo => 600000
 select is(
   (select array_agg(slug order by ord) from (
      select slug, row_number() over () ord from public.search_creators(page_size => 50, sort => 'newest')
-      where user_id in ('00000000-0000-0000-0000-0000000f0b02', '00000000-0000-0000-0000-0000000f0c03')) s),
+      where slug in ('kemi-portfolio', 'tunde-portfolio')) s),
   array['tunde-portfolio', 'kemi-portfolio'], 'newest first by default');
 select is(
   (select array_agg(slug order by ord) from (
      select slug, row_number() over () ord from public.search_creators(page_size => 50, sort => 'followers')
-      where user_id in ('00000000-0000-0000-0000-0000000f0b02', '00000000-0000-0000-0000-0000000f0c03')) s),
+      where slug in ('kemi-portfolio', 'tunde-portfolio')) s),
   array['tunde-portfolio', 'kemi-portfolio'], 'most followers: 50K–100K before a verified 12,000');
 select is(
   (select array_agg(slug order by ord) from (
      select slug, row_number() over () ord from public.search_creators(page_size => 50, sort => 'verified')
-      where user_id in ('00000000-0000-0000-0000-0000000f0b02', '00000000-0000-0000-0000-0000000f0c03')) s),
+      where slug in ('kemi-portfolio', 'tunde-portfolio')) s),
   array['kemi-portfolio', 'tunde-portfolio'], 'verified first');
 select throws_ok($$ select * from public.search_creators(sort => 'cheapest') $$, '22023', null,
   'an unknown sort is refused');
@@ -228,6 +244,12 @@ select is((select array_agg(slug) from public.search_creators(search => '@KemiTh
 select is((select post_url from public.creator_portfolio('kemi-portfolio') where position = 0),
   'https://www.instagram.com/p/AbC123/', 'a business sees post links');
 select is((select count(*)::int from public.portfolio_samples), 0, 'businesses cannot read the table');
+select is((select user_id from public.get_listed_creator('kemi-portfolio')),
+  '00000000-0000-0000-0000-0000000f0b02'::uuid, 'a business gets the user id, for messaging');
+select is(
+  (select media_key from public.creator_media_keys(array['00000000-0000-0000-0000-0000000f0b02'::uuid])),
+  (select media_key from public.get_listed_creator('kemi-portfolio')),
+  'the portal looks up a creator''s storage folder key by user id');
 select throws_ok(
   $$ select public.hide_portfolio_sample(
        (select id from public.creator_portfolio('kemi-portfolio') where position = 2), 'Not their work') $$,
@@ -251,11 +273,19 @@ select is(
   (select array_agg(kind::text order by kind::text) from public.moderation_events
     where user_id = '00000000-0000-0000-0000-0000000f0b02'),
   array['cover_removed', 'portfolio_sample_hidden'], 'both takedowns are recorded');
+select is((select public.clear_cover('00000000-0000-0000-0000-0000000f0b02', 'Again')), null::integer,
+  'removing a cover that is already gone does nothing');
 
 -- Kemi again: she sees the takedown on her own row and can delete it.
 set local request.jwt.claims = '{"sub": "f0f0f0f0-0000-0000-0000-000000000b02"}';
 select is((select hidden_reason from public.portfolio_samples where position = 2), 'Not their work',
   'the creator sees why a sample was taken down');
+select is((select data ->> 'note' from public.notifications where kind = 'portfolio_sample_hidden'),
+  'Not their work', 'the creator is told a sample was taken down, with the reason');
+select is((select data ->> 'note' from public.notifications where kind = 'cover_removed'),
+  'Shows a phone number', 'and that their cover was removed, with the reason');
+select is((select count(*)::int from public.notifications where kind = 'cover_removed'), 1,
+  'once: a second removal of nothing tells nobody');
 
 select * from finish();
 rollback;

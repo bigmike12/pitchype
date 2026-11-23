@@ -876,6 +876,7 @@ export type Database = {
           display_name: string
           hidden_at: string | null
           hidden_reason: string | null
+          media_key: string
           niches: string[]
           photo_version: number | null
           published: boolean
@@ -894,6 +895,7 @@ export type Database = {
           display_name: string
           hidden_at?: string | null
           hidden_reason?: string | null
+          media_key?: string
           niches?: string[]
           photo_version?: number | null
           published?: boolean
@@ -912,6 +914,7 @@ export type Database = {
           display_name?: string
           hidden_at?: string | null
           hidden_reason?: string | null
+          media_key?: string
           niches?: string[]
           photo_version?: number | null
           published?: boolean
@@ -2034,6 +2037,7 @@ export type Database = {
           display_name: string | null
           hidden_at: string | null
           hidden_reason: string | null
+          media_key: string | null
           niches: string[] | null
           photo_version: number | null
           published: boolean | null
@@ -2047,10 +2051,12 @@ export type Database = {
           allow_indexing?: boolean | null
           bio?: string | null
           city?: string | null
+          cover_version?: number | null
           created_at?: string | null
           display_name?: string | null
           hidden_at?: string | null
           hidden_reason?: string | null
+          media_key?: string | null
           niches?: string[] | null
           photo_version?: number | null
           published?: boolean | null
@@ -2064,10 +2070,12 @@ export type Database = {
           allow_indexing?: boolean | null
           bio?: string | null
           city?: string | null
+          cover_version?: number | null
           created_at?: string | null
           display_name?: string | null
           hidden_at?: string | null
           hidden_reason?: string | null
+          media_key?: string | null
           niches?: string[] | null
           photo_version?: number | null
           published?: boolean | null
@@ -2205,6 +2213,13 @@ export type Database = {
         Returns: string
       }
       creator_completed_jobs: { Args: { creator: string }; Returns: number }
+      creator_media_keys: {
+        Args: { creators: string[] }
+        Returns: {
+          media_key: string
+          user_id: string
+        }[]
+      }
       creator_platforms_json: {
         Args: { creator: string; with_handles: boolean }
         Returns: Json
@@ -2333,6 +2348,8 @@ export type Database = {
           cover_version: number
           details_visible: boolean
           display_name: string
+          is_self: boolean
+          media_key: string
           member_since: string
           niches: string[]
           photo_version: number
@@ -2623,6 +2640,7 @@ export type Database = {
           city: string
           cover_version: number
           display_name: string
+          media_key: string
           niches: string[]
           photo_version: number
           platforms: Json
@@ -2630,7 +2648,6 @@ export type Database = {
           starting_rate_kobo: number
           state: string
           total_count: number
-          user_id: string
         }[]
       }
       search_pattern: { Args: { words: string }; Returns: string }
@@ -2833,6 +2850,8 @@ export type Database = {
         | "click_cap_reached"
         | "click_hold_started"
         | "clicks_stopped"
+        | "portfolio_sample_hidden"
+        | "cover_removed"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -3059,6 +3078,8 @@ export const Constants = {
         "click_cap_reached",
         "click_hold_started",
         "clicks_stopped",
+        "portfolio_sample_hidden",
+        "cover_removed",
       ],
       payment_model: ["fixed", "per_click"],
       report_reason: [
