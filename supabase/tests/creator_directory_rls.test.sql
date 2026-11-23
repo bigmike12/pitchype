@@ -198,8 +198,8 @@ select is(
 select is(
   (select row(display_name, bio, starting_rate_kobo, details_visible)::text
      from public.get_listed_creator('bayo-cooks')),
-  row('Bayo Cooks', null::text, null::bigint, false)::text,
-  'a visitor''s view of a profile has no bio or rate');
+  row('Bayo Cooks', 'Budget Nigerian recipes, every week.', null::bigint, false)::text,
+  'a visitor''s view of a profile has the bio (public since 2026-11-23) but no rate');
 
 select lives_ok($$ select public.report_creator('bayo-cooks', 'impersonation', ' Not the real Bayo ') $$,
   'visitors can report a profile');
