@@ -709,6 +709,15 @@ Portal rebuild (2026-11-16, the dashboard-kit look):
 - [ ] Run Lighthouse on `/creators` and a profile (not run in this change; CLS
       measured 0 on both).
 
+## 14. From SEO, llms.txt and the error pages (2026-11-23)
+
+- [ ] **Vercel: apex to www redirect is a 307 (temporary).** `pitchype.com` redirects to `www.pitchype.com` with a 307; search engines should see a 308 (permanent). Change it in the Vercel dashboard (Domains → the apex domain → redirect status 308). Not code.
+- [ ] **Vercel: check Bot Protection / Firewall isn't blocking AI crawlers.** `robots.txt` allows every crawler (except the private paths), and `/llms.txt` is public, but a firewall rule could still stop GPTBot, ClaudeBot, PerplexityBot and the like. Decision recorded 2026-11-23: stay open to AI crawlers. Change `src/app/robots.ts` if that ever changes.
+- [ ] **Submit `https://www.pitchype.com/sitemap.xml` in Google Search Console and Bing Webmaster Tools**, and check "Pages" for errors after a week. Not code.
+- [ ] **Error reference codes.** The `500` pages show the error's `digest`, and the server log and PostHog carry the same value. If support starts getting these, add a way to search PostHog by it.
+- [ ] **Errors after a page has started streaming still answer HTTP 200** (a Next.js limit). The error pages add `noindex` themselves; nothing else to do unless Search Console shows them indexed.
+- [ ] `/llms.txt` lists the five public pages and the home FAQ. If the audience pages' FAQs or the escrow page's questions should be in it too, move them into `src/lib/` the way the home FAQ was (`faq.ts`).
+
 ## Done
 
 - [x] Database migrations for Stages 1–3 pushed to the live project
