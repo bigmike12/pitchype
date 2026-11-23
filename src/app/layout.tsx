@@ -1,23 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Inter } from "next/font/google";
 
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, X_HANDLE } from "@/lib/site";
 
+import { bricolage, inter } from "./fonts";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-// One static weight keeps the display font small; headlines never need another.
-const bricolage = Bricolage_Grotesque({
-  subsets: ["latin"],
-  weight: "600",
-  variable: "--font-bricolage",
-  display: "swap",
-});
 
 const TITLE = "Pitchype: hire creators in Nigeria, get paid for your work";
 

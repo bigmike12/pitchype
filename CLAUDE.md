@@ -122,6 +122,8 @@ src/
       (admin)/             one page per job: standing, campaign review, verification, reports, hidden profiles; money (escrow, payouts, ledger, reconciliation)
     auth/                  route handlers for emailed links
     api/webhooks/paystack/ webhook endpoint (thin adapter; the decisions are in lib/payments.ts)
+    llms.txt/              route handler: the site's public pages and FAQ as plain text for AI assistants (built by src/lib/llms.ts from the site's own copy; robots.ts and sitemap.ts sit beside it)
+    not-found.tsx, error.tsx, global-error.tsx   the 404 and error pages; (marketing) and (portal) have their own so the header or sidebar stays (components/ui/status-page.tsx, error-status.tsx)
     api/cron/              scheduled jobs: expire-engagements, review-deadlines, settle-clicks, money-checks, send-emails (bearer CRON_SECRET)
   components/
     ui/                    design-system components (Button, fields, …; shadcn/ui-based where a primitive is needed); see docs/DESIGN_SYSTEM.md
