@@ -28,7 +28,7 @@ export async function HeroSearch() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl rounded-panel bg-surface p-4 text-left shadow-[0_1px_2px_rgb(14_14_16/0.04),0_12px_32px_-12px_rgb(14_14_16/0.12)] ring-1 ring-hairline sm:p-6">
+    <div className="mx-auto max-w-6xl rounded-panel bg-surface p-4 text-left shadow-[0_1px_2px_rgb(14_14_16/0.04),0_12px_32px_-12px_rgb(14_14_16/0.12)] ring-1 ring-hairline sm:p-6 lg:p-8">
       <form action="/creators" role="search" aria-label="Find creators">
         <label htmlFor="hero-q" className="font-semibold text-ink">
           Find creators across Nigeria
@@ -48,7 +48,7 @@ export async function HeroSearch() {
               className="block h-14 w-full rounded-control border border-field bg-surface pr-4 pl-12 text-base text-ink shadow-[0_1px_2px_rgb(14_14_16/0.04)] placeholder:text-muted focus-visible:border-ink focus-visible:shadow-[0_0_0_4px_rgb(91_61_245/0.12)] motion-safe:transition-[border-color,box-shadow] sm:text-lg"
             />
           </div>
-          <Button type="submit" size="lg" className="h-14 px-7">
+          <Button type="submit" size="lg" className="h-14 px-7 lg:px-10">
             Search
           </Button>
         </div>
