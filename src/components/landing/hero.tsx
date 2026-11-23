@@ -1,26 +1,19 @@
-import { ArrowRight } from "lucide-react";
-import Link from "next/link";
 import type { CSSProperties } from "react";
 
-import { buttonVariants } from "@/components/ui/button";
-
+import { HeroIcons } from "./hero-icons";
+import { HeroOrbit } from "./hero-orbit";
 import { HeroSearch } from "./hero-search";
 
 const delay = (ms: number) => ({ "--delay": `${ms}ms` }) as CSSProperties;
 
 export function Hero() {
-  // Pulled up under the floating header so the aurora shows through its glass.
+  // Pulled up under the floating header so the white runs behind its glass.
   return (
     <section
       aria-labelledby="hero-title"
-      className="relative isolate -mt-14 overflow-hidden pt-14 sm:-mt-16 sm:pt-16"
+      className="relative isolate -mt-14 overflow-hidden bg-surface pt-14 sm:-mt-16 sm:pt-16"
     >
-      {/* Backdrop: a drifting aurora that fades into the page, and a dot grid. */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 -z-10 aurora [mask-image:linear-gradient(#000_45%,transparent_92%)] motion-safe:animate-aurora"
-      />
-      <div aria-hidden="true" className="absolute inset-0 -z-10 dot-grid" />
+      <HeroIcons />
 
       <div className="container-page pt-12 text-center sm:pt-20 lg:pt-24">
         {/* One block per sentence so lines never break across the full stop. */}
@@ -30,55 +23,22 @@ export function Hero() {
           style={delay(60)}
         >
           <span className="block">
-            Hire <span className="text-gradient">creators.</span>
+            Brands <span className="text-gradient">hire.</span>
           </span>{" "}
-          <span className="block">Get paid for your work.</span>
+          <span className="block">Creators <span className="text-gradient">earn.</span></span>
         </h1>
-        <p
-          className="mx-auto mt-6 max-w-[38rem] text-lg sm:text-xl enter"
-          style={delay(120)}
-        >
-          Pitchype connects Nigerian businesses with micro and nano creators for
-          paid campaigns. Agree the price up front, pay into escrow, and keep
-          the money held until the work is approved or 7 days pass without a
-          reply.
-        </p>
-
-        {/* Sign-up opens with the matching account type already chosen. */}
-        <div
-          className="mt-9 flex flex-col justify-center gap-3 sm:flex-row enter"
-          style={delay(170)}
-        >
-          <Link
-            href="/signup?role=business"
-            className={buttonVariants({ size: "lg", className: "group" })}
-          >
-            I’m a business
-            <ArrowRight
-              aria-hidden="true"
-              className="motion-safe:transition-transform motion-safe:group-hover:translate-x-0.5"
-            />
-          </Link>
-          <Link
-            href="/signup?role=influencer"
-            className={buttonVariants({ size: "lg", variant: "secondary" })}
-          >
-            I’m a creator
-          </Link>
-        </div>
-        <p className="mt-4 text-sm text-muted enter" style={delay(210)}>
-          Free to join, with no follower minimum. Fees only apply to jobs that
-          get funded.
-        </p>
       </div>
 
       <div
-        className="container-page mt-14 pb-16 sm:mt-20 enter"
-        style={delay(280)}
+        className="container-page mt-10 pb-16 sm:mt-14 lg:mt-16 lg:pb-20 enter"
+        style={delay(140)}
       >
-        {/* Experiment (2026-11-23): the creator search in place of
-            HeroIllustration (./hero-illustration), which is kept to switch back. */}
-        <HeroSearch />
+        {/* Experiment (2026-11-23): the creator search on a ring of sample
+            creators and businesses, in place of HeroIllustration
+            (./hero-illustration), which is kept to switch back. */}
+        <HeroOrbit>
+          <HeroSearch />
+        </HeroOrbit>
       </div>
     </section>
   );
