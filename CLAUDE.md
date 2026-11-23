@@ -147,7 +147,7 @@ supabase/
 scripts/                   development tools: money-race.mjs (concurrency), sign-webhook.mjs (signed fake webhooks)
 docs/
   PROVIDERS.md             provider-specific dependencies and how to replace them
-  creator-directory-decisions.md   why the creator directory works the way it does (built in Stage 3)
+  creator-directory-decisions.md   why the creator directory works the way it does (Stage 3; portfolio 2026-11-23)
   campaign-spec-decisions.md       campaign rules for Stage 4 onward, incl. pay-per-click (built; see docs/superpowers/specs/2026-11-18-pay-per-click-design.md)
 ```
 
@@ -440,7 +440,8 @@ Decided in Stage 2 (2026-11-09):
 
 Decided in Stage 3 (2026-11-09; details in `docs/BUILD_PROMPT.md`, Stage 3, and `docs/creator-directory-decisions.md`):
 - **Follower counts are self-reported ranges at launch**, labelled as such. Creators upgrade to **Verified** by putting a single-use Pitchype code in their bio; an admin confirms it and records the follower count seen. One verified account per handle; conflicts go to admin review. Automate later only through official platform APIs, never scraping.
-- **The creator directory is public**, with less detail signed out: handles, bio, starting rate and the price filter are for signed-in businesses (and admins) only, enforced in the database. Profiles are drafts until published; creators can opt out of search indexing.
+- **The creator directory is public**, with less detail signed out: handles, links to sample posts, starting rate and the price filter are for signed-in businesses (and admins) only, enforced in the database. Profiles are drafts until published; creators can opt out of search indexing.
+- **Creator portfolio (decided 2026-11-23; `docs/superpowers/specs/2026-11-23-creator-portfolio-design.md`):** the bio is public; a cover and up to 6 work samples (caption, platform, post link; the link for businesses only), admin takedown with a reason; a public track record (paid jobs, hidden at zero; member since); sorting (newest, most followers, verified first); @handle search for businesses and admins only. Details in `docs/creator-directory-decisions.md` §5.
 
 Decided while planning Stage 4 (2026-11-09; details in `docs/campaign-spec-decisions.md`):
 - **Campaigns are visible only to signed-in influencers, admins and the owning business.**

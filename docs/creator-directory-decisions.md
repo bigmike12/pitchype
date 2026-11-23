@@ -1,6 +1,8 @@
 # Creator Directory: Decisions
 
-Status: adopted and built in Stage 3 (2026-11-09). This is the reasoning behind
+Status: adopted and built in Stage 3 (2026-11-09); extended on 2026-11-23 by
+the creator portfolio (`docs/superpowers/specs/2026-11-23-creator-portfolio-design.md`,
+summarised in section 5 below; where they differ, section 5 wins). This is the reasoning behind
 the decisions. Where it differs from the built version, the Stage 3 section of
 `docs/BUILD_PROMPT.md` and the code win. The decisions themselves are summarised
 in CLAUDE.md §12.
@@ -36,8 +38,9 @@ in CLAUDE.md §12.
 
 **Decision:** public listing pages, with reduced detail for signed-out visitors.
 
-- Signed out: display name, avatar, niches, city, platform icons, follower range.
-- Signed in as a business: also handles, starting rate, and the contact/hire action.
+- Signed out: display name, avatar, niches, city, platform icons, follower range
+  (and since 2026-11-23 the bio, cover, work samples and track record; section 5).
+- Signed in as a business: also handles, starting rate, links to sample posts, and the contact/hire action.
 - Gating the handles and rates gives businesses a reason to sign up. Gating the whole directory would make the site invisible to search and look empty at launch.
 - Every profile is hidden until the creator chooses to publish it (draft / published state).
 - Creators can opt out of search indexing (`noindex`) for their own page.
@@ -65,7 +68,7 @@ Every image goes through one Pitchype processing pipeline on the server. Client-
 - Storage: public-read avatars bucket, server-only writes. Name files by user ID plus version to avoid stale caches.
 - Vercel serverless functions cap request bodies at about 4.5 MB. Downscale in the browser with a canvas first. This also helps creators on slow mobile data.
 - Moderation: a report button and an admin takedown to start.
-- Defer portfolio galleries.
+- ~~Defer portfolio galleries.~~ Built 2026-11-23 (section 5).
 
 ## 4. Niche list
 
@@ -77,3 +80,33 @@ Education and career, Finance and business, Parenting and family, Faith and
 inspiration, Gaming, Home and décor, Automotive, Sports.
 
 No free-text "Other"; free-text niches break filtering.
+
+## 5. Portfolio, track record, sorting and handle search (2026-11-23)
+
+Owner decisions; design and reasons in
+`docs/superpowers/specs/2026-11-23-creator-portfolio-design.md`.
+
+- **The bio is public.** It is contact-checked when saved, like before.
+- **Portfolio:** one cover (1600×900) and up to six work samples (picture,
+  optional caption of up to 140 characters, where it ran, optional link to the
+  post). Pictures go through the same server pipeline as the photo. Captions
+  refuse contact details, in the app and in the database. A post link must be
+  https on the chosen platform's site; with no platform chosen, the link picks
+  it. **Only businesses and admins get the post link**: a post's address names
+  the account. Positions run 0 to 5 and are unique per creator, so the cap of
+  six holds in the database, also under two uploads at once.
+- **Takedown:** an admin can take a sample down (the creator sees the reason
+  on their profile editor) or remove a cover, from a report; both are written
+  to `moderation_events`, and the file is deleted.
+- **Track record:** jobs that paid the creator through Pitchype (an accepted
+  or auto-released hire with money released; hidden at zero) and when they
+  joined. Real records only; no engagement rates or analytics.
+- **Sorting:** newest (default), most followers (the highest range on any
+  platform, a verified count first at the same range), verified first.
+- **Handle search:** businesses and admins can search by @handle; anyone
+  else's search never matches a handle, so searching can't reveal one.
+- **Layout:** the directory's grid stays equal-width on purpose: making some
+  creators bigger by their place in the list would look like paid prominence.
+- **Sharing:** each profile has a Share button (the phone's share sheet, or
+  copy the link) and its own share image. Turning off search indexing doesn't
+  stop sharing.

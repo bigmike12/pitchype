@@ -674,6 +674,29 @@ Portal rebuild (2026-11-16, the dashboard-kit look):
 - [ ] Open from 2026-11-22: whether to raise the ₦50 minimum cost per click
       (CLAUDE.md §12 item 11) now that businesses can choose the floor.
 
+## 13. From the creator portfolio (2026-11-23)
+
+- [ ] **You:** push migrations `20261127100000` and `20261127100100` to the
+      live project with the app. They are numbered after every migration on
+      the other open branches (up to `20261126100000`), so merge order doesn't
+      matter for them; `get_listed_creator` and `search_creators` are dropped
+      and recreated with new columns.
+- [ ] Decide: storage paths carry our internal user id
+      (`profile-photos/<user id>/…`, since Stage 3 for photos and now covers
+      and samples), so it is visible in public image URLs. Nothing else on the
+      public pages sends it. Moving to an opaque folder key means moving the
+      existing files in production, so it wasn't done here.
+- [ ] Automatic image moderation for covers and samples. Today: the report
+      button and an admin takedown.
+- [ ] Tell the creator when an admin removes their cover (the reason is only
+      in `moderation_events`; a taken-down sample shows its reason in the
+      profile editor).
+- [ ] Replacing a sample's picture in place (today: remove it and add another).
+- [ ] The directory's GET form sends empty fields (`?q=&niche=…`); harmless,
+      but the URLs could be tidier.
+- [ ] Run Lighthouse on `/creators` and a profile (not run in this change; CLS
+      measured 0 on both).
+
 ## Done
 
 - [x] Database migrations for Stages 1–3 pushed to the live project

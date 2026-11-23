@@ -190,7 +190,7 @@ the need before adding it (CLAUDE.md §2).
 | `TABLE` | `ui/table.ts` | Class names for the one table look, so each table keeps plain markup: `frame` (white `panel`, clipped), `head` (`surface-soft/60`), `th` (40px tall, 11px semibold capitals, 0.06em tracking, muted), `body`, `row` (hover wash), `td` (16px sides, 20px at the row's ends, 12px top and bottom), and `list`/`listRow` for the stacked list a table becomes under 640px. Every table uses these; don't restyle one table on its own. |
 | `Pagination` | `ui/pagination.tsx` | The pager for every list: "49–72 of 222 campaigns" at the left; Previous, numbered pages (first, last, the current one and its neighbours, "…" for gaps) and Next at the right. The current page is an ink square; steps are 44px on touch, 36px from 1024px; Previous/Next show only their arrows on phones. Links only (`hrefFor`), so every page is a URL. With one page it shows just the count; with nothing, nothing. `framed` puts it in the foot of a table or `SectionCard` (`surface-soft/60` strip); without it, it stands 24px under a card grid. Page maths is in `lib/paging.ts` (`parsePage`, `pageOf`, `pageWindow`, `pagedHref`). |
 | `FilterTabs` | `ui/filter-tabs.tsx` | A segmented row of links that narrows a list to one group, each with its count ("Live 1"): a `surface-soft` track, the current tab a white pill with a lilac count. Used on a business's campaign list (All, Live, Drafts, Ended), the applicants page, admin reports and admin payouts. Scrolls sideways on phones. Use it for a handful of fixed groups; use `FilterBar` for fields. |
-| `CreatorCard` | `creators/creator-card.tsx` | One creator in the directory (public and portal). A 4:3 photo inset 8px with a white "Verified" pill over its corner when any account is verified; name (16px semibold, one line), place, up to two niche chips and "+n"; then a `surface-soft/60` footer strip with the platforms (`PlatformSummary`) and, for viewers who may see it, the rate at the right ("From ₦10,000" or "Rate Negotiable"). The name link stretches over the card. |
+| `CreatorCard` | `creators/creator-card.tsx` | One creator in the directory (public and portal; rebuilt 2026-11-23). A `rounded-panel` `panel`; the picture leads, inset 8px at 4:3: the creator's cover with their photo set into its bottom-left corner (72px, white ring), or with no cover the photo or initials filling the frame; a white "Verified" pill over its corner when any account is verified. Then the name (Bricolage 18px, one line, an `h3`), place, the first two lines of the bio, up to two niche chips and "+n" (`surface-soft` pills), and a footer strip under a hairline with the platforms (`PlatformSummary`) and, for viewers who may see it, the rate. The picture zooms 1.02 on hover. The name link stretches over the card. Cards differ by what the creator added, never by rank. |
 | `CampaignCard` | `app/(portal)/(influencer)/campaigns/campaign-card.tsx` | One open campaign for a creator. Header: a tinted initial tile for the business (colour fixed per name), its name and place, and the mint "You qualify" pill. Title (16px semibold, two lines at most), what to post as chips with the platform icon, and the first reason when they don't qualify. Footer strip: pay in display type with "You receive …" under it, closing date and places at the right. |
 | Search field | `ui/field.tsx` (`TextField compact type="search" icon={Search}`) | The first field in a `FilterBar`, name `q`, wider than the selects. Words are trimmed and capped at 60 characters (`lib/search.ts`) and show as a "Search" chip. Creators: name, city, state, niche names. Campaigns: title, brief, business name. Matching is in the database (`search_pattern`, migration `20261116100000`). |
 | `QueueCard` | `app/(portal)/(admin)/admin/queue.tsx` | One admin queue: a `SectionCard` with the count as a pill, an optional one-line note, hairline-divided rows and a framed pager (10 a page). |
@@ -198,7 +198,14 @@ the need before adding it (CLAUDE.md §2).
 | `LedgerTable` | `money/ledger-table.tsx` | A person's wallet history (the business and creator wallets). Takes ledger rows as stored and words them with `describeLedgerRow` (`lib/ledger-words.ts`): date, what happened, and the amount with a green `+` or ink `−` sign in `tabular-nums`. Same pattern as `CampaignTable`: a table from 640px, a stacked list on phones. Show `EmptyState` instead when there are no rows. |
 | `AdminLedgerTable` | `money/admin-ledger-table.tsx` | The whole ledger for admins, one line per row: time, event (with who and why), raw account name, owner, a link to the hire's money trail and the amount **as stored** (wallets, escrow and revenue are negative when money is owed or earned), with `+`/`−` and screen-reader words. Table from 640px, stacked list on phones. Admin pages only. |
 | `NichePicker` | `creators/niche-picker.tsx` | Niche pills (checkboxes named `niches`), up to three; controlled. Profile editor and onboarding. |
-| `Directory`, `DirectoryFilters`, `CreatorProfileView` | `creators/directory.tsx`, `creators/directory-filters.tsx`, `creators/creator-profile-view.tsx` | The creator directory and a profile, shared by the public pages (`basePath="/creators"`) and the business portal (`/business/creators`). |
+| `Directory`, `DirectoryFilters`, `CreatorProfileView` | `creators/directory.tsx`, `creators/directory-filters.tsx`, `creators/creator-profile-view.tsx` | The creator directory and a profile, shared by the public pages (`basePath="/creators"`) and the business portal (`/business/creators`, denser: smaller search, `inPortal`). See "Directory pages" and "Creator portfolio" under Page patterns. |
+| `FilterSheet`, `SubmitOnChange` | `creators/directory-controls.tsx` (client) | `FilterSheet`: one native `<dialog>` inside the directory's GET form; a bottom sheet (`rounded-t-frame`, backdrop `ink/60`) opened by a Filters button with a count below 1024px, and an ordinary row of fields in the page from 1024px (a closed dialog shown with author styles). `SubmitOnChange` submits the form when a select inside it changes (Sort); without JavaScript the Search button still applies it. |
+| `PortfolioGallery` | `creators/portfolio-gallery.tsx` (client) | A creator's work samples: 4:5 tiles (2 across, 3 from 640px), each a `figure` with a button that opens the picture whole in `Dialog`, and the creator's caption as `figcaption` with the platform icon. The lightbox has Previous/Next (and the arrow keys), "1 of 3, on Instagram", and "See the original post" only when the database sent a link (businesses and admins). Tiles zoom 1.03 on hover. |
+| `CoverImage` | `creators/cover-image.tsx` | The band across the top of a profile (`rounded-frame`): the cover, or with none a flat pastel picked from the name (`toneFor`, the same as `CreatorPhoto`) with the first name set huge in Bricolage in the bottom-right corner, clear of the photo. Decorative (`aria-hidden`). |
+| `TrackRecord` | `creators/track-record.tsx` | Real facts only, as a `dl` with small icon tiles: paid jobs on Pitchype (left out at zero), "On Pitchype since" (month and year, Lagos), and how many accounts are verified (left out at zero). |
+| `ShareProfileButton` | `creators/share-profile-button.tsx` (client) | `secondary` button: the phone's share sheet when there is one, else copies the canonical page address (no tracking parameters). Says "Link copied" on the button for 4 seconds; if copying fails it shows the address to copy by hand. Feedback is in an `aria-live` region (there is no toast). |
+| `Dialog` | `ui/dialog.tsx` | shadcn/ui's dialog (Radix), trimmed and restyled: a white `rounded-panel` card with `shadow-pop` over an `ink/60` overlay, a 44px round close button top right (`closeLabel` names it), a short fade (motion-safe). Focus trap, Escape and focus return come from Radix. Used by the portfolio lightbox. |
+| `DirectorySkeleton`, `ProfileSkeleton` | `creators/directory-skeleton.tsx`, `creators/profile-skeleton.tsx` | The loading shapes of the directory (search, niche index, toolbar, card grid) and a profile (band, overlapping photo, name, bio lines, sample tiles, facts card), for the public pages and the portal. |
 | Illustrations | `landing/hero-illustration.tsx`, `brand/auth-scene.tsx` | Built from the fragments and stickers. Stickers sit only over empty areas. |
 | `Rounds`, `ProofFields` | `engagement/rounds.tsx`, `engagement/proof-fields.tsx` | `Rounds` lists a job's submitted rounds as hairline-divided rows for a `SectionCard`: "Round 2 · Sent back" and the date, links (new tab, `nofollow`), 96px screenshot thumbnails from signed URLs, the note, and for a sent-back round a `surface-soft` box of reasons. `ProofFields` (client) is the links textarea and a multiple screenshot input shared by every proof form; `formDataWithShrunkScreenshots` shrinks pictures to 2,000px JPEG in the browser before upload; the links box is capped at ~5,000 characters and `onScreenshotsChange` lets a form clear a "too big together" message when the choice changes. |
 | `DisputeForm` | `engagement/dispute-form.tsx` | The "Open a dispute" disclosure shared by both sides: a reason (20 to 2,000 characters) plus `ProofFields`. The page passes its own Server Action (`action`, which calls `openDisputeFromForm` in `lib/open-dispute.ts`) and the `intro` sentence that says what the dispute is about. |
@@ -407,12 +414,36 @@ the need before adding it (CLAUDE.md §2).
 - **One main action.** The top bar already carries a role's main action
   ("New campaign", "Find campaigns"), so a list page does not repeat it in
   its page header; it appears in the page only inside an empty state.
-- **Directory pages:** the public pages use the marketing layout; the business
-  portal has the same directory at `/business/creators`. Filters are a `FilterBar`
-  (a plain GET form, the same white `panel` toolbar in public and in the
-  portal), so every filtered view is a shareable URL. Cards in a 1/2/3/4-column grid. Cards (creator, campaign) keep their footer facts below a hairline, so prices and platforms line up across a row; a creator's photo is 5:4.
-  Signed-out visitors get one `brand-sun` prompt explaining what businesses
-  see.
+- **Directory pages** (rebuilt 2026-11-23 as "the index"): the public
+  page uses the marketing layout; the business portal has the same directory
+  at `/business/creators` under its `PageHeader`. Public: no aurora; a
+  left-aligned `text-display-xl` h1 and one lead line, then search as the
+  page's main action (one 56px field and an ink button; businesses can type
+  an @handle), then every niche as an index in Bricolage (one swipeable line
+  below 1024px, wrapping words from 1024px; the current one ink with a violet
+  underline, the rest `muted`). One GET form holds search, filters (a
+  `FilterSheet`) and Sort (newest, most followers, verified first), so every
+  view is a URL; the count sits left of Filters and Sort, filters that are on
+  show as chips with "Clear all". Results: `CreatorCard`s in an equal-width
+  grid (1/2/3/4 columns), never sized by rank (CLAUDE.md §10); a pager only
+  with more than one page. Empty and no-match states are `EmptyState`s.
+  Signed-out visitors get one `aurora-warm` prompt explaining what
+  businesses see.
+- **Creator portfolio** (`/creators/[slug]`, and the business portal's
+  `/business/creators/[slug]`; built 2026-11-23): the creator's own space.
+  `CoverImage` band (16:9 on phones, 5:2 from 640px, 3:1 from 1024px), the
+  square photo (112/144px, `rounded-panel`, a canvas ring) overlapping its
+  bottom edge; beside it from 1024px, starting below the band, the h1 and
+  place, and on the right Share plus the viewer's next step (visitors: "Work
+  with Tolu" to business sign-up; businesses: Message; the creator: Edit your
+  page). One `enter` entrance on that block. Below, two columns from 1024px
+  (`minmax(0,1fr)` and 20–22rem): niches, the bio at `text-xl` (60ch), Work
+  (`PortfolioGallery`, left out when empty), Platforms (`PlatformDetails`);
+  the sticky facts column holds `TrackRecord`, the rate for businesses, and
+  one card for the viewer (visitors: what a business account shows;
+  businesses: hiring note and Block). The report form ends the page. A page
+  with nothing optional filled in still has the name band, niches and
+  platforms. Its share image is `opengraph-image.tsx` beside the page.
 - **Applications** (Stage 5): a creator's campaign page ends with the apply
   form (price and note) or, once applied, a panel with the status, a
   `<details>` to change price or note, and Withdraw. `/applications` lists

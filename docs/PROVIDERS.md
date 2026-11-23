@@ -44,19 +44,28 @@ explicit user ids, so they keep working with a plain Postgres client.
 **Moving users out:** `auth.users` (passwords are bcrypt hashes, which most
 providers can import) and `public.users` both export with `pg_dump`.
 
-## Supabase Storage (profile photos and proof of work)
+## Supabase Storage (profile photos, covers, work samples and proof of work)
 
-Creators' photos are processed on our server (`src/lib/profile-photo.ts`,
-using `sharp`, which runs anywhere Node does) and only the result is stored:
-a 512px WebP named `<user id>/<version>.webp`. The database stores only the
-version number, so the storage provider never appears in business data.
+Creators' photos, covers and work samples are processed on our server
+(`src/lib/profile-photo.ts`, using `sharp`, which runs anywhere Node does) and
+only the result is stored, in the public `profile-photos` bucket:
+
+- photo: a 512px square WebP, `<user id>/<version>.webp`
+- cover (since 2026-11-23): 1600×900 WebP, `<user id>/cover-<version>.webp`
+- work sample (since 2026-11-23): longest side 1200px, shape kept,
+  `<user id>/sample-<sample id>-<version>.webp`
+
+Every file is under the bucket's 1MB limit (the pipeline lowers the quality
+until it fits). The database stores only version numbers (and sample ids), so
+the storage provider never appears in business data. A version is never
+reused (`nextImageVersion`), because files are cached for a year under it.
 
 | What | Where | Provider-specific? | To replace |
 |---|---|---|---|
 | Upload, delete, public URL | `src/lib/storage.ts`, the only file that touches storage | Yes: `supabase.storage` | Rewrite this file for S3, R2 or local disk (keep the same path scheme). Callers don't change |
 | The bucket | `supabase/migrations/*_create_profile_photos_bucket.sql` inserts into `storage.buckets` | Yes | Create the bucket (public read, server-only write) in the new provider; skip this migration on plain Postgres |
 | Server-only writes | `src/lib/supabase/admin.ts` (the secret key, `SUPABASE_SECRET_KEY`). No storage policies, so nobody else can write | Yes | The new provider's server credentials |
-| Recording the current photo | `setPhotoVersion` in `src/lib/db/creators.ts` uses the same secret-key client, because creators can't write that column | Partly | With a direct Postgres connection, the app's own role writes it |
+| Recording the current photo, cover and sample image | `setPhotoVersion`, `setCoverVersion` and `setSampleImageVersion` in `src/lib/db/creators.ts` use the same secret-key client, because creators can't write those columns | Partly | With a direct Postgres connection, the app's own role writes them |
 
 **Export:** download the bucket with the Supabase CLI
 (`supabase storage cp -r ss:///profile-photos ./profile-photos --experimental`)
