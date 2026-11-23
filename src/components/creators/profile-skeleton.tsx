@@ -12,7 +12,7 @@ export function ProfileSkeleton() {
           <Skeleton className="mt-3 h-4 w-40" />
         </div>
       </div>
-      <div className="mt-10 grid gap-10 sm:px-6 lg:mt-14 lg:grid-cols-[minmax(0,1fr)_20rem] lg:px-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="mt-10 grid gap-10 px-3 sm:px-6 lg:mt-14 lg:grid-cols-[minmax(0,1fr)_20rem] lg:px-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div>
           <div className="flex gap-2">
             <Skeleton className="h-8 w-28 rounded-full" />
@@ -20,7 +20,7 @@ export function ProfileSkeleton() {
           </div>
           <Skeleton className="mt-6 h-6 w-full max-w-[60ch]" />
           <Skeleton className="mt-3 h-6 w-4/5 max-w-[50ch]" />
-          <div className="mt-12 grid grid-cols-2 gap-3 lg:grid-cols-3">
+          <div className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {Array.from({ length: 3 }, (_, i) => (
               <Skeleton key={i} className="aspect-[4/5] rounded-card" />
             ))}

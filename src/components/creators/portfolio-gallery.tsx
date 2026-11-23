@@ -41,7 +41,7 @@ export function PortfolioGallery({
 
   return (
     <>
-      <ul className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         {samples.map((sample, index) => (
           <li key={sample.id}>
             <figure>
@@ -55,7 +55,7 @@ export function PortfolioGallery({
                   alt={label(index)}
                   fill
                   unoptimized
-                  sizes="(min-width: 1024px) 15rem, 45vw"
+                  sizes="(min-width: 1024px) 15rem, (min-width: 640px) 30vw, 45vw"
                   className="object-cover motion-safe:transition-transform motion-safe:duration-500 motion-safe:ease-[var(--ease-out-expo)] motion-safe:group-hover:scale-[1.03]"
                 />
                 <span className="sr-only">: open it larger</span>

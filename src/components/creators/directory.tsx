@@ -159,7 +159,7 @@ export async function Directory({
 
 /**
  * Every niche, set as an index in display type: one swipeable line on
- * phones, wrapping words from 640px. Each is a link to that niche (keeping
+ * phones and tablets, wrapping words from 1024px. Each is a link to that niche (keeping
  * the sort), so browsing works with no JavaScript and every niche has a URL.
  */
 function NicheIndex({
@@ -172,7 +172,7 @@ function NicheIndex({
   const sort = filters.sort === "newest" ? "" : `&sort=${filters.sort}`;
   return (
     <nav aria-label="Browse by niche" className="mt-6 sm:mt-8">
-      <ul className="-mx-4 flex snap-x gap-x-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:gap-x-5 sm:overflow-visible sm:px-0 sm:pb-0">
+      <ul className="-mx-4 flex snap-x scroll-px-4 gap-x-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:-mx-6 sm:scroll-px-6 sm:px-6 lg:mx-0 lg:flex-wrap lg:gap-x-5 lg:overflow-visible lg:px-0 lg:pb-0">
         <li className="shrink-0 snap-start">
           <IndexLink
             href={`/creators${sort ? `?${sort.slice(1)}` : ""}`}

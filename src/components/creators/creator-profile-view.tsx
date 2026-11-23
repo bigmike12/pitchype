@@ -85,7 +85,7 @@ export function CreatorProfileView({
         </div>
       </header>
 
-      <div className="mt-10 grid gap-10 px-0 sm:px-6 lg:mt-14 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-14 lg:px-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="mt-10 grid gap-10 px-3 sm:px-6 lg:mt-14 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-14 lg:px-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 space-y-12">
           <section aria-labelledby="about-title">
             <h2 id="about-title" className="sr-only">
@@ -155,7 +155,7 @@ export function CreatorProfileView({
         </aside>
       </div>
 
-      {children && <div className="mt-12 sm:px-6 lg:px-8">{children}</div>}
+      {children && <div className="mt-12 px-3 sm:px-6 lg:px-8">{children}</div>}
     </article>
   );
 }

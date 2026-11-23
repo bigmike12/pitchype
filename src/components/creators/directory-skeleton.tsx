@@ -32,7 +32,7 @@ export function DirectorySkeleton({
         />
       </div>
       {!inPortal && (
-        <div className="mt-6 flex gap-5 overflow-hidden sm:mt-8 sm:flex-wrap">
+        <div className="mt-6 flex gap-5 overflow-hidden sm:mt-8 lg:flex-wrap">
           {[3, 7, 5, 9, 6, 8, 7, 10, 5].map((width, index) => (
             <Skeleton
               key={index}
