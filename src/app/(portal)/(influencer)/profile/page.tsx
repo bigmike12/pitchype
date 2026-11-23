@@ -14,19 +14,23 @@ import {
   publishProblems,
   verificationView,
 } from "@/lib/creator-profile";
+import { ShareProfileButton } from "@/components/creators/share-profile-button";
 import {
   getOwnCreatorProfile,
   listNiches,
+  listOwnSamples,
   type OwnCreatorProfile,
 } from "@/lib/db/creators";
 import { listOwnVerificationRequests } from "@/lib/db/verification";
 import { KOBO_PER_NAIRA } from "@/lib/money";
-import { CONTACT_EMAIL } from "@/lib/site";
+import { CONTACT_EMAIL, SITE_URL } from "@/lib/site";
 
 import { AboutForm } from "./about-form";
 import { setIndexingAction, setPublishedAction } from "./actions";
+import { CoverForm } from "./cover-form";
 import { PhotoForm } from "./photo-form";
 import { PlatformCard } from "./platform-card";
+import { SamplesManager } from "./samples-manager";
 import {
   HeaderSkeleton,
   PageLoading,
@@ -58,10 +62,11 @@ export default function ProfilePage() {
 
 async function ProfileEditor() {
   const user = await requireRole("influencer");
-  const [profile, requests, niches] = await Promise.all([
+  const [profile, requests, niches, samples] = await Promise.all([
     getOwnCreatorProfile(user.id),
     listOwnVerificationRequests(user.id),
     listNiches(),
+    listOwnSamples(user.id),
   ]);
   if (!profile) redirect("/onboarding");
   const now = new Date();
@@ -80,6 +85,14 @@ async function ProfileEditor() {
           <PhotoForm name={profile.displayName} photoUrl={profile.photoUrl} />
         </Section>
 
+        <Section
+          id="cover"
+          title="Cover"
+          lead="The wide picture across the top of your page. Anyone can see it."
+        >
+          <CoverForm coverUrl={profile.coverUrl} />
+        </Section>
+
         <Section id="about" title="About you">
           <AboutForm
             niches={niches}
@@ -96,6 +109,14 @@ async function ProfileEditor() {
                 : "",
             }}
           />
+        </Section>
+
+        <Section
+          id="samples"
+          title="Your work"
+          lead="Up to six pictures of work you’ve posted, shown on your page in this order. Anyone can see the pictures and captions; only businesses see the links to the posts."
+        >
+          <SamplesManager samples={samples} />
         </Section>
 
         <Section
@@ -223,6 +244,22 @@ function Visibility({ profile }: { profile: OwnCreatorProfile }) {
             </ul>
           )}
         </Callout>
+      )}
+
+      {listed && profile.slug && (
+        <div className="flex flex-col gap-3 rounded-card panel p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div className="min-w-0">
+            <p className="font-semibold text-ink">Your public page</p>
+            <p className="truncate text-sm text-muted">
+              {`${SITE_URL}/creators/${profile.slug}`.replace(/^https?:\/\//, "")}
+            </p>
+          </div>
+          <ShareProfileButton
+            url={`${SITE_URL}/creators/${profile.slug}`}
+            name={profile.displayName}
+            label="Share your page"
+          />
+        </div>
       )}
 
       <form
