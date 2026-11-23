@@ -115,6 +115,8 @@ test("missing facts never show 'undefined'", () => {
     "verification_rejected",
     "profile_hidden",
     "profile_restored",
+    "portfolio_sample_hidden",
+    "cover_removed",
     "appeal_answered",
     "hire_funded",
     "work_started",
@@ -587,4 +589,28 @@ test("the business hears a per-click creator withdrew", () => {
   assert.equal(d?.title, "Ada Kitchen withdrew from “Zobo week”");
   assert.match(d?.body ?? "", /stopped counting/);
   assert.equal(d?.href, "/business/engagements/e1");
+});
+
+test("a taken-down sample and a removed cover say why, and link to the editor", () => {
+  const sample = describeNotification(
+    row("portfolio_sample_hidden", {
+      note: "Shows a phone number",
+      caption: "Party jollof",
+    }),
+  );
+  assert.equal(sample?.title, "We took down a work sample: “Party jollof”");
+  assert.equal(sample?.body, "Shows a phone number");
+  assert.equal(sample?.href, "/profile#samples");
+
+  const untitled = describeNotification(
+    row("portfolio_sample_hidden", { note: "Not your work" }),
+  );
+  assert.equal(untitled?.title, "We took down one of your work samples");
+
+  const cover = describeNotification(
+    row("cover_removed", { note: "Shows a phone number" }),
+  );
+  assert.equal(cover?.title, "We removed your cover picture");
+  assert.equal(cover?.body, "Shows a phone number");
+  assert.equal(cover?.href, "/profile#cover");
 });

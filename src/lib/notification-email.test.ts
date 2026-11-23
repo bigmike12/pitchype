@@ -63,6 +63,8 @@ test("money and deadline kinds always send", () => {
     "campaign_taken_down",
     "verification_approved",
     "profile_hidden",
+    "portfolio_sample_hidden",
+    "cover_removed",
     "appeal_answered",
     "click_cap_reached",
     "click_hold_started",

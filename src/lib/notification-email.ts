@@ -58,6 +58,8 @@ export const EMAIL_POLICY: Record<string, EmailPolicy> = {
   verification_approved: "always",
   verification_rejected: "always",
   profile_hidden: "always",
+  portfolio_sample_hidden: "always",
+  cover_removed: "always",
   profile_restored: "always",
   appeal_answered: "always",
 };
