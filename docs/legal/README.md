@@ -14,6 +14,22 @@ Square brackets in the drafts, `[like this]`, mark something we haven't
 decided or that counsel must confirm. Text in the drafts is plain English on
 purpose; counsel should tighten it, not replace the plain style.
 
+### Drafts of 2026-11-24 (in `drafts/`)
+
+Written from the code on `main` (the Paystack build). They supersede the
+2026-11-17 privacy draft once approved; `privacy.md` and
+`aml-data-protection-policy.md` are kept until then.
+
+| File | Audience | What it is |
+|---|---|---|
+| [drafts/1-public-privacy-notice.md](drafts/1-public-privacy-notice.md) | Public | Privacy notice for the website footer, matched to the fields the app stores |
+| [drafts/2-internal-data-protection-policy.md](drafts/2-internal-data-protection-policy.md) | Team and counsel | Data map, processors, admin access, retention, gap register, 72-hour NDPC breach workflow |
+| [drafts/3-internal-aml-cft-fraud-policy.md](drafts/3-internal-aml-cft-fraud-policy.md) | Team and counsel | AML/CFT and fraud policy on the escrow flow, auto-release, ledger and payout review, with the automated checks still to build |
+
+The planned Cray (payments) and Dojah (identity) work sits on unmerged
+branches. The drafts say where they would change things; update them when
+those branches merge.
+
 ## Who we are
 
 - **Pitchype**: a marketplace connecting businesses with micro and nano
