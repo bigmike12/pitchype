@@ -12,6 +12,10 @@ create extension if not exists pgtap with schema extensions;
 
 select plan(41);
 
+-- These tests are about checks and gates, so identity checks are switched on
+-- (off by default since 20261129100000; identity_switch.test.sql covers off).
+update public.identity_settings set checks_required = true;
+
 -- Ada is a verified business, Bob starts unverified. Chi is an unverified creator,
 -- Dee and Fay are verified, Eli is unverified with earnings. Zed is an admin.
 insert into public.users (id, auth_user_id, email, role) values

@@ -8,6 +8,8 @@
 // are closed to every client role except admin reads; nothing here selects a
 // fingerprint or date of birth for a person.
 
+import { cache } from "react";
+
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createSessionClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
@@ -107,7 +109,23 @@ export async function getMyIdentityChecks(): Promise<MyIdentityCheck[]> {
 
 // Facts the server needs (secret-key client) --------------------------------------------------
 
-/** Admins always count. The caller passes a user id it already knows from the session. */
+/**
+ * Whether identity checks are switched on (identity_settings). While off,
+ * nobody is asked to verify or screened, and isIdentityVerified() answers true
+ * for everyone. Read once per request.
+ */
+export const identityChecksRequired = cache(async (): Promise<boolean> => {
+  const { data, error } = await createAdminClient().rpc(
+    "identity_checks_required",
+  );
+  if (error) throw new Error(`identity checks required failed (${error.code})`);
+  return data === true;
+});
+
+/**
+ * Admins always count, and everyone does while identity checks are switched
+ * off. The caller passes a user id it already knows from the session.
+ */
 export async function isIdentityVerified(userId: string): Promise<boolean> {
   const { data, error } = await createAdminClient().rpc("identity_verified", {
     person: userId,
@@ -374,6 +392,18 @@ export async function allowIdentityRetry(
   });
   if (error) return refused(error, "allow identity retry");
   return { ok: true, value: null };
+}
+
+/** Admin only: switches identity checks on or off for the whole platform. */
+export async function setIdentityChecksRequired(
+  required: boolean,
+): Promise<Result<boolean>> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase.rpc("set_identity_checks_required", {
+    required,
+  });
+  if (error) return refused(error, "set identity checks");
+  return { ok: true, value: data === true };
 }
 
 /** Admin only: clears or confirms a possible sanctions/PEP match. */

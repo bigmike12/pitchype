@@ -19,6 +19,7 @@ import {
   listNiches,
   type OwnCreatorProfile,
 } from "@/lib/db/creators";
+import { identityChecksRequired } from "@/lib/db/identity";
 import { getProfile } from "@/lib/db/profiles";
 import { listOwnVerificationRequests } from "@/lib/db/verification";
 
@@ -46,12 +47,16 @@ async function Done() {
   if (user.role === "admin") redirect("/home");
   const profile = await getProfile(user);
   if (!profile) redirect("/onboarding");
+  const withIdentity = await identityChecksRequired();
 
-  if (profile.role === "influencer") return <CreatorDone userId={user.id} />;
+  if (profile.role === "influencer") {
+    return <CreatorDone userId={user.id} withIdentity={withIdentity} />;
+  }
   return (
     <OnboardingStep
       role="business"
       step="done"
+      withIdentity={withIdentity}
       firstName={firstWord(profile.contactName)}
     >
       <div className="grid gap-4 sm:grid-cols-2">
@@ -81,7 +86,13 @@ async function Done() {
 
 // A preview of the creator's directory card, what's still missing, and
 // Publish or keep as a draft.
-async function CreatorDone({ userId }: { userId: string }) {
+async function CreatorDone({
+  userId,
+  withIdentity,
+}: {
+  userId: string;
+  withIdentity: boolean;
+}) {
   const [profile, niches, requests] = await Promise.all([
     getOwnCreatorProfile(userId),
     listNiches(),
@@ -99,6 +110,7 @@ async function CreatorDone({ userId }: { userId: string }) {
     <OnboardingStep
       role="influencer"
       step="done"
+      withIdentity={withIdentity}
       firstName={firstWord(profile.displayName)}
       showcase={
         <div className="w-full max-w-xs shadow-pop enter rounded-card">

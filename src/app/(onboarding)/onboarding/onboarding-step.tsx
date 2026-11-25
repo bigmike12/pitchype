@@ -48,6 +48,7 @@ export const continueClass = buttonVariants({
 export function OnboardingStep({
   role,
   step,
+  withIdentity,
   firstName = "",
   onBack,
   showcase,
@@ -55,13 +56,15 @@ export function OnboardingStep({
 }: {
   role: "business" | "influencer";
   step: BusinessStep | CreatorStep;
+  /** Whether identity checks are switched on, so the identity step counts. */
+  withIdentity: boolean;
   /** For the done step's heading. */
   firstName?: string;
   onBack?: () => void;
   showcase?: ReactNode;
   children: ReactNode;
 }) {
-  const { number, total, backHref } = stepInfo(role, step);
+  const { number, total, backHref } = stepInfo(role, step, withIdentity);
   const copy =
     step === "done"
       ? { ...DONE_COPY[role], title: DONE_COPY[role].title(firstName) }

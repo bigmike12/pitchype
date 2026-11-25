@@ -15,6 +15,10 @@ create extension if not exists pgtap with schema extensions;
 
 select plan(146);
 
+-- These tests are about checks and gates, so identity checks are switched on
+-- (off by default since 20261129100000; identity_switch.test.sql covers off).
+update public.identity_settings set checks_required = true;
+
 -- The service role cannot read the tables, so tests that act as it look
 -- references and ids up through these (run as the test's own role).
 create function pg_temp.ref_of(person uuid, check_kind text default null) returns text

@@ -15,6 +15,7 @@ import { formatDateTime } from "@/lib/creator-profile";
 import {
   getScreeningState,
   getUserLabels,
+  identityChecksRequired,
   listCappedPeople,
   listIdentityReviewQueue,
   listUnclearScreenings,
@@ -28,6 +29,7 @@ import {
   reviewCheckAction,
   reviewScreeningAction,
 } from "./actions";
+import { ChecksSwitch } from "./checks-switch";
 import { DecisionForm } from "./decision-form";
 import { Button } from "@/components/ui/button";
 
@@ -78,7 +80,8 @@ const TRIGGER_WORDS: Record<ScreeningRow["trigger"], string> = {
 
 async function IdentityAdmin() {
   await requireRole("admin");
-  const [checks, unclear, capped] = await Promise.all([
+  const [required, checks, unclear, capped] = await Promise.all([
+    identityChecksRequired(),
     listIdentityReviewQueue(),
     listUnclearScreenings(),
     listCappedPeople(),
@@ -116,6 +119,21 @@ async function IdentityAdmin() {
       />
 
       <div className="space-y-6">
+        <SectionCard
+          id="switch-title"
+          title={
+            required ? "Identity checks are on" : "Identity checks are off"
+          }
+          padded
+        >
+          <p className="mb-4 max-w-xl text-sm text-muted">
+            {required
+              ? "Applying, hiring, listing a campaign and requesting a payout need a verified identity, and people are screened at their first payout or hire."
+              : "Nobody is asked to verify or screened, and Dojah is never called. Onboarding and the account page don’t show the identity step."}
+          </p>
+          <ChecksSwitch required={required} />
+        </SectionCard>
+
         <SectionCard id="checks-title" title="Checks in review" padded>
           <p className="mb-4 max-w-xl text-sm text-muted">
             Held because the same ID, or the same registration number, is

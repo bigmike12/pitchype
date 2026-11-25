@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { requireRole } from "@/lib/auth";
 import { getOwnCreatorProfile, listNiches } from "@/lib/db/creators";
+import { identityChecksRequired } from "@/lib/db/identity";
 
 import { OnboardingStep, OnboardingStepSkeleton } from "../onboarding-step";
 import { NichesForm } from "./niches-form";
@@ -27,7 +28,11 @@ async function Niches() {
   if (!profile) redirect("/onboarding");
 
   return (
-    <OnboardingStep role="influencer" step="niches">
+    <OnboardingStep
+      role="influencer"
+      step="niches"
+      withIdentity={await identityChecksRequired()}
+    >
       <NichesForm niches={niches} initial={profile.niches} />
     </OnboardingStep>
   );

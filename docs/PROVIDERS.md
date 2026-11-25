@@ -145,6 +145,8 @@ set, nothing is authorised, so set it in every environment that should run them.
 
 ## Dojah (identity checks: NIN + selfie, CAC lookup, sanctions/PEP screening)
 
+**Not in use while identity checks are switched off** (the MVP default since 2026-11-25; `identity_settings`, migration `20261129100000`). While off, nothing calls Dojah and the Dojah variables may be left empty; the admin switch on `/admin/identity` refuses to turn checks on until they are set.
+
 Added 2026-11-23 (design: `docs/superpowers/specs/2026-11-22-identity-verification-design.md`). Dojah is a **data processor**: see "What Dojah receives" below. Nothing has run against Dojah's sandbox yet; each assumption is listed in `docs/TODO.md` §14.
 
 | What | Where | Provider-specific? | To replace |

@@ -3,9 +3,11 @@
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth";
+import { identityChecksRequired } from "@/lib/db/identity";
 import { saveMyEmailPreferences } from "@/lib/db/notification-emails";
 import { createProfile, updateProfile } from "@/lib/db/profiles";
 import type { FormState } from "@/lib/form-data";
+import { afterProfileSteps } from "@/lib/onboarding";
 import {
   parseEmailPreferences,
   type EmailPreferences,
@@ -50,9 +52,12 @@ export async function createProfileAction(
     return { status: "error", message: SAVE_FAILED, values: valuesOf(form) };
   }
   // Both carry on through onboarding: creators to their niches, businesses
-  // to confirming their identity.
+  // to confirming their identity (or straight to the end while identity
+  // checks are switched off).
   redirect(
-    user.role === "influencer" ? "/onboarding/niches" : "/onboarding/identity",
+    user.role === "influencer"
+      ? "/onboarding/niches"
+      : afterProfileSteps(await identityChecksRequired()),
   );
 }
 

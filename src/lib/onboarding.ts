@@ -2,7 +2,8 @@
 // first screens (names, location) are one form shown a screen at a time, so
 // their "back" is a button in the form, not a link. Creators can't go back
 // past the niches step: by then their profile exists, and the first screens
-// would create it again.
+// would create it again. The identity step is in the flow only while identity
+// checks are switched on (identity_settings).
 
 export type BusinessStep =
   "business-name" | "contact-name" | "location" | "identity" | "done";
@@ -41,20 +42,26 @@ const CREATOR_BACK: Partial<Record<CreatorStep, string>> = {
   done: "/onboarding/identity",
 };
 
+/** Where onboarding goes after the step before identity: identity, or straight to done. */
+export function afterProfileSteps(withIdentity: boolean): string {
+  return withIdentity ? "/onboarding/identity" : "/onboarding/done";
+}
+
 export function stepInfo(
   role: "business" | "influencer",
   step: BusinessStep | CreatorStep,
+  withIdentity: boolean,
 ): { number: number; total: number; backHref: string | null } {
-  const steps: readonly string[] =
+  const all: readonly string[] =
     role === "business" ? BUSINESS_STEPS : CREATOR_STEPS;
+  const steps = withIdentity ? all : all.filter((s) => s !== "identity");
   const index = steps.indexOf(step);
   if (index === -1) throw new Error(`no ${role} onboarding step "${step}"`);
-  return {
-    number: index + 1,
-    total: steps.length,
-    backHref:
-      role === "influencer"
-        ? (CREATOR_BACK[step as CreatorStep] ?? null)
-        : null,
-  };
+  let backHref =
+    role === "influencer" ? (CREATOR_BACK[step as CreatorStep] ?? null) : null;
+  // Without the identity step, a creator's done step comes after the photo.
+  if (role === "influencer" && step === "done" && !withIdentity) {
+    backHref = "/onboarding/photo";
+  }
+  return { number: index + 1, total: steps.length, backHref };
 }

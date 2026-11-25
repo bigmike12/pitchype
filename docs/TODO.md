@@ -725,6 +725,25 @@ Design: `docs/superpowers/specs/2026-11-22-identity-verification-design.md`; pla
 locally with fakes; the Dojah sandbox checks are listed below, so every
 "verify in sandbox" line is an assumption in code, kept in one small function.
 
+**Switched off for the MVP (2026-11-25).** Identity checks and screening are
+off (`identity_settings`, migration `20261129100000`) until the idea is
+validated; everything below waits for switching them on.
+
+### Switching identity checks on (when the time comes)
+
+- [ ] Fund the Dojah wallet (minimum deposit ₦50,000 at the time of writing)
+      and finish the owner tasks below (compliance, keys, widget, webhook).
+- [ ] Set the Dojah variables in that environment (`.env.example`), then run
+      `node scripts/check-dojah.mjs`.
+- [ ] Test end to end in the sandbox first (a creator's NIN, an unregistered
+      owner's NIN, a registered business with "John Doe Limited" and any RC
+      number), then switch checks on at `/admin/identity`.
+- [ ] Tell existing users before switching on: an email to everyone, a portal
+      prompt, or both. Neither is built. The portal banner already shows to
+      everyone unverified once checks are on.
+- [ ] Payouts requested while checks were off wait for a screening once they
+      are on: screen those creators again from the payouts page.
+
 ### You (owner tasks)
 
 - [ ] **You:** Dojah: complete compliance in the dashboard; get sandbox and live

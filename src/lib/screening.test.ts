@@ -27,6 +27,8 @@ type Script = {
   facts?: Awaited<ReturnType<ScreeningDeps["getFacts"]>>;
   matchCount?: number;
   dojahError?: Error;
+  /** Identity checks switched on; the default here, since most tests screen. */
+  checksRequired?: boolean;
 };
 
 function fakes(script: Script = {}) {
@@ -40,6 +42,7 @@ function fakes(script: Script = {}) {
     recorded: [] as Parameters<ScreeningDeps["record"]>[0][],
   };
   const deps: ScreeningDeps = {
+    checksRequired: async () => script.checksRequired ?? true,
     getState: async () => script.state ?? "none",
     getFacts: async () =>
       script.facts === undefined
@@ -72,6 +75,20 @@ function fakes(script: Script = {}) {
 
 const CREATOR = { id: "u1", role: "influencer" } as const;
 const BUSINESS = { id: "b1", role: "business" } as const;
+
+test("while identity checks are off nobody is screened, nothing is recorded and a hire proceeds", async () => {
+  for (const trigger of ["first_payout", "first_hire", "admin"] as const) {
+    const { deps, calls } = fakes({ checksRequired: false });
+    assert.equal(await ensureScreened(CREATOR, trigger, deps), "off");
+    assert.equal(calls.person.length, 0);
+    assert.equal(calls.business.length, 0);
+    assert.equal(calls.recorded.length, 0);
+  }
+  // Even a business whose earlier screening is a match isn't held while off.
+  const { deps, calls } = fakes({ checksRequired: false, state: "confirmed" });
+  assert.equal(await screenBeforeHire(BUSINESS, deps), "proceed");
+  assert.equal(calls.recorded.length, 0);
+});
 
 test("someone already screened is not screened again, and Dojah is not called", async () => {
   for (const state of [

@@ -1200,6 +1200,35 @@ export type Database = {
           },
         ]
       }
+      identity_settings: {
+        Row: {
+          checks_required: boolean
+          id: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          checks_required?: boolean
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          checks_required?: boolean
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       influencer_platforms: {
         Row: {
           created_at: string
@@ -2867,6 +2896,7 @@ export type Database = {
         Args: { check_reference: string }
         Returns: Json
       }
+      identity_checks_required: { Args: never; Returns: boolean }
       identity_checks_to_poll: { Args: { max: number }; Returns: string[] }
       identity_fingerprint_matches: {
         Args: { check_kind: string; fingerprint: string; person: string }
@@ -3222,6 +3252,10 @@ export type Database = {
       set_creator_hidden: {
         Args: { creator: string; reason: string }
         Returns: undefined
+      }
+      set_identity_checks_required: {
+        Args: { required: boolean }
+        Returns: boolean
       }
       settle_click_hire: {
         Args: { actor: string; engagement: string; reason: string }
