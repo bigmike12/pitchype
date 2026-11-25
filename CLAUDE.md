@@ -121,7 +121,7 @@ src/
       (business)/          campaigns, find creators, applications, hires, payments, inbox
       (influencer)/        browse campaigns, profile, applications, jobs, wallet, inbox
       (admin)/             one page per job: standing, campaign review, verification, reports, hidden profiles; money (escrow, payouts, ledger, reconciliation)
-    auth/                  route handlers for emailed links
+    auth/                  emailed links: confirm/ is a page with a button (the link is used only when it's pressed, so email scanners and previews can't spend it); finish/ repairs a session
     api/webhooks/paystack/ webhook endpoint (thin adapter; the decisions are in lib/payments.ts)
     api/webhooks/dojah/    Dojah webhook endpoint (thin adapter; `handleDojahWebhook` and `applyIdentityEvent` in lib/identity.ts)
     llms.txt/              route handler: the site's public pages and FAQ as plain text for AI assistants (built by src/lib/llms.ts from the site's own copy; robots.ts and sitemap.ts sit beside it)

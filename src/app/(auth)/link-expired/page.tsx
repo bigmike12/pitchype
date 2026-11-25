@@ -12,8 +12,9 @@ export default function LinkExpiredPage() {
   return (
     <>
       <AuthHeading title="That link has expired">
-        Links in our emails work once and last an hour. Log in and we’ll send a
-        fresh confirmation link if you still need one, or reset your password.
+        Links in our emails work once and last an hour. If you’ve already
+        confirmed your email, just log in. If not, log in and we’ll send a fresh
+        confirmation link, or reset your password.
       </AuthHeading>
       <div className="flex flex-col gap-3">
         <Link href="/login" className={buttonVariants({ size: "lg" })}>
