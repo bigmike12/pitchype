@@ -733,7 +733,12 @@ locally with fakes; **nothing has run against Dojah's or Cray's sandbox**, so ev
       publish them and note the widget ids; subscribe
       `https://<domain>/api/webhooks/dojah` to the `kyc_widget` service and copy
       the webhook secret; fund the wallet (calls answer 402 when it is empty).
-      Put them in `DOJAH_*` (see `.env.example`, `docs/PROVIDERS.md`).
+      Put them in `DOJAH_*` (see `.env.example`, `docs/PROVIDERS.md`). Then run
+      `node --env-file=<env file> scripts/check-dojah.mjs <webhook url>` per
+      environment (keys, subscription, signature; changes no data) and complete
+      each flow once in the browser. Sandbox keys checked 2026-11-25: they
+      authenticate, the CAC lookup has `affiliates` with `first_name`/`last_name`
+      and no status field, an unknown verification reference is a 404.
 - [ ] **You:** generate `IDENTITY_FINGERPRINT_KEY` per environment
       (`openssl rand -base64 32`) and keep a copy: losing it restarts
       duplicate-ID checks and a re-typed BVN then needs a fresh Dojah check.
@@ -769,9 +774,20 @@ locally with fakes; **nothing has run against Dojah's or Cray's sandbox**, so ev
       birth sit (`data.government_data.data.<nin|bvn>.entity`), the date formats
       Dojah returns for a BVN, and the wording of a failed selfie step (we read
       "live" for liveness, otherwise a selfie mismatch).
-- [ ] `GET /api/v1/kyc/verification?reference_id=` returns widget sessions in the
-      webhook's shape and echoes our reference (the daily backstop; it carries no
-      top-level `value`, so the number is read from the government record).
+      **Confirmed for BVN in sandbox 2026-11-25** (step keys, boolean status,
+      names at `data.government_data.data.bvn.entity`, BVN date `01-Jun-1982`).
+      NIN confirmed the same day (`data.government_data.data.nin.entity`, ISO
+      date). A failed liveness is `verification_status: Failed` with **no
+      selfie step** and the top-level message "Liveness Verification Error";
+      `failingStepReason` now reads that message (it was `other` before). A
+      face mismatch (another person's face) is still unseen. Note: the widget's sandbox
+      returns its own records (BVN: IFEANYI OKERE; NIN: JOHN DOE DOE), with a
+      different number from the one typed, not the API sandbox's John Doe
+      Adamu; we fingerprint the typed `value`, which in live is the same number.
+- [x] `GET /api/v1/kyc/verification?reference_id=`: it wraps the session in
+      `entity` (the webhook does not) and does carry top-level `value`.
+      `getVerification` now unwraps it (2026-11-25); before that the daily
+      backstop would have failed every session it looked up.
 - [ ] CAC: the status vocabulary (`isCompanyActive` treats inactive, struck,
       dissolved and wound as inactive; a missing status is active), that the
       advanced lookup returns `affiliates`, and that `type_of_company` and the
