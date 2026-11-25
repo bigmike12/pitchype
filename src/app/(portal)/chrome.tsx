@@ -23,8 +23,8 @@ import { getPortalViewer } from "./viewer";
 const itemsFor = (viewer: PortalViewer) =>
   navFor(viewer.role).map((item) => {
     if (item.icon === "inbox") return { ...item, badge: viewer.unread };
-    if (item.icon === "disputes") {
-      return { ...item, badge: viewer.openDisputes };
+    if (item.attention && viewer.attention) {
+      return { ...item, badge: viewer.attention[item.attention] };
     }
     return item;
   });

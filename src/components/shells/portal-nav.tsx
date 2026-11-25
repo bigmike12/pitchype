@@ -166,7 +166,7 @@ function NavLinks({
                       <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-ink px-1.5 text-[0.6875rem] font-semibold text-white">
                         {item.badge}
                         <span className="sr-only">
-                          {item.icon === "disputes" ? " open" : " unread"}
+                          {` ${item.badgeLabel ?? "unread"}`}
                         </span>
                       </span>
                     ) : null}
