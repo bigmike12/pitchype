@@ -503,7 +503,7 @@ Decided on 2026-11-22 (design `docs/superpowers/specs/2026-11-22-identity-verifi
 - **Director check, registered businesses only:** a director verifies with Dojah and must be a CAC director (identity only; bank transfers are not part of this build).
 - **Gates:** applying, hiring, submitting a campaign for listing and requesting a payout need a verified identity, existing accounts included; nothing already agreed is taken away.
 - **A duplicate RC/BN number goes to an admin**; CAC-only verification plus the first-campaign review is the accepted mitigation for "someone claims a company that isn't theirs".
-- **Open:** the retention schedule for `identity_checks` and `screenings`, legal review of the privacy copy and Dojah's processing terms, and Cray's tier (`docs/TODO.md` §14).
+- **Open:** the retention schedule for `identity_checks` and `screenings`, legal review of the privacy copy and Dojah's processing terms (`docs/TODO.md` §14).
 
 Still open:
 1. ~~Can one account be both a business and an influencer?~~ Decided above: no.

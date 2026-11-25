@@ -722,7 +722,7 @@ Portal rebuild (2026-11-16, the dashboard-kit look):
 
 Design: `docs/superpowers/specs/2026-11-22-identity-verification-design.md`; plan:
 `docs/superpowers/plans/2026-11-22-identity-verification.md`. Built and tested
-locally with fakes; **nothing has run against Dojah's or Cray's sandbox**, so every
+locally with fakes; the Dojah sandbox checks are listed below, so every
 "verify in sandbox" line is an assumption in code, kept in one small function.
 
 ### You (owner tasks)
@@ -742,11 +742,6 @@ locally with fakes; **nothing has run against Dojah's or Cray's sandbox**, so ev
 - [ ] **You:** generate `IDENTITY_FINGERPRINT_KEY` per environment
       (`openssl rand -base64 32`) and keep a copy: losing it restarts
       duplicate-ID checks and a re-typed BVN then needs a fresh Dojah check.
-- [ ] **You:** ask Cray to raise our tier above "Starter Business" so business
-      transfer accounts can be opened. Until then a registered business is
-      refused and pays by card. After the tier changes, refused rows stay
-      refused: clear `deposit_accounts.refused_at` and `refusal_code` for the
-      affected businesses by hand, writing down which and why.
 - [ ] **You:** legal review of the privacy lines on the identity pages
       (`src/components/identity/identity-panel.tsx`, the transfer-account
       director step and the onboarding "why we ask" copy) and of Dojah's
@@ -796,12 +791,6 @@ locally with fakes; **nothing has run against Dojah's or Cray's sandbox**, so ev
       threshold (we treat any result as a possible match); consider
       `match_threshold`.
 - [ ] Dojah's webhook retries and what it does on a 5xx.
-- [ ] Cray: which account type our tier allows, the `POST /corporate-accounts/create`
-      field names (`createBusinessAccount` in `src/lib/cray.ts`: `type`,
-      `business_name`, `rc_number`, `director_name`, `phone_number`, `bvn`), what a
-      tier refusal looks like (we record any 4xx other than 408 and 429 as a
-      refusal, so a bad phone number would also read as one), and that
-      `/virtual-accounts/create` accepts `bvn` as we send it.
 
 ### Code follow-ups
 

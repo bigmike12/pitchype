@@ -1,5 +1,5 @@
 // The Dojah boundary (CLAUDE.md §2a): the only file that talks to Dojah's API.
-// Plain functions over fetch, like paystack.ts and cray.ts, with no retries:
+// Plain functions over fetch, like paystack.ts, with no retries:
 // callers (the webhook, the daily job) try again on their own schedule.
 //
 // Dojah's auth header is the secret key as-is, with no "Bearer", plus AppId.

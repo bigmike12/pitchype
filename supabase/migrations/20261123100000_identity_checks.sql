@@ -802,7 +802,7 @@ as $$
 $$;
 
 -- The person's verified CAC record: company, RC/BN number, directors and when
--- they were fetched (the director match and the business Cray account need these).
+-- they were fetched (the director match needs these).
 create function public.business_cac_facts(person uuid)
 returns jsonb
 language sql

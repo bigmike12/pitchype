@@ -28,7 +28,10 @@ export type NotificationView = {
 type Role = "business" | "influencer";
 
 /** What to fix after a failed identity check, in plain words. Duplicate IDs stay neutral. */
-export function identityFailureLine(kind: string | null, reason: string | null) {
+export function identityFailureLine(
+  kind: string | null,
+  reason: string | null,
+) {
   const idName = kind === "creator_nin" ? "NIN" : "BVN";
   const lines: Record<string, string> = {
     name_mismatch:
