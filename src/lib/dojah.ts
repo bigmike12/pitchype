@@ -215,8 +215,9 @@ export async function lookupCacAdvanced(
 }
 
 /**
- * The session as Dojah has it, in the same shape the webhook carries (verify
- * in sandbox). Null when Dojah has no such reference.
+ * The session as Dojah has it, in the same shape the webhook carries. Null when
+ * Dojah has no such reference. The lookup wraps the session in `entity` (seen
+ * in sandbox 2026-11-25) and the webhook does not, so it is unwrapped here.
  */
 export async function getVerification(
   referenceId: string,
@@ -228,7 +229,8 @@ export async function getVerification(
   );
   if (status === 404) return null;
   if (status < 200 || status >= 300) fail(describe(status, json), status);
-  return json;
+  const entity = asObject(json).entity;
+  return entity && typeof entity === "object" ? entity : json;
 }
 
 export type ScreeningResult = {

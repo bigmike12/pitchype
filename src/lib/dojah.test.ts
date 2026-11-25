@@ -159,6 +159,18 @@ test("getVerification asks by reference and treats 404 as nothing", async () => 
   assert.equal(await getVerification("pit_id_y"), null);
 });
 
+test("getVerification unwraps Dojah's entity so the answer has the webhook's shape", async () => {
+  // Seen in sandbox 2026-11-25: the lookup wraps the session in `entity`; the
+  // webhook does not. Left wrapped, the daily backstop failed passing sessions.
+  stub(200, {
+    entity: { reference_id: "pit_id_x", verification_status: "Completed" },
+  });
+  assert.deepEqual(await getVerification("pit_id_x"), {
+    reference_id: "pit_id_x",
+    verification_status: "Completed",
+  });
+});
+
 test("screening a person sends the exact body and counts the results", async () => {
   stub(200, {
     entity: { results: [{ source_type: "PEP" }, { source_type: "PEP" }] },
