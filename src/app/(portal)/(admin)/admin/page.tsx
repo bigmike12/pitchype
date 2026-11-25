@@ -33,10 +33,7 @@ import { getPlatformOverview } from "@/lib/db/admin-overview";
 import { countOpenDisputes } from "@/lib/db/disputes";
 import { countIdentityAttention } from "@/lib/db/identity";
 import { getStandingReview } from "@/lib/db/moderation";
-import {
-  countEscrowEngagements,
-  getActivePaymentProvider,
-} from "@/lib/db/money";
+import { countEscrowEngagements } from "@/lib/db/money";
 import { countPayoutsAwaitingApproval } from "@/lib/db/payouts";
 import { listHiddenCreators, listOpenReports } from "@/lib/db/reports";
 import { listVerificationQueue } from "@/lib/db/verification";
@@ -83,7 +80,6 @@ async function Overview() {
     disputes,
     identity,
     overview,
-    provider,
   ] = await Promise.all([
     getStandingReview(),
     listCampaignsForReview(),
@@ -96,9 +92,8 @@ async function Overview() {
     countOpenDisputes(),
     countIdentityAttention(),
     getPlatformOverview(),
-    getActivePaymentProvider(),
   ]);
-  const testMode = isPaymentTestMode(provider);
+  const testMode = isPaymentTestMode();
   const modeNote = testMode ? " · Test mode" : "";
 
   return (
@@ -140,7 +135,7 @@ async function Overview() {
         <StatCard
           label="Paid in by businesses"
           value={formatNaira(overview.paidInKobo)}
-          detail={`Card payments and deposits${modeNote}`}
+          detail={`Card payments${modeNote}`}
           icon={ArrowDownToLine}
           tone="mint"
         />

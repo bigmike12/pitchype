@@ -5,8 +5,8 @@
 --   * Only an admin may read it; the role is checked inside.
 --   * Admins are not counted as people; drafts are not counted as campaigns.
 --   * Money paid in is cash that reached us from businesses: the positive
---     amounts on the cash accounts in payment_received and deposit_received
---     groups. Wallet and escrow moves, refunds and provider fees are not.
+--     amounts on the Paystack cash account in payment_received groups. Wallet
+--     and escrow moves, refunds and provider fees are not.
 --   * Money paid out is what reached creators: payouts that finished `paid`
 --     (a reversed or failed one is not `paid`), less the transfer cost the
 --     creator bears.
@@ -33,8 +33,8 @@ begin
     'campaigns_live', (select count(*) from public.campaigns c where c.status in ('open', 'in_progress')),
     'paid_in_kobo', (
       select coalesce(sum(l.amount_kobo), 0) from public.ledger_entries l
-       where l.account in ('paystack', 'cray')
-         and l.event_type in ('payment_received', 'deposit_received')
+       where l.account = 'paystack'
+         and l.event_type = 'payment_received'
          and l.amount_kobo > 0
     ),
     'paid_out_kobo', (

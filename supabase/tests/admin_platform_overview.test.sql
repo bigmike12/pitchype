@@ -1,21 +1,18 @@
 -- Proves admin_platform_overview() (admin_platform_overview migration): only
 -- an admin may call it, admins are not counted as people, drafts are not
--- counted as campaigns, "paid in" is cash that reached us (card payments and
--- deposits, not wallet or escrow moves), "paid out" is what reached creators
--- (paid payouts only, never a reversed one, less the transfer cost they
--- bear), and "revenue" is the fees we kept (net of the unspent per-click fee
--- that went back to a business). The local database may hold other people's
--- data, so each figure is checked as the change the fixture made: the
+-- counted as campaigns, "paid in" is cash that reached us (card payments, not
+-- wallet or escrow moves), "paid out" is what reached creators (paid payouts
+-- only, never one still processing or only requested, less the transfer cost
+-- they bear), and "revenue" is the fees we kept (net of the unspent per-click
+-- fee that went back to a business). The local database may hold other
+-- people's data, so each figure is checked as the change the fixture made: the
 -- overview before the fixture against the overview after it.
 -- Run with: supabase test db
 begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(15);
-
--- Card payments are Paystack's; the deposit and payouts later in the file are Cray's.
-insert into public.payment_provider_settings (provider, reason) values ('paystack', 'Test setup: card payments first');
+select plan(14);
 
 -- Efe is an admin (and reads the overview). Ada and Bola are businesses, Chidi,
 -- Dayo and Eme are creators, Gus is a second admin made after the first reading.
@@ -112,24 +109,12 @@ update public.tracked_links set billable_clicks = 100, total_hits = 100
 select public.settle_engagement_internal('ab000000-0000-0000-0000-0000000e0001', 'release', null, 'test', null);
 select public.settle_click_hire('ab000000-0000-0000-0000-0000000e0002', null, 'test');
 
--- Cray from here on: Bola deposits ₦21,000 gross with a ₦1,000 charge, so ₦20,000 reaches us.
-insert into public.payment_provider_settings (provider, reason) values ('cray', 'Test: now on Cray');
-select public.deposit_account_reference('00000000-0000-0000-0000-0000000ab003', 'cray');
-select public.complete_deposit_account(
-  (select reference from public.deposit_accounts where user_id = '00000000-0000-0000-0000-0000000ab003'),
-  'va_bola', '9012345600', 'Bloc Bank', 'Pitchype - Bola');
-select is(public.record_deposit('cray',
-    (select reference from public.deposit_accounts where user_id = '00000000-0000-0000-0000-0000000ab003'),
-    '9012345600', 'dep-overview-1', 2100000, 100000, 'cray.deposit:dep-overview-1', '{}') ->> 'outcome',
-  'credited', 'Bola''s deposit is credited to her wallet');
-
--- Payouts: Chidi's ₦20,000 is paid; his ₦22,000 is paid and then reversed by Cray;
--- Dayo's ₦2,000 is only requested. Cray's transfer cost is ₦50 a payout.
-set local role service_role;
-select public.save_cray_bank_account_for('00000000-0000-0000-0000-0000000ab101', '000013', 'GTBank', '1234',
-  'CHIDI OKAFOR', 'v1:aXY=:dGFn:Y2lwaGVy');
-select public.save_cray_bank_account_for('00000000-0000-0000-0000-0000000ab102', '000013', 'GTBank', '5678',
-  'DAYO ADE', 'v1:aXY=:dGFn:Y2lwaGVy');
+-- Payouts: Chidi's ₦20,000 is paid; his ₦22,000 is approved and sent, still
+-- processing; Dayo's ₦2,000 is only requested.
+select public.save_bank_account_for('00000000-0000-0000-0000-0000000ab101', '058', 'GTBank', '1234',
+  'CHIDI OKAFOR', 'RCP_chidi_overview');
+select public.save_bank_account_for('00000000-0000-0000-0000-0000000ab102', '058', 'GTBank', '5678',
+  'DAYO ADE', 'RCP_dayo_overview');
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "abababab-0000-0000-0000-0000000ab101"}'; -- Chidi
 select public.request_payout(2000000);
@@ -141,20 +126,14 @@ select public.approve_payout((select id from public.payouts where amount_kobo = 
 select public.approve_payout((select id from public.payouts where amount_kobo = 2200000 and user_id = '00000000-0000-0000-0000-0000000ab101'));
 reset role;
 set local role service_role;
-select public.record_payout_send((select reference from public.payouts where amount_kobo = 2000000 and user_id = '00000000-0000-0000-0000-0000000ab101'), 'CRAYOV1');
-select public.record_payout_send((select reference from public.payouts where amount_kobo = 2200000 and user_id = '00000000-0000-0000-0000-0000000ab101'), 'CRAYOV2');
 select public.finish_payout((select reference from public.payouts where amount_kobo = 2000000 and user_id = '00000000-0000-0000-0000-0000000ab101'),
-  'paid', 'cray.payout.paid:CRAYOV1', '{}', 1995000, 5000);
-select public.finish_payout((select reference from public.payouts where amount_kobo = 2200000 and user_id = '00000000-0000-0000-0000-0000000ab101'),
-  'paid', 'cray.payout.paid:CRAYOV2', '{}', 2195000, 5000);
-select public.finish_payout((select reference from public.payouts where amount_kobo = 2200000 and user_id = '00000000-0000-0000-0000-0000000ab101'),
-  'reversed', 'cray.payout.reversed:CRAYOV2', '{}', 2195000, null);
+  'paid', 'paystack.transfer.paid:overview-1', '{}');
 reset role;
 
 -- What the fixture built ------------------------------------------------------------------------------------
 select is((select array_agg(status order by amount_kobo) from public.payouts
             where user_id in ('00000000-0000-0000-0000-0000000ab101', '00000000-0000-0000-0000-0000000ab102')),
-  array['requested', 'paid', 'reversed'], 'the payouts are requested, paid and reversed');
+  array['requested', 'paid', 'processing'], 'the payouts are requested, paid and still processing');
 select is((select released_kobo from public.engagements where id = 'ab000000-0000-0000-0000-0000000e0002'), 500000::bigint,
   'the per-click hire released ₦5,000 for its 100 clicks');
 select is(public.wallet_balance('00000000-0000-0000-0000-0000000ab001', 'business_wallet'), (3500000 + 120000)::bigint,
@@ -173,10 +152,12 @@ select is(pg_temp.change('businesses'), 2::bigint, 'two businesses were added');
 select is(pg_temp.change('creators'), 3::bigint, 'three creators were added, and neither admin is counted');
 select is(pg_temp.change('campaigns_total'), 5::bigint, 'five campaigns count, the draft does not');
 select is(pg_temp.change('campaigns_live'), 3::bigint, 'three of them are live (open or in progress)');
-select is(pg_temp.change('paid_in_kobo'), (5250000 + 4200000 + 2000000)::bigint,
-  'paid in is two card payments and the deposit net of Cray''s charge, not wallet or escrow moves');
-select is(pg_temp.change('paid_out_kobo'), 1995000::bigint,
-  'paid out is the paid payout less its ₦50 cost: the reversed one and the one only requested are left out');
+select is(pg_temp.change('paid_in_kobo'), (5250000 + 4200000)::bigint,
+  'paid in is the two card payments, not wallet or escrow moves');
+select is(pg_temp.change('paid_out_kobo'),
+  (select (amount_kobo - transfer_fee_kobo)::bigint from public.payouts
+    where amount_kobo = 2000000 and user_id = '00000000-0000-0000-0000-0000000ab101'),
+  'paid out is the paid payout less its transfer cost: the one still processing and the one only requested are left out');
 select is(pg_temp.change('revenue_kobo'), (250000 + 250000 + 200000 + 50000 - 120000)::bigint,
   'revenue is the fees kept, with the unspent per-click fee taken back out');
 select is((select (o ->> 'as_of')::timestamptz from overview_after), now(), 'the overview says when it was read');
