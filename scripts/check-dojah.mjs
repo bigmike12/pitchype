@@ -40,7 +40,6 @@ const names = [
   "DOJAH_PUBLIC_KEY",
   "DOJAH_WEBHOOK_SECRET",
   "DOJAH_WIDGET_ID_NIN",
-  "DOJAH_WIDGET_ID_BVN",
   "IDENTITY_FINGERPRINT_KEY",
 ];
 for (const name of names) {

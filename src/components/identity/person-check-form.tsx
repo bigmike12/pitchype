@@ -11,16 +11,14 @@ import { startPersonCheckAction, type PersonCheckStart } from "./actions";
 import { DojahWidget } from "./dojah-widget";
 
 /**
- * Asks for the legal name, then opens Dojah's widget for a NIN or BVN and a
+ * Asks for the legal name, then opens Dojah's widget for a NIN and a
  * live selfie. The name is compared with the government record by the server
  * when Dojah reports back.
  */
 export function PersonCheckForm({
   kind,
-  idLabel,
 }: {
-  kind: "creator_nin" | "owner_bvn" | "director_bvn";
-  idLabel: "NIN" | "BVN";
+  kind: "creator_nin" | "owner_nin" | "director_nin";
 }) {
   const [start, setStart] = useState<PersonCheckStart | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +58,7 @@ export function PersonCheckForm({
         required
         minLength={3}
         maxLength={200}
-        hint={`Exactly as it appears on your ${idLabel} record. Your legal name stays private.`}
+        hint="Exactly as it appears on your NIN record. Your legal name stays private."
       />
       <FormMessage status={error ? "error" : "idle"} message={error ?? ""} />
       <Button

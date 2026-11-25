@@ -24,7 +24,7 @@ import {
 } from "./identity-names.ts";
 
 export type IdentityKind =
-  "creator_nin" | "owner_bvn" | "business_cac" | "director_bvn";
+  "creator_nin" | "owner_nin" | "business_cac" | "director_nin";
 
 export type FailureReason =
   | "name_mismatch"
@@ -42,7 +42,7 @@ export type FailureReason =
 export type IdentityDecision = {
   status: "ongoing" | "pending" | "verified" | "failed" | "abandoned";
   reason: FailureReason | null;
-  idType: "NIN" | "BVN" | null;
+  idType: "NIN" | null;
   idNumber: string | null;
   nameOnRecord: string | null;
   dateOfBirth: string | null;
@@ -143,22 +143,16 @@ function simple(status: IdentityDecision["status"]): IdentityDecision {
   };
 }
 
-/** The government record for the ID type: data.government_data.data.<nin|bvn>.entity. */
-function governmentEntity(event: Obj, idType: "NIN" | "BVN"): Obj {
+/** The NIN record: data.government_data.data.nin.entity. */
+function governmentEntity(event: Obj): Obj {
   const record = asObject(
-    asObject(
-      asObject(step(event, "government_data")?.data)[idType.toLowerCase()],
-    ),
+    asObject(asObject(step(event, "government_data")?.data).nin),
   );
   return asObject(record.entity);
 }
 
-function idNumberOf(
-  event: Obj,
-  idType: "NIN" | "BVN",
-  entity: Obj,
-): string | null {
-  for (const candidate of [event.value, entity[idType.toLowerCase()]]) {
+function idNumberOf(event: Obj, entity: Obj): string | null {
+  for (const candidate of [event.value, entity.nin]) {
     const digits = typeof candidate === "string" ? candidate.trim() : "";
     if (/^\d{11}$/.test(digits)) return digits;
   }
@@ -238,14 +232,14 @@ export function decideIdentityResult(
     );
   }
 
-  const wanted = check.kind === "creator_nin" ? "NIN" : "BVN";
+  // Creators, unregistered owners and directors all verify with their NIN.
   const idType = str(e.id_type)?.toUpperCase();
-  if (check.kind === "business_cac" || idType !== wanted) {
+  if (check.kind === "business_cac" || idType !== "NIN") {
     return failed("other", "The ID type does not fit this check");
   }
 
-  const entity = governmentEntity(e, wanted);
-  const idNumber = idNumberOf(e, wanted, entity);
+  const entity = governmentEntity(e);
+  const idNumber = idNumberOf(e, entity);
   const nameOnRecord = recordName(entity);
   if (idNumber === null || nameOnRecord === null) {
     return failed("other", "The record had no usable number or name");
@@ -256,7 +250,7 @@ export function decideIdentityResult(
   return {
     status: "verified",
     reason: null,
-    idType: wanted,
+    idType: "NIN",
     idNumber,
     nameOnRecord,
     dateOfBirth: isoDate(entity.date_of_birth),
@@ -390,14 +384,13 @@ export type IdentityDeps = {
     decision: Json,
     eventKey: string,
   ) => Promise<FinishResult>;
-  fingerprint: (kind: "NIN" | "BVN", digits: string) => string;
+  fingerprint: (digits: string) => string;
   getCacFacts: (userId: string) => Promise<BusinessCacFacts | null>;
   refreshDirectors: (userId: string, directors: string[]) => Promise<void>;
   lookupCac: (rcNumber: string, companyType: CompanyType) => Promise<CacResult>;
   getVerification: (reference: string) => Promise<unknown | null>;
   listToPoll: (max: number) => Promise<string[]>;
   abandonStale: () => Promise<number>;
-  purgeSecrets: () => Promise<number>;
   now: () => Date;
 };
 
@@ -417,7 +410,6 @@ async function realDeps(): Promise<IdentityDeps> {
     getVerification: dojah.getVerification,
     listToPoll: db.listIdentityChecksToPoll,
     abandonStale: db.abandonStaleIdentityChecks,
-    purgeSecrets: db.purgeIdentitySecrets,
     now: () => new Date(),
   };
 }
@@ -508,7 +500,7 @@ export async function applyIdentityEvent(
     // decideIdentityResult never verifies without these; fail closed anyway.
     toRecord = { status: "failed", reason: "other", counted: true };
   } else if (
-    check.kind === "director_bvn" &&
+    check.kind === "director_nin" &&
     !(await isListedDirector(check.userId, decision.nameOnRecord, d))
   ) {
     toRecord = { status: "failed", reason: "not_a_director", counted: true };
@@ -517,7 +509,7 @@ export async function applyIdentityEvent(
       status: "verified",
       legal_name_on_record: decision.nameOnRecord,
       id_last3: lastThree(decision.idNumber),
-      id_fingerprint: d.fingerprint(decision.idType, decision.idNumber),
+      id_fingerprint: d.fingerprint(decision.idNumber),
       date_of_birth: decision.dateOfBirth,
       counted: true,
     };
@@ -593,7 +585,6 @@ export type IdentityChecksResult = {
   applied: number;
   errored: number;
   abandoned: number;
-  secretsPurged: number;
 };
 
 const POLL_BATCH = 100;
@@ -614,7 +605,6 @@ export async function runIdentityChecks(
     applied: 0,
     errored: 0,
     abandoned: 0,
-    secretsPurged: 0,
   };
 
   try {
@@ -622,12 +612,6 @@ export async function runIdentityChecks(
   } catch (error) {
     result.errored += 1;
     console.error("identity abandon failed", describeError(error));
-  }
-  try {
-    result.secretsPurged = await d.purgeSecrets();
-  } catch (error) {
-    result.errored += 1;
-    console.error("identity secret purge failed", describeError(error));
   }
 
   let references: string[] = [];

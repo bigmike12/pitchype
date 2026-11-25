@@ -60,9 +60,9 @@ export default function IdentityAdminPage() {
 
 const KIND_WORDS: Record<IdentityCheckKind, string> = {
   creator_nin: "Creator, NIN and selfie",
-  owner_bvn: "Business owner, BVN and selfie",
+  owner_nin: "Business owner, NIN and selfie",
   business_cac: "Registered business, CAC",
-  director_bvn: "Director, BVN and selfie",
+  director_nin: "Director, NIN and selfie",
 };
 
 const REASON_WORDS: Record<string, string> = {

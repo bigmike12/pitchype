@@ -728,7 +728,7 @@ locally with fakes; the Dojah sandbox checks are listed below, so every
 ### You (owner tasks)
 
 - [ ] **You:** Dojah: complete compliance in the dashboard; get sandbox and live
-      keys; build two EasyOnboard flows (NIN + liveness selfie; BVN + liveness
+      keys; build one EasyOnboard flow (NIN + liveness
       selfie) **without Dojah's AML step**, theme them in Pitchype's colours,
       publish them and note the widget ids; subscribe
       `https://<domain>/api/webhooks/dojah` to the `kyc_widget` service and copy
@@ -741,7 +741,7 @@ locally with fakes; the Dojah sandbox checks are listed below, so every
       and no status field, an unknown verification reference is a 404.
 - [ ] **You:** generate `IDENTITY_FINGERPRINT_KEY` per environment
       (`openssl rand -base64 32`) and keep a copy: losing it restarts
-      duplicate-ID checks and a re-typed BVN then needs a fresh Dojah check.
+      duplicate-ID checks and a NIN checked again then needs a fresh Dojah check.
 - [ ] **You:** legal review of the privacy lines on the identity pages
       (`src/components/identity/identity-panel.tsx`, the transfer-account
       director step and the onboarding "why we ask" copy) and of Dojah's
@@ -797,7 +797,9 @@ locally with fakes; the Dojah sandbox checks are listed below, so every
 - [ ] No automatic re-screening, transaction monitoring or screening schedule
       (policy §5): screening is once per person, plus an admin's "screen again".
 - [ ] No data-subject-request tooling and no deletion job for identity data.
-- [ ] A refused business transfer account has no admin retry button.
+- [ ] Registered businesses: the director check (NIN + selfie, must be a CAC
+      director) has no screen, so nothing starts it and a registered business is
+      verified by CAC alone. Decide whether a director must verify, then wire it in.
 - [ ] The identity pages and the director step have only been type-checked and
       built, not opened in a browser, and not checked at 390px beyond reasoning.
 - [ ] An admin's "screen again" assumes a creator in `screenAgainAction` only for

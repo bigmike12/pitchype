@@ -3,7 +3,7 @@
 // Every change goes through a database function (the identity_checks
 // migration). Functions a signed-in person or admin may call use the session
 // client; the ones that act for no one person (recording a provider's answer,
-// the short-lived BVN, the daily housekeeping, facts for a screening) use the
+// the daily housekeeping, facts for a screening) use the
 // secret-key client and are service_role-only in SQL. The tables themselves
 // are closed to every client role except admin reads; nothing here selects a
 // fingerprint or date of birth for a person.
@@ -19,7 +19,7 @@ import { refused, type Refused } from "./refusal";
 type Result<T> = { ok: true; value: T } | Refused;
 
 export type IdentityCheckKind =
-  "creator_nin" | "owner_bvn" | "business_cac" | "director_bvn";
+  "creator_nin" | "owner_nin" | "business_cac" | "director_nin";
 
 export type IdentityCheckStatus =
   "started" | "pending" | "verified" | "failed" | "needs_review" | "abandoned";
@@ -67,9 +67,9 @@ export type MyIdentityCheck = {
 
 const KINDS: IdentityCheckKind[] = [
   "creator_nin",
-  "owner_bvn",
+  "owner_nin",
   "business_cac",
-  "director_bvn",
+  "director_nin",
 ];
 const STATUSES: IdentityCheckStatus[] = [
   "started",
@@ -113,14 +113,6 @@ export async function isIdentityVerified(userId: string): Promise<boolean> {
     person: userId,
   });
   if (error) throw new Error(`identity verified failed (${error.code})`);
-  return data === true;
-}
-
-export async function isDirectorVerified(userId: string): Promise<boolean> {
-  const { data, error } = await createAdminClient().rpc("director_verified", {
-    person: userId,
-  });
-  if (error) throw new Error(`director verified failed (${error.code})`);
   return data === true;
 }
 
@@ -287,14 +279,6 @@ export async function abandonStaleIdentityChecks(): Promise<number> {
     "abandon_stale_identity_checks",
   );
   if (error) throw new Error(`abandon identity checks failed (${error.code})`);
-  return num(data) ?? 0;
-}
-
-export async function purgeIdentitySecrets(): Promise<number> {
-  const { data, error } = await createAdminClient().rpc(
-    "purge_identity_secrets",
-  );
-  if (error) throw new Error(`purge identity secrets failed (${error.code})`);
   return num(data) ?? 0;
 }
 

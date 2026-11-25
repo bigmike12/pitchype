@@ -1200,35 +1200,6 @@ export type Database = {
           },
         ]
       }
-      identity_secrets: {
-        Row: {
-          bvn_encrypted: string
-          check_id: string
-          expires_at: string
-          phone_encrypted: string | null
-        }
-        Insert: {
-          bvn_encrypted: string
-          check_id: string
-          expires_at: string
-          phone_encrypted?: string | null
-        }
-        Update: {
-          bvn_encrypted?: string
-          check_id?: string
-          expires_at?: string
-          phone_encrypted?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "identity_secrets_check_id_fkey"
-            columns: ["check_id"]
-            isOneToOne: true
-            referencedRelation: "identity_checks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       influencer_platforms: {
         Row: {
           created_at: string
@@ -2785,10 +2756,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      delete_identity_secret: {
-        Args: { check_uuid: string }
-        Returns: undefined
-      }
       delete_orphan_proof_files: { Args: never; Returns: string[] }
       deliverable_kind_allowed: {
         Args: {
@@ -3020,7 +2987,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      purge_identity_secrets: { Args: never; Returns: number }
       recent_cac_cache: {
         Args: { person: string; rc_number: string }
         Returns: Json
@@ -3310,14 +3276,6 @@ export type Database = {
         Args: { engagement: string; fee_notice_seen: boolean }
         Returns: Json
       }
-      store_identity_secret: {
-        Args: {
-          bvn_encrypted: string
-          check_uuid: string
-          phone_encrypted: string
-        }
-        Returns: undefined
-      }
       submit_appeal: { Args: { message: string }; Returns: string }
       submit_checkpoint: {
         Args: {
@@ -3372,7 +3330,6 @@ export type Database = {
         Args: { first_sample: string; second_sample: string }
         Returns: undefined
       }
-      take_identity_secret: { Args: { check_uuid: string }; Returns: Json }
       transfer_fee_for: { Args: { amount_kobo: number }; Returns: number }
       transition_campaign: {
         Args: { action: string; campaign_id: string; note?: string }
@@ -3512,8 +3469,6 @@ export type Database = {
         | "click_cap_reached"
         | "click_hold_started"
         | "clicks_stopped"
-        | "portfolio_sample_hidden"
-        | "cover_removed"
         | "identity_verified"
         | "identity_failed"
         | "identity_needs_review"
@@ -3524,6 +3479,8 @@ export type Database = {
         | "checkpoint_overdue"
         | "checkpoint_warning"
         | "checkpoint_dispute_available"
+        | "portfolio_sample_hidden"
+        | "cover_removed"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -3750,8 +3707,6 @@ export const Constants = {
         "click_cap_reached",
         "click_hold_started",
         "clicks_stopped",
-        "portfolio_sample_hidden",
-        "cover_removed",
         "identity_verified",
         "identity_failed",
         "identity_needs_review",
@@ -3762,6 +3717,8 @@ export const Constants = {
         "checkpoint_overdue",
         "checkpoint_warning",
         "checkpoint_dispute_available",
+        "portfolio_sample_hidden",
+        "cover_removed",
       ],
       payment_model: ["fixed", "per_click"],
       report_reason: [

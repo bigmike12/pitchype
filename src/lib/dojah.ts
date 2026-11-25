@@ -3,7 +3,7 @@
 // callers (the webhook, the daily job) try again on their own schedule.
 //
 // Dojah's auth header is the secret key as-is, with no "Bearer", plus AppId.
-// The hosted widget (people's NIN/BVN and selfie) runs in the browser against
+// The hosted widget (people's NIN and selfie) runs in the browser against
 // Dojah directly; what we call from the server is the CAC lookup, the
 // verification lookup (the webhook's backstop) and AML screening.
 //
@@ -63,7 +63,6 @@ const ALL_ENV = [
   "DOJAH_PUBLIC_KEY",
   "DOJAH_WEBHOOK_SECRET",
   "DOJAH_WIDGET_ID_NIN",
-  "DOJAH_WIDGET_ID_BVN",
   "IDENTITY_FINGERPRINT_KEY",
 ] as const;
 
@@ -87,17 +86,14 @@ export function isValidDojahSignature(
 }
 
 /** The values the browser widget needs. Server-only function: the page decides when to expose them. */
-export function widgetConfig(kind: "NIN" | "BVN"): {
+export function widgetConfig(): {
   appId: string;
   publicKey: string;
   widgetId: string;
 } {
   const appId = process.env.DOJAH_APP_ID ?? "";
   const publicKey = process.env.DOJAH_PUBLIC_KEY ?? "";
-  const widgetId =
-    (kind === "NIN"
-      ? process.env.DOJAH_WIDGET_ID_NIN
-      : process.env.DOJAH_WIDGET_ID_BVN) ?? "";
+  const widgetId = process.env.DOJAH_WIDGET_ID_NIN ?? "";
   if (appId === "" || publicKey === "" || widgetId === "") {
     fail("Dojah is not configured");
   }

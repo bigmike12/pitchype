@@ -644,15 +644,15 @@ test("a check in review says how long it usually takes, without saying why", () 
 test("a failed identity check says what to fix for each reason", () => {
   const cases: [string, string, RegExp][] = [
     ["creator_nin", "name_mismatch", /NIN/],
-    ["owner_bvn", "name_mismatch", /BVN/],
+    ["owner_nin", "name_mismatch", /NIN/],
     ["business_cac", "name_mismatch", /CAC/],
     ["creator_nin", "selfie_mismatch", /light/i],
     ["creator_nin", "liveness_failed", /light/i],
     ["creator_nin", "id_not_found", /NIN/],
-    ["owner_bvn", "id_not_found", /BVN/],
+    ["owner_nin", "id_not_found", /NIN/],
     ["business_cac", "company_not_found", /registration number/i],
     ["business_cac", "company_inactive", /not active/i],
-    ["director_bvn", "not_a_director", /director/i],
+    ["director_nin", "not_a_director", /director/i],
     ["creator_nin", "provider_unavailable", /try again/i],
     ["creator_nin", "other", /try again/i],
     ["creator_nin", "something_new", /try again/i],

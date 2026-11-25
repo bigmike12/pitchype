@@ -282,7 +282,7 @@ function userRow(p) {
 // gates do not stand in the way of scenarios about money. Direct inserts, as
 // the pgTAP fixtures do; the identity scenarios use the real functions.
 function verifiedSql(p) {
-  const kind = p.role === "influencer" ? "creator_nin" : "owner_bvn";
+  const kind = p.role === "influencer" ? "creator_nin" : "owner_nin";
   const screening =
     p.role === "influencer"
       ? `

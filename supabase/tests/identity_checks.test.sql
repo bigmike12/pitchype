@@ -5,16 +5,15 @@
 -- not verified and not rejected; attempt caps count only answered checks and an
 -- admin can reopen them; a director check needs a verified CAC check; admins
 -- decide held checks with a reason and the person is told; people read only
--- their own checks and never the fingerprint; no client role reads the secret
--- or event tables or calls a service-role function; short-lived BVN secrets
--- are removed on failure and on expiry; screening_state follows the latest
+-- their own checks and never the fingerprint; no client role reads the event
+-- table or calls a service-role function; screening_state follows the latest
 -- screening and its review.
 -- Run with: supabase test db
 begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(160);
+select plan(146);
 
 -- The service role cannot read the tables, so tests that act as it look
 -- references and ids up through these (run as the test's own role).
@@ -51,10 +50,10 @@ select throws_ok($$ select public.start_identity_check('creator_nin', 'Bayo Busi
   'P0001', 'not_allowed', 'a business cannot start a creator check');
 select throws_ok($$ select public.start_identity_check('nonsense', 'Bayo Business') $$,
   'P0001', 'invalid_kind', 'an unknown kind is refused');
-select throws_ok($$ select public.start_identity_check('director_bvn', 'Bayo Business') $$,
+select throws_ok($$ select public.start_identity_check('director_nin', 'Bayo Business') $$,
   'P0001', 'identity_required', 'a director check needs a verified CAC check first');
 set local request.jwt.claims = '{"sub": "f1f1f1f1-0000-0000-0000-0000000f1001"}'; -- Cora, a creator
-select throws_ok($$ select public.start_identity_check('owner_bvn', 'Cora Creator') $$,
+select throws_ok($$ select public.start_identity_check('owner_nin', 'Cora Creator') $$,
   'P0001', 'not_allowed', 'a creator cannot start a business check');
 select throws_ok($$ select public.start_identity_check('creator_nin', 'ab') $$,
   'P0001', 'invalid_legal_name', 'a legal name under 3 characters is refused');
@@ -291,29 +290,29 @@ select is(public.finish_identity_check(
 reset role;
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "f1f1f1f1-0000-0000-0000-0000000f2002"}';
-select throws_ok($$ select public.start_identity_check('owner_bvn', 'Bisi Owner') $$,
+select throws_ok($$ select public.start_identity_check('owner_nin', 'Bisi Owner') $$,
   'P0001', 'check_in_review', 'an owner check is blocked while the CAC check is in review');
-select throws_ok($$ select public.start_identity_check('director_bvn', 'Bisi Owner') $$,
+select throws_ok($$ select public.start_identity_check('director_nin', 'Bisi Owner') $$,
   'P0001', 'identity_required', 'and a director check needs a verified CAC check');
 set local request.jwt.claims = '{"sub": "f1f1f1f1-0000-0000-0000-0000000f2001"}';
-select throws_ok($$ select public.start_identity_check('owner_bvn', 'Bayo Owner') $$,
+select throws_ok($$ select public.start_identity_check('owner_nin', 'Bayo Owner') $$,
   'P0001', 'already_verified', 'a verified business cannot start an owner check');
-select lives_ok($$ select public.start_identity_check('director_bvn', 'John Musa') $$,
+select lives_ok($$ select public.start_identity_check('director_nin', 'John Musa') $$,
   'a business with a verified CAC check starts a director check');
 reset role;
 set local role service_role;
 select is(public.finish_identity_check(
-    pg_temp.ref_of('00000000-0000-0000-0000-0000000f2001', 'director_bvn'),
+    pg_temp.ref_of('00000000-0000-0000-0000-0000000f2001', 'director_nin'),
     jsonb_build_object('status', 'verified', 'legal_name_on_record', 'JOHN MUSA', 'id_last3', '111',
                        'id_fingerprint', 'v1:fp-director', 'counted', true),
     'dojah:director:Completed'),
   'verified', 'the director check verifies');
 select is(public.director_verified('00000000-0000-0000-0000-0000000f2001'), true, 'director_verified is true');
-select is(public.identity_fingerprint_matches('00000000-0000-0000-0000-0000000f2001', 'director_bvn', 'v1:fp-director'),
+select is(public.identity_fingerprint_matches('00000000-0000-0000-0000-0000000f2001', 'director_nin', 'v1:fp-director'),
   true, 'the director fingerprint matches');
-select is(public.identity_fingerprint_matches('00000000-0000-0000-0000-0000000f2001', 'director_bvn', 'v1:other'),
+select is(public.identity_fingerprint_matches('00000000-0000-0000-0000-0000000f2001', 'director_nin', 'v1:other'),
   false, 'another fingerprint does not');
-select is(public.identity_fingerprint_matches('00000000-0000-0000-0000-0000000f2002', 'director_bvn', 'v1:fp-director'),
+select is(public.identity_fingerprint_matches('00000000-0000-0000-0000-0000000f2002', 'director_nin', 'v1:fp-director'),
   false, 'and nobody else matches it');
 select is(public.recent_cac_cache('00000000-0000-0000-0000-0000000f2001', '1234567'), null,
   'only a failed check offers its CAC answer for a re-compare');
@@ -391,24 +390,19 @@ select throws_ok($$ select date_of_birth from public.my_identity_checks() $$,
   '42703', null, 'nor the date of birth');
 select is((select count(*)::int from public.identity_checks), 0, 'the table shows a person none of its rows');
 select is((select count(*)::int from public.screenings), 0, 'nor any screening');
-select throws_ok($$ select count(*) from public.identity_secrets $$, '42501', null, 'the secrets table is closed to people');
 select throws_ok($$ select count(*) from public.identity_events $$, '42501', null, 'and the events table');
 select throws_ok($$ select public.identity_verified('00000000-0000-0000-0000-0000000f1001') $$,
   '42501', null, 'a person cannot ask the service-role identity_verified');
 select throws_ok($$ select public.finish_identity_check('x', '{"status": "failed"}', 'k') $$,
   '42501', null, 'nor record a provider decision');
-select throws_ok($$ select public.store_identity_secret('00000000-0000-0000-0000-000000000000', 'v1:x', null) $$,
-  '42501', null, 'nor store a secret');
 select throws_ok($$ select public.record_screening('00000000-0000-0000-0000-0000000f1001', 'person', 'first_payout', 'clear', 0, null) $$,
   '42501', null, 'nor record a screening');
-select throws_ok($$ select public.purge_identity_secrets() $$, '42501', null, 'nor purge secrets');
 reset role;
 set local role anon;
 select throws_ok($$ select count(*) from public.identity_checks $$, '42501', null, 'a signed-out visitor reads nothing');
 reset role;
 set local role service_role;
 select throws_ok($$ select count(*) from public.identity_checks $$, '42501', null, 'the service role writes and reads only through the functions');
-select throws_ok($$ select count(*) from public.identity_secrets $$, '42501', null, 'and cannot read the secrets table either');
 reset role;
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "f1f1f1f1-0000-0000-0000-0000000f9001"}'; -- Zed
@@ -416,52 +410,27 @@ select cmp_ok((select count(*)::int from public.identity_checks), '>', 5, 'an ad
 select cmp_ok((select count(*)::int from public.screenings), '>=', 0, 'and the screenings');
 reset role;
 
--- Short-lived secrets ---------------------------------------------------------------------------------------------------------
+-- Failing a check: the provider's decision is recorded and the person is told.
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "f1f1f1f1-0000-0000-0000-0000000f1007"}'; -- Hal
 select lives_ok($$ select public.start_identity_check('creator_nin', 'Hal Creator') $$, 'Hal starts a check');
 reset role;
 set local role service_role;
-select throws_ok($$ select public.store_identity_secret('00000000-0000-0000-0000-000000000000', 'v1:x', null) $$,
-  'P0001', 'no_such_check', 'a secret needs a check');
-select lives_ok($$ select public.store_identity_secret(
-    pg_temp.id_of('00000000-0000-0000-0000-0000000f1007'),
-    'v1:aaa:bbb:ccc', 'v1:ddd:eee:fff') $$, 'a secret is stored');
-select is(public.take_identity_secret(pg_temp.id_of('00000000-0000-0000-0000-0000000f1007')) ->> 'bvn_encrypted',
-  'v1:aaa:bbb:ccc', 'and read back while valid');
-select throws_ok($$ select public.store_identity_secret(
-    pg_temp.id_of('00000000-0000-0000-0000-0000000f1007'), 'plain-bvn', null) $$,
-  '23514', null, 'a secret that is not encrypted is refused');
 select is(public.finish_identity_check(
     pg_temp.ref_of('00000000-0000-0000-0000-0000000f1007'),
     jsonb_build_object('status', 'failed', 'reason', 'other', 'counted', true), 'dojah:hal:Failed'),
   'failed', 'Hal''s check fails');
-select is(public.take_identity_secret(pg_temp.id_of('00000000-0000-0000-0000-0000000f1007')),
-  null, 'and its secret is gone');
 reset role;
--- Expiry: two stored secrets, one expired.
+
+-- Two failed checks for Gus, kept for the counts below.
 insert into public.identity_checks (id, user_id, kind, status, reference, legal_name_entered, created_at) values
-  ('f1000000-0000-0000-0000-00000000a001', '00000000-0000-0000-0000-0000000f1006', 'owner_bvn', 'failed', 'pit_id_sec1', 'Gus Owner', now()),
-  ('f1000000-0000-0000-0000-00000000a002', '00000000-0000-0000-0000-0000000f1006', 'owner_bvn', 'failed', 'pit_id_sec2', 'Gus Owner', now());
-insert into public.identity_secrets (check_id, bvn_encrypted, expires_at) values
-  ('f1000000-0000-0000-0000-00000000a001', 'v1:old', now() - interval '1 minute'),
-  ('f1000000-0000-0000-0000-00000000a002', 'v1:new', now() + interval '1 hour');
-set local role service_role;
-select is(public.take_identity_secret('f1000000-0000-0000-0000-00000000a001'), null, 'an expired secret is not handed out');
-select is(public.purge_identity_secrets(), 1, 'purge removes only the expired secret');
-select isnt(public.take_identity_secret('f1000000-0000-0000-0000-00000000a002'), null, 'and leaves the valid one');
-select lives_ok($$ select public.delete_identity_secret('f1000000-0000-0000-0000-00000000a002') $$, 'a secret is deleted on request');
-select is(public.take_identity_secret('f1000000-0000-0000-0000-00000000a002'), null, 'and then it is gone');
-reset role;
+  ('f1000000-0000-0000-0000-00000000a001', '00000000-0000-0000-0000-0000000f1006', 'owner_nin', 'failed', 'pit_id_sec1', 'Gus Owner', now()),
+  ('f1000000-0000-0000-0000-00000000a002', '00000000-0000-0000-0000-0000000f1006', 'owner_nin', 'failed', 'pit_id_sec2', 'Gus Owner', now());
 
 -- Housekeeping: abandoning and polling -----------------------------------------------------------------------------------
 -- The poller and the abandon job look at every open check in the database, so
 -- open checks already in a used local database would change these counts as
 -- they age. Clear them for this rolled-back transaction only.
-delete from public.identity_secrets s
- using public.identity_checks c
- where c.id = s.check_id and c.status in ('started', 'pending')
-   and c.reference not in ('pit_id_stale', 'pit_id_hour', 'pit_id_pending', 'pit_id_fresh');
 delete from public.identity_checks c
  where c.status in ('started', 'pending')
    and c.reference not in ('pit_id_stale', 'pit_id_hour', 'pit_id_pending', 'pit_id_fresh');
@@ -590,7 +559,7 @@ select is((public.identity_attempt_state('00000000-0000-0000-0000-0000000f1006',
   false, 'Gus, whose cap an admin reopened, is not');
 select is((public.identity_attempt_state('00000000-0000-0000-0000-0000000f1005', 'creator_nin') ->> 'capped')::boolean,
   false, 'Fay, with only abandoned sessions, is not');
-select is(public.identity_attempt_state('00000000-0000-0000-0000-0000000f1004', 'owner_bvn') ->> 'capped',
+select is(public.identity_attempt_state('00000000-0000-0000-0000-0000000f1004', 'owner_nin') ->> 'capped',
   'false', 'and the count is per kind');
 reset role;
 insert into public.identity_checks (user_id, kind, status, reference, legal_name_entered, counted, created_at)

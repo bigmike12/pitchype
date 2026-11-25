@@ -27,7 +27,7 @@ export type IdentityPanelData = {
   configured: boolean;
 };
 
-const BUSINESS_KINDS: IdentityCheckKind[] = ["owner_bvn", "business_cac"];
+const BUSINESS_KINDS: IdentityCheckKind[] = ["owner_nin", "business_cac"];
 
 /** Reads what the identity section needs for the signed-in person. */
 export async function loadIdentityPanel(
@@ -61,7 +61,7 @@ const PRIVACY: Record<"influencer" | "business", string> = {
   influencer:
     "Your NIN and a live selfie are checked by our identity partner, Dojah. We keep only the result and the last 3 digits of your NIN. We never keep your selfie.",
   business:
-    "A registered business is checked with CAC through our identity partner, Dojah, and we keep the company’s registered details. For an unregistered business, the owner’s BVN and a live selfie are checked by Dojah, and we keep only the result and the last 3 digits of the BVN. We never keep a selfie.",
+    "A registered business is checked with CAC through our identity partner, Dojah, and we keep the company’s registered details. For an unregistered business, the owner’s NIN and a live selfie are checked by Dojah, and we keep only the result and the last 3 digits of the NIN. We never keep a selfie.",
 };
 
 /**
@@ -82,10 +82,10 @@ export function IdentityPanel({
       c.status === "verified" &&
       (role === "influencer"
         ? c.kind === "creator_nin"
-        : c.kind !== "director_bvn" && c.kind !== "creator_nin"),
+        : c.kind !== "director_nin" && c.kind !== "creator_nin"),
   );
   const failed = checks.find(
-    (c) => c.status === "failed" && c.kind !== "director_bvn",
+    (c) => c.status === "failed" && c.kind !== "director_nin",
   );
 
   if (state === "verified" && verified) {
@@ -164,7 +164,7 @@ export function IdentityPanel({
           Identity checks aren’t switched on yet. Try again a little later.
         </Callout>
       ) : role === "influencer" ? (
-        <PersonCheckForm kind="creator_nin" idLabel="NIN" />
+        <PersonCheckForm kind="creator_nin" />
       ) : (
         <BusinessIdentity next={next} />
       )}

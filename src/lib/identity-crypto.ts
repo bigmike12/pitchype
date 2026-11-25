@@ -1,5 +1,5 @@
-// Keyed fingerprints of NIN and BVN numbers (design §6.2). A fingerprint lets
-// us notice the same ID on two accounts, and match a re-typed BVN, without
+// Keyed fingerprints of NIN numbers (design §6.2). A fingerprint lets us
+// notice the same ID on two accounts without
 // keeping the number. Computed on the server only. Error messages never carry
 // the digits or the key.
 
@@ -29,18 +29,15 @@ function key(): Buffer {
 }
 
 /**
- * `v1:` + hex HMAC-SHA256 over "<NIN|BVN>:<digits>". The kind is part of the
- * message so a NIN and a BVN with the same digits never collide.
+ * `v1:` + hex HMAC-SHA256 over "NIN:<digits>". The "NIN:" prefix is kept from
+ * the first version so fingerprints already stored still match.
  */
-export function identityFingerprint(
-  kind: "NIN" | "BVN",
-  digits: string,
-): string {
+export function identityFingerprint(digits: string): string {
   if (!/^\d{11}$/.test(digits)) {
-    throw new IdentityCryptoError("A NIN or BVN is exactly 11 digits");
+    throw new IdentityCryptoError("A NIN is exactly 11 digits");
   }
   const hex = createHmac("sha256", key())
-    .update(`${kind}:${digits}`)
+    .update(`NIN:${digits}`)
     .digest("hex");
   return `${VERSION}:${hex}`;
 }

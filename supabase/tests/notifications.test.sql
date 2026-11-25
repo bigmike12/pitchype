@@ -22,7 +22,7 @@ insert into public.users (id, auth_user_id, email, role) values
 -- gates (identity_gates migration) are not what this file is about.
 insert into public.identity_checks (user_id, kind, status, reference, legal_name_entered, legal_name_on_record,
                                     id_last3, id_fingerprint, counted, decided_at)
-select u.id, case u.role when 'influencer' then 'creator_nin' else 'owner_bvn' end, 'verified',
+select u.id, case u.role when 'influencer' then 'creator_nin' else 'owner_nin' end, 'verified',
        'pit_id_fx_' || replace(u.id::text, '-', ''), 'Fixture Person', 'FIXTURE PERSON', '000',
        'v1:fx-' || u.id::text, true, now()
   from public.users u
