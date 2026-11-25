@@ -41,7 +41,9 @@ test("pressing the button on a bad or used link shows the expired page", async (
 }) => {
   await page.goto("/auth/confirm?token_hash=not-a-real-token&type=email");
   await page.getByRole("button", { name: "Confirm my email" }).click();
-  await expect(page).toHaveURL(/\/link-expired$/);
+  // A server round trip plus a navigation; the default 5s is too tight when
+  // every worker shares one local server.
+  await expect(page).toHaveURL(/\/link-expired$/, { timeout: 15_000 });
   await expect(
     page.getByRole("heading", { name: "That link has expired" }),
   ).toBeVisible();

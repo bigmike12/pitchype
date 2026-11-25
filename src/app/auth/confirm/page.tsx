@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { AuthHeading, AuthShell } from "@/components/shells/auth-shell";
+import { PageLoading, Skeleton } from "@/components/ui/skeleton";
 
 import { confirmEmailLinkAction } from "./actions";
 import { ConfirmButton } from "./confirm-button";
@@ -11,18 +13,38 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
 // Emailed links land here (supabase/templates/*.html): a sign-up
 // confirmation (type=email) or a password reset (type=recovery). Opening the
 // page uses nothing up; the link is spent only when the person presses the
 // button. Email scanners and link previews open links before people click
 // them, and if opening the address spent the link, the person's own click
 // would find it already used and see "expired".
-export default async function ConfirmLinkPage({
+export default function ConfirmLinkPage({
+  searchParams,
+}: PageProps<"/auth/confirm">) {
+  return (
+    <AuthShell>
+      {/* The query is read at request time, inside Suspense, so the shell
+          can be prerendered (cacheComponents). */}
+      <Suspense
+        fallback={
+          <PageLoading label="Loading…">
+            <Skeleton className="h-10 w-3/4 rounded-xl" />
+            <Skeleton className="mt-4 mb-8 h-5 w-full" />
+            <Skeleton className="h-12 w-full rounded-control" />
+          </PageLoading>
+        }
+      >
+        <ConfirmLinkForm searchParams={searchParams} />
+      </Suspense>
+    </AuthShell>
+  );
+}
+
+async function ConfirmLinkForm({
   searchParams,
 }: {
-  searchParams: SearchParams;
+  searchParams: PageProps<"/auth/confirm">["searchParams"];
 }) {
   const query = await searchParams;
   const tokenHash = query.token_hash;
@@ -37,7 +59,7 @@ export default async function ConfirmLinkPage({
 
   const isReset = type === "recovery";
   return (
-    <AuthShell>
+    <>
       <AuthHeading
         title={isReset ? "Choose a new password" : "Confirm your email"}
       >
@@ -52,6 +74,6 @@ export default async function ConfirmLinkPage({
           {isReset ? "Continue" : "Confirm my email"}
         </ConfirmButton>
       </form>
-    </AuthShell>
+    </>
   );
 }
