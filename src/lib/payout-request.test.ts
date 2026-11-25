@@ -4,11 +4,50 @@ import { test } from "node:test";
 import { MIN_PAYOUT_KOBO, transferFee } from "./fees.ts";
 import {
   adminPayoutStatus,
+  balanceShortfall,
   describePayoutStatus,
   parsePayoutAmount,
   payoutCheckOutcome,
   payoutPreview,
+  transferRefusalWords,
 } from "./payout-request.ts";
+
+test("a payout is held when Paystack's balance is below what the transfer needs", () => {
+  assert.equal(
+    balanceShortfall(450_000, 450_000),
+    null,
+    "an exact balance is enough",
+  );
+  assert.equal(balanceShortfall(900_000, 450_000), null);
+  const held = balanceShortfall(0, 450_000);
+  assert.ok(held !== null, "an empty balance holds it");
+  assert.match(held, /₦0/);
+  assert.match(held, /₦4,500/);
+  assert.match(held, /Nothing has been sent/);
+});
+
+test("Paystack's refusal is put in plain words for admins", () => {
+  assert.match(
+    transferRefusalWords("Insufficient balance"),
+    /balance is too low/,
+  );
+  assert.match(
+    transferRefusalWords("Balance not enough for transfer"),
+    /balance is too low/,
+  );
+  assert.match(
+    transferRefusalWords("OTP required to finalize transfer"),
+    /transfer approval/,
+  );
+  assert.equal(
+    transferRefusalWords("Something unexpected"),
+    "Paystack did not take the transfer.",
+  );
+  assert.equal(
+    transferRefusalWords(null),
+    "Paystack did not take the transfer.",
+  );
+});
 
 test("whole naira amounts parse to kobo, with commas and a naira sign", () => {
   assert.deepEqual(parsePayoutAmount("1000"), { ok: true, kobo: 100_000 });

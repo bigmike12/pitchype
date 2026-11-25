@@ -218,6 +218,21 @@ export async function countPayoutsAwaitingApproval(): Promise<number> {
   return count ?? 0;
 }
 
+/** What approving this payout would send (the amount less the transfer cost), or null if there is no such payout. */
+export async function getPayoutSendKobo(
+  payoutId: string,
+): Promise<number | null> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("payouts")
+    .select("amount_kobo, transfer_fee_kobo")
+    .eq("id", payoutId)
+    .maybeSingle();
+  if (error) throw new Error(`payout lookup failed (${error.code})`);
+  if (!data) return null;
+  return data.amount_kobo - data.transfer_fee_kobo;
+}
+
 /** The most recently decided payouts (anything not waiting), newest first, for admins. */
 export async function listRecentDecidedPayouts(
   limit = 100,

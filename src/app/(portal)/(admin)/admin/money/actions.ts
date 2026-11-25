@@ -7,13 +7,22 @@ import { getSettlementState, settleEngagement } from "@/lib/db/money";
 import {
   approvePayout,
   getPayoutReference,
+  getPayoutSendKobo,
   rejectPayout,
 } from "@/lib/db/payouts";
 import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { isUuid, text, type FormState } from "@/lib/form-data";
 import { confirmTransfer } from "@/lib/payments";
-import { PaystackError, initiateTransfer } from "@/lib/paystack";
-import { payoutCheckOutcome } from "@/lib/payout-request";
+import {
+  PaystackError,
+  getBalanceKobo,
+  initiateTransfer,
+} from "@/lib/paystack";
+import {
+  balanceShortfall,
+  payoutCheckOutcome,
+  transferRefusalWords,
+} from "@/lib/payout-request";
 import { refusalText } from "@/lib/refusals";
 import { ensureScreened } from "@/lib/screening";
 import {
@@ -159,16 +168,18 @@ export type PayoutDecisionState = FormState<"reason"> & {
   approved?: boolean;
 };
 
-const TRANSFER_NOT_ACCEPTED =
-  "Approved, but Paystack did not accept the transfer yet. It will be checked automatically, and the money goes back to the creator’s wallet if the transfer never starts.";
+const BALANCE_UNREADABLE =
+  "Couldn’t read Paystack’s balance, so nothing has been approved. Try again in a few minutes.";
 
 /**
- * Approves a payout, then asks Paystack to send it. The database moves the
- * payout to "processing" first and fixes the transfer reference, so asking
- * again can never send twice; if Paystack doesn't take the request the payout
- * stays "processing" for the webhook and the stuck-payout check to finish.
- * Paystack's own words, the recipient code and the account number are never
- * shown or logged.
+ * Approves a payout, then asks Paystack to send it. First it checks that
+ * Paystack's balance covers the transfer, so a payout is never approved only
+ * to fail later. The database moves the payout to "processing" next and fixes
+ * the transfer reference, so asking again can never send twice; if Paystack
+ * doesn't take the request the payout stays "processing" for the webhook and
+ * the stuck-payout check to finish. Admins see plain words, not Paystack's;
+ * the recipient code and the account number are never shown or logged, and
+ * Paystack's message is logged only after the digit scrub in paystack.ts.
  */
 export async function approvePayoutAction(
   _previous: PayoutDecisionState,
@@ -190,6 +201,21 @@ export async function approvePayoutAction(
     };
   }
 
+  const sendKobo = await getPayoutSendKobo(payoutId);
+  if (sendKobo === null) {
+    return { status: "error", message: refusalText("no_such_payout") };
+  }
+  let balanceKobo: number;
+  try {
+    balanceKobo = await getBalanceKobo();
+  } catch (error) {
+    if (!(error instanceof PaystackError)) throw error;
+    console.error("payout: balance unreadable");
+    return { status: "error", message: BALANCE_UNREADABLE };
+  }
+  const shortfall = balanceShortfall(balanceKobo, sendKobo);
+  if (shortfall !== null) return { status: "error", message: shortfall };
+
   const approved = await approvePayout(payoutId);
   if (!approved.ok) {
     return {
@@ -210,8 +236,13 @@ export async function approvePayoutAction(
     });
   } catch (error) {
     if (!(error instanceof PaystackError)) throw error;
+    console.error("payout: transfer not accepted", error.message);
     // No refresh: the message has to stay on screen for the admin to read.
-    return { status: "error", approved: true, message: TRANSFER_NOT_ACCEPTED };
+    return {
+      status: "error",
+      approved: true,
+      message: `Approved, but the transfer didn’t start. ${transferRefusalWords(error.message)} It will be checked automatically; if it never starts, the money goes back to the creator’s wallet.`,
+    };
   }
   refresh();
   return { status: "success", approved: true, message: "Approved and sent." };
