@@ -46,18 +46,21 @@ export function SignUpForm({
 
   if (state.status === "success") {
     return (
+      // Sign-up answers the same whether or not the email already has an
+      // account (so it never reveals who is registered), and an existing
+      // account gets no email. The words have to be true in both cases.
       <Notice icon={MailCheck} title="Check your email">
         <p>
-          We sent a link to{" "}
-          <strong className="text-ink">{state.values?.email}</strong>. Open it
-          to confirm your address and finish setting up. It expires in an hour.
+          If <strong className="text-ink">{state.values?.email}</strong> is new
+          to Pitchype, we’ve sent it a link to confirm your address and finish
+          setting up. It expires in an hour.
         </p>
         <p className="mt-3 text-sm text-muted">
-          Already have an account with this email?{" "}
+          Nothing in your inbox or spam? You may already have an account.{" "}
           <Link href="/login" className="link">
             Log in instead
           </Link>
-          .
+          , and if your email still needs confirming we’ll send a fresh link.
         </p>
       </Notice>
     );
