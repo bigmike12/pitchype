@@ -535,6 +535,86 @@ export async function disputedHire(price) {
   return { ...hire, dispute };
 }
 
+// A started hire on a campaign with weekly checkpoints (progress updates), so
+// the checkpoint paths have something to act on: a kickoff due in 48 hours and
+// two checkpoints, 5 and 12 days out. The campaign is already live and its
+// terms are locked, so they are set with triggers off for this one session
+// (session_replication_role), as a draft would have had them.
+export async function checkpointHire(price) {
+  const hire = await newHire(price);
+  await run(`set session_replication_role = replica;
+update public.campaigns
+   set post_from = public.lagos_today(), ends_on = public.lagos_today() + 30,
+       checkpoints_enabled = true, checkpoint_interval_days = 7,
+       checkpoint_evidence = '{progress_update}'
+ where id = ${lit(hire.campaign)};
+insert into public.campaign_checkpoints (campaign_id, seq, due_on)
+values (${lit(hire.campaign)}, 1, public.lagos_today() + 5),
+       (${lit(hire.campaign)}, 2, public.lagos_today() + 12);`);
+  await fund(hire);
+  await must(as.user(hire.creator), `public.start_engagement(${lit(hire.id)})`);
+  return hire;
+}
+
+// 'ok' for a call that returns an id; ids differ on every call.
+const okIfId = (expr) => `case when ${expr} is not null then 'ok' end`;
+
+export function kickoffCall(hire) {
+  return okIfId(
+    `public.submit_kickoff(${lit(hire.id)}, true, true, null, array[]::uuid[])`,
+  );
+}
+
+// Evidence for the hire's overdue progress checkpoint (a written update of 20+
+// characters). Found through the hire's own rows: creators can't read the
+// campaign's schedule table.
+export function checkpointEvidenceCall(hire) {
+  return okIfId(`public.submit_checkpoint(
+    (select c.id from public.hire_checkpoints c
+      where c.engagement_id = ${lit(hire.id)} and c.kind = 'progress' and c.status = 'overdue'
+      order by c.due_at limit 1),
+    'Filmed two of the three reels so far.', array[]::text[], null, null, null, null, array[]::uuid[])`);
+}
+
+export function openDisputeCall(hire) {
+  return okIfId(
+    `public.open_dispute(${lit(hire.id)}, 'The first checkpoint never came and the creator has gone quiet since.', array[]::text[], array[]::uuid[])`,
+  );
+}
+
+// The daily job's checkpoint step, as one word: 'reminded/overdue/warned/dispute_available/failed'.
+export const noticesCall = `(select concat_ws('/', n ->> 'reminded', n ->> 'overdue', n ->> 'warned', n ->> 'dispute_available', n ->> 'failed')
+   from (select public.run_checkpoint_notices() as n) x)`;
+
+// Sets a checkpoint row by hand (the clock can't be moved inside a race): its
+// status and due time relative to now.
+export function setRow(hire, seq, status, dueOffset) {
+  const where =
+    seq === 0
+      ? `c.kind = 'kickoff'`
+      : `c.campaign_checkpoint_id = (select k.id from public.campaign_checkpoints k
+                                      where k.campaign_id = ${lit(hire.campaign)} and k.seq = ${seq})`;
+  return run(
+    `update public.hire_checkpoints c set status = ${lit(status)}, due_at = now() + interval ${lit(dueOffset)}
+      where c.engagement_id = ${lit(hire.id)} and ${where};`,
+  );
+}
+
+// Facts about a hire's checkpoints: rows by status, how many pieces of
+// evidence, and the trail by event, in a stable order.
+export function checkpointFacts(hire) {
+  return json(`
+select json_build_object(
+  'rows', (select coalesce(json_agg(c.status order by c.kind <> 'kickoff', c.due_at), '[]'::json)
+             from public.hire_checkpoints c where c.engagement_id = ${lit(hire.id)}),
+  'evidence', (select count(*) from public.checkpoint_evidence v where v.engagement_id = ${lit(hire.id)}),
+  'events', (select coalesce(json_object_agg(event, n), '{}'::json) from (
+               select ev.event, count(*) as n from public.checkpoint_events ev
+                where ev.engagement_id = ${lit(hire.id)} group by ev.event) e),
+  'disputes', (select count(*) from public.disputes d where d.engagement_id = ${lit(hire.id)})
+)`);
+}
+
 // What the release job returns, as one word: 'released/failed'.
 export const sweepCall = `(select released::text || '/' || failed::text from public.release_overdue_submissions())`;
 

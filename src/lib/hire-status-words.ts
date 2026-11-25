@@ -134,7 +134,7 @@ export function describeHireStatus(
       return running(
         "Work has started",
         canOpenDispute
-          ? `${creator} is working on this, but the delivery date has passed. If the work isn’t coming, you can open a dispute. The money is held by Pitchype until the job is done.`
+          ? `${creator} is working on this, but work is overdue. If it isn’t coming, you can open a dispute. The money is held by Pitchype until the job is done.`
           : `${creator} is working on this. The money is held by Pitchype until the job is done.`,
         { canOpenDispute },
       );

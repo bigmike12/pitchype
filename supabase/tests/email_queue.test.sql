@@ -1,5 +1,5 @@
 -- Proves the rules from the email_queue migration: when notify() makes a row
--- due for email, the one-email-per-thread-per-hour cap, that old rows are
+-- due for email, the one-email-per-thread-per-6-hours cap, that old rows are
 -- never queued, that claim_due_emails() hands each row out once and pushes it
 -- 5 minutes out, preferences, and who may call what.
 -- Run with: supabase test db
@@ -28,10 +28,10 @@ $$;
 -- Due times ------------------------------------------------------------------------------------------
 select public.notify('00000000-0000-0000-0000-0000000e8001', 'new_message', '{"count": 1}', 'k1');
 select ok(
-  (select email_due_at between now() + interval '15 minutes' - interval '1 second'
-                           and now() + interval '15 minutes' + interval '1 second'
+  (select email_due_at between now() + interval '6 hours' - interval '1 second'
+                           and now() + interval '6 hours' + interval '1 second'
      from public.notifications where group_key = 'k1'),
-  'new_message gets a due time 15 minutes out');
+  'new_message gets a due time 6 hours out');
 
 select public.notify('00000000-0000-0000-0000-0000000e8001', 'hire_funded', '{}', 'k2');
 select ok(
@@ -58,26 +58,26 @@ select is((select data ->> 'count' from public.notifications where group_key = '
 select public.notify('00000000-0000-0000-0000-0000000e8001', 'new_message', '{}', 'k3');
 update public.notifications set email_due_at = null where group_key = 'k3';
 select public.notify('00000000-0000-0000-0000-0000000e8001', 'new_message', '{}', 'k3');
-select is((select email_due_at from public.notifications where group_key = 'k3'), now() + interval '15 minutes',
+select is((select email_due_at from public.notifications where group_key = 'k3'), now() + interval '6 hours',
   'an unsent grouped row with no due time gets one');
 
--- Emailed under an hour ago: the email columns stay as they were.
+-- Emailed under 6 hours ago: the email columns stay as they were.
 select public.finish_email((select id from public.notifications where group_key = 'k1'), true);
 update public.notifications set email_attempts = 1 where group_key = 'k1';
 select public.notify('00000000-0000-0000-0000-0000000e8001', 'new_message', '{"count": 3}', 'k1');
 select is((select emailed_at from public.notifications where group_key = 'k1'), now(),
-  'a chat row emailed under an hour ago is not requeued');
+  'a chat row emailed under 6 hours ago is not requeued');
 select is((select email_attempts from public.notifications where group_key = 'k1'), 1,
   'and its attempts are left alone');
 
--- Emailed an hour or more ago: a new email is due.
-update public.notifications set emailed_at = now() - interval '2 hours', email_attempts = 2 where group_key = 'k1';
+-- Emailed 6 hours or more ago: a new email is due.
+update public.notifications set emailed_at = now() - interval '7 hours', email_attempts = 2 where group_key = 'k1';
 select public.notify('00000000-0000-0000-0000-0000000e8001', 'new_message', '{"count": 4}', 'k1');
 select is((select emailed_at from public.notifications where group_key = 'k1'), null,
-  'a chat row emailed over an hour ago is requeued');
+  'a chat row emailed over 6 hours ago is requeued');
 select is((select email_attempts from public.notifications where group_key = 'k1'), 0, 'with no attempts used');
-select is((select email_due_at from public.notifications where group_key = 'k1'), now() + interval '15 minutes',
-  'and due 15 minutes out');
+select is((select email_due_at from public.notifications where group_key = 'k1'), now() + interval '6 hours',
+  'and due 6 hours out');
 
 -- Out of attempts and never emailed (say Resend was down): a new event starts
 -- the row afresh instead of leaving it silent for good.
@@ -90,8 +90,8 @@ select is((select count(*)::integer from public.claim_due_emails(50) where id = 
 select public.notify('00000000-0000-0000-0000-0000000e8001', 'new_message', '{"count": 2}', 'k4');
 select is((select email_attempts from public.notifications where group_key = 'k4'), 0,
   'a bump of a never-emailed row out of attempts gives it 5 more');
-select is((select email_due_at from public.notifications where group_key = 'k4'), now() + interval '15 minutes',
-  'and a fresh due time 15 minutes out');
+select is((select email_due_at from public.notifications where group_key = 'k4'), now() + interval '6 hours',
+  'and a fresh due time 6 hours out');
 update public.notifications set email_due_at = now() - interval '1 minute' where group_key = 'k4';
 select ok((select count(*) = 1 from public.claim_due_emails(50) where id = (select id from public.notifications where group_key = 'k4')),
   'and it is claimed once due');
@@ -136,7 +136,7 @@ select is((select email_attempts from public.notifications where id = 'e8000000-
 
 select results_eq(
   $$ select kind, email, role, attempts, email_applications, email_campaigns, email_messages from first_claim $$,
-  $$ values ('hire_funded', 'remi.email@example.com', 'influencer', 1, true, true, true) $$,
+  $$ values ('hire_funded', 'remi.email@example.com', 'influencer', 1, true, true, false) $$,
   'claim returns the recipient''s email, role and defaulted preferences');
 select is((select data ->> 'campaign_title' from first_claim), 'K', 'and the facts');
 

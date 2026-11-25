@@ -135,6 +135,13 @@ test("missing facts never show 'undefined'", () => {
     "identity_verified",
     "identity_failed",
     "identity_needs_review",
+    "kickoff_done",
+    "checkpoint_done",
+    "checkpoint_late",
+    "checkpoint_reminder",
+    "checkpoint_overdue",
+    "checkpoint_warning",
+    "checkpoint_dispute_available",
   ]) {
     const d = describeNotification(row(kind));
     assert.ok(d, kind);
@@ -671,4 +678,82 @@ test("a duplicate-identity rejection stays neutral about why", () => {
   );
   assert.match(d?.body ?? "", /contact us/i);
   assert.doesNotMatch(d?.body ?? "", /another account|duplicate/i);
+});
+
+test("checkpoint notices tell the business who sent what, and link to the hire", () => {
+  const kickoff = describeNotification(
+    row("kickoff_done", { ...hire, name: "Tolu", kickoff: true }),
+    "business",
+  );
+  assert.equal(kickoff?.title, "Tolu confirmed the kickoff for “Zobo week”");
+  assert.equal(kickoff?.href, "/business/engagements/e1");
+
+  const done = describeNotification(
+    row("checkpoint_done", { ...hire, name: "Tolu", due_on: "2026-12-08" }),
+    "business",
+  );
+  assert.equal(done?.title, "Tolu sent a progress checkpoint for “Zobo week”");
+  assert.match(done?.body ?? "", /8 Dec 2026/);
+
+  const late = describeNotification(
+    row("checkpoint_late", { ...hire, name: "Tolu", due_on: "2026-12-08" }),
+    "business",
+  );
+  assert.match(late?.title ?? "", /late/);
+  assert.match(late?.body ?? "", /No money is held back/);
+
+  const lateKickoff = describeNotification(
+    row("checkpoint_late", { ...hire, name: "Tolu", kickoff: true }),
+    "business",
+  );
+  assert.match(lateKickoff?.title ?? "", /kickoff/);
+  assert.match(lateKickoff?.title ?? "", /after it was due/);
+});
+
+test("the reminder and warning go to the creator and never threaten money", () => {
+  const reminder = describeNotification(
+    row("checkpoint_reminder", {
+      ...hire,
+      kickoff: true,
+      due_at: "2026-12-07T09:00:00Z",
+    }),
+    "influencer",
+  );
+  assert.match(reminder?.title ?? "", /Your kickoff/);
+  assert.equal(reminder?.href, "/jobs/e1");
+
+  const warning = describeNotification(
+    row("checkpoint_warning", {
+      ...hire,
+      dispute_from: "2026-12-12T09:00:00Z",
+    }),
+    "influencer",
+  );
+  assert.match(warning?.body ?? "", /open a dispute/);
+  assert.match(warning?.body ?? "", /No money is held back/);
+  assert.equal(warning?.href, "/jobs/e1");
+});
+
+test("an overdue checkpoint reads differently for each side", () => {
+  const forBusiness = describeNotification(
+    row("checkpoint_overdue", { ...hire, name: "Tolu" }),
+    "business",
+  );
+  const forCreator = describeNotification(
+    row("checkpoint_overdue", { ...hire, name: "Ada Kitchen" }),
+    "influencer",
+  );
+  assert.match(forBusiness?.title ?? "", /Tolu’s checkpoint/);
+  assert.equal(forBusiness?.href, "/business/engagements/e1");
+  assert.match(forCreator?.title ?? "", /Your checkpoint/);
+  assert.equal(forCreator?.href, "/jobs/e1");
+});
+
+test("dispute available tells the business, and leads to the dispute page", () => {
+  const d = describeNotification(
+    row("checkpoint_dispute_available", { ...hire, name: "Tolu" }),
+    "business",
+  );
+  assert.match(d?.title ?? "", /open a dispute about missing work/);
+  assert.equal(d?.href, "/business/engagements/e1/dispute");
 });

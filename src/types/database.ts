@@ -170,6 +170,35 @@ export type Database = {
           },
         ]
       }
+      campaign_checkpoints: {
+        Row: {
+          campaign_id: string
+          due_on: string
+          id: string
+          seq: number
+        }
+        Insert: {
+          campaign_id: string
+          due_on: string
+          id?: string
+          seq: number
+        }
+        Update: {
+          campaign_id?: string
+          due_on?: string
+          id?: string
+          seq?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_checkpoints_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_deliverables: {
         Row: {
           campaign_id: string
@@ -329,11 +358,16 @@ export type Database = {
           blocked_channels: string[]
           brief: string
           business_id: string
+          checkpoint_evidence: string[] | null
+          checkpoint_interval_days: number | null
+          checkpoints_enabled: boolean
           closed_at: string | null
           cpc_kobo: number | null
           created_at: string
           deliver_by: string
           destination_url: string | null
+          ends_on: string | null
+          final_requirements: string[]
           guidelines: string | null
           id: string
           niches: string[]
@@ -359,11 +393,16 @@ export type Database = {
           blocked_channels?: string[]
           brief: string
           business_id: string
+          checkpoint_evidence?: string[] | null
+          checkpoint_interval_days?: number | null
+          checkpoints_enabled?: boolean
           closed_at?: string | null
           cpc_kobo?: number | null
           created_at?: string
           deliver_by: string
           destination_url?: string | null
+          ends_on?: string | null
+          final_requirements?: string[]
           guidelines?: string | null
           id?: string
           niches?: string[]
@@ -389,11 +428,16 @@ export type Database = {
           blocked_channels?: string[]
           brief?: string
           business_id?: string
+          checkpoint_evidence?: string[] | null
+          checkpoint_interval_days?: number | null
+          checkpoints_enabled?: boolean
           closed_at?: string | null
           cpc_kobo?: number | null
           created_at?: string
           deliver_by?: string
           destination_url?: string | null
+          ends_on?: string | null
+          final_requirements?: string[]
           guidelines?: string | null
           id?: string
           niches?: string[]
@@ -426,6 +470,131 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "business_profiles"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      checkpoint_events: {
+        Row: {
+          actor: string | null
+          created_at: string
+          detail: Json
+          engagement_id: string
+          event: string
+          hire_checkpoint_id: string | null
+          id: string
+        }
+        Insert: {
+          actor?: string | null
+          created_at?: string
+          detail?: Json
+          engagement_id: string
+          event: string
+          hire_checkpoint_id?: string | null
+          id?: string
+        }
+        Update: {
+          actor?: string | null
+          created_at?: string
+          detail?: Json
+          engagement_id?: string
+          event?: string
+          hire_checkpoint_id?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkpoint_events_actor_fkey"
+            columns: ["actor"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkpoint_events_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkpoint_events_hire_checkpoint_id_fkey"
+            columns: ["hire_checkpoint_id"]
+            isOneToOne: false
+            referencedRelation: "hire_checkpoints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checkpoint_evidence: {
+        Row: {
+          author_id: string
+          captured_on: string | null
+          confirmed_brief: boolean | null
+          confirmed_started: boolean | null
+          created_at: string
+          engagement_id: string
+          hire_checkpoint_id: string
+          id: string
+          late: boolean
+          links: string[]
+          metrics: Json | null
+          note: string | null
+          period_from: string | null
+          period_to: string | null
+        }
+        Insert: {
+          author_id: string
+          captured_on?: string | null
+          confirmed_brief?: boolean | null
+          confirmed_started?: boolean | null
+          created_at?: string
+          engagement_id: string
+          hire_checkpoint_id: string
+          id?: string
+          late?: boolean
+          links?: string[]
+          metrics?: Json | null
+          note?: string | null
+          period_from?: string | null
+          period_to?: string | null
+        }
+        Update: {
+          author_id?: string
+          captured_on?: string | null
+          confirmed_brief?: boolean | null
+          confirmed_started?: boolean | null
+          created_at?: string
+          engagement_id?: string
+          hire_checkpoint_id?: string
+          id?: string
+          late?: boolean
+          links?: string[]
+          metrics?: Json | null
+          note?: string | null
+          period_from?: string | null
+          period_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkpoint_evidence_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkpoint_evidence_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkpoint_evidence_hire_checkpoint_id_fkey"
+            columns: ["hire_checkpoint_id"]
+            isOneToOne: false
+            referencedRelation: "hire_checkpoints"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -820,6 +989,57 @@ export type Database = {
           transfer_stamp_duty_kobo?: number
         }
         Relationships: []
+      }
+      hire_checkpoints: {
+        Row: {
+          campaign_checkpoint_id: string | null
+          created_at: string
+          due_at: string
+          engagement_id: string
+          evidence_at: string | null
+          id: string
+          kind: string
+          skip_reason: string | null
+          status: string
+        }
+        Insert: {
+          campaign_checkpoint_id?: string | null
+          created_at?: string
+          due_at: string
+          engagement_id: string
+          evidence_at?: string | null
+          id?: string
+          kind: string
+          skip_reason?: string | null
+          status: string
+        }
+        Update: {
+          campaign_checkpoint_id?: string | null
+          created_at?: string
+          due_at?: string
+          engagement_id?: string
+          evidence_at?: string | null
+          id?: string
+          kind?: string
+          skip_reason?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hire_checkpoints_campaign_checkpoint_id_fkey"
+            columns: ["campaign_checkpoint_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_checkpoints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hire_checkpoints_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       identity_checks: {
         Row: {
@@ -1796,6 +2016,7 @@ export type Database = {
       proof_files: {
         Row: {
           bytes: number
+          checkpoint_evidence_id: string | null
           click_proof_id: string | null
           content_type: string
           created_at: string
@@ -1807,6 +2028,7 @@ export type Database = {
         }
         Insert: {
           bytes: number
+          checkpoint_evidence_id?: string | null
           click_proof_id?: string | null
           content_type: string
           created_at?: string
@@ -1818,6 +2040,7 @@ export type Database = {
         }
         Update: {
           bytes?: number
+          checkpoint_evidence_id?: string | null
           click_proof_id?: string | null
           content_type?: string
           created_at?: string
@@ -1828,6 +2051,13 @@ export type Database = {
           submission_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "proof_files_checkpoint_evidence_id_fkey"
+            columns: ["checkpoint_evidence_id"]
+            isOneToOne: false
+            referencedRelation: "checkpoint_evidence"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "proof_files_click_proof_id_fkey"
             columns: ["click_proof_id"]
@@ -1962,6 +2192,7 @@ export type Database = {
       }
       submissions: {
         Row: {
+          captured_on: string | null
           created_at: string
           decided_at: string | null
           decided_by: string | null
@@ -1969,14 +2200,17 @@ export type Database = {
           engagement_id: string
           id: string
           links: string[]
+          metrics: Json | null
           note: string | null
           reminded_1d_at: string | null
           reminded_3d_at: string | null
+          report: string | null
           review_deadline_at: string
           round: number
           status: string
         }
         Insert: {
+          captured_on?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
@@ -1984,14 +2218,17 @@ export type Database = {
           engagement_id: string
           id?: string
           links?: string[]
+          metrics?: Json | null
           note?: string | null
           reminded_1d_at?: string | null
           reminded_3d_at?: string | null
+          report?: string | null
           review_deadline_at: string
           round: number
           status?: string
         }
         Update: {
+          captured_on?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
@@ -1999,9 +2236,11 @@ export type Database = {
           engagement_id?: string
           id?: string
           links?: string[]
+          metrics?: Json | null
           note?: string | null
           reminded_1d_at?: string | null
           reminded_3d_at?: string | null
+          report?: string | null
           review_deadline_at?: string
           round?: number
           status?: string
@@ -2370,6 +2609,7 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_platform_overview: { Args: never; Returns: Json }
       all_distinct: { Args: { items: string[] }; Returns: boolean }
       allow_identity_retry: {
         Args: { person: string; reason: string }
@@ -2428,6 +2668,10 @@ export type Database = {
         Returns: undefined
       }
       check_standing: { Args: { person: string }; Returns: undefined }
+      checkpoint_applicability: {
+        Args: { due_on: string; started: string }
+        Returns: string
+      }
       claim_due_emails: {
         Args: { max: number }
         Returns: {
@@ -2465,6 +2709,10 @@ export type Database = {
       create_app_user: {
         Args: { requested_role: Database["public"]["Enums"]["user_role"] }
         Returns: string
+      }
+      create_hire_checkpoints: {
+        Args: { campaign: string; engagement: string; started: string }
+        Returns: undefined
       }
       creator_completed_jobs: { Args: { creator: string }; Returns: number }
       creator_media_keys: {
@@ -2600,6 +2848,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["follower_range"]
       }
       fund_engagement: { Args: { payment: string }; Returns: boolean }
+      generate_campaign_checkpoints: {
+        Args: { campaign: string }
+        Returns: undefined
+      }
       get_campaign: { Args: { campaign: string }; Returns: Json }
       get_listed_creator: {
         Args: { creator_slug: string }
@@ -2903,6 +3155,11 @@ export type Database = {
         Args: { outcome: string; reason: string; screening: string }
         Returns: undefined
       }
+      run_checkpoint_notices: { Args: never; Returns: Json }
+      run_checkpoint_notices_for: {
+        Args: { engagement: string }
+        Returns: Json
+      }
       save_bank_account: {
         Args: {
           account_name: string
@@ -2930,10 +3187,15 @@ export type Database = {
           blocked_channels?: string[]
           brief: string
           campaign_id: string
+          checkpoint_evidence?: string[]
+          checkpoint_interval_days?: number
+          checkpoints_enabled?: boolean
           cpc_kobo?: number
           deliver_by: string
           deliverables: Json
           destination_url?: string
+          ends_on?: string
+          final_requirements?: string[]
           guidelines: string
           niches: string[]
           payment_model?: Database["public"]["Enums"]["payment_model"]
@@ -3057,19 +3319,55 @@ export type Database = {
         Returns: undefined
       }
       submit_appeal: { Args: { message: string }; Returns: string }
+      submit_checkpoint: {
+        Args: {
+          captured_on: string
+          file_ids: string[]
+          hire_checkpoint: string
+          links: string[]
+          metrics: Json
+          note: string
+          period_from: string
+          period_to: string
+        }
+        Returns: string
+      }
       submit_handle_verification: {
         Args: { request_id: string }
         Returns: undefined
       }
-      submit_work: {
+      submit_kickoff: {
         Args: {
+          confirmed_brief: boolean
+          confirmed_started: boolean
           engagement: string
           file_ids: string[]
-          links: string[]
           note: string
         }
         Returns: string
       }
+      submit_work:
+        | {
+            Args: {
+              captured_on: string
+              engagement: string
+              file_ids: string[]
+              links: string[]
+              metrics: Json
+              note: string
+              report: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              engagement: string
+              file_ids: string[]
+              links: string[]
+              note: string
+            }
+            Returns: string
+          }
       swap_portfolio_samples: {
         Args: { first_sample: string; second_sample: string }
         Returns: undefined
@@ -3086,6 +3384,8 @@ export type Database = {
         Returns: number
       }
       unread_message_count: { Args: never; Returns: number }
+      valid_metrics: { Args: { m: Json }; Returns: boolean }
+      valid_metrics_entry: { Args: { entry: Json }; Returns: boolean }
       valid_proposed_price: { Args: { price: number }; Returns: boolean }
       viewer_sees_creator_details: { Args: never; Returns: boolean }
       void_strike: {
@@ -3104,6 +3404,24 @@ export type Database = {
       withdraw_from_engagement: {
         Args: { engagement: string }
         Returns: undefined
+      }
+      write_checkpoint_evidence: {
+        Args: {
+          captured_on: string
+          confirmed_brief: boolean
+          confirmed_started: boolean
+          e: Database["public"]["Tables"]["engagements"]["Row"]
+          file_ids: string[]
+          h: Database["public"]["Tables"]["hire_checkpoints"]["Row"]
+          k: Database["public"]["Tables"]["campaigns"]["Row"]
+          links: string[]
+          me: string
+          metrics: Json
+          note: string
+          period_from: string
+          period_to: string
+        }
+        Returns: string
       }
       write_dispute_statement: {
         Args: {
@@ -3199,6 +3517,13 @@ export type Database = {
         | "identity_verified"
         | "identity_failed"
         | "identity_needs_review"
+        | "kickoff_done"
+        | "checkpoint_done"
+        | "checkpoint_late"
+        | "checkpoint_reminder"
+        | "checkpoint_overdue"
+        | "checkpoint_warning"
+        | "checkpoint_dispute_available"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -3430,6 +3755,13 @@ export const Constants = {
         "identity_verified",
         "identity_failed",
         "identity_needs_review",
+        "kickoff_done",
+        "checkpoint_done",
+        "checkpoint_late",
+        "checkpoint_reminder",
+        "checkpoint_overdue",
+        "checkpoint_warning",
+        "checkpoint_dispute_available",
       ],
       payment_model: ["fixed", "per_click"],
       report_reason: [

@@ -88,6 +88,10 @@ select throws_ok(
        '[{"platform": "x", "min_followers": null}]', '[{"platform": "tiktok", "kind": "video", "quantity": 1}]') $$,
   '23503', null, 'a deliverable must be on one of the campaign''s platforms');
 
+-- Fixture: a new campaign needs a start and an end date before it can be submitted
+-- (campaign_timeline migration).
+update public.campaigns set post_from = public.lagos_today() + 12, ends_on = deliver_by + 10
+ where title = 'Zobo launch reels';
 select is(
   public.transition_campaign((select id from public.campaigns where title = 'Zobo launch reels'), 'submit'),
   'pending_review'::public.campaign_status, 'a first campaign waits for an admin');
@@ -166,6 +170,7 @@ select public.save_campaign_draft(
   '{}', '{}', true, 7500000, 2, public.lagos_today() + 10, public.lagos_today() + 11, public.lagos_today() + 30,
   '[{"platform": "instagram", "min_followers": null}]', '[{"platform": "instagram", "kind": "post", "quantity": 1}]'
 );
+update public.campaigns set ends_on = deliver_by + 10 where title = 'Verified foodies only'; -- fixture: see campaign_timeline migration
 select is(
   public.transition_campaign((select id from public.campaigns where title = 'Verified foodies only'), 'submit'),
   'open'::public.campaign_status, 'after one approval, campaigns go live at once');
@@ -328,6 +333,9 @@ insert into public.campaign_platforms (campaign_id, platform)
 select id, 'x' from public.campaigns where title = 'Click campaign';
 insert into public.campaign_deliverables (campaign_id, position, platform, kind, quantity)
 select id, 1, 'x', 'post', 1 from public.campaigns where title = 'Click campaign';
+
+update public.campaigns set post_from = public.lagos_today() + 6, ends_on = deliver_by + 10
+ where title = 'Click campaign'; -- fixture: see campaign_timeline migration
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "bbbbbbbb-0000-0000-0000-000000000001"}';

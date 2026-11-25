@@ -16,7 +16,7 @@ const SWITCHES: { name: keyof EmailPreferences; label: string }[] = [
   { name: "campaigns", label: "Campaign updates" },
   {
     name: "messages",
-    label: "Messages (only if you haven’t read them after 15 minutes)",
+    label: "Messages (only if you haven’t read them after 6 hours)",
   },
 ];
 

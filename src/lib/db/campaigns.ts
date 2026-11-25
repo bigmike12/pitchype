@@ -21,6 +21,12 @@ import {
   type Problem,
 } from "@/lib/campaign";
 import {
+  isEvidenceType,
+  isFinalRequirement,
+  type EvidenceType,
+  type FinalRequirement,
+} from "@/lib/checkpoints";
+import {
   isFollowerRange,
   isPlatform,
   type FollowerRange,
@@ -99,7 +105,7 @@ export async function getOwnCampaign(
   const { data, error } = await supabase
     .from("campaigns")
     .select(
-      "id, status, title, brief, guidelines, niches, states, verified_only, price_kobo, places, applications_close_on, post_from, deliver_by, payment_model, cpc_kobo, destination_url, utm_tags, blocked_channels, review_note, removed_reason, published_at, campaign_platforms (platform, min_followers, campaign_deliverables (position, platform, kind, quantity)), campaign_revisions (created_at)",
+      "id, status, title, brief, guidelines, niches, states, verified_only, price_kobo, places, applications_close_on, post_from, deliver_by, ends_on, checkpoints_enabled, checkpoint_interval_days, checkpoint_evidence, final_requirements, payment_model, cpc_kobo, destination_url, utm_tags, blocked_channels, review_note, removed_reason, published_at, campaign_platforms (platform, min_followers, campaign_deliverables (position, platform, kind, quantity)), campaign_revisions (created_at)",
     )
     .eq("id", campaignId)
     .eq("business_id", businessId)
@@ -127,6 +133,11 @@ export async function getOwnCampaign(
     applicationsCloseOn: data.applications_close_on,
     postFrom: data.post_from,
     deliverBy: data.deliver_by,
+    endsOn: data.ends_on,
+    checkpointsEnabled: data.checkpoints_enabled,
+    checkpointIntervalDays: data.checkpoint_interval_days,
+    checkpointEvidence: (data.checkpoint_evidence ?? []).filter(isEvidenceType),
+    finalRequirements: data.final_requirements.filter(isFinalRequirement),
     reviewNote: data.review_note,
     removedReason: data.removed_reason,
     publishedAt: data.published_at,
@@ -192,6 +203,13 @@ export async function saveCampaignDraft(
     destination_url: nullable<string>(input.destinationUrl),
     utm_tags: input.utmTags,
     blocked_channels: input.blockedChannels,
+    ends_on: nullable<string>(input.endsOn),
+    checkpoints_enabled: input.checkpointsEnabled,
+    checkpoint_interval_days: nullable<number>(input.checkpointIntervalDays),
+    checkpoint_evidence: input.checkpointsEnabled
+      ? input.checkpointEvidence
+      : nullable<string[]>(null),
+    final_requirements: input.finalRequirements,
   });
   if (error?.code === "P0002") return "not_a_draft";
   if (error) throw new Error(`campaign save failed (${error.code})`);
@@ -212,6 +230,7 @@ export async function updateLiveCampaign(
       places: edit.places,
       applications_close_on: edit.applicationsCloseOn,
       deliver_by: edit.deliverBy,
+      ...(edit.endsOn === undefined ? {} : { ends_on: edit.endsOn }),
     })
     .eq("id", campaignId);
   // The database refuses edits the campaign's status doesn't allow, and a
@@ -245,6 +264,16 @@ export type TransitionResult =
   | { ok: false; reason: "invalid"; message: string }
   | { ok: false; reason: "stale" | "not_allowed" | "identity_required" };
 
+/** What the database's timeline refusals mean, in words for the business. */
+const TIMELINE_REFUSALS: Record<string, string> = {
+  timeline_required:
+    "Set when the campaign starts and when it ends before you send it for listing.",
+  timeline_in_past:
+    "The start date has passed. Choose new dates, then send it again.",
+  checkpoints_do_not_fit:
+    "With these dates there is no room for a checkpoint before final delivery. Shorten the interval or turn checkpoints off.",
+};
+
 /** Every status change, for businesses and admins alike. */
 export async function transitionCampaign(
   campaignId: string,
@@ -270,7 +299,28 @@ export async function transitionCampaign(
   if (error.code === "P0001" && error.message === "identity_required") {
     return { ok: false, reason: "identity_required" };
   }
+  if (error.code === "P0001" && error.message in TIMELINE_REFUSALS) {
+    return {
+      ok: false,
+      reason: "invalid",
+      message: TIMELINE_REFUSALS[error.message],
+    };
+  }
   throw new Error(`campaign ${action} failed (${error.code})`);
+}
+
+/** A campaign's fixed checkpoint dates, in order (empty when it has none). */
+export async function listCampaignCheckpoints(
+  campaignId: string,
+): Promise<{ seq: number; dueOn: string }[]> {
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("campaign_checkpoints")
+    .select("seq, due_on")
+    .eq("campaign_id", campaignId)
+    .order("seq");
+  if (error) throw new Error(`checkpoint dates failed (${error.code})`);
+  return data.map((row) => ({ seq: row.seq, dueOn: row.due_on }));
 }
 
 export async function countQualifyingCreators(
@@ -310,6 +360,14 @@ export type CampaignListing = {
   applicationsCloseOn: string;
   postFrom: string | null;
   deliverBy: string;
+  /** The day the campaign ends; posts stay up until then. Null on older campaigns. */
+  endsOn: string | null;
+  checkpointsEnabled: boolean;
+  checkpointIntervalDays: number | null;
+  checkpointEvidence: EvidenceType[];
+  /** The fixed dates, in order. */
+  checkpointDates: string[];
+  finalRequirements: FinalRequirement[];
   platforms: { platform: Platform; minFollowers: FollowerRange | null }[];
   deliverables: Deliverable[];
   /** Why the viewing creator doesn't qualify; empty when they do (and for admins). */
@@ -541,6 +599,19 @@ function toListing(value: Json): CampaignListing | null {
     applicationsCloseOn: str(value.applications_close_on) ?? "",
     postFrom: str(value.post_from),
     deliverBy: str(value.deliver_by) ?? "",
+    endsOn: str(value.ends_on),
+    checkpointsEnabled: value.checkpoints_enabled === true,
+    checkpointIntervalDays: num(value.checkpoint_interval_days),
+    checkpointEvidence: list(value.checkpoint_evidence).filter(
+      (e): e is EvidenceType => typeof e === "string" && isEvidenceType(e),
+    ),
+    checkpointDates: list(value.checkpoint_dates).filter(
+      (d): d is string => typeof d === "string",
+    ),
+    finalRequirements: list(value.final_requirements).filter(
+      (r): r is FinalRequirement =>
+        typeof r === "string" && isFinalRequirement(r),
+    ),
     platforms: list(value.platforms).flatMap((p) => {
       if (!isObject(p)) return [];
       const platform = str(p.platform);

@@ -1,6 +1,10 @@
 import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
   BadgeCheck,
   Banknote,
+  Building2,
+  Coins,
   EyeOff,
   Flag,
   Gavel,
@@ -8,6 +12,7 @@ import {
   Megaphone,
   ShieldAlert,
   UserCheck,
+  Users,
 } from "lucide-react";
 import type { Metadata } from "next";
 import { Suspense } from "react";
@@ -24,6 +29,7 @@ import {
   listCampaignsForReview,
   listOpenCampaignReports,
 } from "@/lib/db/campaigns";
+import { getPlatformOverview } from "@/lib/db/admin-overview";
 import { countOpenDisputes } from "@/lib/db/disputes";
 import { countIdentityAttention } from "@/lib/db/identity";
 import { getStandingReview } from "@/lib/db/moderation";
@@ -31,6 +37,8 @@ import { countEscrowEngagements } from "@/lib/db/money";
 import { countPayoutsAwaitingApproval } from "@/lib/db/payouts";
 import { listHiddenCreators, listOpenReports } from "@/lib/db/reports";
 import { listVerificationQueue } from "@/lib/db/verification";
+import { formatNaira } from "@/lib/money";
+import { isPaymentTestMode } from "@/lib/payment-test-mode";
 
 export const metadata: Metadata = { title: "Admin" };
 
@@ -42,7 +50,7 @@ export default function AdminPage() {
           <PageLoading label="Loading…">
             <HeaderSkeleton />
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-              {[0, 1, 2, 3, 4, 5].map((i) => (
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                 <Skeleton key={i} className="h-28 rounded-card" />
               ))}
             </div>
@@ -55,8 +63,9 @@ export default function AdminPage() {
   );
 }
 
-// The admin area's front page: how much waits in each queue, each figure a
-// link to the page that handles it. Nothing is decided here.
+// The admin area's front page: platform counts and money from real records,
+// then how much waits in each queue, each queue figure a link to the page that
+// handles it. Nothing is decided here.
 async function Overview() {
   await requireRole("admin");
   const [
@@ -70,6 +79,7 @@ async function Overview() {
     escrow,
     disputes,
     identity,
+    overview,
   ] = await Promise.all([
     getStandingReview(),
     listCampaignsForReview(),
@@ -81,16 +91,74 @@ async function Overview() {
     countEscrowEngagements(),
     countOpenDisputes(),
     countIdentityAttention(),
+    getPlatformOverview(),
   ]);
+  const testMode = isPaymentTestMode();
+  const modeNote = testMode ? " · Test mode" : "";
 
   return (
     <>
       <PageHeader
         title="Admin"
-        lead="What is waiting on an admin. Each figure opens the page that handles it."
+        lead="How the platform is doing, and what is waiting on an admin."
       />
 
-      <h2 className="mb-3 text-[0.9375rem] font-semibold text-ink">Review</h2>
+      <h2 className="mb-3 text-[0.9375rem] font-semibold text-ink">Platform</h2>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <StatCard
+          label="Businesses"
+          value={String(overview.businesses)}
+          detail="Signed up"
+          icon={Building2}
+          tone="sky"
+        />
+        <StatCard
+          label="Creators"
+          value={String(overview.creators)}
+          detail="Signed up"
+          icon={Users}
+          tone="lilac"
+        />
+        <StatCard
+          label="Campaigns"
+          value={String(overview.campaignsTotal)}
+          detail={`${overview.campaignsLive} live`}
+          icon={Megaphone}
+          tone="sun"
+        />
+      </div>
+
+      <h2 className="mt-6 mb-3 text-[0.9375rem] font-semibold text-ink">
+        Money so far
+      </h2>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <StatCard
+          label="Paid in by businesses"
+          value={formatNaira(overview.paidInKobo)}
+          detail={`Card payments${modeNote}`}
+          icon={ArrowDownToLine}
+          tone="mint"
+        />
+        <StatCard
+          label="Paid out to creators"
+          value={formatNaira(overview.paidOutKobo)}
+          detail={`Paid payouts, after transfer costs${modeNote}`}
+          icon={ArrowUpFromLine}
+          tone="peach"
+        />
+        <StatCard
+          label="Pitchype revenue"
+          value={formatNaira(overview.revenueKobo)}
+          detail={`Our fees, after refunds${modeNote}`}
+          icon={Coins}
+          tone="sun"
+          emphasis
+        />
+      </div>
+
+      <h2 className="mt-6 mb-3 text-[0.9375rem] font-semibold text-ink">
+        Review
+      </h2>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <StatCard
           label="Appeals and suspensions"

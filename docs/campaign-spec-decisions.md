@@ -112,6 +112,21 @@ Store every hit. Separately mark which are billable, and pay only for billable o
 - A single product photo can reuse the profile photo pipeline later.
 - A business logo is a cheaper first image to add, using the same pipeline.
 
+## 8. Timelines, checkpoints and final requirements
+
+Built after Stage 7; design `docs/superpowers/specs/2026-11-22-campaign-checkpoints-design.md`, rules in CLAUDE.md §5, §8 and §12.
+
+**Timeline (every campaign).** A start (`post_from`), a final-delivery cutoff (`deliver_by`) and an end (`ends_on`, the day until which posts stay up). New campaigns need a start and an end before they can be submitted; the start can't be in the past. The end can only move later once live. The pages show the three dates with a CSS progress bar.
+
+**Checkpoints (optional, off by default).**
+- The business chooses a frequency (every 3, 7 or 14 days, or a custom 2–30) and the evidence each checkpoint needs: a written update, links, screenshots of what is published, or analytics (screenshots, figures per platform, the day captured). The dates are fixed when the campaign leaves draft and don't change after go-live; at least one must fit before final delivery.
+- Each hire gets a kickoff confirmation due 2 days after "Start work" and the checkpoints that fall at least 3 days after their start. The rest are recorded as skipped, with the reason.
+- Late evidence is always accepted. Evidence is a record: the business doesn't approve it, and a missed checkpoint never holds back, forfeits or moves money.
+
+**Final submission.** Final requirements (links, screenshots, analytics, a written report) are chosen separately from checkpoints. The final work can be sent once every checkpoint whose time has passed has evidence; later checkpoints close. Then the usual 7-day review and auto-release apply.
+
+**Escalation.** Reminder (due within a day), overdue notice (both people), warning (two days overdue, with the date a dispute could open), and, once the warning is at least a day old and the checkpoint is more than 3 days overdue, a notice that the business may open the existing non-delivery dispute. Pay-per-click hires get the reminder and overdue notice only.
+
 ## Build order
 
 Follows the roadmap in `docs/BUILD_PROMPT.md`.

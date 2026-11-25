@@ -12,6 +12,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 
+import { CampaignSchedule } from "@/components/campaigns/campaign-schedule";
 import { CampaignClicks } from "@/components/clicks/campaign-clicks";
 import { ClickResults } from "@/components/clicks/click-results";
 import {
@@ -25,9 +26,14 @@ import { Callout } from "@/components/ui/callout";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
 import { requireRole } from "@/lib/auth";
+import {
+  checkpointDates as checkpointDatesFor,
+  lagosDate,
+} from "@/lib/checkpoints";
 import { isIdentityVerified } from "@/lib/db/identity";
 import {
   formatDay,
+  lagosToday,
   maxSpend,
   placesStatus,
   type CampaignAction,
@@ -37,6 +43,7 @@ import { getApplicationCounts } from "@/lib/db/applications";
 import {
   countQualifyingCreators,
   getOwnCampaign,
+  listCampaignCheckpoints,
   isTrustedBusiness,
   type OwnCampaign,
 } from "@/lib/db/campaigns";
@@ -86,24 +93,47 @@ async function Campaign({ params }: { params: Params }) {
   const live = ["draft", "pending_review", "open", "paused"].includes(
     campaign.status,
   );
-  const [niches, trusted, qualifying, counts, clicks, results] =
-    await Promise.all([
-      listNiches(),
-      // Per-click campaigns always go to review, trusted business or not.
-      campaign.status !== "draft"
-        ? Promise.resolve(true)
-        : campaign.paymentModel === "per_click"
-          ? Promise.resolve(false)
-          : isTrustedBusiness(user.id),
-      live ? countQualifyingCreators(campaign.id) : Promise.resolve(null),
-      getApplicationCounts(),
-      campaign.paymentModel === "per_click" && campaign.status !== "draft"
-        ? getCampaignClicks(campaign.id)
-        : Promise.resolve(null),
-      campaign.paymentModel === "per_click" && campaign.status !== "draft"
-        ? getCampaignClickResults(campaign.id)
-        : Promise.resolve(null),
-    ]);
+  const [
+    niches,
+    trusted,
+    qualifying,
+    counts,
+    clicks,
+    results,
+    checkpointDates,
+  ] = await Promise.all([
+    listNiches(),
+    // Per-click campaigns always go to review, trusted business or not.
+    campaign.status !== "draft"
+      ? Promise.resolve(true)
+      : campaign.paymentModel === "per_click"
+        ? Promise.resolve(false)
+        : isTrustedBusiness(user.id),
+    live ? countQualifyingCreators(campaign.id) : Promise.resolve(null),
+    getApplicationCounts(),
+    campaign.paymentModel === "per_click" && campaign.status !== "draft"
+      ? getCampaignClicks(campaign.id)
+      : Promise.resolve(null),
+    campaign.paymentModel === "per_click" && campaign.status !== "draft"
+      ? getCampaignClickResults(campaign.id)
+      : Promise.resolve(null),
+    campaign.checkpointsEnabled
+      ? listCampaignCheckpoints(campaign.id)
+      : Promise.resolve([]),
+  ]);
+  // The schedule is generated when the campaign is submitted; a draft shows
+  // the dates it would have.
+  const scheduleDates =
+    campaign.status === "draft" &&
+    campaign.checkpointsEnabled &&
+    campaign.postFrom &&
+    campaign.checkpointIntervalDays
+      ? checkpointDatesFor({
+          postFrom: campaign.postFrom,
+          deliverBy: campaign.deliverBy,
+          intervalDays: campaign.checkpointIntervalDays,
+        })
+      : checkpointDates.map((c) => c.dueOn);
   const applications = counts.get(campaign.id) ?? {
     total: 0,
     waiting: 0,
@@ -246,6 +276,24 @@ async function Campaign({ params }: { params: Params }) {
               />
             </SectionCard>
           )}
+          <SectionCard id="timeline-title" title="Timeline" padded>
+            <CampaignSchedule
+              start={campaign.postFrom}
+              liveFrom={
+                campaign.publishedAt
+                  ? lagosDate(new Date(campaign.publishedAt))
+                  : lagosToday()
+              }
+              deliverBy={campaign.deliverBy}
+              endsOn={campaign.endsOn}
+              today={lagosToday()}
+              checkpointsEnabled={campaign.checkpointsEnabled}
+              checkpointIntervalDays={campaign.checkpointIntervalDays}
+              checkpointEvidence={campaign.checkpointEvidence}
+              checkpointDates={scheduleDates}
+              finalRequirements={campaign.finalRequirements}
+            />
+          </SectionCard>
           <SectionCard id="posts-title" title="What each creator posts" padded>
             <div>
               <DeliverableList

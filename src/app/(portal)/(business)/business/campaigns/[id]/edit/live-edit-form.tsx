@@ -25,6 +25,8 @@ export function LiveEditForm({
     places: number;
     applicationsCloseOn: string;
     deliverBy: string;
+    /** Null on a campaign that went live before end dates existed. */
+    endsOn: string | null;
     /** A per-click campaign whose clicks have stopped: its end date is final. */
     deliverByLocked?: boolean;
   };
@@ -70,7 +72,7 @@ export function LiveEditForm({
         </div>
       </SectionCard>
       <SectionCard id="places-title" title="Places and dates" padded>
-        <div className="grid gap-5 sm:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2">
           <TextField
             label="How many creators"
             name="places"
@@ -121,6 +123,15 @@ export function LiveEditForm({
               error={errors.deliverBy}
             />
           )}
+          <TextField
+            label="Campaign ends"
+            name="endsOn"
+            type="date"
+            min={campaign.endsOn ?? campaign.deliverBy}
+            hint="Later only. Creators keep their posts up until this day."
+            defaultValue={values.endsOn ?? campaign.endsOn ?? ""}
+            error={errors.endsOn}
+          />
         </div>
       </SectionCard>
       <FormMessage status={state.status} message={state.message} />

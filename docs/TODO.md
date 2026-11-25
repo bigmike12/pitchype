@@ -803,6 +803,29 @@ locally with fakes; the Dojah sandbox checks are listed below, so every
 - [ ] An admin's "screen again" assumes a creator in `screenAgainAction` only for
       the fallback subject; the subject normally comes from the verified check.
 
+## 15. From building campaign timelines and checkpoints
+
+- [ ] Look at the new screens in a browser at 390px and desktop: the builder's
+      Timeline, Checkpoints and Final submission parts, the progress bar, the
+      creator's checklist and forms (including the screenshot upload and figures
+      fields), the business read-only list and trail, the admin dispute and
+      money-trail sections. Built without a browser run.
+- [ ] Files already attached to checkpoint evidence are not excluded by the
+      "unattached" test in `submit_work()`, `write_dispute_statement()`,
+      `record_click_proof()`: reusing one fails the one-parent constraint
+      instead of a clean refusal. Add `checkpoint_evidence_id is null` there when
+      those functions are next touched.
+- [ ] Email check: send the reminder, overdue, warning and dispute-available
+      emails once through Resend and read them (wording is in
+      `src/lib/notifications.ts`).
+- [ ] Not built, by decision: business approval of checkpoint evidence, analytics
+      pulled from platform APIs, per-checkpoint evidence rules, rolling
+      per-creator schedules, and adding checkpoints when a live campaign's
+      deadlines are extended.
+- [ ] The creator page for a campaign shows today's position from the day the
+      page was opened; a draft's checkpoint dates are computed in the page until
+      it is submitted.
+
 ## Done
 
 - [x] Database migrations for Stages 1–3 pushed to the live project

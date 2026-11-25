@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import {
-  ALL_EMAILS_ON,
+  DEFAULT_EMAIL_PREFERENCES,
   EMAIL_POLICY,
   parseEmailPreferences,
   wantsEmail,
@@ -11,6 +11,7 @@ import {
 import { describeNotification } from "./notifications.ts";
 
 const ALL_OFF = { applications: false, campaigns: false, messages: false };
+const ALL_EMAILS_ON = { applications: true, campaigns: true, messages: true };
 
 const describes = (kind: string) =>
   describeNotification(
@@ -68,6 +69,10 @@ test("money and deadline kinds always send", () => {
     "appeal_answered",
     "click_cap_reached",
     "click_hold_started",
+    "checkpoint_reminder",
+    "checkpoint_overdue",
+    "checkpoint_warning",
+    "checkpoint_dispute_available",
     "clicks_stopped",
     "identity_verified",
     "identity_failed",
@@ -82,7 +87,14 @@ test("switches control their group", () => {
   const only = (group: keyof typeof ALL_OFF) => ({ ...ALL_OFF, [group]: true });
 
   const groups = {
-    applications: ["application_received", "work_started", "hire_cancelled"],
+    applications: [
+      "application_received",
+      "work_started",
+      "hire_cancelled",
+      "kickoff_done",
+      "checkpoint_done",
+      "checkpoint_late",
+    ],
     campaigns: ["campaign_approved", "campaign_sent_back"],
     messages: ["new_message"],
   } as const;
@@ -123,4 +135,17 @@ test("parseEmailPreferences reads checkboxes", () => {
     campaigns: false,
     messages: true,
   });
+});
+
+test("a person who has chosen nothing gets no chat email", () => {
+  assert.deepEqual(DEFAULT_EMAIL_PREFERENCES, {
+    applications: true,
+    campaigns: true,
+    messages: false,
+  });
+  assert.equal(wantsEmail("new_message", DEFAULT_EMAIL_PREFERENCES), false);
+  assert.equal(
+    wantsEmail("application_received", DEFAULT_EMAIL_PREFERENCES),
+    true,
+  );
 });

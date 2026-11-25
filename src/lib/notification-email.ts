@@ -15,11 +15,14 @@ export type EmailPreferences = {
   messages: boolean;
 };
 
-/** What a person has before they choose anything (no stored row). */
-export const ALL_EMAILS_ON: EmailPreferences = {
+/**
+ * What a person has before they choose anything (no stored row). Chat email
+ * is opt-in; it matches the database default and claim_due_emails().
+ */
+export const DEFAULT_EMAIL_PREFERENCES: EmailPreferences = {
   applications: true,
   campaigns: true,
-  messages: true,
+  messages: false,
 };
 
 export const EMAIL_POLICY: Record<string, EmailPolicy> = {
@@ -30,6 +33,9 @@ export const EMAIL_POLICY: Record<string, EmailPolicy> = {
   application_passed: "applications",
   hire_cancelled: "applications",
   work_started: "applications",
+  kickoff_done: "applications",
+  checkpoint_done: "applications",
+  checkpoint_late: "applications",
 
   campaign_approved: "campaigns",
   campaign_sent_back: "campaigns",
@@ -37,6 +43,10 @@ export const EMAIL_POLICY: Record<string, EmailPolicy> = {
   new_message: "messages",
 
   application_hired: "always",
+  checkpoint_reminder: "always",
+  checkpoint_overdue: "always",
+  checkpoint_warning: "always",
+  checkpoint_dispute_available: "always",
   hire_lapsed: "always",
   hire_funded: "always",
   funded_hire_cancelled: "always",

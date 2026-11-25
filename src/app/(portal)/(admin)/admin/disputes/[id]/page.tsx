@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { AdminCheckpoints } from "@/components/checkpoints/admin-checkpoints";
 import { DisputeThread } from "@/components/engagement/dispute-thread";
 import { PageHeader } from "@/components/ui/page-header";
 import { ClickSummary } from "@/components/clicks/click-summary";
@@ -60,6 +61,11 @@ export default async function AdminDisputePage({
         rounds={rounds}
         viewer={{ id: user.id, role: "admin" }}
         statementAction={addAdminStatementAction}
+      />
+      <AdminCheckpoints
+        engagementId={hire.id}
+        campaign={hire.campaign}
+        className="mt-4"
       />
       {clicks && (
         <SectionCard id="clicks-title" title="Clicks" padded className="mt-4">

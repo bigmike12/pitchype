@@ -1,4 +1,9 @@
-import { BadgeCheck, CalendarClock, Users } from "lucide-react";
+import {
+  BadgeCheck,
+  CalendarClock,
+  MousePointerClick,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 
 import type { Tone } from "@/components/brand/stickers";
@@ -40,9 +45,18 @@ export function CampaignCard({
 }) {
   const qualifies = campaign.problems.length === 0;
   const firstProblem = campaign.problems[0];
+  // Pay-per-click campaigns get a violet top band and a "Pay per click" tag,
+  // so they can't be mistaken for a fixed-price job at a glance.
+  const perClick = campaign.paymentModel === "per_click";
 
   return (
-    <article className="relative flex flex-col overflow-hidden rounded-card panel hover:shadow-[0_0_0_1px_var(--color-hairline-strong),var(--shadow-lift)] motion-safe:transition-[box-shadow,transform] motion-safe:duration-300 motion-safe:hover:-translate-y-px has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-3 has-[a:focus-visible]:outline-ink has-[a:hover]:ring-field [&_a]:outline-none">
+    <article
+      className={cn(
+        "relative flex flex-col overflow-hidden rounded-card panel hover:shadow-[0_0_0_1px_var(--color-hairline-strong),var(--shadow-lift)] motion-safe:transition-[box-shadow,transform] motion-safe:duration-300 motion-safe:hover:-translate-y-px has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-3 has-[a:focus-visible]:outline-ink has-[a:hover]:ring-field [&_a]:outline-none",
+        perClick &&
+          "ring-1 ring-brand-violet/40 before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:bg-brand-violet",
+      )}
+    >
       <div className="flex flex-1 flex-col p-4">
         <div className="flex items-center gap-2.5">
           <span
@@ -62,6 +76,12 @@ export function CampaignCard({
               {campaign.businessCity}, {stateLabel(campaign.businessState)}
             </span>
           </p>
+          {perClick && (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-sky px-2 py-1 text-xs font-semibold text-ink ring-1 ring-brand-violet/40">
+              <MousePointerClick className="size-3.5" aria-hidden="true" />
+              Pay per click
+            </span>
+          )}
           {qualifies && (
             <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-mint px-2 py-1 text-xs font-semibold text-ink">
               <BadgeCheck className="size-3.5" aria-hidden="true" />

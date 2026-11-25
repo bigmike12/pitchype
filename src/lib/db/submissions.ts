@@ -7,9 +7,11 @@
 // SQL. Reads go through the session too, so row level security decides what a
 // person sees; only then are the screenshots that came back signed.
 
+import type { Metrics } from "@/lib/checkpoints";
 import { proofFileUrls } from "@/lib/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createSessionClient } from "@/lib/supabase/server";
+import type { Json } from "@/types/database";
 
 import { refused, type Result } from "./refusal";
 
@@ -28,14 +30,30 @@ export async function submitWork(
   note: string | null,
   links: string[],
   fileIds: string[],
+  /** What a campaign's final requirements ask for; left out, the four-argument form is called. */
+  final?: {
+    metrics: Metrics | null;
+    capturedOn: string | null;
+    report: string | null;
+  },
 ): Promise<Result<string>> {
   const supabase = await createSessionClient();
-  const { data, error } = await supabase.rpc("submit_work", {
-    engagement: engagementId,
-    note: nullable<string>(note),
-    links,
-    file_ids: fileIds,
-  });
+  const { data, error } = final
+    ? await supabase.rpc("submit_work", {
+        engagement: engagementId,
+        note: nullable<string>(note),
+        links,
+        file_ids: fileIds,
+        metrics: nullable<Json>(final.metrics),
+        captured_on: nullable<string>(final.capturedOn),
+        report: nullable<string>(final.report),
+      })
+    : await supabase.rpc("submit_work", {
+        engagement: engagementId,
+        note: nullable<string>(note),
+        links,
+        file_ids: fileIds,
+      });
   if (error) return refused(error, "submit work");
   return { ok: true, value: data };
 }

@@ -2,6 +2,7 @@
 // (a kind and the facts, see the create_notifications migration); this file
 // turns that into what a person reads, so copy changes need no migration.
 
+import { formatDay } from "./campaign.ts";
 import {
   formatDateTime,
   PLATFORM_RULES,
@@ -273,6 +274,74 @@ export function describeNotification(
         body: text(d.decision_reason),
         href: "/wallet",
       };
+    case "kickoff_done":
+      return {
+        title: `${name} confirmed the kickoff for ${quoted}`,
+        body: "They’ve read the brief and started on the work.",
+        href: businessHire,
+      };
+    case "checkpoint_done": {
+      const due = text(d.due_on);
+      return {
+        title: `${name} sent a progress checkpoint for ${quoted}`,
+        body: due ? `It was due on ${formatDay(due)}.` : null,
+        href: businessHire,
+      };
+    }
+    case "checkpoint_late": {
+      const due = text(d.due_on);
+      const dueLine = due ? `It was due on ${formatDay(due)}. ` : "";
+      return {
+        title:
+          d.kickoff === true
+            ? `${name} confirmed the kickoff for ${quoted}, after it was due`
+            : `${name} sent a late progress checkpoint for ${quoted}`,
+        body: `${dueLine}It’s recorded as late. No money is held back because of a missed checkpoint.`,
+        href: businessHire,
+      };
+    }
+    case "checkpoint_reminder": {
+      const due = text(d.due_at);
+      const what = d.kickoff === true ? "your kickoff" : "a checkpoint";
+      return {
+        title: `${what[0].toUpperCase()}${what.slice(1)} for ${theirs} is due soon`,
+        body: due
+          ? `Send it by ${formatDateTime(due)} (Lagos time). Late is still accepted.`
+          : "Send it today. Late is still accepted.",
+        href: creatorJob,
+      };
+    }
+    case "checkpoint_overdue": {
+      const what = d.kickoff === true ? "kickoff" : "checkpoint";
+      return role === "business"
+        ? {
+            title: `${name}’s ${what} for ${quoted} is overdue`,
+            body: "We’ve reminded them. If it stays missing, you’ll be able to open a dispute.",
+            href: businessHire,
+          }
+        : {
+            title: `Your ${what} for ${theirs} is overdue`,
+            body: "Send it as soon as you can; it’s still accepted. No money is held back because of a missed checkpoint.",
+            href: creatorJob,
+          };
+    }
+    case "checkpoint_warning": {
+      const from = text(d.dispute_from);
+      const what = d.kickoff === true ? "kickoff" : "checkpoint";
+      return {
+        title: `Your ${what} for ${theirs} is still missing`,
+        body: `${from ? `From ${formatDateTime(from)}, ` : "Soon "}the business can open a dispute about missing work. Sending it now, even late, closes that door. No money is held back because of a missed checkpoint.`,
+        href: creatorJob,
+      };
+    }
+    case "checkpoint_dispute_available": {
+      const what = d.kickoff === true ? "kickoff" : "checkpoint";
+      return {
+        title: `You can now open a dispute about missing work on ${quoted}`,
+        body: `${name}’s ${what} is more than 3 days overdue and they’ve been warned. An admin decides every dispute.`,
+        href: disputePage,
+      };
+    }
     case "click_cap_reached": {
       const cap = typeof d.cap === "number" ? d.cap : null;
       const earned = kobo(d.earned_kobo);

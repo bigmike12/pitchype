@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { AdminCheckpoints } from "@/components/checkpoints/admin-checkpoints";
 import { ClickSummary } from "@/components/clicks/click-summary";
 import { Callout } from "@/components/ui/callout";
 import { PageHeader } from "@/components/ui/page-header";
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
+import { getEngagementDetails } from "@/lib/db/applications";
 import { getEngagementClicks } from "@/lib/db/clicks";
 import { getEngagementTrail, type EngagementTrail } from "@/lib/db/money";
 import { isUuid } from "@/lib/form-data";
@@ -70,6 +72,8 @@ async function Trail({ params }: { params: Promise<{ id: string }> }) {
   const check = checkTrail(trail);
   // Null unless this is a per-click hire.
   const clicks = await getEngagementClicks(id);
+  // The checkpoint trail is context for the money, not part of it.
+  const details = await getEngagementDetails(id);
 
   return (
     <>
@@ -107,6 +111,13 @@ async function Trail({ params }: { params: Promise<{ id: string }> }) {
             settled={e.status === "accepted" || e.status === "refunded"}
           />
         </SectionCard>
+      )}
+      {details && (
+        <AdminCheckpoints
+          engagementId={id}
+          campaign={details.campaign}
+          className="mt-4"
+        />
       )}
 
       <section

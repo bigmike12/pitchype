@@ -15,6 +15,12 @@ import type {
   DeliverableKind,
   PaymentModel,
 } from "@/lib/campaign";
+import {
+  isEvidenceType,
+  isFinalRequirement,
+  type EvidenceType,
+  type FinalRequirement,
+} from "@/lib/checkpoints";
 import { isPlatform, type PlatformListing } from "@/lib/creator-profile";
 import { profilePhotoUrl } from "@/lib/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -445,6 +451,16 @@ export type EngagementDetails = EngagementSummary & {
     brief: string;
     /** What the campaign asked for, in order; locked once it was live. */
     deliverables: Deliverable[];
+    paymentModel: "fixed" | "per_click";
+    /** The campaign's start and end dates; null on campaigns that went live without them. */
+    postFrom: string | null;
+    endsOn: string | null;
+    checkpointsEnabled: boolean;
+    checkpointIntervalDays: number | null;
+    /** What each progress checkpoint needs. */
+    checkpointEvidence: EvidenceType[];
+    /** What the final submission must contain; empty means a link or a screenshot. */
+    finalRequirements: FinalRequirement[];
   };
   creator: { id: string; name: string; slug: string | null };
   business: { id: string; name: string };
@@ -494,6 +510,18 @@ export async function getEngagementDetails(
       priceKobo: num(k.price_kobo) ?? 0,
       deliverBy: str(k.deliver_by) ?? "",
       brief: str(k.brief) ?? "",
+      paymentModel: k.payment_model === "per_click" ? "per_click" : "fixed",
+      postFrom: str(k.post_from),
+      endsOn: str(k.ends_on),
+      checkpointsEnabled: k.checkpoints_enabled === true,
+      checkpointIntervalDays: num(k.checkpoint_interval_days),
+      checkpointEvidence: list(k.checkpoint_evidence).filter(
+        (e): e is EvidenceType => typeof e === "string" && isEvidenceType(e),
+      ),
+      finalRequirements: list(k.final_requirements).filter(
+        (r): r is FinalRequirement =>
+          typeof r === "string" && isFinalRequirement(r),
+      ),
       deliverables: list(k.deliverables).flatMap((d) => {
         if (!isObject(d)) return [];
         const platform = str(d.platform);

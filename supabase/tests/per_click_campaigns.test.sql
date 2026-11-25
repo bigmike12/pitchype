@@ -115,6 +115,9 @@ select lives_ok($$
     blocked_channels => '{}')
 $$, 'Ada saves a fixed-price draft');
 
+-- Fixture: a new campaign needs a start and an end date (campaign_timeline migration).
+update public.campaigns set post_from = public.lagos_today() + 12, ends_on = deliver_by + 10
+ where title in ('Konga Xmas clicks', 'Konga fixed reels');
 select is(
   public.transition_campaign((select id from public.campaigns where title = 'Konga Xmas clicks'), 'submit'),
   'pending_review'::public.campaign_status,

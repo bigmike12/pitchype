@@ -3,6 +3,16 @@
 // unit-tested. Mirrors supabase/migrations/20261109162551_create_campaigns.sql;
 // decisions in docs/campaign-spec-decisions.md.
 
+import {
+  checkpointDates,
+  isEvidenceType,
+  isFinalRequirement,
+  intervalFromChoice,
+  MAX_INTERVAL_DAYS,
+  MIN_INTERVAL_DAYS,
+  type EvidenceType,
+  type FinalRequirement,
+} from "./checkpoints.ts";
 import { findContactDetails } from "./contact-details.ts";
 import {
   MIN_FOLLOWER_LABELS,
@@ -502,6 +512,14 @@ export type CampaignInput = {
   applicationsCloseOn: string;
   postFrom: string | null;
   deliverBy: string;
+  /** The day the campaign ends: posts stay up until then. */
+  endsOn: string | null;
+  /** Fixed checkpoints after the start; off by default. */
+  checkpointsEnabled: boolean;
+  checkpointIntervalDays: number | null;
+  checkpointEvidence: EvidenceType[];
+  /** What the final submission must contain; empty means a link or a screenshot. */
+  finalRequirements: FinalRequirement[];
   platforms: { platform: Platform; minFollowers: FollowerRange | null }[];
   deliverables: Deliverable[];
   /** For per-click campaigns `priceKobo` is the budget per creator. */
@@ -527,7 +545,11 @@ export type CampaignField =
   | "places"
   | "applicationsCloseOn"
   | "postFrom"
-  | "deliverBy";
+  | "deliverBy"
+  | "endsOn"
+  | "checkpointInterval"
+  | "checkpointEvidence"
+  | "finalRequirements";
 
 const tidy = (raw: string) => raw.trim().replace(/[ \t]+/g, " ");
 
@@ -573,6 +595,67 @@ function places(form: FormData, errors: FieldErrors<CampaignField>): number {
     errors.places = `Enter how many creators you want, from 1 to ${MAX_PLACES}.`;
   }
   return value;
+}
+
+/**
+ * The checkpoint switch, frequency and evidence. Mirrors the database: a
+ * schedule needs a start date and at least one date before final delivery
+ * (generate_campaign_checkpoints(), checkpoints_do_not_fit). Settings left
+ * over from a switch that is now off are dropped.
+ */
+function checkpointSettings(
+  form: FormData,
+  context: {
+    postFrom: string;
+    deliverBy: string;
+    errors: FieldErrors<CampaignField>;
+  },
+): Pick<
+  CampaignInput,
+  "checkpointsEnabled" | "checkpointIntervalDays" | "checkpointEvidence"
+> {
+  const off = {
+    checkpointsEnabled: false,
+    checkpointIntervalDays: null,
+    checkpointEvidence: [],
+  };
+  if (text(form, "checkpointsEnabled") !== "on") return off;
+
+  const { postFrom, deliverBy, errors } = context;
+  const days = intervalFromChoice(
+    text(form, "checkpointFrequency"),
+    text(form, "checkpointCustomDays"),
+  );
+  if (days === null) {
+    errors.checkpointInterval = `Choose how often, or a custom interval from ${MIN_INTERVAL_DAYS} to ${MAX_INTERVAL_DAYS} days.`;
+  }
+
+  const evidence = [
+    ...new Set(form.getAll("checkpointEvidence").filter(isEvidenceType)),
+  ];
+  if (evidence.length === 0) {
+    errors.checkpointEvidence = "Choose what each checkpoint needs.";
+  }
+
+  if (!isDay(postFrom)) {
+    // Without a start date there is nothing to count from. (An invalid date
+    // already has its own message.)
+    errors.postFrom ??= "Checkpoints count from the start date, so choose one.";
+  } else if (
+    !errors.checkpointInterval &&
+    isDay(deliverBy) &&
+    days !== null &&
+    checkpointDates({ postFrom, deliverBy, intervalDays: days }).length === 0
+  ) {
+    errors.checkpointInterval =
+      "With these dates there is no room for a checkpoint before final delivery. Shorten the interval or turn checkpoints off.";
+  }
+
+  return {
+    checkpointsEnabled: true,
+    checkpointIntervalDays: days,
+    checkpointEvidence: evidence,
+  };
 }
 
 /**
@@ -687,6 +770,30 @@ export function parseCampaignForm(
     }
   }
 
+  const endsOnRaw = text(form, "endsOn");
+  if (endsOnRaw !== "") {
+    if (!isDay(endsOnRaw)) {
+      errors.endsOn = "Choose the day the campaign ends.";
+    } else if (isDay(deliverBy) && endsOnRaw < deliverBy) {
+      errors.endsOn = "Make this on or after the final delivery day.";
+    } else if (endsOnRaw > addDays(latest, 180)) {
+      errors.endsOn = "Choose a day within the next 18 months.";
+    }
+  }
+
+  const checkpoints = checkpointSettings(form, {
+    postFrom: postFromRaw,
+    deliverBy,
+    errors,
+  });
+  const finalRequirements = [
+    ...new Set(form.getAll("finalRequirements").filter(isFinalRequirement)),
+  ];
+  if (terms.paymentModel === "per_click" && finalRequirements.length > 0) {
+    errors.finalRequirements =
+      "Pay-per-click campaigns have no final submission, so there is nothing to require.";
+  }
+
   const values = {
     title,
     brief,
@@ -698,6 +805,7 @@ export function parseCampaignForm(
     applicationsCloseOn,
     postFrom: postFromRaw,
     deliverBy,
+    endsOn: endsOnRaw,
     cpc: text(form, "cpc").trim(),
     destinationUrl: text(form, "destination_url").trim(),
     blockedChannels: terms.blockedChannels.join(","),
@@ -719,6 +827,9 @@ export function parseCampaignForm(
       applicationsCloseOn,
       postFrom: postFromRaw === "" ? null : postFromRaw,
       deliverBy,
+      endsOn: endsOnRaw === "" ? null : endsOnRaw,
+      ...checkpoints,
+      finalRequirements,
       platforms,
       deliverables,
       ...terms,
@@ -733,6 +844,8 @@ export type LiveEdit = {
   places: number;
   applicationsCloseOn: string;
   deliverBy: string;
+  /** Undefined: leave the end date as it is. */
+  endsOn?: string;
 };
 
 /**
@@ -742,7 +855,11 @@ export type LiveEdit = {
  */
 export function parseLiveEditForm(
   form: FormData,
-  current: { applicationsCloseOn: string; deliverBy: string },
+  current: {
+    applicationsCloseOn: string;
+    deliverBy: string;
+    endsOn?: string | null;
+  },
 ): Parsed<LiveEdit, CampaignField> {
   const errors: FieldErrors<CampaignField> = {};
   const { title, brief, guidelines } = wording(form, errors);
@@ -762,6 +879,21 @@ export function parseLiveEditForm(
     errors.deliverBy = "Make this on or after the day applications close.";
   }
 
+  // The end date moves later like the other dates, and never before final delivery.
+  const endsOnRaw = text(form, "endsOn");
+  if (endsOnRaw !== "") {
+    if (!isDay(endsOnRaw) || (current.endsOn && endsOnRaw < current.endsOn)) {
+      errors.endsOn = current.endsOn
+        ? `Keep it on or after ${formatDay(current.endsOn)}: deadlines can only move later.`
+        : "Choose the day the campaign ends.";
+    } else if (isDay(deliverBy) && endsOnRaw < deliverBy) {
+      errors.endsOn = "Make this on or after the final delivery day.";
+    }
+  } else if (current.endsOn && isDay(deliverBy) && deliverBy > current.endsOn) {
+    errors.endsOn =
+      "Move the end date later too: it can't be before final delivery.";
+  }
+
   const values = {
     title,
     brief,
@@ -769,6 +901,7 @@ export function parseLiveEditForm(
     places: text(form, "places").trim(),
     applicationsCloseOn,
     deliverBy,
+    endsOn: endsOnRaw,
   };
   if (Object.keys(errors).length > 0) return { ok: false, errors, values };
   return {
@@ -780,6 +913,7 @@ export function parseLiveEditForm(
       places: placeCount,
       applicationsCloseOn,
       deliverBy,
+      ...(endsOnRaw === "" ? {} : { endsOn: endsOnRaw }),
     },
   };
 }
