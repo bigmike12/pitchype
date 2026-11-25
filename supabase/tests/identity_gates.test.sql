@@ -10,9 +10,6 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
--- Cray is the default; pin it so the payout steps do not depend on the last switch.
-insert into public.payment_provider_settings (provider, reason) values ('cray', 'Test setup: start on Cray');
-
 select plan(41);
 
 -- Ada is a verified business, Bob starts unverified. Chi is an unverified creator,
@@ -139,14 +136,14 @@ reset role;
 
 -- Payouts --------------------------------------------------------------------------------------------------------
 select public.post_ledger_group('correction', null, 'test credit', null, null, null, null, null,
-  '[{"account": "cray", "amount": 10000000},
+  '[{"account": "paystack", "amount": 10000000},
     {"account": "creator_wallet", "owner": "00000000-0000-0000-0000-0000000e1104", "amount": -5000000},
     {"account": "creator_wallet", "owner": "00000000-0000-0000-0000-0000000e1103", "amount": -5000000}]'::jsonb);
 set local role service_role;
-select lives_ok($$ select public.save_cray_bank_account_for('00000000-0000-0000-0000-0000000e1104', '000013', 'GTBank', '1234',
-                                                           'ELI TEST', 'v1:aXY=:dGFn:Y2lwaGVy') $$, 'Eli has a bank account');
-select lives_ok($$ select public.save_cray_bank_account_for('00000000-0000-0000-0000-0000000e1103', '000013', 'GTBank', '5678',
-                                                           'FAY TEST', 'v1:aXY=:dGFn:Y2lwaGVy') $$, 'and so does Fay');
+select lives_ok($$ select public.save_bank_account_for('00000000-0000-0000-0000-0000000e1104', '000013', 'GTBank', '1234',
+                                                      'ELI TEST', 'RCP_eli_test') $$, 'Eli has a bank account');
+select lives_ok($$ select public.save_bank_account_for('00000000-0000-0000-0000-0000000e1103', '000013', 'GTBank', '5678',
+                                                      'FAY TEST', 'RCP_fay_test') $$, 'and so does Fay');
 reset role;
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "e1e1e1e1-0000-0000-0000-0000000e1104"}'; -- Eli, unverified with earnings

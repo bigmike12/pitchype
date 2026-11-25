@@ -345,7 +345,6 @@ as $$
 declare
   me uuid := public.current_user_id();
   cfg public.fee_config := public.current_fee_config();
-  chosen text := public.active_payment_provider();
   account public.bank_accounts;
   fee bigint;
   new_payout uuid;
@@ -362,14 +361,14 @@ begin
   -- Lock the creator first: the balance below is read under this lock.
   perform 1 from public.users u where u.id = me for no key update;
 
-  select * into account from public.bank_accounts b where b.user_id = me and b.provider = chosen;
+  select * into account from public.bank_accounts b where b.user_id = me;
   if account.id is null then
     raise exception 'no_bank_account' using errcode = 'P0001';
   end if;
   if amount_kobo is null or amount_kobo < cfg.min_payout_kobo then
     raise exception 'payout_too_small' using errcode = 'P0001';
   end if;
-  fee := public.payout_fee_for(chosen, amount_kobo);
+  fee := public.transfer_fee_for(amount_kobo);
   if fee >= amount_kobo then
     raise exception 'payout_fee_too_high' using errcode = 'P0001';
   end if;
@@ -377,11 +376,10 @@ begin
     raise exception 'payout_not_enough_balance' using errcode = 'P0001';
   end if;
 
-  insert into public.payouts (user_id, amount_kobo, transfer_fee_kobo, fee_config_id, provider,
-                              bank_code, bank_name, last4, account_name, recipient_code, account_number_encrypted)
-  values (me, amount_kobo, fee, cfg.id, chosen,
-          account.bank_code, account.bank_name, account.last4, account.account_name,
-          account.recipient_code, account.account_number_encrypted)
+  insert into public.payouts (user_id, amount_kobo, transfer_fee_kobo, fee_config_id,
+                              bank_name, last4, account_name, recipient_code)
+  values (me, amount_kobo, fee, cfg.id,
+          account.bank_name, account.last4, account.account_name, account.recipient_code)
   returning id into new_payout;
 
   perform public.post_ledger_group('payout_requested', me, null, null, null, new_payout, null, cfg.id,
@@ -392,6 +390,7 @@ begin
   return new_payout;
 end;
 $$;
+
 
 
 create or replace function public.approve_payout(payout uuid)
@@ -431,22 +430,9 @@ begin
    where x.id = p.id
   returning * into p;
 
-  if p.provider = 'paystack' then
-    -- Exactly what it has always returned.
-    return jsonb_build_object(
-      'reference', p.reference,
-      'recipient_code', p.recipient_code,
-      'send_kobo', p.amount_kobo - p.transfer_fee_kobo,
-      'bank_name', p.bank_name,
-      'last4', p.last4,
-      'account_name', p.account_name
-    );
-  end if;
   return jsonb_build_object(
     'reference', p.reference,
-    'provider', p.provider,
-    'bank_code', p.bank_code,
-    'account_number_encrypted', p.account_number_encrypted,
+    'recipient_code', p.recipient_code,
     'send_kobo', p.amount_kobo - p.transfer_fee_kobo,
     'bank_name', p.bank_name,
     'last4', p.last4,
@@ -454,6 +440,7 @@ begin
   );
 end;
 $$;
+
 
 
 -- create or replace keeps the existing grants; stated again so a reader sees them here.
