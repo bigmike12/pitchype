@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
-// Dojah's hosted flow (NIN or BVN plus a live selfie), embedded on the page.
+// Dojah's hosted flow (NIN plus a live selfie), embedded on the page.
 // The script is Dojah's own and is loaded only here. The browser's "success"
 // only means the person finished: the decision arrives by Dojah's signed
 // webhook, so this component just says "checking" and refreshes the page until

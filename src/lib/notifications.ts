@@ -33,17 +33,16 @@ export function identityFailureLine(
   kind: string | null,
   reason: string | null,
 ) {
-  const idName = kind === "creator_nin" ? "NIN" : "BVN";
   const lines: Record<string, string> = {
     name_mismatch:
       kind === "business_cac"
         ? "The name doesn’t match CAC’s records. Check the spelling and try again."
-        : `The name doesn’t match your ${idName} record. Check the spelling against your ${idName} slip or bank record and try again.`,
+        : `The name doesn’t match your NIN record. Check the spelling against your NIN slip and try again.`,
     selfie_mismatch:
       "Your selfie didn’t match. Try again in good light, facing the camera.",
     liveness_failed:
       "Your selfie didn’t match. Try again in good light, facing the camera.",
-    id_not_found: `We couldn’t find that ${idName}. Check the number and try again.`,
+    id_not_found: `We couldn’t find that NIN. Check the number and try again.`,
     company_not_found:
       "We couldn’t find that registration number at CAC. Check it and try again.",
     company_inactive:

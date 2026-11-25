@@ -12,6 +12,10 @@ create extension if not exists pgtap with schema extensions;
 
 select plan(41);
 
+-- These tests are about checks and gates, so identity checks are switched on
+-- (off by default since 20261129100000; identity_switch.test.sql covers off).
+update public.identity_settings set checks_required = true;
+
 -- Ada is a verified business, Bob starts unverified. Chi is an unverified creator,
 -- Dee and Fay are verified, Eli is unverified with earnings. Zed is an admin.
 insert into public.users (id, auth_user_id, email, role) values
@@ -25,7 +29,7 @@ insert into public.users (id, auth_user_id, email, role) values
 
 insert into public.identity_checks (user_id, kind, status, reference, legal_name_entered, legal_name_on_record,
                                     id_last3, id_fingerprint, counted, decided_at)
-select u.id, case u.role when 'influencer' then 'creator_nin' else 'owner_bvn' end, 'verified',
+select u.id, case u.role when 'influencer' then 'creator_nin' else 'owner_nin' end, 'verified',
        'pit_id_gate_' || replace(u.id::text, '-', ''), 'Gate Person', 'GATE PERSON', '000',
        'v1:gate-' || u.id::text, true, now()
   from public.users u
@@ -108,7 +112,7 @@ reset role;
 -- Bob becomes verified; the same actions now work.
 insert into public.identity_checks (user_id, kind, status, reference, legal_name_entered, legal_name_on_record,
                                     id_last3, id_fingerprint, counted, decided_at)
-values ('00000000-0000-0000-0000-0000000e1002', 'owner_bvn', 'verified', 'pit_id_gate_bob', 'Bob Owner', 'BOB OWNER',
+values ('00000000-0000-0000-0000-0000000e1002', 'owner_nin', 'verified', 'pit_id_gate_bob', 'Bob Owner', 'BOB OWNER',
         '000', 'v1:gate-bob', true, now());
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "e1e1e1e1-0000-0000-0000-0000000e1002"}';

@@ -7,6 +7,7 @@ import { PlatformCard } from "@/app/(portal)/(influencer)/profile/platform-card"
 import { requireRole } from "@/lib/auth";
 import { PLATFORMS, verificationView } from "@/lib/creator-profile";
 import { getOwnCreatorProfile } from "@/lib/db/creators";
+import { identityChecksRequired } from "@/lib/db/identity";
 import { listOwnVerificationRequests } from "@/lib/db/verification";
 
 import {
@@ -39,7 +40,11 @@ async function Platforms() {
   const hasPlatform = profile.platforms.length > 0;
 
   return (
-    <OnboardingStep role="influencer" step="platforms">
+    <OnboardingStep
+      role="influencer"
+      step="platforms"
+      withIdentity={await identityChecksRequired()}
+    >
       <ul className="space-y-4">
         {PLATFORMS.map((platform) => {
           const saved =

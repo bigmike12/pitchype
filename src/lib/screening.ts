@@ -3,8 +3,10 @@
 // approval. Afterwards only an admin screens again.
 //
 // Invariants:
-//   - A screening is never skipped silently: every attempt writes a
-//     `screenings` row, including when Dojah is down (status `error`).
+//   - While identity checks are switched off (identity_settings), nobody is
+//     screened and Dojah is never called: the answer is "off" and no row is
+//     written. Otherwise a screening is never skipped silently: every attempt
+//     writes a `screenings` row, including when Dojah is down (status `error`).
 //   - Someone already screened costs no second Dojah call; an admin's
 //     "screen again" always runs.
 //   - A business is screened by its CAC name when registered, otherwise by the
@@ -23,6 +25,7 @@ export type ScreeningTrigger = "first_payout" | "first_hire" | "admin";
 export type ScreeningStatus = "clear" | "possible_match" | "error";
 
 export type ScreeningDeps = {
+  checksRequired: () => Promise<boolean>;
   getState: (
     userId: string,
   ) => Promise<"none" | "clear" | "possible_match" | "error" | "confirmed">;
@@ -58,6 +61,7 @@ async function realDeps(): Promise<ScreeningDeps> {
   const dojah = await import("./dojah.ts");
   const { randomUUID } = await import("node:crypto");
   return {
+    checksRequired: db.identityChecksRequired,
     getState: db.getScreeningState,
     getFacts: db.getScreeningFacts,
     screenPerson: dojah.screenPerson,
@@ -75,14 +79,16 @@ function describeError(error: unknown): string {
 
 /**
  * Screens the person unless they already have a screening (an admin's
- * "screen again" always runs). Returns the new result, or "already".
+ * "screen again" always runs). Returns the new result, "already", or "off"
+ * while identity checks are switched off.
  */
 export async function ensureScreened(
   person: { id: string; role: "business" | "influencer" },
   trigger: ScreeningTrigger,
   deps?: ScreeningDeps,
-): Promise<ScreeningStatus | "already"> {
+): Promise<ScreeningStatus | "already" | "off"> {
   const d = deps ?? (await realDeps());
+  if (!(await d.checksRequired())) return "off";
   if (trigger !== "admin" && (await d.getState(person.id)) !== "none") {
     return "already";
   }
@@ -140,6 +146,7 @@ export async function screenBeforeHire(
 ): Promise<"proceed" | "hold"> {
   const d = deps ?? (await realDeps());
   const result = await ensureScreened(business, "first_hire", d);
+  if (result === "off") return "proceed";
   if (result === "possible_match") return "hold";
   if (result !== "already") return "proceed";
   const state = await d.getState(business.id);

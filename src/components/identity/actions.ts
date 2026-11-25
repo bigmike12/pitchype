@@ -38,10 +38,11 @@ const UNAVAILABLE =
 const REGISTRY_DOWN =
   "We couldn’t reach the company registry just now. Please try again in a few minutes.";
 
-const PERSON_KINDS = {
-  creator_nin: { role: "influencer", id: "NIN" },
-  owner_bvn: { role: "business", id: "BVN" },
-  director_bvn: { role: "business", id: "BVN" },
+// Every person verifies with their NIN; the kind says which role may start it.
+const PERSON_ROLES = {
+  creator_nin: "influencer",
+  owner_nin: "business",
+  director_nin: "business",
 } as const;
 
 export type PersonCheckStart =
@@ -54,16 +55,16 @@ export type PersonCheckStart =
   | { status: "error"; message: string };
 
 /**
- * Starts (or resumes) a NIN or BVN check and returns what the browser needs to
+ * Starts (or resumes) a NIN check and returns what the browser needs to
  * open Dojah's widget. The result is decided later, by Dojah's webhook.
  */
 export async function startPersonCheckAction(
-  kind: keyof typeof PERSON_KINDS,
+  kind: keyof typeof PERSON_ROLES,
   form: FormData,
 ): Promise<PersonCheckStart> {
-  const rule = Object.hasOwn(PERSON_KINDS, kind) ? PERSON_KINDS[kind] : null;
-  if (!rule) return { status: "error", message: refusalText("invalid_kind") };
-  const user = await requireRole(rule.role);
+  const role = Object.hasOwn(PERSON_ROLES, kind) ? PERSON_ROLES[kind] : null;
+  if (!role) return { status: "error", message: refusalText("invalid_kind") };
+  const user = await requireRole(role);
 
   const name = splitLegalName(text(form, "legalName"));
   if (!name.ok) {
@@ -85,7 +86,7 @@ export async function startPersonCheckAction(
   return {
     status: "ready",
     reference: started.value.reference,
-    widget: widgetConfig(rule.id),
+    widget: widgetConfig(),
     prefill: { firstName: name.firstName, lastName: name.lastName },
   };
 }

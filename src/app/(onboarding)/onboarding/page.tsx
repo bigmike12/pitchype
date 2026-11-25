@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { requireUser } from "@/lib/auth";
+import { identityChecksRequired } from "@/lib/db/identity";
 import { getProfile } from "@/lib/db/profiles";
 
 import { ProfileSteps } from "./profile-steps";
@@ -26,5 +27,10 @@ async function Onboarding() {
   const user = await requireUser();
   if (user.role === "admin") redirect("/home");
   if (await getProfile(user)) redirect("/home");
-  return <ProfileSteps role={user.role} />;
+  return (
+    <ProfileSteps
+      role={user.role}
+      withIdentity={await identityChecksRequired()}
+    />
+  );
 }

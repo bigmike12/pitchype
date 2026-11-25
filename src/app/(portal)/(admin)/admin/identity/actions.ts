@@ -7,7 +7,9 @@ import {
   allowIdentityRetry,
   reviewIdentityCheck,
   reviewScreening,
+  setIdentityChecksRequired,
 } from "@/lib/db/identity";
+import { isDojahConfigured } from "@/lib/dojah";
 import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { isUuid, text, type FormState } from "@/lib/form-data";
 import { refusalText } from "@/lib/refusals";
@@ -132,4 +134,42 @@ export async function allowRetryAction(
   }
   refresh();
   return { status: "success", message: "They can try again." };
+}
+
+export type ChecksSwitchState = FormState<never>;
+
+/**
+ * Switches identity checks on or off for everyone. Turning them on needs
+ * Dojah set up in this environment, or nobody could pass the gates.
+ */
+export async function setChecksRequiredAction(
+  _previous: ChecksSwitchState,
+  form: FormData,
+): Promise<ChecksSwitchState> {
+  await requireRole("admin");
+  const value = text(form, "required");
+  if (value !== "on" && value !== "off") return BAD_REQUEST;
+  if (form.get("confirm") !== "on") {
+    return {
+      status: "error",
+      message: "Tick the box to confirm you’ve read what this changes.",
+    };
+  }
+  const required = value === "on";
+  if (required && !isDojahConfigured()) {
+    return {
+      status: "error",
+      message:
+        "Dojah isn’t set up in this environment yet. Add its keys first (docs/PROVIDERS.md), or nobody could pass the checks.",
+    };
+  }
+  const result = await setIdentityChecksRequired(required);
+  if (!result.ok) {
+    return { status: "error", message: refusalText(result.reason) };
+  }
+  refresh();
+  return {
+    status: "success",
+    message: required ? "Identity checks are on." : "Identity checks are off.",
+  };
 }

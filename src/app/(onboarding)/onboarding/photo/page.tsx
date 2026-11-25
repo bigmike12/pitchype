@@ -7,6 +7,8 @@ import { PhotoForm } from "@/app/(portal)/(influencer)/profile/photo-form";
 import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth";
 import { getOwnCreatorProfile } from "@/lib/db/creators";
+import { identityChecksRequired } from "@/lib/db/identity";
+import { afterProfileSteps } from "@/lib/onboarding";
 
 import {
   OnboardingStep,
@@ -29,13 +31,14 @@ async function Photo() {
   const user = await requireRole("influencer");
   const profile = await getOwnCreatorProfile(user.id);
   if (!profile) redirect("/onboarding");
+  const withIdentity = await identityChecksRequired();
 
   return (
-    <OnboardingStep role="influencer" step="photo">
+    <OnboardingStep role="influencer" step="photo" withIdentity={withIdentity}>
       <PhotoForm name={profile.displayName} photoUrl={profile.photoUrl} />
       <StepActions>
         <Link
-          href="/onboarding/identity"
+          href={afterProfileSteps(withIdentity)}
           className={
             profile.photoUrl
               ? continueClass

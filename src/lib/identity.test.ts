@@ -16,7 +16,7 @@ import {
   type IdentityDeps,
 } from "./identity.ts";
 import { identityFingerprint } from "./identity-crypto.ts";
-import { SAMPLE_BVN, SAMPLE_NIN, widgetEvent } from "./identity-fixtures.ts";
+import { SAMPLE_NIN, widgetEvent } from "./identity-fixtures.ts";
 
 const NIN_CHECK = {
   kind: "creator_nin",
@@ -37,13 +37,13 @@ test("the documented sample is verified when the names match", () => {
   assert.equal(result.dateOfBirth, "1992-10-10");
 });
 
-test("a BVN session verifies an owner check and reads the BVN record", () => {
-  const result = decideIdentityResult(widgetEvent("BVN"), {
-    kind: "owner_bvn",
+test("an owner's NIN session verifies an owner check and reads the NIN record", () => {
+  const result = decideIdentityResult(widgetEvent(), {
+    kind: "owner_nin",
     legalNameEntered: "Doe John",
   });
   assert.equal(result.status, "verified");
-  assert.equal(result.idNumber, SAMPLE_BVN);
+  assert.equal(result.idNumber, SAMPLE_NIN);
 });
 
 test("Completed with a failed selfie step is failed, never verified", () => {
@@ -124,7 +124,7 @@ test("a name that differs from the record is a mismatch", () => {
   assert.equal(result.nameOnRecord, null);
 });
 
-test("the wrong kind of ID for the check is failed", () => {
+test("an answer with a BVN is refused: only NIN checks verify", () => {
   const result = decideIdentityResult(widgetEvent("BVN"), NIN_CHECK);
   assert.equal(result.status, "failed");
   assert.equal(result.reason, "other");
@@ -294,7 +294,6 @@ type Script = {
   toPoll?: string[];
   abandoned?: number;
   abandonError?: Error;
-  purged?: number;
 };
 
 function fakes(script: Script = {}) {
@@ -359,7 +358,6 @@ function fakes(script: Script = {}) {
       if (script.abandonError) throw script.abandonError;
       return script.abandoned ?? 0;
     },
-    purgeSecrets: async () => script.purged ?? 0,
     now: () => NOW,
   };
   return { deps, calls };
@@ -376,7 +374,7 @@ test("a verified widget event is decided once, with the number fingerprinted and
   assert.equal(call.decision.status, "verified");
   assert.equal(
     call.decision.id_fingerprint,
-    identityFingerprint("NIN", SAMPLE_NIN),
+    identityFingerprint(SAMPLE_NIN),
   );
   assert.equal(call.decision.id_last3, "789");
   assert.equal(call.decision.legal_name_on_record, "JOHN EMEKA DOE");
@@ -469,19 +467,19 @@ test("a missing fingerprint key stops a verified event before anything is record
 const DIRECTOR_CHECK = {
   id: "dir-1",
   userId: "user-1",
-  kind: "director_bvn" as const,
+  kind: "director_nin" as const,
   status: "started" as const,
   legalNameEntered: "John Doe",
   createdAt: NOW.toISOString(),
 };
 
-test("a director who is on CAC's list verifies, and nothing about the BVN is kept", async () => {
+test("a director who is on CAC's list verifies, and only the NIN fingerprint is kept", async () => {
   const { deps, calls } = fakes({ check: DIRECTOR_CHECK });
-  assert.equal(await applyIdentityEvent(widgetEvent("BVN"), deps), "applied");
+  assert.equal(await applyIdentityEvent(widgetEvent(), deps), "applied");
   assert.equal(calls.finish[0].decision.status, "verified");
   assert.equal(
     calls.finish[0].decision.id_fingerprint,
-    identityFingerprint("BVN", SAMPLE_BVN),
+    identityFingerprint(SAMPLE_NIN),
   );
   assert.deepEqual(calls.order, ["finish"]);
   assert.equal(calls.lookupCac.length, 0);
@@ -499,7 +497,7 @@ test("a director who is not on the list fails not_a_director and nothing is stor
       directorsFetchedAt: NOW.toISOString(),
     },
   });
-  await applyIdentityEvent(widgetEvent("BVN"), deps);
+  await applyIdentityEvent(widgetEvent(), deps);
   assert.equal(calls.finish[0].decision.status, "failed");
   assert.equal(calls.finish[0].decision.reason, "not_a_director");
   assert.equal("id_fingerprint" in calls.finish[0].decision, false);
@@ -526,7 +524,7 @@ test("a director list older than 90 days is looked up again before matching", as
       directors: ["JOHN DOE"],
     },
   });
-  await applyIdentityEvent(widgetEvent("BVN"), deps);
+  await applyIdentityEvent(widgetEvent(), deps);
   assert.deepEqual(calls.lookupCac, [{ rc: "1234567", type: "COMPANY" }]);
   assert.deepEqual(calls.refreshDirectors, [
     { userId: "user-1", directors: ["JOHN DOE"] },
@@ -554,7 +552,7 @@ test("a director list that was never fetched is fetched too", async () => {
       directors: ["JOHN MUSA DOE"],
     },
   });
-  await applyIdentityEvent(widgetEvent("BVN"), deps);
+  await applyIdentityEvent(widgetEvent(), deps);
   assert.equal(calls.lookupCac.length, 1);
   assert.equal(calls.finish[0].decision.status, "verified");
 });
@@ -575,7 +573,7 @@ test("an unreachable CAC lookup throws before anything is recorded, so Dojah ret
     throw new DojahError("Dojah answered 424", 424);
   };
   await assert.rejects(
-    () => applyIdentityEvent(widgetEvent("BVN"), deps),
+    () => applyIdentityEvent(widgetEvent(), deps),
     DojahError,
   );
   assert.equal(calls.finish.length, 0);
@@ -583,7 +581,7 @@ test("an unreachable CAC lookup throws before anything is recorded, so Dojah ret
 
 test("a director with no verified CAC record fails not_a_director", async () => {
   const { deps, calls } = fakes({ check: DIRECTOR_CHECK, facts: null });
-  assert.equal(await applyIdentityEvent(widgetEvent("BVN"), deps), "applied");
+  assert.equal(await applyIdentityEvent(widgetEvent(), deps), "applied");
   assert.equal(calls.finish[0].decision.reason, "not_a_director");
 });
 
@@ -712,7 +710,6 @@ test("the backstop polls open sessions, applies what Dojah answers and reports t
       pit_id_c: new DojahError(`Dojah answered 424 for ${SAMPLE_NIN}`, 424),
     },
     abandoned: 2,
-    purged: 3,
   });
   const result = await runIdentityChecks(NOW, deps);
   assert.deepEqual(result, {
@@ -720,7 +717,6 @@ test("the backstop polls open sessions, applies what Dojah answers and reports t
     applied: 1,
     errored: 1,
     abandoned: 2,
-    secretsPurged: 3,
   });
   assert.equal(calls.finish[0].reference, "pit_id_a");
   assert.equal(calls.finish[0].eventKey, "dojah:pit_id_a:Completed");
@@ -741,12 +737,10 @@ test("the backstop answers for the reference it asked about", async () => {
 test("one failing step does not stop the others", async () => {
   const { deps } = fakes({
     abandonError: new Error("db"),
-    purged: 4,
     toPoll: [],
   });
   const result = await runIdentityChecks(NOW, deps);
   assert.equal(result.errored, 1);
-  assert.equal(result.secretsPurged, 4);
 });
 
 test("the webhook and the backstop deciding one check at once decide it once", async () => {

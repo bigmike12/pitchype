@@ -38,18 +38,18 @@ test("a verified check of the role's kind is verified, whatever came after", () 
     "verified",
   );
   assert.equal(
-    identityPanelState("business", [check("owner_bvn", "verified")], false),
+    identityPanelState("business", [check("owner_nin", "verified")], false),
     "verified",
   );
 });
 
 test("a check of another role's kind does not count", () => {
   assert.equal(
-    identityPanelState("influencer", [check("owner_bvn", "verified")], false),
+    identityPanelState("influencer", [check("owner_nin", "verified")], false),
     "none",
   );
   assert.equal(
-    identityPanelState("business", [check("director_bvn", "verified")], false),
+    identityPanelState("business", [check("director_nin", "verified")], false),
     "none",
   );
 });

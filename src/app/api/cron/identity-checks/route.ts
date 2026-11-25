@@ -4,9 +4,9 @@ import { sendDueEmailsSafely } from "@/lib/send-emails";
 
 import { authorised } from "../authorised";
 
-// Daily identity backstop: abandons sessions that never started, deletes
-// expired short-lived BVNs, and asks Dojah about sessions still open after 30
-// minutes, treating each answer like a webhook. Safe to call twice (a repeated
+// Daily identity backstop: abandons sessions that never started, and asks
+// Dojah about sessions still open after 30 minutes, treating each answer like a
+// webhook. Safe to call twice (a repeated
 // answer is the same event key). The status is 500 when any step failed so the
 // scheduler's log shows it. Vercel Cron calls it (vercel.json) with
 // `Authorization: Bearer $CRON_SECRET`; any other scheduler can do the same.

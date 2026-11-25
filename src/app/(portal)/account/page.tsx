@@ -8,6 +8,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
 import { requireUser } from "@/lib/auth";
+import { identityChecksRequired } from "@/lib/db/identity";
 import { listMyBlocks } from "@/lib/db/moderation";
 import { getMyEmailPreferences } from "@/lib/db/notification-emails";
 import { getProfile } from "@/lib/db/profiles";
@@ -63,7 +64,8 @@ async function Account() {
     getProfile(user),
     user.role === "admin" ? Promise.resolve([]) : listMyBlocks(),
     user.role === "admin" ? Promise.resolve(null) : getMyEmailPreferences(),
-    user.role === "admin"
+    // Shown only while identity checks are switched on.
+    user.role === "admin" || !(await identityChecksRequired())
       ? Promise.resolve(null)
       : loadIdentityPanel(user.id, user.role),
   ]);

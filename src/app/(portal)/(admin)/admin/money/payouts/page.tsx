@@ -16,7 +16,11 @@ import {
 } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
-import { getScreeningFacts, getScreeningState } from "@/lib/db/identity";
+import {
+  getScreeningFacts,
+  getScreeningState,
+  identityChecksRequired,
+} from "@/lib/db/identity";
 import { listLedger } from "@/lib/db/money";
 import {
   listPayoutsAwaitingApproval,
@@ -117,6 +121,8 @@ async function Payouts({ searchParams }: { searchParams: SearchParams }) {
       : [];
 
   // Who each waiting creator is on record, and where their screening stands.
+  // While identity checks are off nobody is screened and nothing is held.
+  const screeningRequired = await identityChecksRequired();
   const identity =
     show === "waiting"
       ? await Promise.all(
@@ -126,6 +132,8 @@ async function Payouts({ searchParams }: { searchParams: SearchParams }) {
           })),
         )
       : [];
+  const held = (index: number) =>
+    screeningRequired && identity[index]?.screening !== "clear";
 
   return (
     <>
@@ -221,7 +229,7 @@ async function Payouts({ searchParams }: { searchParams: SearchParams }) {
                     </Link>
                   </div>
 
-                  {identity[index] && identity[index].screening !== "clear" && (
+                  {identity[index] && held(index) && (
                     <div className="mt-4 rounded-card bg-attention p-4 text-ink ring-1 ring-attention-ring">
                       <p className="font-semibold">
                         Screening needs a decision before this can be approved
@@ -248,10 +256,7 @@ async function Payouts({ searchParams }: { searchParams: SearchParams }) {
                   )}
 
                   <div className="mt-4 border-t border-hairline pt-4">
-                    <PayoutDecision
-                      payoutId={p.id}
-                      held={identity[index]?.screening !== "clear"}
-                    />
+                    <PayoutDecision payoutId={p.id} held={held(index)} />
                   </div>
                 </li>
               ))}

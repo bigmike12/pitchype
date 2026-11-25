@@ -20,7 +20,6 @@ const ENV = {
   DOJAH_PUBLIC_KEY: "pk_test_public_value",
   DOJAH_WEBHOOK_SECRET: "whsec_test_value",
   DOJAH_WIDGET_ID_NIN: "widget_nin_1",
-  DOJAH_WIDGET_ID_BVN: "widget_bvn_1",
   IDENTITY_FINGERPRINT_KEY: "unused-here",
 };
 const saved: Record<string, string | undefined> = {};
@@ -238,17 +237,16 @@ test("no webhook secret means nothing is valid", () => {
   assert.equal(isValidDojahSignature("{}", sign("{}", "")), false);
 });
 
-test("isDojahConfigured needs all eight variables", () => {
+test("isDojahConfigured needs all seven variables", () => {
   assert.equal(isDojahConfigured(), true);
-  delete process.env.DOJAH_WIDGET_ID_BVN;
+  delete process.env.DOJAH_WIDGET_ID_NIN;
   assert.equal(isDojahConfigured(), false);
 });
 
 test("widgetConfig hands the browser only the public values", () => {
-  assert.deepEqual(widgetConfig("NIN"), {
+  assert.deepEqual(widgetConfig(), {
     appId: ENV.DOJAH_APP_ID,
     publicKey: ENV.DOJAH_PUBLIC_KEY,
     widgetId: ENV.DOJAH_WIDGET_ID_NIN,
   });
-  assert.equal(widgetConfig("BVN").widgetId, ENV.DOJAH_WIDGET_ID_BVN);
 });

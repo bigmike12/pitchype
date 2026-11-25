@@ -12,11 +12,11 @@ export type PanelCheck = {
   createdAt: string;
 };
 
-// The checks that make a person verified (the director check is separate: it
-// happens at the first bank transfer).
+// The checks that make a person verified (the director check is separate and
+// is not needed for either).
 const KINDS: Record<"influencer" | "business", IdentityCheckKind[]> = {
   influencer: ["creator_nin"],
-  business: ["owner_bvn", "business_cac"],
+  business: ["owner_nin", "business_cac"],
 };
 
 /**

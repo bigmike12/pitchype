@@ -50,7 +50,13 @@ const SCREENS: Record<"business" | "influencer", Screen[]> = {
  * and showing every screen until hydration would flash all three on slow
  * connections. React replays a Continue tap made before hydration.
  */
-export function ProfileSteps({ role }: { role: "business" | "influencer" }) {
+export function ProfileSteps({
+  role,
+  withIdentity,
+}: {
+  role: "business" | "influencer";
+  withIdentity: boolean;
+}) {
   const screens = SCREENS[role];
   const [state, formAction, pending] = useActionState<ProfileState, FormData>(
     createProfileAction,
@@ -125,6 +131,7 @@ export function ProfileSteps({ role }: { role: "business" | "influencer" }) {
           <OnboardingStep
             role={role}
             step={s.step}
+            withIdentity={withIdentity}
             onBack={index > 0 ? () => goTo(index - 1) : undefined}
           >
             <div className="space-y-5">

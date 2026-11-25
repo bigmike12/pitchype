@@ -1,6 +1,7 @@
 // Test fixtures: Dojah's documented sample kyc_widget event (docs.dojah.io,
-// "Webhooks & signatures"), with the sandbox NIN/BVN test values, plus the
-// variants the decision tests need. Used by tests only.
+// "Webhooks & signatures"), with the sandbox NIN test value, plus the variants
+// the decision tests need (a BVN variant only proves a BVN answer is refused).
+// Used by tests only.
 
 export const SAMPLE_NIN = "70123456789";
 export const SAMPLE_BVN = "22222222222";
