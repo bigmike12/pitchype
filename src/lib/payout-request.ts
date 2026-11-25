@@ -52,6 +52,34 @@ export function payoutPreview(amountKobo: number): {
   return { feeKobo, receiveKobo: amountKobo - feeKobo };
 }
 
+/**
+ * Why a payout can't be approved yet: Paystack's balance is below what the
+ * transfer needs. Approving anyway only fails at Paystack later, so the admin
+ * is told now and nothing is approved. Null when the balance covers it.
+ */
+export function balanceShortfall(
+  balanceKobo: number,
+  sendKobo: number,
+): string | null {
+  if (balanceKobo >= sendKobo) return null;
+  return `Paystack’s balance is ${formatNaira(balanceKobo)}, less than the ${formatNaira(sendKobo)} this transfer needs. Fund the balance, then approve again. Nothing has been sent.`;
+}
+
+/**
+ * A plain reason for a transfer Paystack refused, from Paystack's message.
+ * Admins see these words, never Paystack's own.
+ */
+export function transferRefusalWords(paystackMessage: string | null): string {
+  const message = (paystackMessage ?? "").toLowerCase();
+  if (/balance|insufficient|funds/.test(message)) {
+    return "Paystack says its balance is too low to send it.";
+  }
+  if (/otp|one-time|authori[sz]|approval/.test(message)) {
+    return "Paystack needs a transfer approval on the account before it sends.";
+  }
+  return "Paystack did not take the transfer.";
+}
+
 const BACK_IN_WALLET = "The money is back in your wallet.";
 
 export function describePayoutStatus(p: {
