@@ -97,10 +97,15 @@ function selfieReason(event: Obj): FailureReason {
     : "selfie_mismatch";
 }
 
-/** The reason for the first step that failed, or `other` when none did. */
+/**
+ * The reason for the first step that failed. When none is marked failed, the
+ * top-level message: a failed liveness drops the selfie step and says only
+ * "Liveness Verification Error" there (seen in sandbox 2026-11-25).
+ */
 function failingStepReason(event: Obj): FailureReason {
   if (stepFailed(event, "government_data")) return "id_not_found";
   if (stepFailed(event, "selfie")) return selfieReason(event);
+  if (/liveness/i.test(str(event.message) ?? "")) return "liveness_failed";
   return "other";
 }
 

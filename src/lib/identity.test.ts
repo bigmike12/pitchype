@@ -72,6 +72,29 @@ test("a failed liveness step is its own reason", () => {
   );
 });
 
+test("a Failed session with no selfie step and a liveness message is liveness_failed", () => {
+  // Seen in sandbox 2026-11-25: a failed liveness drops the selfie step and
+  // says why only in the top-level message.
+  const event = widgetEvent();
+  event.verification_status = "Failed";
+  event.status = false;
+  event.message = "Liveness Verification Error";
+  delete steps(event).selfie;
+  const result = decideIdentityResult(event, NIN_CHECK);
+  assert.equal(result.status, "failed");
+  assert.equal(result.reason, "liveness_failed");
+  assert.equal(result.detail, "Liveness Verification Error");
+});
+
+test("a Failed session with no failed step and another message stays other", () => {
+  const event = widgetEvent();
+  event.verification_status = "Failed";
+  event.status = false;
+  event.message = "Something unexpected";
+  delete steps(event).selfie;
+  assert.equal(decideIdentityResult(event, NIN_CHECK).reason, "other");
+});
+
 test("Completed with an overall status of false is failed", () => {
   const event = widgetEvent();
   event.status = false;
