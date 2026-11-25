@@ -28,6 +28,17 @@ insert into public.influencer_profiles (user_id, display_name, state, city, nich
 select ('00000000-0000-0000-0000-0000000a71' || lpad(n::text, 2, '0'))::uuid, 'Rates ' || n, 'Lagos', 'Yaba', '{fashion}', true
   from generate_series(1, 6) n;
 
+-- Identity fixtures: the people made above count as verified, so the identity
+-- gates (identity_gates migration) are not what this file is about.
+insert into public.identity_checks (user_id, kind, status, reference, legal_name_entered, legal_name_on_record,
+                                    id_last3, id_fingerprint, counted, decided_at)
+select u.id, case u.role when 'influencer' then 'creator_nin' else 'owner_bvn' end, 'verified',
+       'pit_id_fx_' || replace(u.id::text, '-', ''), 'Fixture Person', 'FIXTURE PERSON', '000',
+       'v1:fx-' || u.id::text, true, now()
+  from public.users u
+ where u.created_at = now() and u.role in ('influencer', 'business')
+   and not exists (select 1 from public.identity_checks c where c.user_id = u.id);
+
 -- P: ₦50 a click, ₦10,000 per creator (200 clicks at the campaign's rate).
 -- F: a fixed-price campaign.
 insert into public.campaigns (id, business_id, status, title, brief, payment_model, cpc_kobo, price_kobo,
