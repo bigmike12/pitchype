@@ -141,9 +141,12 @@ export function DojahWidget({
         </p>
       ) : null}
 
+      {/* A definite height, not min-height: Dojah's embed root is height: 100%
+          with overflow hidden and everything inside is absolutely positioned,
+          so without one the widget draws into a 0px box and nothing shows. */}
       <div
         id="dojah-widget"
-        className={phase === "open" ? "mt-2 min-h-[32rem]" : "hidden"}
+        className={phase === "open" ? "mt-2 h-[min(44rem,85dvh)]" : "hidden"}
       />
     </div>
   );
