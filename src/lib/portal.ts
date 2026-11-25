@@ -26,6 +26,17 @@ export type NavIcon =
   | "ledger"
   | "reconciliation";
 
+/** What waits on an admin, one count per admin link that shows one. */
+export type AdminAttention = {
+  standing: number;
+  campaigns: number;
+  verification: number;
+  identity: number;
+  reports: number;
+  disputes: number;
+  payouts: number;
+};
+
 export type NavItem = {
   href: string;
   label: string;
@@ -34,6 +45,10 @@ export type NavItem = {
   group: string;
   /** A count shown on the link, e.g. unread messages. */
   badge?: number;
+  /** The word the count is read out as after the number (default "unread"). */
+  badgeLabel?: string;
+  /** For admin links: which count from the viewer's attention the badge shows. */
+  attention?: keyof AdminAttention;
   /**
    * Other paths that belong under this link when they don't sit under its
    * own path, e.g. a hire's page under "Your work".
@@ -52,8 +67,8 @@ export type PortalViewer = {
   needsOnboarding: boolean;
   /** Unread chat messages, for the Inbox link. */
   unread: number;
-  /** Open disputes, for the admin's Disputes link (0 for everyone else). */
-  openDisputes: number;
+  /** What waits on an admin, for the admin's links (null for everyone else). */
+  attention: AdminAttention | null;
 };
 
 const NAV: Record<PortalRole, NavItem[]> = {
@@ -112,30 +127,40 @@ const NAV: Record<PortalRole, NavItem[]> = {
       label: "Account standing",
       icon: "standing",
       group: "Review",
+      attention: "standing",
+      badgeLabel: "appeals waiting",
     },
     {
       href: "/admin/campaigns",
       label: "Campaigns",
       icon: "campaigns",
       group: "Review",
+      attention: "campaigns",
+      badgeLabel: "waiting for review",
     },
     {
       href: "/admin/verification",
       label: "Verification",
       icon: "verification",
       group: "Review",
+      attention: "verification",
+      badgeLabel: "to verify",
     },
     {
       href: "/admin/identity",
       label: "Identity",
       icon: "identity",
       group: "Review",
+      attention: "identity",
+      badgeLabel: "to review",
     },
     {
       href: "/admin/reports",
       label: "Reports",
       icon: "reports",
       group: "Review",
+      attention: "reports",
+      badgeLabel: "open",
     },
     {
       href: "/admin/hidden",
@@ -156,12 +181,16 @@ const NAV: Record<PortalRole, NavItem[]> = {
       label: "Disputes",
       icon: "disputes",
       group: "Money",
+      attention: "disputes",
+      badgeLabel: "open",
     },
     {
       href: "/admin/money/payouts",
       label: "Payouts",
       icon: "payouts",
       group: "Money",
+      attention: "payouts",
+      badgeLabel: "to approve",
     },
     {
       href: "/admin/money/ledger",
