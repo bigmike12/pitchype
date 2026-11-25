@@ -271,45 +271,6 @@ export async function finishIdentityCheck(
   return result;
 }
 
-// Short-lived BVN (identity_secrets) ----------------------------------------------------------
-
-export async function storeIdentitySecret(
-  checkId: string,
-  bvnEncrypted: string,
-  phoneEncrypted: string | null,
-): Promise<void> {
-  const { error } = await createAdminClient().rpc("store_identity_secret", {
-    check_uuid: checkId,
-    bvn_encrypted: bvnEncrypted,
-    // The generated type has no null; the function takes null (no phone).
-    phone_encrypted: phoneEncrypted as string,
-  });
-  if (error) throw new Error(`store identity secret failed (${error.code})`);
-}
-
-/** The encrypted BVN and phone while the secret is still valid, or null. */
-export async function takeIdentitySecret(
-  checkId: string,
-): Promise<{ bvnEncrypted: string; phoneEncrypted: string | null } | null> {
-  const { data, error } = await createAdminClient().rpc(
-    "take_identity_secret",
-    { check_uuid: checkId },
-  );
-  if (error) throw new Error(`take identity secret failed (${error.code})`);
-  if (!isObject(data)) return null;
-  const bvnEncrypted = str(data.bvn_encrypted);
-  return bvnEncrypted
-    ? { bvnEncrypted, phoneEncrypted: str(data.phone_encrypted) }
-    : null;
-}
-
-export async function deleteIdentitySecret(checkId: string): Promise<void> {
-  const { error } = await createAdminClient().rpc("delete_identity_secret", {
-    check_uuid: checkId,
-  });
-  if (error) throw new Error(`delete identity secret failed (${error.code})`);
-}
-
 // Daily housekeeping --------------------------------------------------------------------------
 
 export async function listIdentityChecksToPoll(max: number): Promise<string[]> {

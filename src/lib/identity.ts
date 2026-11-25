@@ -394,13 +394,6 @@ export type IdentityDeps = {
   getCacFacts: (userId: string) => Promise<BusinessCacFacts | null>;
   refreshDirectors: (userId: string, directors: string[]) => Promise<void>;
   lookupCac: (rcNumber: string, companyType: CompanyType) => Promise<CacResult>;
-  encryptSecret: (plain: string) => string;
-  storeSecret: (
-    checkId: string,
-    bvnEncrypted: string,
-    phoneEncrypted: string | null,
-  ) => Promise<void>;
-  deleteSecret: (checkId: string) => Promise<void>;
   getVerification: (reference: string) => Promise<unknown | null>;
   listToPoll: (max: number) => Promise<string[]>;
   abandonStale: () => Promise<number>;
@@ -414,7 +407,6 @@ async function realDeps(): Promise<IdentityDeps> {
   const db = await import("./db/identity.ts");
   const dojah = await import("./dojah.ts");
   const crypto = await import("./identity-crypto.ts");
-  const secrets = await import("./account-crypto.ts");
   return {
     getCheck: db.getIdentityCheckByReference,
     finish: db.finishIdentityCheck,
@@ -422,9 +414,6 @@ async function realDeps(): Promise<IdentityDeps> {
     getCacFacts: db.getBusinessCacFacts,
     refreshDirectors: db.refreshCacDirectors,
     lookupCac: dojah.lookupCacAdvanced,
-    encryptSecret: secrets.encryptSecret,
-    storeSecret: db.storeIdentitySecret,
-    deleteSecret: db.deleteIdentitySecret,
     getVerification: dojah.getVerification,
     listToPoll: db.listIdentityChecksToPoll,
     abandonStale: db.abandonStaleIdentityChecks,
@@ -500,7 +489,6 @@ export async function applyIdentityEvent(
   const eventKey = `dojah:${reference}:${str(e.verification_status) ?? "unknown"}`;
 
   let toRecord: { [key: string]: Json | undefined };
-  let heldSecret = false;
   if (decision.status === "pending") {
     toRecord = { status: "pending", counted: true };
   } else if (decision.status === "abandoned") {
@@ -533,17 +521,9 @@ export async function applyIdentityEvent(
       date_of_birth: decision.dateOfBirth,
       counted: true,
     };
-    // Only a director's BVN is kept, encrypted, until the bank-transfer
-    // account is opened (design §6.4). Stored first, so a crash after the
-    // decision cannot leave a verified director with no BVN to use.
-    if (check.kind === "director_bvn") {
-      await d.storeSecret(check.id, d.encryptSecret(decision.idNumber), null);
-      heldSecret = true;
-    }
   }
 
   const result = await d.finish(reference, toRecord, eventKey);
-  if (heldSecret && result !== "verified") await d.deleteSecret(check.id);
   if (result === "duplicate") return "duplicate";
   if (result === "ignored" || result === "unknown_reference") {
     return result === "ignored" ? "ignored" : "unknown";

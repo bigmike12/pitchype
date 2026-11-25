@@ -304,8 +304,6 @@ function fakes(script: Script = {}) {
       decision: Record<string, unknown>;
       eventKey: string;
     }[],
-    storeSecret: [] as { checkId: string; bvn: string }[],
-    deleteSecret: [] as string[],
     refreshDirectors: [] as { userId: string; directors: string[] }[],
     lookupCac: [] as { rc: string; type: string }[],
     order: [] as string[],
@@ -351,14 +349,6 @@ function fakes(script: Script = {}) {
       calls.lookupCac.push({ rc, type });
       return script.cac ?? { found: false };
     },
-    encryptSecret: () => "v1:aaa:bbb:ccc",
-    storeSecret: async (checkId, bvn) => {
-      calls.order.push("store");
-      calls.storeSecret.push({ checkId, bvn });
-    },
-    deleteSecret: async (checkId) => {
-      calls.deleteSecret.push(checkId);
-    },
     getVerification: async (reference) => {
       const answer = script.verifications?.[reference];
       if (answer instanceof Error) throw answer;
@@ -392,7 +382,6 @@ test("a verified widget event is decided once, with the number fingerprinted and
   assert.equal(call.decision.legal_name_on_record, "JOHN EMEKA DOE");
   assert.equal(call.decision.counted, true);
   assert.ok(!JSON.stringify(call.decision).includes(SAMPLE_NIN));
-  assert.equal(calls.storeSecret.length, 0);
 });
 
 test("the same event again is a duplicate and the same unknown reference is unknown", async () => {
@@ -486,7 +475,7 @@ const DIRECTOR_CHECK = {
   createdAt: NOW.toISOString(),
 };
 
-test("a director who is on CAC's list verifies, and the BVN is held encrypted until the account is opened", async () => {
+test("a director who is on CAC's list verifies, and nothing about the BVN is kept", async () => {
   const { deps, calls } = fakes({ check: DIRECTOR_CHECK });
   assert.equal(await applyIdentityEvent(widgetEvent("BVN"), deps), "applied");
   assert.equal(calls.finish[0].decision.status, "verified");
@@ -494,12 +483,8 @@ test("a director who is on CAC's list verifies, and the BVN is held encrypted un
     calls.finish[0].decision.id_fingerprint,
     identityFingerprint("BVN", SAMPLE_BVN),
   );
-  assert.deepEqual(calls.order, ["store", "finish"]);
-  assert.deepEqual(calls.storeSecret, [
-    { checkId: "dir-1", bvn: "v1:aaa:bbb:ccc" },
-  ]);
+  assert.deepEqual(calls.order, ["finish"]);
   assert.equal(calls.lookupCac.length, 0);
-  assert.equal(calls.deleteSecret.length, 0);
 });
 
 test("a director who is not on the list fails not_a_director and nothing is stored", async () => {
@@ -518,7 +503,6 @@ test("a director who is not on the list fails not_a_director and nothing is stor
   assert.equal(calls.finish[0].decision.status, "failed");
   assert.equal(calls.finish[0].decision.reason, "not_a_director");
   assert.equal("id_fingerprint" in calls.finish[0].decision, false);
-  assert.equal(calls.storeSecret.length, 0);
 });
 
 test("a director list older than 90 days is looked up again before matching", async () => {
@@ -575,15 +559,6 @@ test("a director list that was never fetched is fetched too", async () => {
   assert.equal(calls.finish[0].decision.status, "verified");
 });
 
-test("a stored BVN is removed again when the check does not end up verified", async () => {
-  const { deps, calls } = fakes({
-    check: DIRECTOR_CHECK,
-    finish: "needs_review",
-  });
-  await applyIdentityEvent(widgetEvent("BVN"), deps);
-  assert.deepEqual(calls.deleteSecret, ["dir-1"]);
-});
-
 test("an unreachable CAC lookup throws before anything is recorded, so Dojah retries", async () => {
   const { deps, calls } = fakes({
     check: DIRECTOR_CHECK,
@@ -604,7 +579,6 @@ test("an unreachable CAC lookup throws before anything is recorded, so Dojah ret
     DojahError,
   );
   assert.equal(calls.finish.length, 0);
-  assert.equal(calls.storeSecret.length, 0);
 });
 
 test("a director with no verified CAC record fails not_a_director", async () => {
