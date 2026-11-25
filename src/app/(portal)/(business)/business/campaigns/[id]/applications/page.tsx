@@ -21,6 +21,7 @@ import {
   PanelSkeleton,
 } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth";
+import { isIdentityVerified } from "@/lib/db/identity";
 import { formatDate } from "@/lib/creator-profile";
 import {
   getApplicationCounts,
@@ -100,6 +101,7 @@ async function Applications({
   searchParams: SearchParams;
 }) {
   const user = await requireRole("business");
+  const verified = await isIdentityVerified(user.id);
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const campaign = await getOwnCampaign(user.id, id);
   if (!campaign) notFound();
@@ -199,6 +201,7 @@ async function Applications({
           {shown.items.map((a) => (
             <ApplicationCard
               key={a.id}
+              verified={verified}
               application={a}
               campaignPriceKobo={campaign.priceKobo}
               campaignCpcKobo={campaignCpcKobo}
@@ -283,7 +286,9 @@ function ApplicationCard({
   campaignPriceKobo,
   campaignCpcKobo,
   nicheNames,
+  verified,
 }: {
+  verified: boolean;
   application: CampaignApplication;
   campaignPriceKobo: number;
   campaignCpcKobo: number | null;
@@ -402,6 +407,7 @@ function ApplicationCard({
             priceKobo={priceKobo}
             cpcKobo={rateKobo}
             again={reopened}
+            identityRequired={!verified}
           />
         )}
         {a.status === "submitted" && (

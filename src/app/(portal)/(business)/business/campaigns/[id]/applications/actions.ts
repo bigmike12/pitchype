@@ -5,9 +5,11 @@ import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth";
 import { approveApplication, decideApplication } from "@/lib/db/applications";
+import { isIdentityVerified } from "@/lib/db/identity";
 import { sendEmailsAfterResponse } from "@/lib/email-after";
 import { text, type FormState } from "@/lib/form-data";
 import { refusalText } from "@/lib/refusals";
+import { screenBeforeHire } from "@/lib/screening";
 
 // Each action checks the session and role; the database checks that the
 // application is on one of this business's campaigns, its standing, blocks,
@@ -63,7 +65,7 @@ export async function approveAction(
   _previous: ApproveState,
   form: FormData,
 ): Promise<ApproveState> {
-  await requireRole("business");
+  const user = await requireRole("business");
   const expected = Number(text(form, "expectedPriceKobo"));
   if (!Number.isSafeInteger(expected) || expected <= 0) {
     return { status: "error", message: refusalText("price_changed") };
@@ -76,6 +78,16 @@ export async function approveAction(
     (!Number.isSafeInteger(expectedRate) || expectedRate <= 0)
   ) {
     return { status: "error", message: refusalText("rate_changed") };
+  }
+  // The first hire screens the business for sanctions and PEP status, before
+  // any hire exists (so a review cannot outlast the 48-hour payment window).
+  // An unverified business is refused by the database below, with nothing to
+  // screen yet. A match holds the approval, in neutral words.
+  if (
+    (await isIdentityVerified(user.id)) &&
+    (await screenBeforeHire({ id: user.id, role: "business" })) === "hold"
+  ) {
+    return { status: "error", message: refusalText("screening_hold") };
   }
   const result = await approveApplication(
     text(form, "applicationId"),

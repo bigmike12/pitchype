@@ -8,6 +8,7 @@ test("the steps run in order", () => {
     "business-name",
     "contact-name",
     "location",
+    "identity",
     "done",
   ]);
   assert.deepEqual(CREATOR_STEPS, [
@@ -16,19 +17,25 @@ test("the steps run in order", () => {
     "niches",
     "platforms",
     "photo",
+    "identity",
     "done",
   ]);
 });
 
-test("business steps count to four", () => {
+test("business steps count to five", () => {
   assert.deepEqual(stepInfo("business", "business-name"), {
     number: 1,
-    total: 4,
+    total: 5,
+    backHref: null,
+  });
+  assert.deepEqual(stepInfo("business", "identity"), {
+    number: 4,
+    total: 5,
     backHref: null,
   });
   assert.deepEqual(stepInfo("business", "done"), {
-    number: 4,
-    total: 4,
+    number: 5,
+    total: 5,
     backHref: null,
   });
 });
@@ -36,7 +43,7 @@ test("business steps count to four", () => {
 test("creator steps link back, but never across profile creation", () => {
   assert.deepEqual(stepInfo("influencer", "niches"), {
     number: 3,
-    total: 6,
+    total: 7,
     backHref: null,
   });
   assert.equal(
@@ -47,9 +54,14 @@ test("creator steps link back, but never across profile creation", () => {
     stepInfo("influencer", "photo").backHref,
     "/onboarding/platforms",
   );
-  assert.deepEqual(stepInfo("influencer", "done"), {
+  assert.deepEqual(stepInfo("influencer", "identity"), {
     number: 6,
-    total: 6,
+    total: 7,
     backHref: "/onboarding/photo",
+  });
+  assert.deepEqual(stepInfo("influencer", "done"), {
+    number: 7,
+    total: 7,
+    backHref: "/onboarding/identity",
   });
 });

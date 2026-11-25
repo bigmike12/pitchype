@@ -17,6 +17,7 @@ export type NavIcon =
   | "overview"
   | "standing"
   | "verification"
+  | "identity"
   | "reports"
   | "hidden"
   | "escrow"
@@ -122,6 +123,12 @@ const NAV: Record<PortalRole, NavItem[]> = {
       href: "/admin/verification",
       label: "Verification",
       icon: "verification",
+      group: "Review",
+    },
+    {
+      href: "/admin/identity",
+      label: "Identity",
+      icon: "identity",
       group: "Review",
     },
     {

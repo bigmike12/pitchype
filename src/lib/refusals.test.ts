@@ -20,6 +20,11 @@ test("only known codes count as refusals", () => {
   assert.equal(isRefusal("settle_reason_required"), true);
   assert.equal(isRefusal("fee_notice_required"), true);
   for (const code of [
+    "identity_required",
+    "already_verified",
+    "check_in_review",
+    "attempt_limit",
+    "screening_hold",
     "no_bank_account",
     "payout_too_small",
     "payout_fee_too_high",

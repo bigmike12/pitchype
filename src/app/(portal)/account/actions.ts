@@ -50,9 +50,9 @@ export async function createProfileAction(
     return { status: "error", message: SAVE_FAILED, values: valuesOf(form) };
   }
   // Both carry on through onboarding: creators to their niches, businesses
-  // to the last step.
+  // to confirming their identity.
   redirect(
-    user.role === "influencer" ? "/onboarding/niches" : "/onboarding/done",
+    user.role === "influencer" ? "/onboarding/niches" : "/onboarding/identity",
   );
 }
 

@@ -25,6 +25,7 @@ import { Callout } from "@/components/ui/callout";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
 import { requireRole } from "@/lib/auth";
+import { isIdentityVerified } from "@/lib/db/identity";
 import {
   formatDay,
   maxSpend,
@@ -77,6 +78,7 @@ export default function CampaignPage({ params }: { params: Params }) {
 
 async function Campaign({ params }: { params: Params }) {
   const user = await requireRole("business");
+  const verified = await isIdentityVerified(user.id);
   const { id } = await params;
   const campaign = await getOwnCampaign(user.id, id);
   if (!campaign) notFound();
@@ -145,6 +147,7 @@ async function Campaign({ params }: { params: Params }) {
         <CampaignActions
           campaignId={campaign.id}
           choices={choicesFor(campaign, trusted)}
+          identityRequired={!verified}
         />
         {["draft", "open", "paused"].includes(campaign.status) && (
           <Link

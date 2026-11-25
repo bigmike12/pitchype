@@ -41,6 +41,7 @@ test("each role gets its own links", () => {
       ["/admin/standing", "Account standing"],
       ["/admin/campaigns", "Campaigns"],
       ["/admin/verification", "Verification"],
+      ["/admin/identity", "Identity"],
       ["/admin/reports", "Reports"],
       ["/admin/hidden", "Hidden profiles"],
       ["/admin/money", "Money"],
@@ -181,4 +182,9 @@ test("a hire's page lights up the sidebar link it belongs to", () => {
   assert.equal(isItemActive("/jobs/9f1c/dispute", work), true);
   assert.equal(isItemActive("/admin/money/engagements/9f1c", escrow), true);
   assert.equal(isItemActive("/business/engagementsx/9f1c", board), false);
+});
+
+test("the admin identity page is named in the top bar", () => {
+  assert.equal(sectionLabel("admin", "/admin/identity"), "Identity");
+  assert.equal(sectionLabel("business", "/admin/identity"), null);
 });

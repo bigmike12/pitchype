@@ -5,6 +5,7 @@
     { "path": "/api/cron/review-deadlines", "schedule": "15 3 * * *" },
     { "path": "/api/cron/settle-clicks", "schedule": "20 3 * * *" },
     { "path": "/api/cron/money-checks", "schedule": "30 3 * * *" },
-    { "path": "/api/cron/send-emails", "schedule": "45 3 * * *" }
+    { "path": "/api/cron/send-emails", "schedule": "45 3 * * *" },
+    { "path": "/api/cron/identity-checks", "schedule": "50 3 * * *" }
   ]
 }

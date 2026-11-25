@@ -25,9 +25,11 @@ type Tone = "info" | "attention" | "success" | "danger";
 export function ApplicationPanel({
   application,
   paymentModel,
+  identityRequired = false,
 }: {
   application: MyApplication;
   paymentModel: PaymentModel;
+  identityRequired?: boolean;
 }) {
   const { status, engagement, campaign } = application;
   const perClick = paymentModel === "per_click";
@@ -130,6 +132,7 @@ export function ApplicationPanel({
             campaignPriceKobo={campaign.priceKobo}
             campaignCpcKobo={campaign.cpcKobo}
             paymentModel={paymentModel}
+            identityRequired={identityRequired}
           />
         </div>
       )}

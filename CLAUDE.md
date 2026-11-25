@@ -90,6 +90,7 @@ Start with Vercel and Supabase for speed, but keep the app movable to Docker or 
 | Authorization | Postgres Row Level Security (RLS) + role checks server-side |
 | Styling / UI | Tailwind CSS v4 + shadcn/ui (Radix primitives through `radix-ui`, set up in `components.json`), restyled to our tokens; Lucide icons; CSS-only motion (see §4a) |
 | Payments | Paystack (charges, webhooks, transfers for payouts) |
+| Identity checks | Dojah (hosted NIN/BVN + selfie widget for creators and unregistered business owners, CAC lookup for registered businesses, sanctions/PEP screening); results arrive by signed webhook (§5, §7) |
 | Email | Resend (transactional) |
 | Deploy | Vercel, Frankfurt region next to the database; must also run on plain Node/Docker (§2a). Vercel Cron or Supabase `pg_cron` triggers scheduled jobs |
 
@@ -122,9 +123,10 @@ src/
       (admin)/             one page per job: standing, campaign review, verification, reports, hidden profiles; money (escrow, payouts, ledger, reconciliation)
     auth/                  route handlers for emailed links
     api/webhooks/paystack/ webhook endpoint (thin adapter; the decisions are in lib/payments.ts)
+    api/webhooks/dojah/    Dojah webhook endpoint (thin adapter; `handleDojahWebhook` and `applyIdentityEvent` in lib/identity.ts)
     llms.txt/              route handler: the site's public pages and FAQ as plain text for AI assistants (built by src/lib/llms.ts from the site's own copy; robots.ts and sitemap.ts sit beside it)
     not-found.tsx, error.tsx, global-error.tsx   the 404 and error pages; (marketing) and (portal) have their own so the header or sidebar stays (components/ui/status-page.tsx, error-status.tsx)
-    api/cron/              scheduled jobs: expire-engagements, review-deadlines, settle-clicks, money-checks, send-emails (bearer CRON_SECRET)
+    api/cron/              scheduled jobs: expire-engagements, review-deadlines, settle-clicks, money-checks, send-emails, identity-checks (bearer CRON_SECRET)
   components/
     ui/                    design-system components (Button, fields, …; shadcn/ui-based where a primitive is needed); see docs/DESIGN_SYSTEM.md
     brand/                 wordmark, product fragments, stickers, illustrations
@@ -137,6 +139,9 @@ src/
     money.ts               formatting + integer math (see §6)
     fees.ts                fee, Paystack-charge and transfer-fee maths; mirrors the fee_config seed (§6.1)
     paystack.ts            thin fetch wrapper for the endpoints we use; the only file that calls Paystack
+    dojah.ts               thin fetch wrapper for Dojah (CAC lookup, verification lookup, AML screening, webhook signature, widget keys); the only file that calls Dojah
+    identity.ts            what a Dojah session means (`decideIdentityResult`, one pure decision function), the webhook handler, the daily backstop; identity-crypto.ts (keyed fingerprints of NIN/BVN), identity-names.ts (name and registration-number matching), identity-gate.ts (words around the gates), identity-queue.ts, company-types.ts
+    screening.ts           sanctions/PEP screening once per person at their first payout request or first hire approval (§5)
     payments.ts            what a verified Paystack answer means: funding, stranding, payout results, webhook decisions (§6.6)
     money-checks.ts        the daily job: settle stuck payouts, record a reconciliation run
     money-limits.ts        rate limits for bank checks and payout requests
@@ -211,6 +216,16 @@ Proof of work: up to 10 links, 0–5 screenshots (stored as WebP, private `work-
 - After denial the influencer can resubmit, **at most 3 times** (`round` is 1–4), or either person can open a dispute.
 - **Review window: exactly 7 days from each submission**, stored as `review_deadline_at` and never recomputed. A denial or a dispute stops the clock; a resubmission starts a new 7 days. `auto_accepted` is a submission the business never reviewed; the hire becomes `auto_released`. The daily `/api/cron/review-deadlines` releases overdue hires (one subtransaction per hire, so one failure doesn't block the rest) and sends the review reminders: one once 3 days or less are left and one once 2 days or less are left (worded "1 day left", so the daily job always gives about a day's notice); if both are due at the first run, only the later one is sent.
 - **Disputes** (`disputes`, `dispute_statements`, `20261117100200_create_disputes.sql`): a written reason of 20–2,000 characters, then statements (1–2,000 characters, append-only, contact details refused but not a strike) from both sides until an admin decides from `/admin/disputes` with a written reason. One open dispute per hire. The opener can withdraw it; the business can also accept the work during a dispute, which releases in full and closes it.
+
+### Identity (since 2026-11-23)
+
+Design: `docs/superpowers/specs/2026-11-22-identity-verification-design.md`; plan: `docs/superpowers/plans/2026-11-22-identity-verification.md`. Everything is built and tested locally; **nothing has run against Dojah's sandbox** (`docs/TODO.md` lists each assumption).
+- **Who is checked, how.** Creators: legal name + NIN + live selfie (Dojah hosted widget). Unregistered businesses: the owner's legal name + BVN + selfie. Registered businesses: registered name + company type + RC/BN number against CAC (Dojah API, advanced lookup, so the directors' names come with it); a duplicate RC/BN goes to an admin. The legal name is private (shown only to the person and to admins). Onboarding has a skippable step; the same checks run from the account page. Rows live in `identity_checks` (kinds `creator_nin`, `owner_bvn`, `business_cac`, `director_bvn`; status `started|pending|verified|failed|needs_review|abandoned`), written only through `start_identity_check()`, `finish_identity_check()` and the admin functions (`20261123100000`, `20261123100200`).
+- **Dojah's signed webhook decides**, never the browser (`/api/webhooks/dojah`, `x-dojah-signature` HMAC-SHA256 of the raw body, checked before parsing). `decideIdentityResult()` verifies only when the overall status, the government lookup and selfie steps passed **and** the name matches. The same event key (`dojah:<reference>:<status>`) from the webhook and the daily `/api/cron/identity-checks` backstop decides once. The same NIN/BVN (creators, owners) or RC/BN on another account is `needs_review` for an admin, never auto-verified or auto-rejected.
+- **Gates, in the database:** `apply_to_campaign()` and `approve_application()` raise `identity_required` unless the caller is verified; `transition_campaign()` raises it on `submit` (draft to listing); `request_payout()` raises it for an unverified creator (the wallet is untouched); `approve_payout()` raises `screening_hold` unless the creator's latest screening is `clear` (or an admin cleared it). Existing accounts are unverified until they complete a check; nothing already agreed is affected (running hires, escrow, wallets, requested payouts, a hire approved earlier can still be paid, live campaigns stay live). Unverified people see disabled buttons with "Confirm your identity first" and a portal banner.
+- **Screening** (`screenings`, `lib/screening.ts`): once per person at the first payout request (creator) or first hire approval (business, before any hire exists), plus an admin's "screen again". PEP and sanctions only. A possible match holds payout approval or the first hire in neutral words (never "match found"); a Dojah error holds payouts and lets a hire proceed; an admin clears or confirms with a written reason (`/admin/identity`).
+- **Attempts:** at most 3 answered attempts per person and kind in 24 hours and 5 since an admin last allowed more (`identity_attempt_state()`); a check Dojah never answered does not count.
+- **Director check (registered businesses, identity only):** a registered business's director verifies with Dojah (BVN + selfie) and must be one of the CAC directors. Nothing about the director is held after the decision; bank transfers are not part of this build.
 
 ### Escrow & wallet
 See §6. This is the critical section.
@@ -339,6 +354,7 @@ Design and reasons: `docs/superpowers/specs/2026-11-13-stage-6-money-design.md`,
 - Chat: users can only read threads they belong to. **Discourage and, where possible, detect off-platform payment solicitation** (bypassing escrow is the biggest leakage risk for marketplaces); see §10.
 - Rate-limit auth, application submission, messaging and payout requests.
 - Never log secrets, full tokens, or full bank details. Mask account numbers in logs and UI.
+- **Identity data:** never store, log, return or put in a notification a full NIN or BVN, a selfie, an ID image or its URL, Dojah's full record or a phone number. We keep the legal name on record, the last 3 digits, the date of birth (for screening), a keyed HMAC fingerprint (`IDENTITY_FINGERPRINT_KEY`) and a trimmed copy of the provider's answer. Error messages mask runs of 9 or more digits.
 - Secrets live in env vars only. `.env*` is git-ignored; keep `.env.example` current with names (not values).
 
 ---
@@ -353,6 +369,8 @@ Notification events (each = in-app via Supabase Realtime + email via Resend, unl
 Built so far (2026-11-11): the in-app side. Database triggers write `notifications` rows (kind + facts) wherever an application, hire, message, campaign review, verification, profile visibility or appeal changes; the words and links live in `src/lib/notifications.ts`; the bell in the portal top bar shows them live. Messages are one entry per conversation, cleared when the thread is read. Stage 6 added the money kinds (hire funded, work started, a paid hire cancelled, escrow settled, payout paid, failed or rejected; trigger functions in `20261113100400_money_notifications.sql`) and the stranded-payment notice to the business (`payment_stranded`, a trigger on `ledger_entries` in `20261113100600_stranded_payment_and_hardening.sql`). Stage 7 added `work_submitted` (to the business), `submission_denied` (to the creator, with the reasons), `review_reminder` (to the business once 3 days or less and once 2 days or less are left, the second worded "1 day left"), `dispute_opened`, `dispute_statement` and `dispute_withdrawn` (to the other side), and the auto-release notice, which reuses `engagement_settled` (`status: auto_released`, `settled_by` null); triggers are in `20261117100300_stage7_notifications.sql`. Email for all of them is built; see the next paragraph.
 
 The creator portfolio added `portfolio_sample_hidden` and `cover_removed` (to the creator, with the admin's reason; sent from `hide_portfolio_sample()` and `clear_cover()`, migration `20261127100400`), both emailed `always`.
+
+Identity added `identity_verified`, `identity_failed` (with the reason, in words that say what to fix) and `identity_needs_review` (neutral: "closer look", never why), all emailed `always`; `finish_identity_check()` and the admin review functions send them (never to the admin who acted).
 
 Pay per click added `click_cap_reached` (to the creator, once, when their link reaches its cap; sent from `record_click()`) and `click_hold_started` (to both, once, when the click window ends; sent by the daily settle job), both emailed `always` (migration `20261120100000`). Settlement reuses `engagement_settled`.
 
@@ -480,6 +498,12 @@ Decided in Stage 7 (2026-11-17; design in `docs/superpowers/specs/2026-11-17-sta
 - **Review window 7 days** from each submission, reminders once 3 days or less and once 2 days or less are left, worded "1 day left" (only the later one if both are due at the first run), auto-release after that. Emailed since Stage 8.
 - **Creator withdrawal after starting** is allowed and settles as creator at fault (§6.2).
 - **`paid_out` stays in the enum**, unused.
+
+Decided on 2026-11-22 (design `docs/superpowers/specs/2026-11-22-identity-verification-design.md`; how it works in §5 "Identity"):
+- **Director check, registered businesses only:** a director verifies with Dojah and must be a CAC director (identity only; bank transfers are not part of this build).
+- **Gates:** applying, hiring, submitting a campaign for listing and requesting a payout need a verified identity, existing accounts included; nothing already agreed is taken away.
+- **A duplicate RC/BN number goes to an admin**; CAC-only verification plus the first-campaign review is the accepted mitigation for "someone claims a company that isn't theirs".
+- **Open:** the retention schedule for `identity_checks` and `screenings`, legal review of the privacy copy and Dojah's processing terms (`docs/TODO.md` §14).
 
 Still open:
 1. ~~Can one account be both a business and an influencer?~~ Decided above: no.

@@ -5,15 +5,22 @@
 // would create it again.
 
 export type BusinessStep =
-  "business-name" | "contact-name" | "location" | "done";
+  "business-name" | "contact-name" | "location" | "identity" | "done";
 
 export type CreatorStep =
-  "display-name" | "location" | "niches" | "platforms" | "photo" | "done";
+  | "display-name"
+  | "location"
+  | "niches"
+  | "platforms"
+  | "photo"
+  | "identity"
+  | "done";
 
 export const BUSINESS_STEPS: readonly BusinessStep[] = [
   "business-name",
   "contact-name",
   "location",
+  "identity",
   "done",
 ];
 
@@ -23,13 +30,15 @@ export const CREATOR_STEPS: readonly CreatorStep[] = [
   "niches",
   "platforms",
   "photo",
+  "identity",
   "done",
 ];
 
 const CREATOR_BACK: Partial<Record<CreatorStep, string>> = {
   platforms: "/onboarding/niches",
   photo: "/onboarding/platforms",
-  done: "/onboarding/photo",
+  identity: "/onboarding/photo",
+  done: "/onboarding/identity",
 };
 
 export function stepInfo(

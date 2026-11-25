@@ -27,6 +27,37 @@ export type NotificationView = {
 
 type Role = "business" | "influencer";
 
+/** What to fix after a failed identity check, in plain words. Duplicate IDs stay neutral. */
+export function identityFailureLine(
+  kind: string | null,
+  reason: string | null,
+) {
+  const idName = kind === "creator_nin" ? "NIN" : "BVN";
+  const lines: Record<string, string> = {
+    name_mismatch:
+      kind === "business_cac"
+        ? "The name doesn’t match CAC’s records. Check the spelling and try again."
+        : `The name doesn’t match your ${idName} record. Check the spelling against your ${idName} slip or bank record and try again.`,
+    selfie_mismatch:
+      "Your selfie didn’t match. Try again in good light, facing the camera.",
+    liveness_failed:
+      "Your selfie didn’t match. Try again in good light, facing the camera.",
+    id_not_found: `We couldn’t find that ${idName}. Check the number and try again.`,
+    company_not_found:
+      "We couldn’t find that registration number at CAC. Check it and try again.",
+    company_inactive:
+      "CAC lists this company as not active. Contact us if that looks wrong.",
+    not_a_director:
+      "That person isn’t listed as a director of your company at CAC. A listed director needs to do this check.",
+    duplicate_identity:
+      "We weren’t able to confirm it. Contact us if you think this is a mistake.",
+  };
+  return (
+    (reason !== null && Object.hasOwn(lines, reason) ? lines[reason] : null) ??
+    "Something went wrong with the check. Please try again."
+  );
+}
+
 const text = (value: unknown): string | null =>
   typeof value === "string" && value.trim() !== "" ? value : null;
 
@@ -285,6 +316,24 @@ export function describeNotification(
         href: "/business/wallet",
       };
     }
+    case "identity_verified":
+      return {
+        title: "Your identity is confirmed",
+        body: null,
+        href: "/account#identity",
+      };
+    case "identity_needs_review":
+      return {
+        title: "We’re taking a closer look",
+        body: "This usually takes 1–2 working days.",
+        href: "/account#identity",
+      };
+    case "identity_failed":
+      return {
+        title: "We couldn’t confirm your identity",
+        body: identityFailureLine(text(d.kind), text(d.reason)),
+        href: "/account#identity",
+      };
     case "new_message": {
       const count = typeof d.count === "number" && d.count > 1 ? d.count : 1;
       const conversationId = text(d.conversation_id);

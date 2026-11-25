@@ -718,6 +718,91 @@ Portal rebuild (2026-11-16, the dashboard-kit look):
 - [ ] **Errors after a page has started streaming still answer HTTP 200** (a Next.js limit). The error pages add `noindex` themselves; nothing else to do unless Search Console shows them indexed.
 - [ ] `/llms.txt` lists the five public pages and the home FAQ. If the audience pages' FAQs or the escrow page's questions should be in it too, move them into `src/lib/` the way the home FAQ was (`faq.ts`).
 
+## 14. Identity verification with Dojah (2026-11-23)
+
+Design: `docs/superpowers/specs/2026-11-22-identity-verification-design.md`; plan:
+`docs/superpowers/plans/2026-11-22-identity-verification.md`. Built and tested
+locally with fakes; the Dojah sandbox checks are listed below, so every
+"verify in sandbox" line is an assumption in code, kept in one small function.
+
+### You (owner tasks)
+
+- [ ] **You:** Dojah: complete compliance in the dashboard; get sandbox and live
+      keys; build two EasyOnboard flows (NIN + liveness selfie; BVN + liveness
+      selfie) **without Dojah's AML step**, theme them in Pitchype's colours,
+      publish them and note the widget ids; subscribe
+      `https://<domain>/api/webhooks/dojah` to the `kyc_widget` service and copy
+      the webhook secret; fund the wallet (calls answer 402 when it is empty).
+      Put them in `DOJAH_*` (see `.env.example`, `docs/PROVIDERS.md`). Then run
+      `node --env-file=<env file> scripts/check-dojah.mjs <webhook url>` per
+      environment (keys, subscription, signature; changes no data) and complete
+      each flow once in the browser. Sandbox keys checked 2026-11-25: they
+      authenticate, the CAC lookup has `affiliates` with `first_name`/`last_name`
+      and no status field, an unknown verification reference is a 404.
+- [ ] **You:** generate `IDENTITY_FINGERPRINT_KEY` per environment
+      (`openssl rand -base64 32`) and keep a copy: losing it restarts
+      duplicate-ID checks and a re-typed BVN then needs a fresh Dojah check.
+- [ ] **You:** legal review of the privacy lines on the identity pages
+      (`src/components/identity/identity-panel.tsx`, the transfer-account
+      director step and the onboarding "why we ask" copy) and of Dojah's
+      data-processing terms and our transfer assessment (policy §7.5). The text is
+      a draft.
+- [ ] **You:** decide the retention schedule for `identity_checks`,
+      `screenings` and `identity_events` (policy §6, §7.6). Nothing is deleted
+      today; there is no deletion job.
+- [ ] **You:** update the policy's gap register (CAC/business verification,
+      creator identity verification) once this ships.
+- [x] Playwright specs: none of `e2e/*.spec.ts` (smoke, audience pages, sign-up
+      role) applies, submits, hires or requests a payout or goes through
+      onboarding, so none needed a verified user. Any future spec that does
+      needs one (the database refuses otherwise).
+- [ ] **You (optional):** add an "Identity" link to the admin sidebar
+      (`src/lib/portal.ts`) and update the exact admin-nav assertion in
+      `src/lib/portal.test.ts`. The page is reached from the admin Overview card
+      and the payouts page today.
+
+### Verify in sandbox (each is one small mapping)
+
+- [ ] Widget result shape (`decideIdentityResult`, `stepPassed` in
+      `src/lib/identity.ts`): the step keys `government_data` and `selfie`, that a
+      boolean `status` marks a step passed, where the record's names and date of
+      birth sit (`data.government_data.data.<nin|bvn>.entity`), the date formats
+      Dojah returns for a BVN, and the wording of a failed selfie step (we read
+      "live" for liveness, otherwise a selfie mismatch).
+      **Confirmed for BVN in sandbox 2026-11-25** (step keys, boolean status,
+      names at `data.government_data.data.bvn.entity`, BVN date `01-Jun-1982`).
+      NIN confirmed the same day (`data.government_data.data.nin.entity`, ISO
+      date). A failed liveness is `verification_status: Failed` with **no
+      selfie step** and the top-level message "Liveness Verification Error";
+      `failingStepReason` now reads that message (it was `other` before). A
+      face mismatch (another person's face) is still unseen. Note: the widget's sandbox
+      returns its own records (BVN: IFEANYI OKERE; NIN: JOHN DOE DOE), with a
+      different number from the one typed, not the API sandbox's John Doe
+      Adamu; we fingerprint the typed `value`, which in live is the same number.
+- [x] `GET /api/v1/kyc/verification?reference_id=`: it wraps the session in
+      `entity` (the webhook does not) and does carry top-level `value`.
+      `getVerification` now unwraps it (2026-11-25); before that the daily
+      backstop would have failed every session it looked up.
+- [ ] CAC: the status vocabulary (`isCompanyActive` treats inactive, struck,
+      dissolved and wound as inactive; a missing status is active), that the
+      advanced lookup returns `affiliates`, and that `type_of_company` and the
+      `company_type` query values agree.
+- [ ] AML: that `entity.results` counts only real matches at the default
+      threshold (we treat any result as a possible match); consider
+      `match_threshold`.
+- [ ] Dojah's webhook retries and what it does on a 5xx.
+
+### Code follow-ups
+
+- [ ] No automatic re-screening, transaction monitoring or screening schedule
+      (policy §5): screening is once per person, plus an admin's "screen again".
+- [ ] No data-subject-request tooling and no deletion job for identity data.
+- [ ] A refused business transfer account has no admin retry button.
+- [ ] The identity pages and the director step have only been type-checked and
+      built, not opened in a browser, and not checked at 390px beyond reasoning.
+- [ ] An admin's "screen again" assumes a creator in `screenAgainAction` only for
+      the fallback subject; the subject normally comes from the verified check.
+
 ## Done
 
 - [x] Database migrations for Stages 1–3 pushed to the live project

@@ -8,6 +8,7 @@ import {
 } from "@/components/shells/portal-shell";
 
 import { PortalSidebar, PortalTopBar } from "./chrome";
+import { IdentityBanner } from "./identity-banner";
 import { StandingBanner } from "./standing-banner";
 
 // Signed-in pages for every role: never indexed.
@@ -31,6 +32,9 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
     >
       <Suspense fallback={null}>
         <StandingBanner />
+      </Suspense>
+      <Suspense fallback={null}>
+        <IdentityBanner />
       </Suspense>
       {children}
     </PortalShell>

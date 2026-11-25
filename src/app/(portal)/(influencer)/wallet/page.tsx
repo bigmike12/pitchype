@@ -18,6 +18,7 @@ import {
   TableSkeleton,
 } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth";
+import { isIdentityVerified } from "@/lib/db/identity";
 import { formatDate } from "@/lib/creator-profile";
 import {
   getCreatorWalletSummary,
@@ -109,13 +110,14 @@ async function WalletContent({ searchParams }: { searchParams: SearchParams }) {
   const { bank, page, payouts: payoutsPage } = await searchParams;
   // The balance is read with the secret-key client, so the id is the signed-in
   // person's, never anything from the request.
-  const [balanceKobo, summary, ledger, bankAccount, payouts] =
+  const [balanceKobo, summary, ledger, bankAccount, payouts, identityVerified] =
     await Promise.all([
       getWalletBalance(user.id, "creator_wallet"),
       getCreatorWalletSummary(user.id),
       listMyLedger(HISTORY_ROWS),
       getMyBankAccount(),
       listMyPayouts(),
+      isIdentityVerified(user.id),
     ]);
   const rows = ledger.filter((row) => row.account === "creator_wallet");
   // Two lists page on their own: `page` is the history, `payouts` the payouts.
@@ -233,6 +235,7 @@ async function WalletContent({ searchParams }: { searchParams: SearchParams }) {
           <PayoutForm
             balanceKobo={balanceKobo}
             hasBankAccount={bankAccount !== null}
+            identityRequired={!identityVerified}
           />
         </SectionCard>
 

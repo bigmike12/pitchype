@@ -20,6 +20,7 @@ import { Callout } from "@/components/ui/callout";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
 import { requireUser } from "@/lib/auth";
+import { isIdentityVerified } from "@/lib/db/identity";
 import {
   creatorReceivesKobo,
   formatDay,
@@ -75,9 +76,10 @@ async function Campaign({ params }: { params: Params }) {
   if (!campaign) notFound();
 
   const isCreator = user.role === "influencer";
-  const [niches, myApplications] = await Promise.all([
+  const [niches, myApplications, verified] = await Promise.all([
     listNiches(),
     isCreator ? listMyApplications() : Promise.resolve([]),
+    isCreator ? isIdentityVerified(user.id) : Promise.resolve(true),
   ]);
   const application = myApplications.find((a) => a.campaign.id === campaign.id);
   const nicheName = new Map(niches.map((n) => [n.slug, n.name]));
@@ -175,6 +177,7 @@ async function Campaign({ params }: { params: Params }) {
               <ApplicationPanel
                 application={application}
                 paymentModel={campaign.paymentModel}
+                identityRequired={!verified}
               />
             ) : places?.left === 0 ? (
               <Callout
@@ -205,6 +208,7 @@ async function Campaign({ params }: { params: Params }) {
                   campaignPriceKobo={campaign.priceKobo}
                   campaignCpcKobo={campaign.cpcKobo}
                   paymentModel={campaign.paymentModel}
+                  identityRequired={!verified}
                 />
               </section>
             ) : (

@@ -62,6 +62,9 @@ export const EMAIL_POLICY: Record<string, EmailPolicy> = {
   cover_removed: "always",
   profile_restored: "always",
   appeal_answered: "always",
+  identity_verified: "always",
+  identity_failed: "always",
+  identity_needs_review: "always",
 };
 
 export function wantsEmail(

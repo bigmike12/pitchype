@@ -243,7 +243,7 @@ export type TransitionResult =
   | { ok: true; status: CampaignStatus }
   // `message` is the database's own explanation, written for people.
   | { ok: false; reason: "invalid"; message: string }
-  | { ok: false; reason: "stale" | "not_allowed" };
+  | { ok: false; reason: "stale" | "not_allowed" | "identity_required" };
 
 /** Every status change, for businesses and admins alike. */
 export async function transitionCampaign(
@@ -266,6 +266,10 @@ export async function transitionCampaign(
     return { ok: false, reason: "stale" };
   }
   if (error.code === "42501") return { ok: false, reason: "not_allowed" };
+  // Sending a campaign for listing needs a confirmed identity.
+  if (error.code === "P0001" && error.message === "identity_required") {
+    return { ok: false, reason: "identity_required" };
+  }
   throw new Error(`campaign ${action} failed (${error.code})`);
 }
 

@@ -35,7 +35,7 @@ async function Photo() {
       <PhotoForm name={profile.displayName} photoUrl={profile.photoUrl} />
       <StepActions>
         <Link
-          href="/onboarding/done"
+          href="/onboarding/identity"
           className={
             profile.photoUrl
               ? continueClass

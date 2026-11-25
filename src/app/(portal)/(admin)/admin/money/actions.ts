@@ -15,6 +15,7 @@ import { confirmTransfer } from "@/lib/payments";
 import { PaystackError, initiateTransfer } from "@/lib/paystack";
 import { payoutCheckOutcome } from "@/lib/payout-request";
 import { refusalText } from "@/lib/refusals";
+import { ensureScreened } from "@/lib/screening";
 import {
   alreadySettledMessage,
   settlementMatchesRequest,
@@ -27,6 +28,9 @@ import { isSettleOutcome, parseNairaAmount } from "@/lib/settle-preview";
 // just in the form.
 
 const REASON_MAX = 500;
+
+const SCREENING_HOLD =
+  "This creator’s screening needs a decision before the payout can be approved. Open the identity page.";
 
 // Settling ----------------------------------------------------------------------
 
@@ -188,7 +192,13 @@ export async function approvePayoutAction(
 
   const approved = await approvePayout(payoutId);
   if (!approved.ok) {
-    return { status: "error", message: refusalText(approved.reason) };
+    return {
+      status: "error",
+      message:
+        approved.reason === "screening_hold"
+          ? SCREENING_HOLD
+          : refusalText(approved.reason),
+    };
   }
 
   try {
@@ -279,4 +289,19 @@ export async function checkPayoutAction(
     refresh();
   }
   return { status: outcome.status, message: outcome.message };
+}
+
+// Screening ---------------------------------------------------------------------
+
+/**
+ * Screens a creator for sanctions and PEP status again (a screening that
+ * errored, or a fresh look). The new result is the latest one and decides what
+ * the payout approval sees; nothing is shown to the creator.
+ */
+export async function screenAgainAction(form: FormData): Promise<void> {
+  await requireRole("admin");
+  const userId = text(form, "userId");
+  if (!isUuid(userId)) return;
+  await ensureScreened({ id: userId, role: "influencer" }, "admin");
+  refresh();
 }

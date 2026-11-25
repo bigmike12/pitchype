@@ -821,6 +821,194 @@ export type Database = {
         }
         Relationships: []
       }
+      identity_checks: {
+        Row: {
+          cac_cache: Json | null
+          cac_cached_at: string | null
+          company_name_on_record: string | null
+          company_type: string | null
+          counted: boolean
+          created_at: string
+          date_of_birth: string | null
+          decided_at: string | null
+          directors: Json | null
+          directors_fetched_at: string | null
+          failure_detail: string | null
+          failure_reason: string | null
+          id: string
+          id_fingerprint: string | null
+          id_last3: string | null
+          kind: string
+          legal_name_entered: string
+          legal_name_on_record: string | null
+          provider: string
+          provider_session_id: string | null
+          reference: string
+          registration_number: string | null
+          review_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          cac_cache?: Json | null
+          cac_cached_at?: string | null
+          company_name_on_record?: string | null
+          company_type?: string | null
+          counted?: boolean
+          created_at?: string
+          date_of_birth?: string | null
+          decided_at?: string | null
+          directors?: Json | null
+          directors_fetched_at?: string | null
+          failure_detail?: string | null
+          failure_reason?: string | null
+          id?: string
+          id_fingerprint?: string | null
+          id_last3?: string | null
+          kind: string
+          legal_name_entered: string
+          legal_name_on_record?: string | null
+          provider?: string
+          provider_session_id?: string | null
+          reference: string
+          registration_number?: string | null
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          cac_cache?: Json | null
+          cac_cached_at?: string | null
+          company_name_on_record?: string | null
+          company_type?: string | null
+          counted?: boolean
+          created_at?: string
+          date_of_birth?: string | null
+          decided_at?: string | null
+          directors?: Json | null
+          directors_fetched_at?: string | null
+          failure_detail?: string | null
+          failure_reason?: string | null
+          id?: string
+          id_fingerprint?: string | null
+          id_last3?: string | null
+          kind?: string
+          legal_name_entered?: string
+          legal_name_on_record?: string | null
+          provider?: string
+          provider_session_id?: string | null
+          reference?: string
+          registration_number?: string | null
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_checks_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_checks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      identity_events: {
+        Row: {
+          event_key: string
+          received_at: string
+        }
+        Insert: {
+          event_key: string
+          received_at?: string
+        }
+        Update: {
+          event_key?: string
+          received_at?: string
+        }
+        Relationships: []
+      }
+      identity_retry_grants: {
+        Row: {
+          created_at: string
+          granted_by: string
+          id: string
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by: string
+          id?: string
+          reason: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string
+          id?: string
+          reason?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_retry_grants_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_retry_grants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      identity_secrets: {
+        Row: {
+          bvn_encrypted: string
+          check_id: string
+          expires_at: string
+          phone_encrypted: string | null
+        }
+        Insert: {
+          bvn_encrypted: string
+          check_id: string
+          expires_at: string
+          phone_encrypted?: string | null
+        }
+        Update: {
+          bvn_encrypted?: string
+          check_id?: string
+          expires_at?: string
+          phone_encrypted?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_secrets_check_id_fkey"
+            columns: ["check_id"]
+            isOneToOne: true
+            referencedRelation: "identity_checks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       influencer_platforms: {
         Row: {
           created_at: string
@@ -1712,6 +1900,66 @@ export type Database = {
         }
         Relationships: []
       }
+      screenings: {
+        Row: {
+          created_at: string
+          id: string
+          match_count: number
+          provider_reference: string | null
+          review_outcome: string | null
+          review_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          subject: string
+          trigger: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          match_count?: number
+          provider_reference?: string | null
+          review_outcome?: string | null
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status: string
+          subject: string
+          trigger: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          match_count?: number
+          provider_reference?: string | null
+          review_outcome?: string | null
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          subject?: string
+          trigger?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "screenings_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "screenings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       submissions: {
         Row: {
           created_at: string
@@ -2097,6 +2345,7 @@ export type Database = {
       }
     }
     Functions: {
+      abandon_stale_identity_checks: { Args: never; Returns: number }
       accept_submission: { Args: { engagement: string }; Returns: string }
       active_strike_count: { Args: { person: string }; Returns: number }
       add_dispute_statement: {
@@ -2122,6 +2371,10 @@ export type Database = {
         Returns: Json
       }
       all_distinct: { Args: { items: string[] }; Returns: boolean }
+      allow_identity_retry: {
+        Args: { person: string; reason: string }
+        Returns: undefined
+      }
       answer_appeal: {
         Args: { answer: string; appeal: string; decline: boolean }
         Returns: undefined
@@ -2145,6 +2398,7 @@ export type Database = {
       approve_payout: { Args: { payout: string }; Returns: Json }
       audit_name: { Args: { person: string }; Returns: string }
       block_user: { Args: { other: string }; Returns: undefined }
+      business_cac_facts: { Args: { person: string }; Returns: Json }
       call_send_emails_route: { Args: never; Returns: undefined }
       campaign_application_counts: {
         Args: never
@@ -2283,6 +2537,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      delete_identity_secret: {
+        Args: { check_uuid: string }
+        Returns: undefined
+      }
       delete_orphan_proof_files: { Args: never; Returns: string[] }
       deliverable_kind_allowed: {
         Args: {
@@ -2296,6 +2554,7 @@ export type Database = {
         Returns: string
       }
       destination_host: { Args: { url: string }; Returns: string }
+      director_verified: { Args: { person: string }; Returns: boolean }
       display_name_of: { Args: { person: string }; Returns: string }
       edit_application: {
         Args: { application: string; note: string; proposed_price_kobo: number }
@@ -2322,6 +2581,10 @@ export type Database = {
       finish_email: {
         Args: { notification: string; was_sent: boolean }
         Returns: undefined
+      }
+      finish_identity_check: {
+        Args: { check_reference: string; decision: Json; event_key: string }
+        Returns: string
       }
       finish_payout: {
         Args: {
@@ -2367,6 +2630,30 @@ export type Database = {
         Returns: undefined
       }
       hire_ended_unpaid: { Args: { application: string }; Returns: boolean }
+      identity_attempt_state: {
+        Args: { check_kind: string; person: string }
+        Returns: Json
+      }
+      identity_capped_people: {
+        Args: never
+        Returns: {
+          answered: number
+          kind: string
+          last_answered_at: string
+          next_allowed_at: string
+          user_id: string
+        }[]
+      }
+      identity_check_by_reference: {
+        Args: { check_reference: string }
+        Returns: Json
+      }
+      identity_checks_to_poll: { Args: { max: number }; Returns: string[] }
+      identity_fingerprint_matches: {
+        Args: { check_kind: string; fingerprint: string; person: string }
+        Returns: boolean
+      }
+      identity_verified: { Args: { person: string }; Returns: boolean }
       indexable_creators: {
         Args: never
         Returns: {
@@ -2416,6 +2703,20 @@ export type Database = {
       my_applications: { Args: never; Returns: Json }
       my_blocks: { Args: never; Returns: Json }
       my_conversations: { Args: never; Returns: Json }
+      my_identity_checks: {
+        Args: never
+        Returns: {
+          company_name_on_record: string
+          created_at: string
+          decided_at: string
+          failure_reason: string
+          id_last3: string
+          kind: string
+          legal_name_on_record: string
+          registration_number: string
+          status: string
+        }[]
+      }
       new_link_code: { Args: never; Returns: string }
       new_verification_code: { Args: never; Returns: string }
       non_delivery_dispute_at: {
@@ -2467,6 +2768,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      purge_identity_secrets: { Args: never; Returns: number }
+      recent_cac_cache: {
+        Args: { person: string; rc_number: string }
+        Returns: Json
+      }
       reconciliation_figures: {
         Args: { paystack_balance_kobo: number; totals: Json }
         Returns: Json
@@ -2505,9 +2811,24 @@ export type Database = {
         Args: { paystack_balance_kobo: number }
         Returns: Json
       }
+      record_screening: {
+        Args: {
+          match_count: number
+          person: string
+          provider_reference: string
+          status: string
+          subject: string
+          trigger: string
+        }
+        Returns: string
+      }
       record_strike: {
         Args: { dedupe: string; detail: string; flag: string; person: string }
         Returns: Json
+      }
+      refresh_cac_directors: {
+        Args: { new_directors: Json; person: string }
+        Returns: undefined
       }
       register_proof_file: {
         Args: {
@@ -2574,6 +2895,14 @@ export type Database = {
         Args: { approve: boolean; follower_count?: number; request_id: string }
         Returns: undefined
       }
+      review_identity_check: {
+        Args: { check_id: string; outcome: string; reason: string }
+        Returns: undefined
+      }
+      review_screening: {
+        Args: { outcome: string; reason: string; screening: string }
+        Returns: undefined
+      }
       save_bank_account: {
         Args: {
           account_name: string
@@ -2623,6 +2952,8 @@ export type Database = {
         Args: { applications: boolean; campaigns: boolean; messages: boolean }
         Returns: undefined
       }
+      screening_facts: { Args: { person: string }; Returns: Json }
+      screening_state: { Args: { person: string }; Returns: string }
       search_creators: {
         Args: {
           in_state?: string
@@ -2709,9 +3040,21 @@ export type Database = {
         Returns: string
       }
       start_engagement: { Args: { engagement: string }; Returns: undefined }
+      start_identity_check: {
+        Args: { kind: string; legal_name: string }
+        Returns: Json
+      }
       start_payment: {
         Args: { engagement: string; fee_notice_seen: boolean }
         Returns: Json
+      }
+      store_identity_secret: {
+        Args: {
+          bvn_encrypted: string
+          check_uuid: string
+          phone_encrypted: string
+        }
+        Returns: undefined
       }
       submit_appeal: { Args: { message: string }; Returns: string }
       submit_handle_verification: {
@@ -2731,6 +3074,7 @@ export type Database = {
         Args: { first_sample: string; second_sample: string }
         Returns: undefined
       }
+      take_identity_secret: { Args: { check_uuid: string }; Returns: Json }
       transfer_fee_for: { Args: { amount_kobo: number }; Returns: number }
       transition_campaign: {
         Args: { action: string; campaign_id: string; note?: string }
@@ -2852,6 +3196,9 @@ export type Database = {
         | "clicks_stopped"
         | "portfolio_sample_hidden"
         | "cover_removed"
+        | "identity_verified"
+        | "identity_failed"
+        | "identity_needs_review"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -3080,6 +3427,9 @@ export const Constants = {
         "clicks_stopped",
         "portfolio_sample_hidden",
         "cover_removed",
+        "identity_verified",
+        "identity_failed",
+        "identity_needs_review",
       ],
       payment_model: ["fixed", "per_click"],
       report_reason: [

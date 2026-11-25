@@ -4,6 +4,7 @@ import { useActionState, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import { TextAreaField } from "@/components/ui/field";
+import { IdentityRequired } from "@/components/identity/identity-required";
 import { FormMessage } from "@/components/ui/form-message";
 import { maxClicks } from "@/lib/campaign";
 import { feeExample } from "@/lib/fees";
@@ -30,6 +31,7 @@ export function ApproveButton({
   again = false,
   size,
   dropAction,
+  identityRequired = false,
 }: {
   applicationId: string;
   creatorName: string;
@@ -41,6 +43,8 @@ export function ApproveButton({
   size?: "sm";
   /** On the hiring board: the column a dropped card opens this dialog for. */
   dropAction?: string;
+  /** The business has not confirmed its identity: show why instead of a Hire button. */
+  identityRequired?: boolean;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [state, formAction, pending] = useActionState<ApproveState, FormData>(
@@ -48,6 +52,12 @@ export function ApproveButton({
     { status: "idle" },
   );
   const fees = feeExample(priceKobo);
+
+  if (identityRequired) {
+    return (
+      <IdentityRequired label={again ? "Hire again" : "Hire"} size={size} />
+    );
+  }
 
   return (
     <>

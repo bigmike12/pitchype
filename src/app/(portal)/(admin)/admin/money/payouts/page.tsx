@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { AdminLedgerTable } from "@/components/money/admin-ledger-table";
+import { Button } from "@/components/ui/button";
 import { FilterTabs } from "@/components/ui/filter-tabs";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
@@ -15,16 +16,19 @@ import {
 } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth";
 import { formatDateTime } from "@/lib/creator-profile";
+import { getScreeningFacts, getScreeningState } from "@/lib/db/identity";
 import { listLedger } from "@/lib/db/money";
 import {
   listPayoutsAwaitingApproval,
   listRecentDecidedPayouts,
   type PayoutForReview,
 } from "@/lib/db/payouts";
+import { personNamesMatch } from "@/lib/identity-names";
 import { formatNaira } from "@/lib/money";
 import { pageOf, pagedHref, parsePage } from "@/lib/paging";
 import { adminPayoutStatus } from "@/lib/payout-request";
 
+import { screenAgainAction } from "../actions";
 import { CheckPayout } from "../check-payout";
 import { PayoutDecision } from "../payout-decision";
 
@@ -67,6 +71,15 @@ const DECIDED_KEPT = 200;
 const WAITING_PAGE_SIZE = 5;
 const DECIDED_PAGE_SIZE = 15;
 
+const SCREENING_WORDS: Record<string, string> = {
+  none: "This creator hasn’t been screened yet.",
+  possible_match:
+    "The screening found a possible sanctions or PEP match. Decide it on the identity page.",
+  error: "The screening couldn’t run. Screen again, or try later.",
+  confirmed:
+    "A match was confirmed. Don’t approve; reject the payout with a reason.",
+};
+
 const destination = (p: PayoutForReview) =>
   `${p.bankName} ••••${p.last4} · ${p.accountName}`;
 
@@ -100,6 +113,17 @@ async function Payouts({ searchParams }: { searchParams: SearchParams }) {
               )
               .slice(0, RECENT_LINES);
           }),
+        )
+      : [];
+
+  // Who each waiting creator is on record, and where their screening stands.
+  const identity =
+    show === "waiting"
+      ? await Promise.all(
+          waiting.items.map(async (p) => ({
+            screening: await getScreeningState(p.creatorId),
+            facts: await getScreeningFacts(p.creatorId),
+          })),
         )
       : [];
 
@@ -149,6 +173,21 @@ async function Payouts({ searchParams }: { searchParams: SearchParams }) {
                       <p className="text-sm break-words text-muted">
                         {destination(p)}
                       </p>
+                      <p className="text-sm break-words text-muted">
+                        {identity[index]?.facts
+                          ? `Legal name on record: ${identity[index].facts.name}`
+                          : "No verified legal name on record."}
+                      </p>
+                      {identity[index]?.facts &&
+                        !personNamesMatch(
+                          p.accountName,
+                          identity[index].facts.name,
+                        ) && (
+                          <p className="mt-1 text-sm font-medium text-danger">
+                            The bank account name doesn’t match the legal name
+                            on record. Check before approving.
+                          </p>
+                        )}
                     </div>
                     <p className="shrink-0 text-sm text-muted">
                       Asked {formatDateTime(p.createdAt)}
@@ -182,8 +221,37 @@ async function Payouts({ searchParams }: { searchParams: SearchParams }) {
                     </Link>
                   </div>
 
+                  {identity[index] && identity[index].screening !== "clear" && (
+                    <div className="mt-4 rounded-card bg-attention p-4 text-ink ring-1 ring-attention-ring">
+                      <p className="font-semibold">
+                        Screening needs a decision before this can be approved
+                      </p>
+                      <p className="mt-1 text-sm">
+                        {SCREENING_WORDS[identity[index].screening]}
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center gap-3">
+                        <form action={screenAgainAction}>
+                          <input
+                            type="hidden"
+                            name="userId"
+                            value={p.creatorId}
+                          />
+                          <Button type="submit" variant="secondary" size="sm">
+                            Screen again
+                          </Button>
+                        </form>
+                        <Link href="/admin/identity" className="link text-sm">
+                          Open the identity page
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="mt-4 border-t border-hairline pt-4">
-                    <PayoutDecision payoutId={p.id} />
+                    <PayoutDecision
+                      payoutId={p.id}
+                      held={identity[index]?.screening !== "clear"}
+                    />
                   </div>
                 </li>
               ))}
