@@ -53,10 +53,19 @@ if ((env.DOJAH_BASE_URL ?? "") === "" || (env.DOJAH_SECRET_KEY ?? "") === "") {
   process.exit(1);
 }
 
-const base = env.DOJAH_BASE_URL.replace(/\/+$/, "");
+let base = env.DOJAH_BASE_URL;
+while (base.endsWith("/")) base = base.slice(0, -1);
 const sandbox = new URL(base).host.startsWith("sandbox.");
 const environment = sandbox ? "sandbox" : "live";
 console.log(`\nDojah API (${new URL(base).host}, ${environment})`);
+
+// Dojah's docs show `entity` as the list; the API answers a page of it in
+// `entity.webhooks` (seen 2026-11-25). Accept either.
+function webhookList(entity) {
+  if (Array.isArray(entity)) return entity;
+  if (Array.isArray(entity?.webhooks)) return entity.webhooks;
+  return [];
+}
 
 async function get(path) {
   const response = await fetch(`${base}${path}`, {
@@ -79,14 +88,7 @@ if (subscriptions.status === 401 || subscriptions.status === 403) {
   );
 } else {
   pass(`the keys authenticate (${subscriptions.status})`);
-  // Dojah's docs show `entity` as the list; the API answers a page of it in
-  // `entity.webhooks` (seen 2026-11-25). Accept either.
-  const entity = subscriptions.json?.entity;
-  const list = Array.isArray(entity)
-    ? entity
-    : Array.isArray(entity?.webhooks)
-      ? entity.webhooks
-      : [];
+  const list = webhookList(subscriptions.json?.entity);
   const widget = list.find(
     (s) =>
       s.service === "kyc_widget" &&
