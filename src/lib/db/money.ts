@@ -75,6 +75,7 @@ const MONEY_STATE_CODES = new Set([
   "payment_total_wrong",
   "payment_not_succeeded",
   "invalid_paystack_fee",
+  "invalid_paid_amount",
 ]);
 
 /**
@@ -89,9 +90,7 @@ export async function recordCardPayment(input: {
   paystackFeeKobo: number;
   eventKey: string;
   payload: Json;
-}): Promise<
-  "funded" | "stranded" | "duplicate" | "mismatch" | "unknown_reference"
-> {
+}): Promise<"funded" | "stranded" | "duplicate" | "unknown_reference"> {
   const { data, error } = await createAdminClient().rpc("record_card_payment", {
     reference: input.reference,
     paid_kobo: input.paidKobo,
@@ -108,12 +107,7 @@ export async function recordCardPayment(input: {
     }
     throw new Error(`record card payment failed (${error.code})`);
   }
-  if (
-    data === "funded" ||
-    data === "stranded" ||
-    data === "duplicate" ||
-    data === "mismatch"
-  ) {
+  if (data === "funded" || data === "stranded" || data === "duplicate") {
     return data;
   }
   throw new Error("record card payment returned an unexpected result");

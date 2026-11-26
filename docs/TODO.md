@@ -393,16 +393,20 @@ live key is set.
       Paystack balance. By default Paystack pays collections out to the bank
       account; if so, every reconciliation shows a large difference and payouts
       fail for lack of balance. Configure it, or model settlements in the ledger.
-- [ ] **You:** "Pass transaction charges to the customer" must be OFF in
-      Paystack. Otherwise Paystack's verified amount includes the charge, every
-      payment is a `mismatch`, and money is collected without funding the hire.
+- [x] **You:** "Pass transaction charges to the customer" must be OFF in
+      Paystack. It was on in production on 2026-11-26 and stranded one payment
+      (repaired by `scripts/repairs/2026-11-26-overpaid-card-payment.sql`); the
+      owner switched it off the same day. Since `20261130100000` a payment for a
+      different amount is applied (extra to the business wallet, a short one
+      stranded) instead of being left as a `mismatch`, but with the setting on,
+      businesses would still pay more than checkout showed.
 - [ ] **Build:** a correction/adjustment tool with a required reason. The
       `correction` event type exists but nothing can post a reversing group
-      (needed to book a mismatched payment, a `transfer.reversed` after `paid`,
+      (needed for a `transfer.reversed` after `paid`,
       or a hand refund of a business wallet). Money-critical SQL: design and
       review it first.
-- [ ] **Build:** durable admin alerts for `needs_review` and `mismatch` card
-      payments (today one log line each), a non-zero reconciliation difference
+- [ ] **Build:** durable admin alerts for `needs_review` and currency-mismatch
+      card payments (today one log line each), a non-zero reconciliation difference
       (today a callout on `/admin/money`) and payouts waiting for approval
       (admins have no bell).
 - [ ] **You/Build:** a real webhook run on a deployed preview with test keys:

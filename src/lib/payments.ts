@@ -41,9 +41,7 @@ export type CardDeps = {
     paystackFeeKobo: number;
     eventKey: string;
     payload: Json;
-  }) => Promise<
-    "funded" | "stranded" | "duplicate" | "mismatch" | "unknown_reference"
-  >;
+  }) => Promise<"funded" | "stranded" | "duplicate" | "unknown_reference">;
 };
 
 export type TransferDeps = {
@@ -144,11 +142,6 @@ export async function confirmCardPayment(
         "id",
       ]),
     });
-    if (result === "mismatch") {
-      // Paystack's amount differs from the payment's card part: nothing was
-      // funded, and money may have been collected. Logged for follow-up.
-      console.error("card payment amount mismatch", reference);
-    }
     return result === "unknown_reference" ? "unknown" : result;
   } catch (error) {
     if (error instanceof MoneyStateError) {

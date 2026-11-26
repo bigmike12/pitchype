@@ -378,6 +378,15 @@ export function describeNotification(
     }
     case "payment_stranded": {
       const amount = kobo(d.amount_kobo);
+      // Paystack collected more than the hire cost (its charge passed on):
+      // the hire is paid and only the extra went to the wallet.
+      if (d.extra === true) {
+        return {
+          title: `${amount === null ? "The extra you paid" : `The extra ${formatNaira(amount)} you paid`} is in your Pitchype wallet`,
+          body: "Your hire is paid. Paystack collected more than the amount due, so we kept only what the hire costs.",
+          href: "/business/wallet",
+        };
+      }
       return {
         title: `Your payment ${amount === null ? "" : `of ${formatNaira(amount)} `}arrived, but this hire could not be started`,
         body: "The money is in your Pitchype wallet.",

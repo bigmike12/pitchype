@@ -3,8 +3,8 @@
 
 /**
  * A money function found a state that should never happen (record_card_payment's
- * payment_total_wrong, payment_not_succeeded, invalid_paystack_fee). Nothing was
- * written; a person has to look. `code` is the database's code, safe to log.
+ * payment_total_wrong, payment_not_succeeded, invalid_paystack_fee,
+ * invalid_paid_amount). Nothing was written; a person has to look. `code` is the database's code, safe to log.
  */
 export class MoneyStateError extends Error {
   code: string;

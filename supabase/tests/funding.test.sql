@@ -1,6 +1,7 @@
 -- Proves the rules from the create_funding migration: starting a payment
 -- freezes the figures, a card payment funds escrow exactly once however many
--- times it is reported, a wrong amount funds nothing, a payment that arrives
+-- times it is reported, a payment for a different amount is applied (extra to
+-- the wallet, a short payment stranded), a payment that arrives
 -- after the approval lapsed lands in the business wallet, a payment in flight
 -- holds the lapse and the cancel, wallet funding never overdraws, the fee
 -- snapshot comes from the payment, and the ledger hardening holds.
@@ -9,7 +10,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(94);
+select plan(107);
 
 -- Ada and Bola are businesses; creators c9011..c9016 are hired.
 insert into public.users (id, auth_user_id, email, role) values
@@ -40,7 +41,9 @@ insert into public.applications (id, campaign_id, creator_id, status) values
   ('c9000000-0000-0000-0000-0000000000a6', 'c9000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000c9016', 'approved'),
   ('c9000000-0000-0000-0000-0000000000b1', 'c9000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000c9011', 'approved'),
   ('c9000000-0000-0000-0000-0000000000b2', 'c9000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000c9012', 'approved'),
-  ('c9000000-0000-0000-0000-0000000000b3', 'c9000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000c9013', 'approved');
+  ('c9000000-0000-0000-0000-0000000000b3', 'c9000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000c9013', 'approved'),
+  ('c9000000-0000-0000-0000-0000000000b4', 'c9000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000c9015', 'approved'),
+  ('c9000000-0000-0000-0000-0000000000b5', 'c9000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000c9016', 'approved');
 
 -- ₦50,000 each, 48 hours to pay. Ada: e1, e2, e3, e5, e6. Bola: f1, f2, f3.
 insert into public.engagements (id, application_id, campaign_id, business_id, creator_id, agreed_price_kobo, pay_by)
@@ -55,7 +58,9 @@ select ('c9000000-0000-0000-0000-0000000000' || x.tag)::uuid,
     ('e6', 'a6', 'c9000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000c9001', '00000000-0000-0000-0000-0000000c9016'),
     ('f1', 'b1', 'c9000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000c9002', '00000000-0000-0000-0000-0000000c9011'),
     ('f2', 'b2', 'c9000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000c9002', '00000000-0000-0000-0000-0000000c9012'),
-    ('f3', 'b3', 'c9000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000c9002', '00000000-0000-0000-0000-0000000c9013')
+    ('f3', 'b3', 'c9000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000c9002', '00000000-0000-0000-0000-0000000c9013'),
+    ('f4', 'b4', 'c9000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000c9002', '00000000-0000-0000-0000-0000000c9015'),
+    ('f5', 'b5', 'c9000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000c9002', '00000000-0000-0000-0000-0000000c9016')
   ) x (tag, app, campaign, business, creator);
 
 -- Ledger hardening ------------------------------------------------------------------------------
@@ -234,26 +239,11 @@ select is((select array_agg(event_type || ':' || account || ':' || amount_kobo o
 select is((select status::text from public.engagements where id = 'c9000000-0000-0000-0000-0000000000e6'),
   'awaiting_payment', 'the refused hire still waits for payment');
 
--- A wrong amount -------------------------------------------------------------------------------------
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "9c9c9c9c-0000-0000-0000-0000000c9001"}'; -- Ada
 select is(public.start_payment('c9000000-0000-0000-0000-0000000000e2', true) ->> 'card_amount_kobo', '5250000',
   'Ada starts paying for e2 by card');
 reset role;
-
-select is(public.record_card_payment(
-    (select reference from public.payments where engagement_id = 'c9000000-0000-0000-0000-0000000000e2'),
-    5000000, 90000, 'evt-e2-short', '{"amount": 5000000}'),
-  'mismatch', 'a different amount is a mismatch');
-select is((select status::text from public.engagements where id = 'c9000000-0000-0000-0000-0000000000e2'),
-  'awaiting_payment', 'the hire still waits for payment');
-select is((select status || ':' || coalesce(paystack_fee_kobo::text, 'null') from public.payments
-            where engagement_id = 'c9000000-0000-0000-0000-0000000000e2'),
-  'initiated:null', 'the payment is untouched');
-select is((select count(*)::integer from public.ledger_entries where engagement_id = 'c9000000-0000-0000-0000-0000000000e2'), 0,
-  'nothing is written to the ledger');
-select is((select payload from public.payment_events where event_key = 'evt-e2-short'), '{"amount": 5000000}'::jsonb,
-  'the event is kept for audit');
 
 -- A payment in flight holds the lapse and the cancel --------------------------------------------------
 update public.engagements set pay_by = now() - interval '1 minute' where id = 'c9000000-0000-0000-0000-0000000000e2';
@@ -379,6 +369,76 @@ select is((select array[business_fee_kobo, creator_fee_bps, creator_min_fee_kobo
   array[250000, 500, 50000]::bigint[], 'the snapshot comes from the payment''s frozen config');
 select isnt((select fee_config_id from public.engagements where id = 'c9000000-0000-0000-0000-0000000000f2'),
   (public.current_fee_config()).id, 'not the current one');
+
+-- Paystack collects a different amount (20261130100000) ------------------------------------------
+-- Bola's wallet is empty here, and the 9% fee_config above is now current, so
+-- a ₦50,000 hire costs ₦54,500 by card. f4: Paystack adds its ₦1,000 charge on
+-- top; f5: it collects ₦50,000 of ₦54,500.
+select is(public.wallet_balance('00000000-0000-0000-0000-0000000c9002', 'business_wallet'), 0::bigint,
+  'Bola''s wallet starts empty');
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "9c9c9c9c-0000-0000-0000-0000000c9002"}'; -- Bola
+select public.start_payment('c9000000-0000-0000-0000-0000000000f4', true);
+select public.start_payment('c9000000-0000-0000-0000-0000000000f4', true);
+select is(public.start_payment('c9000000-0000-0000-0000-0000000000f5', true) ->> 'card_amount_kobo', '5450000',
+  'Bola starts paying f4 (twice) and f5, all by card');
+reset role;
+
+set local role service_role;
+select is(public.record_card_payment(
+    (select reference from public.payments where engagement_id = 'c9000000-0000-0000-0000-0000000000f4' and status = 'initiated'),
+    5550000, 100000, 'evt-f4-over', '{"amount": 5550000}'),
+  'funded', 'paying more than the card part funds the hire');
+reset role;
+select is((select status::text from public.engagements where id = 'c9000000-0000-0000-0000-0000000000f4'), 'funded',
+  'f4 is funded');
+select is((select sum(amount_kobo) from public.ledger_entries
+            where engagement_id = 'c9000000-0000-0000-0000-0000000000f4' and account = 'escrow'), -5000000::numeric,
+  'escrow holds the agreed price, not the extra');
+select is(public.wallet_balance('00000000-0000-0000-0000-0000000c9002', 'business_wallet'), 100000::bigint,
+  'the ₦1,000 extra is in Bola''s wallet');
+select is((select sum(amount_kobo) from public.ledger_entries
+            where engagement_id = 'c9000000-0000-0000-0000-0000000000f4' and account = 'paystack'), (5550000 - 100000)::numeric,
+  'Paystack cash is everything collected less its charge');
+select is((select count(distinct group_id)::integer from public.ledger_entries
+            where engagement_id = 'c9000000-0000-0000-0000-0000000000f4' and event_type = 'payment_received'), 2,
+  'the funding and the extra are separate payment_received groups');
+select is((select status || ':' || paystack_fee_kobo from public.payments
+            where engagement_id = 'c9000000-0000-0000-0000-0000000000f4' and status = 'succeeded'),
+  'succeeded:100000', 'the payment is succeeded with its Paystack charge');
+
+-- The superseded f4 payment also succeeds, overpaid: the hire is funded, so all of it is stranded.
+set local role service_role;
+select is(public.record_card_payment(
+    (select reference from public.payments where engagement_id = 'c9000000-0000-0000-0000-0000000000f4' and status = 'failed'),
+    5550000, 100000, 'evt-f4-old', '{}'),
+  'stranded', 'an overpaid payment that cannot fund is stranded');
+reset role;
+select is(public.wallet_balance('00000000-0000-0000-0000-0000000c9002', 'business_wallet'), 5650000::bigint,
+  'everything it collected joins the wallet');
+select is((select sum(amount_kobo) from public.ledger_entries
+            where engagement_id = 'c9000000-0000-0000-0000-0000000000f4' and account = 'escrow'), -5000000::numeric,
+  'escrow is not funded twice');
+
+-- f5 is underpaid.
+set local role service_role;
+select throws_ok(format($$ select public.record_card_payment(%L, 0, 0, 'evt-f5-zero', '{}') $$,
+    (select reference from public.payments where engagement_id = 'c9000000-0000-0000-0000-0000000000f5')),
+  '22023', 'invalid_paid_amount', 'a zero amount is refused and writes nothing');
+select is(public.record_card_payment(
+    (select reference from public.payments where engagement_id = 'c9000000-0000-0000-0000-0000000000f5'),
+    5000000, 90000, 'evt-f5-short', '{"amount": 5000000}'),
+  'stranded', 'paying less than the card part never funds the hire');
+reset role;
+select is((select status::text from public.engagements where id = 'c9000000-0000-0000-0000-0000000000f5'),
+  'awaiting_payment', 'f5 still waits for payment');
+select is(public.wallet_balance('00000000-0000-0000-0000-0000000c9002', 'business_wallet'), 10650000::bigint,
+  'the ₦50,000 collected is in Bola''s wallet');
+select is((select count(*)::integer from public.ledger_entries
+            where engagement_id = 'c9000000-0000-0000-0000-0000000000f5' and account = 'escrow'), 0,
+  'nothing goes to escrow');
+select is((select payload from public.payment_events where event_key = 'evt-f5-short'), '{"amount": 5000000}'::jsonb,
+  'the event is kept for audit');
 
 -- Totals and replica mode -------------------------------------------------------------------------
 select is((select count(*)::integer from (
