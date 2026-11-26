@@ -371,6 +371,21 @@ test("a stranded payment tells the business where its money is", () => {
   );
 });
 
+test("an extra the card payment collected is not called stranded", () => {
+  const d = describeNotification(
+    row("payment_stranded", {
+      ...campaign,
+      engagement_id: "e1",
+      amount_kobo: 18528,
+      extra: true,
+    }),
+    "business",
+  );
+  assert.equal(d?.title, "The extra ₦185.28 you paid is in your Pitchype wallet");
+  assert.match(d?.body ?? "", /^Your hire is paid\./);
+  assert.equal(d?.href, "/business/wallet");
+});
+
 test("a creator's job link falls back to their applications without a hire", () => {
   for (const kind of ["hire_funded", "engagement_settled"]) {
     const d = describeNotification(row(kind, campaign), "influencer");

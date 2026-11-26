@@ -159,10 +159,13 @@ test("a payment in another currency is a mismatch without touching the database"
   assert.deepEqual(logged, ["card payment currency mismatch " + REF]);
 });
 
-test("a payment whose amount the database rejects is logged", async () => {
-  const { deps } = cardDeps(success(), "mismatch");
-  assert.equal(await confirmCardPayment(REF, deps), "mismatch");
-  assert.deepEqual(logged, ["card payment amount mismatch " + REF]);
+test("Paystack's collected amount, not ours, is what gets recorded", async () => {
+  // Paystack added its charge on top (a dashboard setting): the database
+  // applies what was collected, so it must be handed the verified amount.
+  const { deps, records } = cardDeps(success({ amountKobo: 5_350_000 }));
+  assert.equal(await confirmCardPayment(REF, deps), "funded");
+  assert.equal(records[0]?.paidKobo, 5_350_000);
+  assert.deepEqual(logged, []);
 });
 
 test("the database's own answers pass through", async () => {
@@ -170,7 +173,6 @@ test("the database's own answers pass through", async () => {
     "funded",
     "stranded",
     "duplicate",
-    "mismatch",
   ] as const) {
     const { deps } = cardDeps(success(), answer);
     assert.equal(await confirmCardPayment(REF, deps), answer);
