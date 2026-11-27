@@ -20,6 +20,11 @@ test("only known codes count as refusals", () => {
   assert.equal(isRefusal("settle_reason_required"), true);
   assert.equal(isRefusal("fee_notice_required"), true);
   for (const code of [
+    "feedback_invalid",
+    "no_such_feedback",
+    "is_duplicate",
+    "main_is_duplicate",
+    "has_duplicates",
     "identity_required",
     "already_verified",
     "check_in_review",

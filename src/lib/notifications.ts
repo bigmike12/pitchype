@@ -399,6 +399,15 @@ export function describeNotification(
         body: null,
         href: "/account#identity",
       };
+    case "feedback_shipped": {
+      const number = typeof d.number === "number" ? `#${d.number} ` : "";
+      const request = text(d.title) ?? "your request";
+      return {
+        title: "Something you asked for is live",
+        body: note ? `${number}${request}. ${note}` : `${number}${request}`,
+        href: "/feedback",
+      };
+    }
     case "identity_needs_review":
       return {
         title: "We’re taking a closer look",

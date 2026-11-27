@@ -131,6 +131,16 @@ const REFUSAL_TEXT = {
   check_not_in_review: "This check isn’t waiting for a decision.",
   no_such_screening: "We couldn’t find that screening.",
   screening_not_pending: "This screening has already been decided.",
+  // Feedback requests
+  feedback_invalid:
+    "Check the request: a title of 3 to 120 characters and details of 10 to 2,000.",
+  no_such_feedback: "We couldn’t find that request.",
+  is_duplicate:
+    "This request is merged into another. Change the main request instead.",
+  main_is_duplicate:
+    "That request is itself merged into another. Use the main request’s number.",
+  has_duplicates:
+    "Other requests are merged into this one. Merge them into the new main request first.",
 } as const;
 
 export type Refusal = keyof typeof REFUSAL_TEXT;
