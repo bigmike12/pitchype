@@ -14,12 +14,20 @@ export type CheckpointRowView = {
   skipReason: "started_after" | "too_soon" | null;
 };
 
-export type ChipTone = "info" | "attention" | "success" | "muted";
+export type ChipTone = "info" | "next" | "attention" | "success" | "muted";
 
-/** The chip beside a checkpoint: a label, a tone and an optional line of detail. */
+const DAY_MS = 86_400_000;
+
+/**
+ * The chip beside a checkpoint: a label, a tone and an optional line of detail.
+ * In the database every row still waiting is `due`, however far away; on the
+ * page only the next one, or one within a day of its time, reads as due.
+ * `isNext` marks the first row still waiting (`nextRowId`).
+ */
 export function checkpointChip(
   row: CheckpointRowView,
   now: Date,
+  isNext = false,
 ): { label: string; tone: ChipTone; detail: string | null } {
   switch (row.status) {
     case "done":
@@ -51,16 +59,55 @@ export function checkpointChip(
         tone: "attention",
         detail: "Still accepted, even late.",
       };
-    case "due":
+    case "due": {
       // The daily job marks rows overdue; until it runs, the clock decides.
-      return new Date(row.dueAt) <= now
-        ? {
-            label: "Overdue",
-            tone: "attention",
-            detail: "Still accepted, even late.",
-          }
-        : { label: "Due", tone: "info", detail: null };
+      const left = new Date(row.dueAt).getTime() - now.getTime();
+      if (left <= 0) {
+        return {
+          label: "Overdue",
+          tone: "attention",
+          detail: "Still accepted, even late.",
+        };
+      }
+      if (left <= DAY_MS)
+        return { label: "Due soon", tone: "next", detail: null };
+      if (isNext) return { label: "Up next", tone: "next", detail: null };
+      return { label: "Upcoming", tone: "muted", detail: null };
+    }
   }
+}
+
+/** The first row still waiting for evidence: the one to work on now. */
+export function nextRowId(rows: CheckpointRowView[]): string | null {
+  return (
+    rows.find((r) => r.status === "due" || r.status === "overdue")?.id ?? null
+  );
+}
+
+/** Finished rows out of the rows that apply (skipped ones don't count). */
+export function checkpointProgress(rows: CheckpointRowView[]): {
+  done: number;
+  total: number;
+} {
+  const applies = rows.filter((r) => r.status !== "skipped");
+  return {
+    done: applies.filter((r) => r.status === "done" || r.status === "done_late")
+      .length,
+    total: applies.length,
+  };
+}
+
+/** How far the due day is from today, both Lagos days: "today", "in 3 days", "2 days ago". */
+export function dueWhen(row: CheckpointRowView, now: Date): string {
+  const days = Math.round(
+    (Date.parse(`${dueDay(row)}T00:00:00Z`) -
+      Date.parse(`${lagosDate(now)}T00:00:00Z`)) /
+      DAY_MS,
+  );
+  if (days === 0) return "today";
+  if (days === 1) return "tomorrow";
+  if (days === -1) return "yesterday";
+  return days > 0 ? `in ${days} days` : `${-days} days ago`;
 }
 
 /** "Kickoff", then "Checkpoint 1", "Checkpoint 2" ... in date order, skipped ones counted. */
@@ -87,7 +134,7 @@ export function outstandingRows<T extends CheckpointRowView>(
   );
 }
 
-/** The Lagos day a row is due, "YYYY-MM-DD": the end of that day, so the second before. */
+/** The Lagos day a row is due, "YYYY-MM-DD": the end of that day, so the second before. The kickoff's is the day of its due time. */
 export function dueDay(row: CheckpointRowView): string {
   return lagosDate(new Date(new Date(row.dueAt).getTime() - 1000));
 }
@@ -146,4 +193,77 @@ export function trailText(
     default:
       return label;
   }
+}
+
+export type TrailEventView = {
+  id: string;
+  hireCheckpointId: string | null;
+  event: string;
+  detail: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type TrailEntry = {
+  id: string;
+  text: string;
+  createdAt: string;
+  tone: "success" | "attention" | "muted";
+};
+
+const TRAIL_TONE: Record<string, TrailEntry["tone"]> = {
+  kickoff_submitted: "success",
+  evidence_submitted: "success",
+  evidence_late: "success",
+  overdue: "attention",
+  warned: "attention",
+  dispute_available: "attention",
+};
+
+/**
+ * The trail as lines to show. "Start work" writes an `applied` event for
+ * every row at once; those fold into one line ("the kickoff and 8 checkpoints
+ * apply"), so the trail shows what actually happened since.
+ */
+export function trailEntries(
+  events: TrailEventView[],
+  rows: CheckpointRowView[],
+): TrailEntry[] {
+  const numbered = new Map(numberRows(rows).map((r) => [r.id, r]));
+  const applied = events.filter((e) => e.event === "applied");
+  const entries: TrailEntry[] = [];
+  if (applied.length > 0) {
+    const kinds = applied.map(
+      (e) =>
+        (e.hireCheckpointId && numbered.get(e.hireCheckpointId)?.kind) ||
+        "progress",
+    );
+    const kickoff = kinds.includes("kickoff");
+    const count = kinds.filter((k) => k === "progress").length;
+    const checkpoints = `${count} checkpoint${count === 1 ? "" : "s"}`;
+    const what =
+      kickoff && count > 0
+        ? `the kickoff and ${checkpoints} apply`
+        : kickoff
+          ? "the kickoff applies"
+          : `${checkpoints} ${count === 1 ? "applies" : "apply"}`;
+    entries.push({
+      id: applied[0].id,
+      text: `Work started: ${what} to this job.`,
+      createdAt: applied[0].createdAt,
+      tone: "muted",
+    });
+  }
+  for (const e of events) {
+    if (e.event === "applied") continue;
+    const title =
+      (e.hireCheckpointId && numbered.get(e.hireCheckpointId)?.title) ||
+      "A checkpoint";
+    entries.push({
+      id: e.id,
+      text: trailText(e.event, e.detail, title),
+      createdAt: e.createdAt,
+      tone: TRAIL_TONE[e.event] ?? "muted",
+    });
+  }
+  return entries;
 }
