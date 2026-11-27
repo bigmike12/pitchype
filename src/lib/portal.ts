@@ -34,6 +34,7 @@ export type AdminAttention = {
   verification: number;
   identity: number;
   reports: number;
+  feedback: number;
   disputes: number;
   payouts: number;
 };
@@ -164,6 +165,14 @@ const NAV: Record<PortalRole, NavItem[]> = {
       group: "Review",
       attention: "reports",
       badgeLabel: "open",
+    },
+    {
+      href: "/admin/feedback",
+      label: "Feedback",
+      icon: "feedback",
+      group: "Review",
+      attention: "feedback",
+      badgeLabel: "new",
     },
     {
       href: "/admin/hidden",

@@ -7,6 +7,7 @@ import {
   Coins,
   EyeOff,
   Flag,
+  MessageSquarePlus,
   Gavel,
   LockKeyhole,
   Megaphone,
@@ -35,6 +36,7 @@ import { countIdentityAttention } from "@/lib/db/identity";
 import { getStandingReview } from "@/lib/db/moderation";
 import { countEscrowEngagements } from "@/lib/db/money";
 import { countPayoutsAwaitingApproval } from "@/lib/db/payouts";
+import { countNewFeedback } from "@/lib/db/feedback";
 import { listHiddenCreators, listOpenReports } from "@/lib/db/reports";
 import { listVerificationQueue } from "@/lib/db/verification";
 import { formatNaira } from "@/lib/money";
@@ -80,6 +82,7 @@ async function Overview() {
     disputes,
     identity,
     overview,
+    newFeedback,
   ] = await Promise.all([
     getStandingReview(),
     listCampaignsForReview(),
@@ -92,6 +95,7 @@ async function Overview() {
     countOpenDisputes(),
     countIdentityAttention(),
     getPlatformOverview(),
+    countNewFeedback(),
   ]);
   const testMode = isPaymentTestMode();
   const modeNote = testMode ? " · Test mode" : "";
@@ -199,6 +203,14 @@ async function Overview() {
           icon={Flag}
           tone="peach"
           href="/admin/reports"
+        />
+        <StatCard
+          label="New feedback"
+          value={String(newFeedback)}
+          detail="Ideas and problems to triage"
+          icon={MessageSquarePlus}
+          tone="lilac"
+          href="/admin/feedback"
         />
         <StatCard
           label="Hidden profiles"

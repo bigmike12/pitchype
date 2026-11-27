@@ -54,6 +54,18 @@ export async function listMyFeedback(): Promise<MyFeedbackRequest[]> {
 
 // Admins -------------------------------------------------------------------------------
 
+/** New requests waiting for an admin: received, and not merged into another. */
+export async function countNewFeedback(): Promise<number> {
+  const supabase = await createSessionClient();
+  const { count, error } = await supabase
+    .from("feedback_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "received")
+    .is("duplicate_of", null);
+  if (error) throw new Error(`feedback count failed (${error.code})`);
+  return count ?? 0;
+}
+
 export type AdminFeedbackRequest = {
   id: string;
   number: number;

@@ -45,6 +45,7 @@ test("each role gets its own links", () => {
       ["/admin/verification", "Verification"],
       ["/admin/identity", "Identity"],
       ["/admin/reports", "Reports"],
+      ["/admin/feedback", "Feedback"],
       ["/admin/hidden", "Hidden profiles"],
       ["/admin/money", "Money"],
       ["/admin/money/escrow", "Escrow"],
