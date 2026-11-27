@@ -590,7 +590,7 @@ export function CampaignForm({
                 </legend>
                 <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
                   {[
-                    ["anywhere", "Anywhere in Nigeria"],
+                    ["anywhere", "Anywhere we operate"],
                     ["states", "Only in some states"],
                   ].map(([value, label]) => (
                     <label
@@ -1225,7 +1225,7 @@ function Review({
     nicheNames.length > 0 ? nicheNames.join(", ") : "Any niche",
     states.length > 0
       ? states.map((st) => stateLabel(st as NigerianState)).join(", ")
-      : "anywhere in Nigeria",
+      : "anywhere we operate",
     ...snapshot.followers,
     ...(snapshot.verifiedOnly ? ["verified creators only"] : []),
   ].join("; ");

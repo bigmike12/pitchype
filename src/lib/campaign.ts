@@ -687,7 +687,7 @@ export function parseCampaignForm(
         ].filter(isNigerianState)
       : [];
   if (where === "states" && states.length === 0) {
-    errors.states = "Choose at least one state, or anywhere in Nigeria.";
+    errors.states = "Choose at least one state, or anywhere we operate.";
   }
 
   // Deliverable rows arrive as three parallel lists.

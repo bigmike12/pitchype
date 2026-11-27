@@ -21,7 +21,7 @@ export default function BusinessCreatorsPage({
     <>
       <PageHeader
         title="Find creators"
-        lead="Micro and nano creators across Nigeria. Follower counts are marked self-reported, or verified when we’ve checked the account."
+        lead="Micro and nano creators on Pitchype. Follower counts are marked self-reported, or verified when we’ve checked the account."
       />
       <Suspense fallback={<DirectorySkeleton inPortal />}>
         <Creators searchParams={searchParams} />

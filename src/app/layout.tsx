@@ -5,7 +5,7 @@ import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, X_HANDLE } from "@/lib/site";
 import { bricolage, inter } from "./fonts";
 import "./globals.css";
 
-const TITLE = "Pitchype: hire creators in Nigeria, get paid for your work";
+const TITLE = "Pitchype: hire creators, get paid for your work";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

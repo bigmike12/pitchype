@@ -141,7 +141,7 @@ export default async function CreatorOpengraphImage({
             maxWidth: 900,
           }}
         >
-          Find Nigerian creators for your brand
+          Find creators for your brand
         </div>
       </div>,
       { ...size, fonts: loadedFonts },

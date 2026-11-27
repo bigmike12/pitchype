@@ -17,9 +17,9 @@ import {
 } from "./sections";
 
 export const metadata: Metadata = {
-  title: "Paid brand collaborations for creators in Nigeria",
+  title: "Paid brand collaborations for creators",
   description:
-    "Apply to paid campaigns from Nigerian businesses, agree your price and start once the money is in escrow. No follower minimum to join Pitchype.",
+    "Apply to paid campaigns from businesses, agree your price and start once the money is in escrow. No follower minimum to join Pitchype.",
   alternates: { canonical: CREATOR_PAGE },
 };
 
@@ -32,11 +32,11 @@ export default function ForCreatorsPage() {
         eyebrow="For creators"
         title={
           <>
-            Paid brand collaborations in Nigeria,{" "}
+            Paid brand collaborations,{" "}
             <span className="text-gradient">whatever your follower count.</span>
           </>
         }
-        lead="Apply to paid campaigns from Nigerian businesses, agree your price, and start once the money is in escrow. There’s no follower minimum to join."
+        lead="Apply to paid campaigns from businesses, agree your price, and start once the money is in escrow. There’s no follower minimum to join."
         primaryCta={{ href: SIGN_UP, label: "Create a creator account" }}
         note="Free to join. Our fee only applies when you’re paid."
       />

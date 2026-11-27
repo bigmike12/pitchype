@@ -158,7 +158,7 @@ function AudienceSection({
       <h3 className="mt-10 text-base font-semibold text-ink">{statsLabel}</h3>
       <StatGrid stats={stats} label={statsLabel} className="mt-4" />
       <p className="mt-3 text-xs text-muted">
-        Global and US figures, checked November 2026. There are no Nigerian
+        Global and US figures, checked November 2026. There are no local
         benchmarks yet; we’ll publish our own as Pitchype grows.
       </p>
     </section>

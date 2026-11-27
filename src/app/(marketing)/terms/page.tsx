@@ -34,8 +34,8 @@ export default function TermsPage() {
           <h2>What these terms cover</h2>
           <p>
             These terms apply when you use Pitchype, the marketplace that
-            connects Nigerian businesses with creators for paid campaigns, as a
-            business or as a creator.
+            connects businesses with creators for paid campaigns, as a business
+            or as a creator.
           </p>
         </section>
 
