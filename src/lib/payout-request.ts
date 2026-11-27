@@ -77,6 +77,12 @@ export function transferRefusalWords(paystackMessage: string | null): string {
   if (/otp|one-time|authori[sz]|approval/.test(message)) {
     return "Paystack needs a transfer approval on the account before it sends.";
   }
+  // The saved recipient code belongs to another Paystack key or mode (for
+  // example made in test mode), so this key doesn't know it. Saving the bank
+  // account again on the live site makes a recipient this key knows.
+  if (/recipient/.test(message)) {
+    return "Paystack doesn’t recognise the creator’s saved bank account; ask them to save it again in their wallet, then approve a new request.";
+  }
   return "Paystack did not take the transfer.";
 }
 
@@ -170,6 +176,13 @@ export function payoutCheckOutcome(result: TransferResult): {
       return {
         status: "success",
         message: "Paystack hasn’t finished it yet.",
+        changed: false,
+      };
+    case "not_sent_yet":
+      return {
+        status: "success",
+        message:
+          "Paystack has no transfer for this yet. Nothing changed. Check again once 15 minutes have passed since approval: if Paystack still has none, the money goes back to the creator’s wallet.",
         changed: false,
       };
     case "duplicate":

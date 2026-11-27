@@ -39,6 +39,16 @@ test("Paystack's refusal is put in plain words for admins", () => {
     transferRefusalWords("OTP required to finalize transfer"),
     /transfer approval/,
   );
+  // Seen in production 2026-11-27: the recipient was made with another key
+  // (test mode), so live Paystack doesn't know it.
+  assert.match(
+    transferRefusalWords("Recipient specified is invalid"),
+    /ask them to save it again/,
+  );
+  assert.match(
+    transferRefusalWords("Recipient does not exist"),
+    /ask them to save it again/,
+  );
   assert.equal(
     transferRefusalWords("Something unexpected"),
     "Paystack did not take the transfer.",
@@ -181,6 +191,12 @@ test("a live check with Paystack reads in calm words, never Paystack's", () => {
   assert.deepEqual(payoutCheckOutcome("pending"), {
     status: "success",
     message: "Paystack hasn’t finished it yet.",
+    changed: false,
+  });
+  assert.deepEqual(payoutCheckOutcome("not_sent_yet"), {
+    status: "success",
+    message:
+      "Paystack has no transfer for this yet. Nothing changed. Check again once 15 minutes have passed since approval: if Paystack still has none, the money goes back to the creator’s wallet.",
     changed: false,
   });
   for (const result of ["duplicate", "ignored"] as const) {
