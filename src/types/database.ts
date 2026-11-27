@@ -990,6 +990,66 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback_requests: {
+        Row: {
+          admin_note: string | null
+          created_at: string
+          details: string
+          duplicate_of: string | null
+          id: string
+          kind: string
+          number: number
+          shipped_at: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          created_at?: string
+          details: string
+          duplicate_of?: string | null
+          id?: string
+          kind: string
+          number?: never
+          shipped_at?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          created_at?: string
+          details?: string
+          duplicate_of?: string | null
+          id?: string
+          kind?: string
+          number?: never
+          shipped_at?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_requests_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "feedback_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hire_checkpoints: {
         Row: {
           campaign_checkpoint_id: string | null
@@ -2597,6 +2657,25 @@ export type Database = {
         Returns: string
       }
       admin_engagement_trail: { Args: { engagement: string }; Returns: Json }
+      admin_feedback_requests: {
+        Args: never
+        Returns: {
+          admin_note: string
+          created_at: string
+          details: string
+          duplicate_count: number
+          duplicate_of_number: number
+          id: string
+          kind: string
+          number: number
+          sender_email: string
+          sender_name: string
+          sender_role: string
+          shipped_at: string
+          status: string
+          title: string
+        }[]
+      }
       admin_ledger: {
         Args: {
           engagement: string
@@ -2948,10 +3027,28 @@ export type Database = {
         Args: { conversation: string }
         Returns: undefined
       }
+      mark_feedback_duplicate: {
+        Args: { main_number: number; request_id: string }
+        Returns: undefined
+      }
       mark_notifications_read: { Args: { ids?: string[] }; Returns: number }
       my_applications: { Args: never; Returns: Json }
       my_blocks: { Args: never; Returns: Json }
       my_conversations: { Args: never; Returns: Json }
+      my_feedback_requests: {
+        Args: never
+        Returns: {
+          admin_note: string
+          created_at: string
+          details: string
+          id: string
+          kind: string
+          merged: boolean
+          number: number
+          status: string
+          title: string
+        }[]
+      }
       my_identity_checks: {
         Args: never
         Returns: {
@@ -3253,6 +3350,10 @@ export type Database = {
         Args: { creator: string; reason: string }
         Returns: undefined
       }
+      set_feedback_status: {
+        Args: { new_status: string; note: string; request_id: string }
+        Returns: undefined
+      }
       set_identity_checks_required: {
         Args: { required: boolean }
         Returns: boolean
@@ -3295,6 +3396,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      ship_feedback: { Args: { main: string }; Returns: undefined }
       standing_problem: { Args: { person: string }; Returns: string }
       standing_review: { Args: never; Returns: Json }
       start_conversation: {
@@ -3323,6 +3425,13 @@ export type Database = {
           period_to: string
         }
         Returns: string
+      }
+      submit_feedback: {
+        Args: { details: string; kind: string; title: string }
+        Returns: {
+          id: string
+          number: number
+        }[]
       }
       submit_handle_verification: {
         Args: { request_id: string }
@@ -3370,6 +3479,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["campaign_status"]
       }
       unblock_user: { Args: { other: string }; Returns: undefined }
+      unmark_feedback_duplicate: {
+        Args: { request_id: string }
+        Returns: undefined
+      }
       unread_in: {
         Args: { conversation: string; person: string }
         Returns: number
@@ -3515,6 +3628,7 @@ export type Database = {
         | "checkpoint_dispute_available"
         | "portfolio_sample_hidden"
         | "cover_removed"
+        | "feedback_shipped"
       payment_model: "fixed" | "per_click"
       report_reason:
         | "inappropriate_photo"
@@ -3753,6 +3867,7 @@ export const Constants = {
         "checkpoint_dispute_available",
         "portfolio_sample_hidden",
         "cover_removed",
+        "feedback_shipped",
       ],
       payment_model: ["fixed", "per_click"],
       report_reason: [
