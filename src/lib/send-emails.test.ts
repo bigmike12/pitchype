@@ -35,6 +35,7 @@ function due(overrides: {
   attempts?: number;
   preferences?: DueEmail["preferences"];
   data?: Record<string, unknown>;
+  name?: string | null;
 }): DueEmail {
   return {
     notification: {
@@ -48,6 +49,7 @@ function due(overrides: {
     to: overrides.to ?? "ada@example.com",
     role: overrides.role ?? "influencer",
     preferences: overrides.preferences ?? ALL_ON,
+    name: overrides.name === undefined ? "Ada" : overrides.name,
   };
 }
 
@@ -95,14 +97,37 @@ test("sends a due money email and marks it sent", async () => {
   assert.deepEqual(result, { sent: 1, skipped: 0, failed: 0 });
 });
 
-test("the subject is the described title", async () => {
-  const { describeNotification } = await import("./notifications.ts");
+test("the subject is the email copy's subject", async () => {
+  const { describeEmail } = await import("./notification-email-copy.ts");
   const row = due({});
-  const view = describeNotification(row.notification, "influencer");
-  assert.ok(view);
+  const copy = describeEmail(row.notification, "influencer");
+  assert.ok(copy);
   const { deps, sent } = fakes([row]);
   await sendDueEmails(deps);
-  assert.equal(sent[0].subject, view.title.replace(/\s+/g, " ").trim());
+  assert.equal(sent[0].subject, copy.subject);
+});
+
+test("the email greets the recipient by name, or as there", async () => {
+  const { deps, sent } = fakes([
+    due({ id: "a", name: "Tolu Eats" }),
+    due({ id: "b", role: "business", kind: "work_started", name: "Nora Eze" }),
+    due({ id: "c", name: null }),
+  ]);
+  await sendDueEmails(deps);
+  assert.ok(sent[0].text.includes("Hi Tolu Eats,"));
+  assert.ok(sent[1].text.includes("Hi Nora,"));
+  assert.ok(sent[2].text.includes("Hi there,"));
+});
+
+test("only switchable kinds say the email can be switched off", async () => {
+  const { deps, sent } = fakes([
+    due({ id: "a", kind: "hire_funded" }),
+    due({ id: "b", role: "business", kind: "work_started" }),
+  ]);
+  await sendDueEmails(deps);
+  assert.ok(sent[0].text.includes("We always send this one"));
+  assert.ok(!sent[1].text.includes("We always send this one"));
+  assert.ok(sent[1].text.includes("You can change which emails you get"));
 });
 
 test("an always-send kind ignores switched-off preferences", async () => {

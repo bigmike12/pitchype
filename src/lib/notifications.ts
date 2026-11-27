@@ -503,7 +503,7 @@ export function describeNotification(
 }
 
 /** What the business is asked to do with a new submission, and by when. */
-function reviewBody(deadline: unknown): string {
+export function reviewBody(deadline: unknown): string {
   const when = text(deadline);
   return when
     ? `Review it by ${formatDateTime(when)}. After that it’s released to them automatically.`
@@ -526,14 +526,14 @@ function denialBody(d: Record<string, unknown>): string | null {
   return line === "" ? null : line;
 }
 
-function platformLabel(value: unknown): string {
+export function platformLabel(value: unknown): string {
   return typeof value === "string" && value in PLATFORM_RULES
     ? PLATFORM_RULES[value as Platform].label
     : "social";
 }
 
 /** "₦47,500 " ready to sit before "payout", or "" if the amount is missing. */
-function payoutAmount(d: Record<string, unknown>): string {
+export function payoutAmount(d: Record<string, unknown>): string {
   const amount = kobo(d.amount_kobo);
   return amount === null ? "" : `${formatNaira(amount)} `;
 }
@@ -544,7 +544,7 @@ function payoutAmount(d: Record<string, unknown>): string {
  * transferFee(), the same table the creator saw when asking (fees.ts mirrors
  * fee_config; if they ever differ, this line is what drifts, not the money).
  */
-function payoutSentBody(d: Record<string, unknown>): string {
+export function payoutSentBody(d: Record<string, unknown>): string {
   const amount = kobo(d.amount_kobo);
   if (amount === null || amount <= 0) {
     return "It’s on its way to your bank account.";
@@ -554,12 +554,15 @@ function payoutSentBody(d: Record<string, unknown>): string {
   return `${formatNaira(amount - fee)} is on its way to your bank after the ${formatNaira(fee)} transfer cost.`;
 }
 
-function kobo(value: unknown): number | null {
+export function kobo(value: unknown): number | null {
   return typeof value === "number" && Number.isInteger(value) ? value : null;
 }
 
 /** What an admin settlement did with the money, from one side's point of view. */
-function settlementBody(d: Record<string, unknown>, role: Role): string | null {
+export function settlementBody(
+  d: Record<string, unknown>,
+  role: Role,
+): string | null {
   const released = kobo(d.released_kobo);
   const refunded = kobo(d.refunded_kobo);
   if (released === null || refunded === null) return null;

@@ -25,6 +25,11 @@ export type DueEmail = {
   to: string;
   role: "business" | "influencer" | "admin";
   preferences: EmailPreferences;
+  /**
+   * Who the email greets: a business's contact name or a creator's display
+   * name; null with no profile. Never put it in an error or a log line.
+   */
+  name: string | null;
 };
 
 function toRole(role: string): DueEmail["role"] {
@@ -60,6 +65,10 @@ export async function claimDueEmails(max: number): Promise<DueEmail[]> {
       campaigns: r.email_campaigns,
       messages: r.email_messages,
     },
+    // Read defensively: code that ships before the 20261203100000 migration
+    // gets no name column, and greets "Hi there" instead of failing.
+    name:
+      typeof r.name === "string" && r.name.trim() !== "" ? r.name.trim() : null,
   }));
 }
 
