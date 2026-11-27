@@ -114,14 +114,15 @@ Start small and let structure grow with real need. Suggested starting shape:
 ```
 src/
   app/
-    (marketing)/           public pages, influencer directory (SEO)
+    (marketing)/           public pages, influencer directory (SEO), contact/ (form emails the team inbox, nothing stored)
     (auth)/                login, signup, password reset (signed out)
     (onboarding)/          step-by-step profile setup (signed in, own shell)
     (portal)/              every signed-in page; its layout draws the sidebar shell once
       home/, account/      role home page, settings (any role)
+      feedback/            businesses' and creators' feedback requests (private; admins triage on /admin/feedback)
       (business)/          campaigns, find creators, applications, hires, payments, inbox
       (influencer)/        browse campaigns, profile, applications, jobs, wallet, inbox
-      (admin)/             one page per job: standing, campaign review, verification, reports, hidden profiles; money (escrow, payouts, ledger, reconciliation)
+      (admin)/             one page per job: standing, campaign review, verification, reports, feedback, hidden profiles; money (escrow, payouts, ledger, reconciliation)
     auth/                  emailed links: confirm/ is a page with a button (the link is used only when it's pressed, so email scanners and previews can't spend it); finish/ repairs a session
     api/webhooks/paystack/ webhook endpoint (thin adapter; the decisions are in lib/payments.ts)
     api/webhooks/dojah/    Dojah webhook endpoint (thin adapter; `handleDojahWebhook` and `applyIdentityEvent` in lib/identity.ts)
@@ -379,6 +380,8 @@ Identity added `identity_verified`, `identity_failed` (with the reason, in words
 Checkpoints added `kickoff_done`, `checkpoint_done` and `checkpoint_late` (to the business when the creator's evidence arrives; sent from the evidence function, never to the person who acted) and `checkpoint_reminder`, `checkpoint_overdue`, `checkpoint_warning` and `checkpoint_dispute_available` (sent by the daily checkpoint step; the reminder and warning to the creator, the overdue notice to both, "dispute available" to the business). The reminder, overdue, warning and dispute-available kinds are emailed `always`; the other three belong to the switchable "applications" group (migrations `20261125100050`, `20261125100250`).
 
 Pay per click added `click_cap_reached` (to the creator, once, when their link reaches its cap; sent from `record_click()`) and `click_hold_started` (to both, once, when the click window ends; sent by the daily settle job), both emailed `always` (migration `20261120100000`). Settlement reuses `engagement_settled`.
+
+Feedback added `feedback_shipped` (to the sender of a request, and of every request merged into it, once, when an admin ships it; sent from `ship_feedback()` through `set_feedback_status()` or `mark_feedback_duplicate()`, guarded by `feedback_requests.shipped_at`), emailed `always` because sending the request is asking to be told (migrations `20261202100000`, `20261202100100`; design `docs/superpowers/specs/2026-11-27-contact-and-feedback-design.md`). Requests are private to their sender and admins; `planned` and `not_planned` show on the sender's page but don't notify.
 
 Email built (2026-11-18, Stage 8): `notifications` has the queue columns `email_due_at`, `emailed_at` and `email_attempts` (migration `20261118100000`, chat timing and defaults changed in `20261124100000`; `notify()` sets the due time: now for most kinds, 6 hours later for chat, and a chat thread gets at most one email in 6 hours; chat email is off by default for people with no saved preferences, and a chat email is skipped if the thread was read first). `sendDueEmails()` in `src/lib/send-emails.ts` claims the due rows, renders and sends them, and marks them done or leaves them for a retry. It is called right after the action or webhook that caused the notification (`sendEmailsAfterResponse()` in `src/lib/email-after.ts`, so a failure never fails the action), at the end of each daily job, and from `/api/cron/send-emails`, which Supabase `pg_cron` calls every minute (a backstop for the chat delay and retries; migration `20261118100100`, URL and secret in Vault) and Vercel Cron daily. People choose three switches in `notification_preferences` (applications, campaigns, messages); every kind in `EMAIL_POLICY` marked `always` in `src/lib/notification-email.ts` (all the money, work, dispute, verification and standing kinds, except `work_started` and `hire_cancelled`, which belong to the switchable applications group) sends regardless. Resend is called only from `src/lib/resend.ts`.
 
