@@ -851,6 +851,18 @@ validated; everything below waits for switching them on.
       page was opened; a draft's checkpoint dates are computed in the page until
       it is submitted.
 
+## 16. Google Analytics (2026-11-27)
+
+- [ ] **You:** set `NEXT_PUBLIC_GTM_ID=GTM-55WS49WK` in Vercel (Production
+      only), then redeploy.
+- [ ] **You:** in the GTM container, add a Google tag with the GA4 measurement
+      id, firing on all pages, and publish the container. The snippet loads GTM;
+      GA receives nothing until that tag exists.
+- [ ] **You:** keep Google signals and ads personalisation off in GA4, or the
+      privacy notice's "we don't use them for advertising" stops being true.
+- [ ] Legal review of the cookie wording on the privacy page and the banner
+      (NDPA consent), with the rest of the draft notice.
+
 ## Done
 
 - [x] Database migrations for Stages 1–3 pushed to the live project

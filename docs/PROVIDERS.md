@@ -212,3 +212,13 @@ sends itself (Stage 8). One provider, no abstraction over it (CLAUDE.md §2).
 | What is sent | Error name, message and stack, scrubbed of email addresses, numbers of nine or more digits and the server secrets. `distinct_id` is the fixed string `server`, and `$process_person_profile` is off: no person profiles, no session replay, no autocapture (none of those are enabled in the client) | Yes | Keep the same limits when replacing it |
 | Environment variables | `POSTHOG_PROJECT_API_KEY` (the `phc_` project key; unset means nothing is sent) and `POSTHOG_HOST` (defaults to `https://us.i.posthog.com`; use `https://eu.i.posthog.com` for the EU cloud) | Yes | The new service's key and host |
 | Dashboard setup (once per environment) | Create the project, copy the project key, and choose the region when creating it (it can't be moved later) | Yes | The same at the new provider |
+
+## Google Tag Manager and Google Analytics (visitor statistics)
+
+| What | Where | Provider-specific? | To replace |
+|---|---|---|---|
+| Loading the tag | `src/components/analytics/analytics.tsx` (`Analytics`), the only file that loads Google's script; rendered by `src/app/(marketing)/layout.tsx`, so it runs on the public pages only, never on sign-in, sign-up, onboarding or the portal. Loads `gtm.js` with `next/script` only after the visitor clicks Allow; the choice is kept in `localStorage` (`pitchype-analytics`). Leaving the public pages with GTM loaded reloads the page so it stops | Yes | Swap the two `Script` tags for the new service's snippet; the consent banner and its rules stay |
+| Changing the choice | "Cookie choices" in the footer (`CookieChoicesButton`) reopens the banner; turning it off reloads the page without GTM | No | Nothing |
+| Environment variables | `NEXT_PUBLIC_GTM_ID` (`GTM-…`; unset means no script and no banner). Production only | Yes | The new service's id |
+| Dashboard setup (once) | In GTM: a Google tag (GA4 measurement id) firing on all pages. GA4's enhanced measurement counts page changes from browser history, which is how pages reached by client-side navigation are counted. Keep Google signals and ads personalisation off: the privacy notice says we don't use details for advertising | Yes | The same at the new provider |
+| Privacy wording | `src/app/(marketing)/privacy/page.tsx` ("What we collect", "Who handles it") | No | Update the wording |
