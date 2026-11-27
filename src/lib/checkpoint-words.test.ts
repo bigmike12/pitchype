@@ -7,7 +7,9 @@ import {
   metricsText,
   numberRows,
   checkpointProgress,
+  checkpointOpensAt,
   dueWhen,
+  isLocked,
   nextRowId,
   outstandingRows,
   trailEntries,
@@ -257,4 +259,26 @@ test("a single applied row reads on its own", () => {
     entries.map((e) => e.text),
     ["Work started: 1 checkpoint applies to this job."],
   );
+});
+
+test("a checkpoint opens for evidence at the start of the day before its due day, Lagos time", () => {
+  // Due the end of 12 Dec in Lagos: opens 00:00 on 11 Dec in Lagos (23:00 UTC on the 10th).
+  assert.equal(
+    checkpointOpensAt(row())?.toISOString(),
+    "2026-12-10T23:00:00.000Z",
+  );
+  // NOW is 11:00 on 10 Dec in Lagos: still locked.
+  assert.equal(isLocked(row(), NOW), true);
+  assert.equal(isLocked(row(), new Date("2026-12-10T22:59:59Z")), true);
+  assert.equal(isLocked(row(), new Date("2026-12-10T23:00:00Z")), false);
+  // Due tomorrow: open today.
+  assert.equal(isLocked(row({ dueAt: "2026-12-11T23:00:00Z" }), NOW), false);
+});
+
+test("the kickoff and rows already done or overdue are never locked", () => {
+  const far = { dueAt: "2026-12-30T23:00:00Z" };
+  assert.equal(checkpointOpensAt(row({ kind: "kickoff", ...far })), null);
+  assert.equal(isLocked(row({ kind: "kickoff", ...far }), NOW), false);
+  assert.equal(isLocked(row({ status: "done", ...far }), NOW), false);
+  assert.equal(isLocked(row({ status: "overdue", ...far }), NOW), false);
 });

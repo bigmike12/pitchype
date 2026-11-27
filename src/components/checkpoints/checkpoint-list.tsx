@@ -1,19 +1,25 @@
-import { Check, ChevronDown, Clock, Minus } from "lucide-react";
+import { Check, ChevronDown, Clock, Lock, Minus } from "lucide-react";
 
 import { ProofLinks, ProofShots } from "@/components/engagement/proof-list";
 import { formatDay } from "@/lib/campaign";
 import {
   checkpointChip,
+  checkpointOpensAt,
   checkpointProgress,
   dueText,
   dueWhen,
+  isLocked,
   metricsText,
   nextRowId,
   numberRows,
   type ChipTone,
 } from "@/lib/checkpoint-words";
 import type { EvidenceFormState } from "@/lib/checkpoint-form";
-import { EVIDENCE_LABELS, type EvidenceType } from "@/lib/checkpoints";
+import {
+  EVIDENCE_LABELS,
+  lagosDate,
+  type EvidenceType,
+} from "@/lib/checkpoints";
 import { formatDateTime, type Platform } from "@/lib/creator-profile";
 import type {
   CheckpointEvidenceView,
@@ -68,8 +74,11 @@ const SEGMENT: Record<Step, string> = {
  * next, then one row per checkpoint with its status, due date and evidence.
  * Every row still waiting is `due` in the database, however far away; here
  * only the next one (or one within a day) reads as due, the rest as upcoming.
- * The creator gets the form open on the next row and can send early or add
- * more on the others; the business and admins read it as it is. Figures are
+ * The creator gets the form open on the next row and can add more on rows
+ * already done. A checkpoint still to come opens for evidence only the day
+ * before its due day (Lagos), so later ones say when they open instead of
+ * offering a form; the kickoff is open from the start. The business and
+ * admins read it as it is. Figures are
  * labelled as self-reported. Wording never suggests money is at stake: a
  * missed checkpoint holds nothing back.
  */
@@ -159,9 +168,12 @@ export function CheckpointList({
         {steps.map(({ row, chip, step }, index) => {
           const isNext = row.id === nextId;
           const waiting = row.status === "due" || row.status === "overdue";
+          const locked = isLocked(row, now);
+          const opensAt = checkpointOpensAt(row);
           const canForm =
             creator &&
             canSend &&
+            !locked &&
             row.status !== "skipped" &&
             row.status !== "closed";
           // The next row and anything overdue get the full form panel; the
@@ -236,6 +248,12 @@ export function CheckpointList({
                   </p>
                 )}
                 {chip.detail && <p className="text-muted">{chip.detail}</p>}
+                {creator && canSend && locked && opensAt && (
+                  <p className="flex items-center gap-1.5 text-muted">
+                    <Lock aria-hidden="true" className="size-3.5 shrink-0" />
+                    Opens for evidence on {formatDay(lagosDate(opensAt))}
+                  </p>
+                )}
 
                 {row.evidence.map((entry) => (
                   <Evidence

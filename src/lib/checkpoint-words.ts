@@ -84,6 +84,23 @@ export function nextRowId(rows: CheckpointRowView[]): string | null {
   );
 }
 
+/**
+ * When a checkpoint opens for evidence: the start of the day before its due
+ * day, Lagos time. It is due at the end of its day and Lagos has no daylight
+ * saving, so that is 48 hours before. The kickoff is open from the start
+ * (null). submit_checkpoint() enforces the same (migration 20261201100000).
+ */
+export function checkpointOpensAt(row: CheckpointRowView): Date | null {
+  if (row.kind === "kickoff") return null;
+  return new Date(new Date(row.dueAt).getTime() - 2 * DAY_MS);
+}
+
+/** A checkpoint still to come that doesn't take evidence yet. */
+export function isLocked(row: CheckpointRowView, now: Date): boolean {
+  const opens = checkpointOpensAt(row);
+  return row.status === "due" && opens !== null && now < opens;
+}
+
 /** Finished rows out of the rows that apply (skipped ones don't count). */
 export function checkpointProgress(rows: CheckpointRowView[]): {
   done: number;

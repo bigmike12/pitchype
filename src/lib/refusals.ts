@@ -79,6 +79,8 @@ const REFUSAL_TEXT = {
   checkpoint_not_yours: "You can’t send evidence for this checkpoint.",
   checkpoint_closed:
     "This checkpoint doesn’t take evidence any more, or doesn’t apply to this job.",
+  checkpoint_not_open:
+    "This checkpoint opens for evidence the day before it’s due. Send it then.",
   checkpoints_outstanding:
     "Send the kickoff and any checkpoint that’s due before you submit your final work. Late is fine.",
   final_requirements_missing:
