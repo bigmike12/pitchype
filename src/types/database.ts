@@ -2762,6 +2762,7 @@ export type Database = {
           email_messages: boolean
           id: string
           kind: string
+          name: string
           occurred_at: string
           read_at: string
           role: string
