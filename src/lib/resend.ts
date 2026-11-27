@@ -28,6 +28,8 @@ export type EmailMessage = {
   text: string;
   // Sending the same key twice sends one email (Resend remembers it for 24 hours).
   idempotencyKey: string;
+  /** Where a reply goes, when not to the sender (the contact form). */
+  replyTo?: string;
 };
 
 /** Strips the API key and any email address, so a log line never holds either. */
@@ -63,6 +65,7 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
         subject: message.subject,
         html: message.html,
         text: message.text,
+        ...(message.replyTo ? { reply_to: [message.replyTo] } : {}),
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });

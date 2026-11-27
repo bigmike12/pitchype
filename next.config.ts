@@ -11,10 +11,13 @@ const nextConfig: NextConfig = {
     return [
       { source: "/services", destination: "/for-business", permanent: true },
       { source: "/service", destination: "/for-business", permanent: true },
-      { source: "/home-services", destination: "/for-business", permanent: true },
-      { source: "/contact", destination: "/#faq", permanent: true },
-      { source: "/contact-us", destination: "/#faq", permanent: true },
-      { source: "/contactus", destination: "/#faq", permanent: true },
+      {
+        source: "/home-services",
+        destination: "/for-business",
+        permanent: true,
+      },
+      { source: "/contact-us", destination: "/contact", permanent: true },
+      { source: "/contactus", destination: "/contact", permanent: true },
     ];
   },
   experimental: {

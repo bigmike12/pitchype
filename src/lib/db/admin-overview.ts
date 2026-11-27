@@ -7,6 +7,7 @@ import { createSessionClient } from "@/lib/supabase/server";
 
 import { countIdentityAttention } from "./identity";
 import { countOpenDisputes } from "./disputes";
+import { countNewFeedback } from "./feedback";
 import { countPayoutsAwaitingApproval } from "./payouts";
 import { getStandingReview } from "./moderation";
 import { isObject, num, str } from "./json";
@@ -60,6 +61,7 @@ export async function countAdminAttention(): Promise<AdminAttention> {
     identity,
     disputes,
     payouts,
+    feedback,
   ] = await Promise.all([
     supabase
       .from("campaigns")
@@ -82,6 +84,7 @@ export async function countAdminAttention(): Promise<AdminAttention> {
     countIdentityAttention(),
     countOpenDisputes(),
     countPayoutsAwaitingApproval(),
+    countNewFeedback(),
   ]);
   for (const result of [
     campaigns,
@@ -99,6 +102,7 @@ export async function countAdminAttention(): Promise<AdminAttention> {
     verification: verification.count ?? 0,
     identity,
     reports: (profileReports.count ?? 0) + (campaignReports.count ?? 0),
+    feedback,
     disputes,
     payouts,
   };

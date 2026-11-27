@@ -21,6 +21,7 @@ test("each role gets its own links", () => {
       ["/business/creators", "Find creators"],
       ["/inbox", "Inbox"],
       ["/business/wallet", "Wallet"],
+      ["/feedback", "Feedback"],
     ],
   );
   assert.deepEqual(
@@ -32,6 +33,7 @@ test("each role gets its own links", () => {
       ["/inbox", "Inbox"],
       ["/wallet", "Wallet"],
       ["/profile", "Your profile"],
+      ["/feedback", "Feedback"],
     ],
   );
   assert.deepEqual(
@@ -43,6 +45,7 @@ test("each role gets its own links", () => {
       ["/admin/verification", "Verification"],
       ["/admin/identity", "Identity"],
       ["/admin/reports", "Reports"],
+      ["/admin/feedback", "Feedback"],
       ["/admin/hidden", "Hidden profiles"],
       ["/admin/money", "Money"],
       ["/admin/money/escrow", "Escrow"],
@@ -159,6 +162,7 @@ test("the sidebar groups links under captions, keeping their order", () => {
       ["Work", ["Home", "Campaigns", "Your work", "Inbox"]],
       ["Money", ["Wallet"]],
       ["You", ["Your profile"]],
+      ["Help", ["Feedback"]],
     ],
   );
   assert.deepEqual(
@@ -166,6 +170,7 @@ test("the sidebar groups links under captions, keeping their order", () => {
     [
       ["Hiring", 5],
       ["Money", 1],
+      ["Help", 1],
     ],
   );
   assert.deepEqual(navGroups([]), []);

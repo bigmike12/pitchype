@@ -863,6 +863,18 @@ validated; everything below waits for switching them on.
 - [ ] Legal review of the cookie wording on the privacy page and the banner
       (NDPA consent), with the rest of the draft notice.
 
+## 17. Contact page and feedback (2026-11-27)
+
+- [ ] **You:** push migrations `20261202100000`, `20261202100100` and
+      `20261202100200` to the hosted project after the PR merges (dry-run first).
+- [ ] Contact-form messages aren't stored; if `hello@pitchype.com` ever stops
+      being read, they're lost. Store them (approach B in the design) if that
+      becomes a risk.
+- [ ] Senders aren't told when a request moves to `planned` or `not_planned`;
+      add a notice if people ask for it.
+- [ ] Contact-form spam is held back by a honeypot and 5 sends per IP per
+      hour; revisit (e.g. a CAPTCHA) only if spam gets through.
+
 ## Done
 
 - [x] Database migrations for Stages 1–3 pushed to the live project

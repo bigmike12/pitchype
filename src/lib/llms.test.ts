@@ -30,6 +30,7 @@ test("lists the public pages and the sitemap", () => {
     "/for-creators",
     "/how-escrow-works",
     "/creators",
+    "/contact",
     "/sitemap.xml",
   ]) {
     assert.ok(text.includes(`](${SITE_URL}${path})`), `missing ${path}`);

@@ -5,8 +5,8 @@ import { listIndexableCreators } from "@/lib/db/creators";
 import { SITE_URL } from "@/lib/site";
 import { BUSINESS_PAGE, CREATOR_PAGE } from "@/lib/signup-link";
 
-// The landing page, the two audience pages, the creator directory, and each
-// creator who may be indexed.
+// The landing page, the two audience pages, the creator directory, the
+// escrow and contact pages, and each creator who may be indexed.
 // Built per request so a newly published profile shows up straight away.
 // /privacy and /terms are drafts marked noindex; add them once they're
 // published.
@@ -43,6 +43,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly",
       priority: 0.6,
     },
+    { url: `${SITE_URL}/contact`, changeFrequency: "monthly", priority: 0.5 },
     ...creators.map((creator) => ({
       url: `${SITE_URL}/creators/${creator.slug}`,
       lastModified: creator.updatedAt,

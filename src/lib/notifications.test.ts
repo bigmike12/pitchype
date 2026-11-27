@@ -142,6 +142,7 @@ test("missing facts never show 'undefined'", () => {
     "checkpoint_overdue",
     "checkpoint_warning",
     "checkpoint_dispute_available",
+    "feedback_shipped",
   ]) {
     const d = describeNotification(row(kind));
     assert.ok(d, kind);
@@ -381,7 +382,10 @@ test("an extra the card payment collected is not called stranded", () => {
     }),
     "business",
   );
-  assert.equal(d?.title, "The extra ₦185.28 you paid is in your Pitchype wallet");
+  assert.equal(
+    d?.title,
+    "The extra ₦185.28 you paid is in your Pitchype wallet",
+  );
   assert.match(d?.body ?? "", /^Your hire is paid\./);
   assert.equal(d?.href, "/business/wallet");
 });
@@ -771,4 +775,25 @@ test("dispute available tells the business, and leads to the dispute page", () =
   );
   assert.match(d?.title ?? "", /open a dispute about missing work/);
   assert.equal(d?.href, "/business/engagements/e1/dispute");
+});
+
+test("a shipped request names it and carries the admin's note", () => {
+  const d = describeNotification(
+    row("feedback_shipped", {
+      number: 42,
+      title: "Dark mode",
+      note: "In your settings",
+    }),
+    "influencer",
+  );
+  assert.equal(d?.title, "Something you asked for is live");
+  assert.equal(d?.body, "#42 Dark mode. In your settings");
+  assert.equal(d?.href, "/feedback");
+});
+
+test("a shipped request without a note ends at its title", () => {
+  const d = describeNotification(
+    row("feedback_shipped", { number: 42, title: "Dark mode", note: null }),
+  );
+  assert.equal(d?.body, "#42 Dark mode");
 });

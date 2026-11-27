@@ -75,6 +75,8 @@ export const EMAIL_POLICY: Record<string, EmailPolicy> = {
   identity_verified: "always",
   identity_failed: "always",
   identity_needs_review: "always",
+  // The person asked to be told by sending the request, and it's rare.
+  feedback_shipped: "always",
 };
 
 export function wantsEmail(
