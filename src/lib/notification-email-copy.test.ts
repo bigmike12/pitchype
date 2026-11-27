@@ -70,10 +70,11 @@ test("every emailed kind has its own copy for both sides, with or without facts"
         assert.ok(copy, `${kind}/${role} has copy`);
         assert.ok(copy.subject.trim() !== "", `${kind} subject`);
         assert.ok(copy.blocks.length > 0, `${kind} has a body`);
-        assert.notEqual(
-          copy.button,
-          "Open in Pitchype",
-          `${kind} names its action`,
+        // "See it on Pitchype" is the fallback to the bell's words, used only
+        // for a kind with no email copy yet: every emailed kind needs its own.
+        assert.ok(
+          !["Open in Pitchype", "See it on Pitchype"].includes(copy.button),
+          `${kind} has its own email copy and names its action`,
         );
         assert.ok(
           !/undefined|null|NaN|\[object/.test(all(copy)),
