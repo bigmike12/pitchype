@@ -66,7 +66,15 @@ export default function PrivacyPage() {
             is removed once its time window has passed, but only when that same
             address makes another attempt.
           </p>
-          <p className="mt-3">We use cookies that keep you signed in.</p>
+          <p className="mt-3">
+            We use cookies that keep you signed in. On our public pages, and
+            only if you allow it, we also use Google Analytics (through Google
+            Tag Manager) to count visits and see which pages people use. It sets
+            its own cookies, and Google receives the pages you view and details
+            of your browser and device. It doesn’t run once you sign in or sign
+            up. You can change your choice at any time with “Cookie choices” at
+            the bottom of the public pages.
+          </p>
         </section>
 
         <section>
@@ -86,8 +94,9 @@ export default function PrivacyPage() {
           <p>
             Our providers process data on our behalf: Supabase for the database,
             sign-in and file storage; Vercel for hosting; Paystack for payments
-            and payouts; and Resend for email. We don’t sell your details or use
-            them for advertising.
+            and payouts; Resend for email; and, if you allow it, Google for
+            visitor statistics on our public pages. We don’t sell your details
+            or use them for advertising.
           </p>
         </section>
 

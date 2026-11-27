@@ -92,6 +92,7 @@ Start with Vercel and Supabase for speed, but keep the app movable to Docker or 
 | Payments | Paystack (charges, webhooks, transfers for payouts) |
 | Identity checks | Dojah (hosted NIN + selfie widget for creators, unregistered business owners and registered businesses' directors, CAC lookup for registered businesses, sanctions/PEP screening); results arrive by signed webhook (§5, §7) |
 | Email | Resend (transactional) |
+| Visitor analytics | Google Analytics through Google Tag Manager, public pages only, after cookie consent (`components/analytics/analytics.tsx`; `NEXT_PUBLIC_GTM_ID`) |
 | Deploy | Vercel, Frankfurt region next to the database; must also run on plain Node/Docker (§2a). Vercel Cron or Supabase `pg_cron` triggers scheduled jobs |
 
 If you are about to use something not in this table, apply §2 first and tell the user.

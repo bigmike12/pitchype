@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CONTACT_EMAIL, SOCIAL_PROFILES } from "@/lib/site";
 import { BUSINESS_PAGE, CREATOR_PAGE } from "@/lib/signup-link";
 
+import { CookieChoicesButton } from "@/components/analytics/analytics";
 import { Wordmark } from "@/components/brand/wordmark";
 
 const PRODUCT_LINKS = [
@@ -71,6 +72,11 @@ export function SiteFooter() {
                     Terms
                   </Link>
                 </li>
+                {process.env.NEXT_PUBLIC_GTM_ID && (
+                  <li>
+                    <CookieChoicesButton className={linkClass} />
+                  </li>
+                )}
               </ul>
             </div>
             <div>
