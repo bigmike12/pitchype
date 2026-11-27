@@ -71,6 +71,14 @@ test("posts to Resend with the key, sender and idempotency key", async () => {
   });
 });
 
+test("a reply-to address is passed on only when given", async () => {
+  stubFetch(200, { id: "email_2" });
+  await sendEmail({ ...message, replyTo: "ada@example.com" });
+  assert.deepEqual(JSON.parse(String(calls[0].init.body)).reply_to, [
+    "ada@example.com",
+  ]);
+});
+
 test("a non-2xx answer throws ResendError with the status", async () => {
   for (const status of [429, 500]) {
     stubFetch(status, { name: "error", message: "Try again later" });

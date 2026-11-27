@@ -10,7 +10,7 @@ export const SITE_URL = (
     : "http://localhost:3030")
 ).replace(/\/+$/, "");
 
-// Placeholder until the real inbox is confirmed.
+// The team inbox; the contact form sends here too.
 export const CONTACT_EMAIL = "hello@pitchype.com";
 
 // Official profiles: footer links, the JSON-LD `sameAs` list and the X card.
