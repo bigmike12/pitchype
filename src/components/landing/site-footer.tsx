@@ -83,6 +83,11 @@ export function SiteFooter() {
               <h2 className="font-semibold">Connect</h2>
               <ul className="mt-3 space-y-2">
                 <li>
+                  <Link href="/contact" className={linkClass}>
+                    Contact us
+                  </Link>
+                </li>
+                <li>
                   <a href={`mailto:${CONTACT_EMAIL}`} className={linkClass}>
                     {CONTACT_EMAIL}
                   </a>

@@ -46,6 +46,12 @@ const PAGES: { label: string; path: string; about: string }[] = [
     about:
       "The public creator directory. Follower counts are marked self-reported or verified.",
   },
+  {
+    label: "Contact",
+    path: "/contact",
+    about:
+      "How to reach the Pitchype team: a contact form, email and social profiles.",
+  },
 ];
 
 export function buildLlmsTxt(): string {
