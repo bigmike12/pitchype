@@ -60,7 +60,7 @@ async function Feedback({ searchParams }: { searchParams: SearchParams }) {
     <>
       <PageHeader
         title="Feedback"
-        lead="Tell us what would make Pitchype better, or what isn’t working. Only our team sees it."
+        lead="Tell us what would make Pitchype better, or what isn’t working."
       />
 
       <div className="space-y-6">
