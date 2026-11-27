@@ -8,7 +8,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(78);
+select plan(81);
 
 -- Ada and Bola are businesses, Efe is an admin, creators cc101..cc106 are hired by Ada.
 insert into public.users (id, auth_user_id, email, role) values
@@ -184,6 +184,26 @@ select throws_ok($$ select public.submit_kickoff((select engagement from hires w
 -- Progress evidence ------------------------------------------------------------------------------------------------
 set local request.jwt.claims = '{"sub": "cccccccc-0000-0000-0000-0000000cc101"}'; -- creator 1
 
+-- A checkpoint opens the day before its due day, Lagos time (20261201100000).
+select throws_ok($$ select public.submit_checkpoint((select later from c1), 'Filmed two of the three reels so far.', array['https://x.com/p/1'], null, null, null, null, null) $$,
+  'P0001', 'checkpoint_not_open', 'a checkpoint ten days ahead takes no evidence yet');
+select throws_ok($$ select public.submit_checkpoint((select next from c1), 'Filmed two of the three reels so far.', array['https://x.com/p/1'], null, null, null, null, null) $$,
+  'P0001', 'checkpoint_not_open', 'nor one three days ahead');
+reset role;
+update public.hire_checkpoints set due_at = timezone('Africa/Lagos', (public.lagos_today() + 3)::timestamp)
+ where id = (select next from c1);
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "cccccccc-0000-0000-0000-0000000cc101"}'; -- creator 1
+select throws_ok($$ select public.submit_checkpoint((select next from c1), 'Filmed two of the three reels so far.', array['https://x.com/p/1'], null, null, null, null, null) $$,
+  'P0001', 'checkpoint_not_open', 'one due the day after tomorrow opens tomorrow, not today');
+-- From here `next` is due at the end of tomorrow, so it opened at the start of
+-- today; campaign B's checkpoint likewise.
+reset role;
+update public.hire_checkpoints set due_at = timezone('Africa/Lagos', (public.lagos_today() + 2)::timestamp)
+ where id = (select next from c1) or id = (select id from c2);
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "cccccccc-0000-0000-0000-0000000cc101"}'; -- creator 1
+
 select throws_ok($$ select public.submit_checkpoint((select past from c1), 'Already past, so skipped for me.', array['https://x.com/p/1'], null, null, null, null, null) $$,
   'P0001', 'checkpoint_closed', 'a skipped checkpoint takes no evidence');
 select throws_ok($$ select public.submit_checkpoint((select next from c1), null, null, null, null, null, null, null) $$,
@@ -213,7 +233,7 @@ set local request.jwt.claims = '{"sub": "cccccccc-0000-0000-0000-0000000cc101"}'
 select isnt(public.submit_checkpoint((select next from c1), 'Filmed two of the three reels so far.', array['https://x.com/p/1'],
   null, null, null, null, array[(select one_b from files)]), null, 'complete evidence is accepted');
 select is((select status from public.hire_checkpoints where id = (select next from c1)), 'done',
-  'sent before it is due, the checkpoint is done');
+  'sent the day before it is due, the checkpoint is done');
 select isnt((select evidence_at from public.hire_checkpoints where id = (select next from c1)), null, 'with the time recorded');
 select isnt(public.submit_checkpoint((select next from c1), 'And here is the third reel, finished today.', array['https://x.com/p/2'],
   null, null, null, null, null), null, 'more evidence can be added later');

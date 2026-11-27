@@ -26,6 +26,9 @@ for a missed checkpoint.
 - **Kickoff confirmation** for every hire on a checkpoint campaign: due 2 days after "Start work".
 - **Per-creator applicability** from their actual start date; skipped checkpoints recorded.
 - **Late evidence always accepted**, recorded as late.
+- **No evidence more than a day early** (changed 2026-11-27): a progress checkpoint opens at the
+  start of the day before its due day, Lagos time (`checkpoint_not_open`, migration
+  `20261201100000`). The kickoff is open from "Start work".
 - **Final-submission requirements** the business chooses (content links, publication screenshots,
   analytics with metrics and capture date, a written final report); the final submission is
   eligible only when every applicable checkpoint has evidence and the requirements are met; then the
