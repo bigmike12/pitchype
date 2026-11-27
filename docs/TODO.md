@@ -865,8 +865,8 @@ validated; everything below waits for switching them on.
 
 ## 17. Contact page and feedback (2026-11-27)
 
-- [ ] **You:** push migrations `20261202100000` and `20261202100100` to the
-      hosted project after the PR merges (dry-run first).
+- [ ] **You:** push migrations `20261202100000`, `20261202100100` and
+      `20261202100200` to the hosted project after the PR merges (dry-run first).
 - [ ] Contact-form messages aren't stored; if `hello@pitchype.com` ever stops
       being read, they're lost. Store them (approach B in the design) if that
       becomes a risk.

@@ -14,7 +14,7 @@
 
 - Branch `contact-and-feedback` (stacked on `redirect-old-site-pages`, PR #38). Commit per task; messages imperative, ending with `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.
 - No new dependencies. No CAPTCHA. No direct Supabase SDK calls outside `src/lib/db/*` (CLAUDE.md §2a).
-- Contact form: name 1–80, valid email, topic one of `question` | `account` | `partnership` ("A question", "Help with my account", "Partnerships or press"), message 10–2,000 characters; honeypot field `company_website`; 5 sends per IP per hour (limiter name `contact-form`); idempotency key `contact:<form id>`; email to `CONTACT_EMAIL` with reply-to the sender; subject `Contact: <topic label> from <name>`; success copy names the sender's address and promises no response time.
+- Contact form: name 1–80, valid email, topic one of `question` | `account` | `partnership` ("A question", "Help with my account", "Partnerships or press"), message 10–2,000 characters; honeypot field `pt_extra`; 5 sends per IP per hour (limiter name `contact-form`); idempotency key `contact:<form id>`; email to `CONTACT_EMAIL` with reply-to the sender; subject `Contact: <topic label> from <name>`; success copy names the sender's address and promises no response time.
 - Feedback: kind `idea` | `problem`; title 3–120; details 10–2,000; status `received` | `planned` | `shipped` | `not_planned`; admin note ≤ 1,000; 10 requests per person per day (limiter name `feedback`); shown as `#<number>`.
 - Notification kind `feedback_shipped`, facts `{ number, title, note }` with the **sender's own** title; `EMAIL_POLICY` `always`; links to `/feedback`. Notified once per request, ever (`shipped_at` guard).
 - Never log a message body, an email address or a request's text. Requests are visible only to their sender and admins.
@@ -43,7 +43,7 @@
   - `CONTACT_TOPICS: readonly { value: "question" | "account" | "partnership"; label: string }[]`
   - `type ContactField = "name" | "email" | "topic" | "message"`
   - `type ContactMessage = { name: string; email: string; topic: ContactTopic; message: string; formId: string }`
-  - `honeypotFilled(form: FormData): boolean` (field `company_website` non-blank)
+  - `honeypotFilled(form: FormData): boolean` (field `pt_extra` non-blank)
   - `parseContactForm(form: FormData): Parsed<ContactMessage, ContactField>` (uses `text()`; trims; `formId` from field `form_id` if `isUuid`, otherwise `crypto.randomUUID()`)
   - `contactEmail(message: ContactMessage): { subject: string; text: string; html: string }` (HTML-escapes every user value)
   - `EmailMessage.replyTo?: string`, sent to Resend as `reply_to: [replyTo]` only when set
@@ -52,7 +52,7 @@
   - `parseContactForm` accepts `{ name: " Ada ", email: "ada@example.com", topic: "account", message: "Ten chars!!" }` → `ok: true`, `name === "Ada"`.
   - rejects each: empty name; 81-char name; `email: "ada@"`; `topic: "sales"`; 9-char message; 2,001-char message, with an error on that field and the typed `values` returned.
   - `form_id` of `"not-a-uuid"` still parses, with a UUID-shaped `formId`.
-  - `honeypotFilled` is true for `company_website: "x"`, false for `""` or missing.
+  - `honeypotFilled` is true for `pt_extra: "x"`, false for `""` or missing.
   - `contactEmail` subject is `"Contact: Help with my account from Ada"`; `html` contains `&lt;script&gt;` when the message is `<script>`; `text` contains the sender's email and the message.
 - [ ] **Step 2: Run** `npm test -- --test-name-pattern=contact` → FAIL (module missing).
 - [ ] **Step 3: Implement** `src/lib/contact.ts` (no framework imports, so it stays unit-testable) and add `replyTo` to `EmailMessage`/`sendEmail` in `src/lib/resend.ts`.
@@ -73,7 +73,7 @@
 - [ ] **Step 2: Build the page** (server component, `metadata` with title "Contact", description, canonical `/contact`): heading, one line on what to write about, `mailto:` link, social links, a link to `/#faq`, and `<ContactForm />` with a hidden `form_id` that the client form sets once in a `useEffect` (`crypto.randomUUID()` into state, so the page stays static and there's no hydration mismatch; before that runs the field is empty and the parser falls back to a fresh id) and the honeypot input (visually hidden off-screen, `tabIndex={-1}`, `autoComplete="off"`, `aria-hidden`). Use the design system's `TextField`, select and `Button`; on success replace the form with the thanks line. Skeleton fallback for any Suspense boundary.
 - [ ] **Step 3: Redirects** in `next.config.ts`: remove `/contact`; `/contact-us` and `/contactus` → `/contact` (permanent). Services entries unchanged.
 - [ ] **Step 4: Wire it in:** sitemap entry (`monthly`, priority 0.5), an `llms.txt` line, footer link.
-- [ ] **Step 5: Verify** on the dev server (3030): `curl -sI localhost:3030/contact-us` → 308 to `/contact`; `/contact` renders at 390px and desktop; submitting empty shows field errors; submitting with `company_website` filled (devtools) shows thanks and sends nothing; a valid send reaches the inbox if `RESEND_API_KEY` is set locally (otherwise say so) and shows the error-with-mailto path when it isn't set. `npm run lint && npm run typecheck && npm test` pass.
+- [ ] **Step 5: Verify** on the dev server (3030): `curl -sI localhost:3030/contact-us` → 308 to `/contact`; `/contact` renders at 390px and desktop; submitting empty shows field errors; submitting with `pt_extra` filled (devtools) shows thanks and sends nothing; a valid send reaches the inbox if `RESEND_API_KEY` is set locally (otherwise say so) and shows the error-with-mailto path when it isn't set. `npm run lint && npm run typecheck && npm test` pass.
 - [ ] **Step 6: Commit** "Add a contact page that emails the team inbox".
 
 ### Task 3: `feedback_requests` and its functions (database)

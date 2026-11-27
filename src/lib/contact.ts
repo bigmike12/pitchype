@@ -31,8 +31,10 @@ export const CONTACT_LIMITS = {
 // Deliberately loose, like sign-up: the reply is the real proof it works.
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-// A field people never see. Bots that fill every input fill this too.
-export const HONEYPOT_FIELD = "company_website";
+// A field people never see. Bots that fill every input fill this too. Its
+// name must mean nothing to browser autofill (no "company", "website",
+// "name"…), or a real person's saved address could fill it and drop the message.
+export const HONEYPOT_FIELD = "pt_extra";
 
 export function honeypotFilled(form: FormData): boolean {
   return text(form, HONEYPOT_FIELD).trim() !== "";

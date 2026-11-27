@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   contactEmail,
+  HONEYPOT_FIELD,
   honeypotFilled,
   parseContactForm,
   type ContactMessage,
@@ -65,8 +66,8 @@ test("a missing or malformed form id gets a fresh one", () => {
 });
 
 test("the honeypot counts only when something is in it", () => {
-  assert.equal(honeypotFilled(form({ company_website: "x" })), true);
-  assert.equal(honeypotFilled(form({ company_website: "  " })), false);
+  assert.equal(honeypotFilled(form({ [HONEYPOT_FIELD]: "x" })), true);
+  assert.equal(honeypotFilled(form({ [HONEYPOT_FIELD]: "  " })), false);
   assert.equal(honeypotFilled(form({})), false);
 });
 
@@ -95,4 +96,15 @@ test("the plain-text email carries the address and the message", () => {
   const { text } = contactEmail(message);
   assert.ok(text.includes("ada@example.com"));
   assert.ok(text.includes("<script>alert(1)</script>"));
+});
+
+test("the honeypot's name gives browser autofill nothing to match", () => {
+  // Chrome fills fields whose names look like address-book fields (company,
+  // website, name, email…) even with autocomplete=off, which would silently
+  // drop a real person's message.
+  assert.doesNotMatch(
+    HONEYPOT_FIELD,
+    /company|organi[sz]ation|website|url|name|mail|phone|tel|address|city|zip|postal/i,
+  );
+  assert.equal(honeypotFilled(form({ [HONEYPOT_FIELD]: "x" })), true);
 });

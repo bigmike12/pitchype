@@ -41,7 +41,7 @@ Success: a visitor can reach us from `/contact` without opening their mail app; 
 
 **Page** (`src/app/(marketing)/contact/page.tsx`, marketing shell, triangle cursor like other marketing pages):
 - Heading and one line on what to write to us about, the email as a `mailto:` link, the social profiles from `SOCIAL_PROFILES`, and a pointer to the FAQ.
-- The form: name (1–80), email (valid address), topic (select: "A question", "Help with my account", "Partnerships or press"), message (10–2,000 characters). A hidden honeypot field (`company_website`, off-screen, `tabindex=-1`, `autocomplete=off`) and a per-render form id.
+- The form: name (1–80), email (valid address), topic (select: "A question", "Help with my account", "Partnerships or press"), message (10–2,000 characters). A hidden honeypot field (`pt_extra`, off-screen, `tabindex=-1`, `autocomplete=off`) and a per-render form id.
 - Signed-in people get the same form (no prefill needed now). The page stays static apart from the form's server action, so it is not added to the proxy matcher.
 - Metadata, canonical, sitemap entry and an `llms.txt` line like the other marketing pages. Footer gets a "Contact" link; the FAQ's "email us" line can stay.
 

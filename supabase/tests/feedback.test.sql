@@ -6,7 +6,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(47);
+select plan(48);
 
 -- Ada is a business; Chidi and Dayo are creators; Efe is an admin.
 insert into public.users (id, auth_user_id, email, role) values
@@ -159,6 +159,8 @@ select lives_ok($$ select public.unmark_feedback_duplicate((select id from publi
 reset role;
 select ok((select duplicate_of is null from public.feedback_requests where title = 'Dark theme please'),
   'the merge is gone');
+select ok((select status = 'received' and shipped_at is null from public.feedback_requests where title = 'Dark theme please'),
+  'her request is hers again, not shipped, so she is told when it really ships');
 select is((select count(*)::integer from public.notifications
             where user_id = '00000000-0000-0000-0000-0000000f0001' and kind = 'feedback_shipped'),
   1, 'and nobody is told twice');

@@ -110,7 +110,11 @@ function StatusForm({ request }: { request: AdminFeedbackRequest }) {
         optional
         rows={2}
         maxLength={FEEDBACK_LIMITS.noteMax}
-        hint="Shown on their Feedback page, and in the email when it ships."
+        hint={
+          request.duplicateCount > 0
+            ? "Everyone merged into this request sees it too, on their Feedback page and in the email when it ships. Don’t name anyone."
+            : "Shown on their Feedback page, and in the email when it ships."
+        }
         defaultValue={state.values?.note ?? request.adminNote ?? ""}
         error={state.errors?.note}
       />
