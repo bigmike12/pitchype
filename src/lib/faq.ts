@@ -14,7 +14,7 @@ export const HOME_FAQ: FaqItem[] = [
   {
     question: "What is Pitchype?",
     answer:
-      "A marketplace where Nigerian businesses hire micro and nano creators for paid social media work. Businesses post campaigns and message creators from their profiles. The payment is held in escrow until the work is approved or 7 days pass.",
+      "A marketplace where businesses hire micro and nano creators for paid social media work. Businesses post campaigns and message creators from their profiles. The payment is held in escrow until the work is approved or 7 days pass. Pitchype is starting in Nigeria.",
   },
   {
     question: "Who can join?",

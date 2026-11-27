@@ -18,9 +18,9 @@ import {
 } from "./sections";
 
 export const metadata: Metadata = {
-  title: "Hire creators in Nigeria for paid campaigns",
+  title: "Hire creators for paid campaigns",
   description:
-    "Find micro and nano creators in Nigeria, agree the price up front and pay through escrow. Pitchype holds your money until you accept the work or 7 days pass.",
+    "Find micro and nano creators, agree the price up front and pay through escrow. Pitchype holds your money until you accept the work or 7 days pass.",
   alternates: { canonical: BUSINESS_PAGE },
 };
 
@@ -33,11 +33,11 @@ export default function ForBusinessPage() {
         eyebrow="For businesses"
         title={
           <>
-            Hire micro creators in Nigeria,{" "}
+            Hire micro creators,{" "}
             <span className="text-gradient">with the money in escrow.</span>
           </>
         }
-        lead="Find creators by niche, platform, state and followers, agree the price up front and pay through escrow. Your money stays held until you accept the work or 7 days pass."
+        lead="Find creators by niche, platform, location and followers, agree the price up front and pay through escrow. Your money stays held until you accept the work or 7 days pass."
         primaryCta={{ href: SIGN_UP, label: "Create a business account" }}
         note="Free to join. A service fee applies only to jobs you fund."
       />

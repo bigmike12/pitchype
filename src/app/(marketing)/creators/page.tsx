@@ -9,10 +9,10 @@ import { getSignedInUser } from "@/lib/auth";
 import { SITE_NAME } from "@/lib/site";
 
 const DESCRIPTION =
-  "Browse micro and nano creators across Nigeria by niche, platform, followers and state, with their work and honest follower counts.";
+  "Browse micro and nano creators by niche, platform, followers and location, with their work and honest follower counts.";
 
 export const metadata: Metadata = {
-  title: "Find Nigerian creators",
+  title: "Find creators",
   description: DESCRIPTION,
   // Filtered views are the same page with fewer results.
   alternates: { canonical: "/creators" },
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     type: "website",
     siteName: SITE_NAME,
     locale: "en_NG",
-    title: "Find Nigerian creators on Pitchype",
+    title: "Find creators on Pitchype",
     description: DESCRIPTION,
     url: "/creators",
     images: [
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
         url: "/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "Pitchype: hire creators in Nigeria, get paid for your work",
+        alt: "Pitchype: hire creators, get paid for your work",
       },
     ],
   },
@@ -52,7 +52,7 @@ export default function CreatorsPage({
     >
       <header className="max-w-4xl">
         <h1 className="max-w-[15ch] text-display-xl enter">
-          Find Nigerian creators for your brand
+          Find creators for your brand
         </h1>
         <p
           className="mt-5 max-w-[38rem] text-lg enter sm:text-xl"

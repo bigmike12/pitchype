@@ -37,9 +37,9 @@ export function SiteFooter() {
           <div className="md:col-span-5">
             <Wordmark />
             <p className="mt-4 max-w-sm text-sm">
-              Pitchype connects Nigerian businesses with micro and nano
-              creators, and holds the payment in escrow until the work is
-              approved or 7 days pass.
+              Pitchype connects businesses with micro and nano creators, and
+              holds the payment in escrow until the work is approved or 7 days
+              pass.
             </p>
           </div>
 

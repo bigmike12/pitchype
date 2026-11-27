@@ -25,7 +25,7 @@ const POINTS: {
     icon: MapPin,
     tone: "sky",
     title: "Local",
-    text: "Filter creators by state, from Lagos and Abuja to Kano and Rivers.",
+    text: "Filter creators by location, niche and followers, so you find the ones near your customers.",
   },
 ];
 

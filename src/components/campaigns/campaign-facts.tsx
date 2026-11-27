@@ -207,7 +207,7 @@ export function RequirementList({
       text:
         states.length > 0
           ? `Based in ${states.map(stateLabel).join(", ")}`
-          : "Anywhere in Nigeria",
+          : "Anywhere we operate",
       met: checking ? !problems?.some((p) => p.code === "state") : null,
       icon: <MapPin className="size-4" aria-hidden="true" />,
     },
