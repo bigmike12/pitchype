@@ -309,7 +309,8 @@ test("a transfer Paystack can't find fails only after 15 minutes in processing",
     { status: "not_found", raw: null },
     { payout: { id: "p", status: "processing", approvedAt: minutesAgo(5) } },
   );
-  assert.equal(await confirmTransfer(PO_REF, early.deps), "pending");
+  // Told apart from "pending": Paystack has nothing, it isn't still working on it.
+  assert.equal(await confirmTransfer(PO_REF, early.deps), "not_sent_yet");
   assert.equal(early.finishes.length, 0);
 
   const late = transferDeps(

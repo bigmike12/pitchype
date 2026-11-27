@@ -158,7 +158,15 @@ export function stuckPayoutCutoff(now: Date): Date {
 }
 
 export type TransferResult =
-  "paid" | "failed" | "duplicate" | "ignored" | "pending" | "unknown";
+  | "paid"
+  | "failed"
+  | "duplicate"
+  | "ignored"
+  | "pending"
+  // Paystack has no such transfer, but the payout was approved less than 15
+  // minutes ago, so it may still be on its way: nothing is failed yet.
+  | "not_sent_yet"
+  | "unknown";
 
 /** Asks Paystack about a payout's transfer and settles the payout if Paystack has an answer. */
 export async function confirmTransfer(
@@ -186,7 +194,7 @@ export async function confirmTransfer(
     const approvedAt =
       payout.approvedAt === null ? NaN : Date.parse(payout.approvedAt);
     const stuck = approvedAt < stuckPayoutCutoff(d.now()).getTime();
-    if (!stuck) return "pending";
+    if (!stuck) return "not_sent_yet";
     outcome = "failed";
     eventKey = `transfer.not_found:${reference}`;
   } else {
