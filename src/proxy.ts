@@ -18,6 +18,7 @@ const SIGNED_IN_ONLY = [
   "/campaigns",
   "/jobs",
   "/wallet",
+  "/feedback",
 ];
 // Pages that make no sense once signed in.
 const SIGNED_OUT_ONLY = ["/login", "/signup", "/forgot-password"];
@@ -77,6 +78,7 @@ export const config = {
     "/jobs/:path*",
     "/wallet",
     "/wallet/:path*",
+    "/feedback",
     "/creators",
     "/creators/:path*",
     "/login",

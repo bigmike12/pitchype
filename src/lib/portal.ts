@@ -24,7 +24,8 @@ export type NavIcon =
   | "disputes"
   | "payouts"
   | "ledger"
-  | "reconciliation";
+  | "reconciliation"
+  | "feedback";
 
 /** What waits on an admin, one count per admin link that shows one. */
 export type AdminAttention = {
@@ -100,6 +101,7 @@ const NAV: Record<PortalRole, NavItem[]> = {
       icon: "wallet",
       group: "Money",
     },
+    { href: "/feedback", label: "Feedback", icon: "feedback", group: "Help" },
   ],
   influencer: [
     { href: "/home", label: "Home", icon: "home", group: "Work" },
@@ -119,6 +121,7 @@ const NAV: Record<PortalRole, NavItem[]> = {
     { href: "/inbox", label: "Inbox", icon: "inbox", group: "Work" },
     { href: "/wallet", label: "Wallet", icon: "wallet", group: "Money" },
     { href: "/profile", label: "Your profile", icon: "profile", group: "You" },
+    { href: "/feedback", label: "Feedback", icon: "feedback", group: "Help" },
   ],
   admin: [
     { href: "/admin", label: "Overview", icon: "overview", group: "Review" },

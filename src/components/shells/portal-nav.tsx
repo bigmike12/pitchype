@@ -19,6 +19,7 @@ import {
   SquareKanban,
   LogOut,
   Megaphone,
+  MessageSquarePlus,
   Menu,
   Plus,
   Search,
@@ -77,6 +78,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   payouts: Banknote,
   ledger: ReceiptText,
   reconciliation: Scale,
+  feedback: MessageSquarePlus,
 };
 
 type MainAction = { href: string; label: string } | null;
