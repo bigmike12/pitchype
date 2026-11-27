@@ -27,8 +27,8 @@
 // The database and Resend come in through `deps`, so node tests pass fakes.
 
 import type { DueEmail } from "./db/notification-emails.ts";
-import { describeNotification } from "./notifications.ts";
-import { wantsEmail } from "./notification-email.ts";
+import { describeEmail } from "./notification-email-copy.ts";
+import { EMAIL_POLICY, wantsEmail } from "./notification-email.ts";
 import { renderEmail } from "./email-template.ts";
 import type { EmailMessage } from "./resend.ts";
 
@@ -85,13 +85,18 @@ async function handleRow(
     !wantsEmail(notification.kind, preferences) ||
     // A chat email is for an unread thread; money emails send even if read.
     (notification.kind === "new_message" && notification.readAt !== null);
-  const view = skip ? null : describeNotification(notification, role);
-  if (!view) {
+  const copy = skip ? null : describeEmail(notification, role);
+  if (!copy) {
     await d.finishEmail(notification.id, false);
     return "skipped";
   }
 
-  const { subject, html, text } = renderEmail(view, d.siteUrl);
+  const { subject, html, text } = renderEmail(copy, {
+    siteUrl: d.siteUrl,
+    role,
+    name: row.name,
+    switchable: EMAIL_POLICY[notification.kind] !== "always",
+  });
   await d.sendEmail({
     to: row.to,
     subject,

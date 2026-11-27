@@ -559,7 +559,10 @@ export function kobo(value: unknown): number | null {
 }
 
 /** What an admin settlement did with the money, from one side's point of view. */
-export function settlementBody(d: Record<string, unknown>, role: Role): string | null {
+export function settlementBody(
+  d: Record<string, unknown>,
+  role: Role,
+): string | null {
   const released = kobo(d.released_kobo);
   const refunded = kobo(d.refunded_kobo);
   if (released === null || refunded === null) return null;

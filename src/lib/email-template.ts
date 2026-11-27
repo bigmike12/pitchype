@@ -1,4 +1,5 @@
-import type { NotificationView } from "./notifications.ts";
+import type { EmailBlock, EmailCopy } from "./notification-email-copy.ts";
+import { CONTACT_EMAIL, SOCIAL_PROFILES } from "./site.ts";
 
 // Email clients can't read CSS variables, so the colours below are literal
 // copies of the tokens in src/app/globals.css. Change them there first.
@@ -21,6 +22,8 @@ const FONT =
 // email loads from the site, so it only appears once that file is deployed.
 const HEADER_PATH = "/email/header.jpg";
 
+const SIGN_OFF = ["Talk soon,", "The Pitchype team"];
+
 const escapeHtml = (value: string): string =>
   value
     .replace(/&/g, "&amp;")
@@ -29,39 +32,107 @@ const escapeHtml = (value: string): string =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+const oneLine = (value: string) => value.replace(/\s+/g, " ").trim();
+
 /**
- * The email for one notification: the title, the optional body line, one
- * button to the page, and a footer that points at the email settings. The
- * words come from `describeNotification`; nothing here writes copy per kind.
+ * Who "Hi …," names: the first word of a business's contact name (a person),
+ * a creator's display name as they wrote it (it may be a brand), or "there".
+ */
+export function greetingName(
+  role: "business" | "influencer",
+  name: string | null,
+): string {
+  const clean = name ? oneLine(name) : "";
+  if (clean === "") return "there";
+  return role === "business" ? clean.split(" ")[0] : clean;
+}
+
+export type RenderOptions = {
+  siteUrl: string;
+  role: "business" | "influencer";
+  name: string | null;
+  /** False for "always" kinds (money, deadlines, the account). */
+  switchable: boolean;
+};
+
+const PARAGRAPH_STYLE = `font-family: ${FONT}; font-size: 16px; line-height: 26px; color: ${BODY};`;
+
+function blockHtml(block: EmailBlock): string {
+  if (block.type === "p") {
+    return `<tr>
+                  <td class="pad" style="padding: 0 40px 18px 40px; ${PARAGRAPH_STYLE}">${escapeHtml(block.text)}</td>
+                </tr>`;
+  }
+  if (block.type === "quote") {
+    return `<tr>
+                  <td class="pad" style="padding: 2px 40px 20px 40px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: ${PORCELAIN}; border: 1px solid ${HAIRLINE}; border-radius: 14px;">
+                      <tr>
+                        <td style="padding: 14px 18px 16px 18px; font-family: ${FONT};">
+                          <div style="font-size: 13px; line-height: 20px; font-weight: bold; color: ${MUTED};">${escapeHtml(block.label)}</div>
+                          <div style="padding-top: 4px; font-size: 16px; line-height: 25px; color: ${INK};">${escapeHtml(block.text)}</div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>`;
+  }
+  const items = block.items
+    .map(
+      (item) => `<tr>
+                        <td valign="top" style="width: 18px; padding: 0 0 8px 0; ${PARAGRAPH_STYLE} color: ${VIOLET}; font-weight: bold;">&bull;</td>
+                        <td valign="top" style="padding: 0 0 8px 0; ${PARAGRAPH_STYLE}">${escapeHtml(item)}</td>
+                      </tr>`,
+    )
+    .join("\n                      ");
+  return `<tr>
+                  <td class="pad" style="padding: 2px 40px 14px 40px;">
+                    <div style="padding-bottom: 8px; font-family: ${FONT}; font-size: 16px; line-height: 24px; font-weight: bold; color: ${INK};">${escapeHtml(block.title)}</div>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                      ${items}
+                    </table>
+                  </td>
+                </tr>`;
+}
+
+function blockText(block: EmailBlock): string {
+  if (block.type === "p") return block.text;
+  if (block.type === "quote") return `${block.label}:\n"${block.text}"`;
+  return [block.title, ...block.items.map((item) => `- ${item}`)].join("\n");
+}
+
+/**
+ * The email for one notification: the heading, a greeting, the copy's
+ * paragraphs, quotes and lists, one button to the page, a sign-off, and a
+ * footer with our socials, the contact address and the email settings. The
+ * words come from `describeEmail`; nothing here writes copy per kind.
  */
 export function renderEmail(
-  view: NotificationView,
-  siteUrl: string,
+  copy: EmailCopy,
+  options: RenderOptions,
 ): { subject: string; html: string; text: string } {
-  const base = siteUrl.replace(/\/+$/, "");
-  const link = `${base}${view.href}`;
+  const base = options.siteUrl.replace(/\/+$/, "");
+  const link = `${base}${copy.href}`;
   const settingsLink = `${base}/account`;
-  const footerStart = "You can change which emails you get in your";
-  const buttonLabel = "Open in Pitchype";
+  const preferenceLine = options.switchable
+    ? "You can change which emails you get in your"
+    : "We always send this one because it’s about your money, a deadline or your account. You can change your other emails in your";
+  const greeting = `Hi ${greetingName(options.role, options.name)},`;
 
-  const subject = view.title.replace(/\s+/g, " ").trim();
-
-  const title = escapeHtml(view.title);
+  const subject = oneLine(copy.subject);
+  const title = escapeHtml(subject);
   const linkAttr = escapeHtml(link);
   const settingsAttr = escapeHtml(settingsLink);
   const headerAttr = escapeHtml(`${base}${HEADER_PATH}`);
+  const buttonLabel = escapeHtml(copy.button);
   // What the inbox list shows after the subject.
-  const preheader = escapeHtml(
-    (view.body ?? view.title).replace(/\s+/g, " ").trim(),
-  );
+  const preheader = escapeHtml(oneLine(copy.preview));
 
-  const bodyRow = view.body
-    ? `<tr>
-              <td class="pad" style="padding: 0 40px 28px 40px; font-family: ${FONT}; font-size: 16px; line-height: 26px; color: ${BODY};">
-                ${escapeHtml(view.body)}
-              </td>
-            </tr>`
-    : "";
+  const blocks = copy.blocks.map(blockHtml).join("\n                ");
+  const socials = SOCIAL_PROFILES.map(
+    (profile) =>
+      `<a href="${escapeHtml(profile.url)}" style="color: ${INK}; text-decoration: underline;">${escapeHtml(profile.label)}</a>`,
+  ).join(" &middot; ");
 
   const html = `<!doctype html>
 <html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -101,15 +172,18 @@ export function renderEmail(
                   </td>
                 </tr>
                 <tr>
-                  <td class="pad title" style="padding: 40px 40px 14px 40px; font-family: ${FONT}; font-size: 26px; line-height: 33px; font-weight: bold; letter-spacing: -0.02em; color: ${INK};">
+                  <td class="pad title" style="padding: 40px 40px 20px 40px; font-family: ${FONT}; font-size: 26px; line-height: 33px; font-weight: bold; letter-spacing: -0.02em; color: ${INK};">
                     ${title}
                   </td>
                 </tr>
-                ${bodyRow}
                 <tr>
-                  <td class="button-cell" style="padding: 4px 40px 36px 40px;">
+                  <td class="pad" style="padding: 0 40px 18px 40px; ${PARAGRAPH_STYLE}">${escapeHtml(greeting)}</td>
+                </tr>
+                ${blocks}
+                <tr>
+                  <td class="button-cell" style="padding: 10px 40px 28px 40px;">
                     <!--[if mso]>
-                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${linkAttr}" style="height:50px;v-text-anchor:middle;width:210px;" arcsize="24%" stroke="f" fillcolor="${VIOLET}">
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${linkAttr}" style="height:50px;v-text-anchor:middle;width:240px;" arcsize="24%" stroke="f" fillcolor="${VIOLET}">
                       <w:anchorlock/>
                       <center style="color:#ffffff;font-family:${FONT};font-size:16px;font-weight:bold;">${buttonLabel}</center>
                     </v:roundrect>
@@ -117,6 +191,11 @@ export function renderEmail(
                     <!--[if !mso]><!-- -->
                     <a class="button" href="${linkAttr}" style="display: inline-block; background-color: ${VIOLET}; color: #ffffff; font-family: ${FONT}; font-size: 16px; line-height: 20px; font-weight: bold; text-decoration: none; text-align: center; padding: 15px 32px; border-radius: 12px; box-shadow: 0 8px 18px -8px rgba(91, 61, 245, 0.6);">${buttonLabel}</a>
                     <!--<![endif]-->
+                  </td>
+                </tr>
+                <tr>
+                  <td class="pad" style="padding: 0 40px 32px 40px; ${PARAGRAPH_STYLE}">
+                    ${SIGN_OFF.map(escapeHtml).join("<br>")}
                   </td>
                 </tr>
                 <tr>
@@ -130,7 +209,13 @@ export function renderEmail(
           </tr>
           <tr>
             <td class="pad" style="padding: 24px 24px 0 24px; font-family: ${FONT}; font-size: 13px; line-height: 20px; color: ${MUTED};">
-              ${footerStart} <a href="${settingsAttr}" style="color: ${INK}; text-decoration: underline;">account settings</a>.
+              Follow Pitchype on ${socials}.<br>
+              Questions? Write to us at <a href="mailto:${escapeHtml(CONTACT_EMAIL)}" style="color: ${INK}; text-decoration: underline;">${escapeHtml(CONTACT_EMAIL)}</a>.
+            </td>
+          </tr>
+          <tr>
+            <td class="pad" style="padding: 12px 24px 0 24px; font-family: ${FONT}; font-size: 13px; line-height: 20px; color: ${MUTED};">
+              ${escapeHtml(preferenceLine)} <a href="${settingsAttr}" style="color: ${INK}; text-decoration: underline;">account settings</a>.
             </td>
           </tr>
         </table>
@@ -142,12 +227,19 @@ export function renderEmail(
 `;
 
   const text = [
-    view.title,
-    ...(view.body ? ["", view.body] : []),
+    subject,
     "",
-    `${buttonLabel}: ${link}`,
+    greeting,
     "",
-    `${footerStart} account settings: ${settingsLink}`,
+    ...copy.blocks.flatMap((block) => [blockText(block), ""]),
+    `${copy.button}: ${link}`,
+    "",
+    ...SIGN_OFF,
+    "",
+    "--",
+    `Follow Pitchype: ${SOCIAL_PROFILES.map((profile) => `${profile.label} ${profile.url}`).join(" | ")}`,
+    `Questions? Write to us at ${CONTACT_EMAIL}.`,
+    `${preferenceLine} account settings: ${settingsLink}`,
     "",
   ].join("\n");
 

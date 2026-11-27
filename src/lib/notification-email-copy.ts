@@ -79,7 +79,10 @@ export function emailText(copy: EmailCopy): string {
  * The email for a notification, or null for a kind this version of the app
  * doesn't know (the bell leaves those out too).
  */
-export function describeEmail(n: NotificationRow, role: Role): EmailCopy | null {
+export function describeEmail(
+  n: NotificationRow,
+  role: Role,
+): EmailCopy | null {
   const view = describeNotification(n, role);
   if (!view) return null;
   const copy = emailCopy(n, role);
@@ -125,8 +128,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `New applicant: ${name} wants in on ${quoted}`,
         blocks: [
-          p(`Someone’s raised their hand. ${name} has applied to ${quoted} and is waiting to hear from you.`),
-          p("Have a look at their profile, their price and their note. If they’re a fit, shortlist them, message them or hire them straight away."),
+          p(
+            `Someone’s raised their hand. ${name} has applied to ${quoted} and is waiting to hear from you.`,
+          ),
+          p(
+            "Have a look at their profile, their price and their note. If they’re a fit, shortlist them, message them or hire them straight away.",
+          ),
           list("When you hire", [
             "You have 48 hours to pay.",
             "Your payment is held in escrow, not sent to them, until the work is done.",
@@ -138,8 +145,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `${name} updated their application to ${quoted}`,
         blocks: [
-          p(`${name} has changed their price or note on ${quoted}. Worth a fresh look before you decide.`),
-          p("You always hire at the price you saw. If it changes while you’re looking, we’ll ask you to check it again."),
+          p(
+            `${name} has changed their price or note on ${quoted}. Worth a fresh look before you decide.`,
+          ),
+          p(
+            "You always hire at the price you saw. If it changes while you’re looking, we’ll ask you to check it again.",
+          ),
         ],
         button: "See the application",
       };
@@ -147,8 +158,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `${name} withdrew from ${quoted}`,
         blocks: [
-          p(`${name} has withdrawn their application to ${quoted}, so they’re out of the running this time.`),
-          p("Nothing was paid, so there’s nothing to sort out. Your other applicants are right where you left them."),
+          p(
+            `${name} has withdrawn their application to ${quoted}, so they’re out of the running this time.`,
+          ),
+          p(
+            "Nothing was paid, so there’s nothing to sort out. Your other applicants are right where you left them.",
+          ),
         ],
         button: "See applicants",
       };
@@ -156,8 +171,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `You’re on the shortlist for ${theirs}`,
         blocks: [
-          p(`Nice one. ${name} has shortlisted you for ${theirs}, so you’ve caught their eye.`),
-          p("There’s nothing to do just yet. They may message you with questions, so keep an eye on your inbox, and make sure your profile shows your best work."),
+          p(
+            `Nice one. ${name} has shortlisted you for ${theirs}, so you’ve caught their eye.`,
+          ),
+          p(
+            "There’s nothing to do just yet. They may message you with questions, so keep an eye on your inbox, and make sure your profile shows your best work.",
+          ),
         ],
         button: "See the campaign",
       };
@@ -166,13 +185,17 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
         subject: `You’re hired! ${name} picked you for ${theirs}`,
         blocks: [
           p(`Good news: ${name} wants you on ${theirs}.`),
-          p("They have 48 hours to pay. When they do, the money is held safely in escrow and we’ll email you that it’s time to start."),
+          p(
+            "They have 48 hours to pay. When they do, the money is held safely in escrow and we’ll email you that it’s time to start.",
+          ),
           list("What happens next", [
             `${name} pays within 48 hours.`,
             "We tell you the money is held, and you press Start work.",
             "You deliver, they review, and you get paid.",
           ]),
-          p("One rule: don’t start before they’ve paid. Escrow is what protects you."),
+          p(
+            "One rule: don’t start before they’ve paid. Escrow is what protects you.",
+          ),
         ],
         button: "See the job",
       };
@@ -180,9 +203,13 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `An update on your application to ${theirs}`,
         blocks: [
-          p(`${name} has decided not to go ahead with your application to ${theirs} this time.`),
+          p(
+            `${name} has decided not to go ahead with your application to ${theirs} this time.`,
+          ),
           ...quote("Their note", note),
-          p("It happens to everyone, and it’s rarely about talent: budget, timing and fit all play a part. There are more campaigns waiting for you."),
+          p(
+            "It happens to everyone, and it’s rarely about talent: budget, timing and fit all play a part. There are more campaigns waiting for you.",
+          ),
         ],
         button: "See the campaign",
       };
@@ -190,8 +217,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `${name} cancelled your hire for ${theirs}`,
         blocks: [
-          p(`${name} has cancelled your hire for ${theirs} before paying for it.`),
-          p("Because nothing was paid, no work was due and nothing is owed either way. It’s exactly why we ask you to wait for payment before you start."),
+          p(
+            `${name} has cancelled your hire for ${theirs} before paying for it.`,
+          ),
+          p(
+            "Because nothing was paid, no work was due and nothing is owed either way. It’s exactly why we ask you to wait for payment before you start.",
+          ),
         ],
         button: "See the campaign",
       };
@@ -200,16 +231,24 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
         ? {
             subject: `Your hire of ${name} for ${quoted} lapsed`,
             blocks: [
-              p(`You hired ${name} for ${quoted}, but it wasn’t paid within 48 hours, so the hire lapsed and the place is open again.`),
-              p(`Still keen? If ${name} applies again you can hire them again, or pick someone else from your applicants.`),
+              p(
+                `You hired ${name} for ${quoted}, but it wasn’t paid within 48 hours, so the hire lapsed and the place is open again.`,
+              ),
+              p(
+                `Still keen? If ${name} applies again you can hire them again, or pick someone else from your applicants.`,
+              ),
             ],
             button: "Open the hire",
           }
         : {
             subject: `${name}’s hire for ${theirs} lapsed`,
             blocks: [
-              p(`${name} didn’t pay for ${theirs} within 48 hours, so the hire has lapsed. No work is due.`),
-              p("Still interested? You can apply again from the campaign page, and they can hire you again."),
+              p(
+                `${name} didn’t pay for ${theirs} within 48 hours, so the hire has lapsed. No work is due.`,
+              ),
+              p(
+                "Still interested? You can apply again from the campaign page, and they can hire you again.",
+              ),
             ],
             button: "See the campaign",
           };
@@ -219,7 +258,9 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `You’re good to go: ${name} paid for ${theirs}`,
         blocks: [
-          p(`The payment for ${theirs} is in and held safely in escrow. This is your green light.`),
+          p(
+            `The payment for ${theirs} is in and held safely in escrow. This is your green light.`,
+          ),
           list("What happens next", [
             "Read the brief once more and press Start work, so they know you’re on it.",
             "Deliver what was agreed, on time.",
@@ -232,8 +273,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `${name} has started on ${quoted}`,
         blocks: [
-          p(`${name} pressed Start work on ${quoted}. The job is officially under way.`),
-          p("Your payment stays in escrow while they work. Got notes or questions? Message them from the hire page."),
+          p(
+            `${name} pressed Start work on ${quoted}. The job is officially under way.`,
+          ),
+          p(
+            "Your payment stays in escrow while they work. Got notes or questions? Message them from the hire page.",
+          ),
         ],
         button: "See the hire",
       };
@@ -242,16 +287,24 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
         ? {
             subject: `${name} withdrew from ${quoted}`,
             blocks: [
-              p(`${name} has withdrawn from your paid hire for ${quoted} before starting work.`),
-              p("The money has gone back to your Pitchype wallet, and it’s used first the next time you pay for a hire. Your applicants are still there if you’d like to hire someone else."),
+              p(
+                `${name} has withdrawn from your paid hire for ${quoted} before starting work.`,
+              ),
+              p(
+                "The money has gone back to your Pitchype wallet, and it’s used first the next time you pay for a hire. Your applicants are still there if you’d like to hire someone else.",
+              ),
             ],
             button: "See the hire",
           }
         : {
             subject: `${name} cancelled your hire for ${theirs}`,
             blocks: [
-              p(`${name} cancelled your paid hire for ${theirs} before you started work.`),
-              p("Since you hadn’t started, nothing is due from you and there’s nothing to settle on your side."),
+              p(
+                `${name} cancelled your paid hire for ${theirs} before you started work.`,
+              ),
+              p(
+                "Since you hadn’t started, nothing is due from you and there’s nothing to settle on your side.",
+              ),
             ],
             button: "See the job",
           };
@@ -259,7 +312,9 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `${name} sent in their work for ${quoted}`,
         blocks: [
-          p(`${name} has sent in their work for ${quoted}, with proof for you to check.`),
+          p(
+            `${name} has sent in their work for ${quoted}, with proof for you to check.`,
+          ),
           p(reviewBody(d.review_deadline_at)),
           list("Your options", [
             "Happy with it? Accept, and the payment is released to them.",
@@ -271,7 +326,9 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       };
     case "submission_denied": {
       const reasons = Array.isArray(d.reasons)
-        ? d.reasons.filter((r): r is string => typeof r === "string" && r.trim() !== "")
+        ? d.reasons.filter(
+            (r): r is string => typeof r === "string" && r.trim() !== "",
+          )
         : [];
       const left = typeof d.rounds_left === "number" ? d.rounds_left : null;
       const next =
@@ -301,7 +358,9 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `${left} to review ${name}’s work for ${quoted}`,
         blocks: [
-          p(`A quick nudge: ${name}’s work for ${quoted} is still waiting for your review.`),
+          p(
+            `A quick nudge: ${name}’s work for ${quoted} is still waiting for your review.`,
+          ),
           p(reviewBody(d.review_deadline_at)),
           p("Accept it if you’re happy, or send it back with your reasons."),
         ],
@@ -314,8 +373,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `${name} opened a dispute about ${which}`,
         blocks: [
-          p(`${name} has opened a dispute about ${which}. Nothing is settled while it’s open: the payment stays in escrow.`),
-          p("Please give your side within 3 days. Stick to the facts: what was agreed, what was delivered, and when."),
+          p(
+            `${name} has opened a dispute about ${which}. Nothing is settled while it’s open: the payment stays in escrow.`,
+          ),
+          p(
+            "Please give your side within 3 days. Stick to the facts: what was agreed, what was delivered, and when.",
+          ),
           list("What happens next", [
             `You and ${them} each add your side on the dispute page.`,
             "An admin reviews everything, usually within 5 working days.",
@@ -329,7 +392,9 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
         subject: `${name} added to the dispute about ${which}`,
         blocks: [
           p(`${name} has added a new statement to the dispute about ${which}.`),
-          p("Have a read, and reply if there’s anything you want the admin to know. The payment stays in escrow until an admin decides."),
+          p(
+            "Have a read, and reply if there’s anything you want the admin to know. The payment stays in escrow until an admin decides.",
+          ),
         ],
         button: "Read their statement",
       };
@@ -338,7 +403,9 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
         subject: `${name} withdrew their dispute about ${which}`,
         blocks: [
           p(`${name} has withdrawn the dispute about ${which}.`),
-          p("The hire is back where it was before the dispute, so you can pick up from there."),
+          p(
+            "The hire is back where it was before the dispute, so you can pick up from there.",
+          ),
         ],
         button: "See the hire",
       };
@@ -351,7 +418,9 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
         subject: `Your ${payoutAmount(d)}payout is on its way`,
         blocks: [
           p(payoutSentBody(d)),
-          p(`It usually lands within minutes. If you don’t see it within 24 hours, write to us at ${CONTACT_EMAIL} and we’ll chase it.`),
+          p(
+            `It usually lands within minutes. If you don’t see it within 24 hours, write to us at ${CONTACT_EMAIL} and we’ll chase it.`,
+          ),
           p("Thanks for doing great work on Pitchype."),
         ],
         button: "See your wallet",
@@ -360,8 +429,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `Your ${payoutAmount(d)}payout didn’t go through`,
         blocks: [
-          p("Your bank transfer didn’t go through, so the money is back in your Pitchype wallet. Nothing is lost."),
-          p("This usually comes down to the bank details. Check the account on your wallet page, then ask for the payout again."),
+          p(
+            "Your bank transfer didn’t go through, so the money is back in your Pitchype wallet. Nothing is lost.",
+          ),
+          p(
+            "This usually comes down to the bank details. Check the account on your wallet page, then ask for the payout again.",
+          ),
         ],
         button: "See your wallet",
       };
@@ -369,9 +442,13 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `We couldn’t approve your ${payoutAmount(d)}payout`,
         blocks: [
-          p("We’ve reviewed your payout request and couldn’t approve it this time. The money is back in your Pitchype wallet."),
+          p(
+            "We’ve reviewed your payout request and couldn’t approve it this time. The money is back in your Pitchype wallet.",
+          ),
           ...quote("Why", text(d.decision_reason)),
-          p(`If something doesn’t look right, write to us at ${CONTACT_EMAIL} and we’ll take another look.`),
+          p(
+            `If something doesn’t look right, write to us at ${CONTACT_EMAIL} and we’ll take another look.`,
+          ),
         ],
         button: "See your wallet",
       };
@@ -381,7 +458,9 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
         return {
           subject: `${amount === null ? "The extra you paid" : `The extra ${formatNaira(amount)} you paid`} is in your Pitchype wallet`,
           blocks: [
-            p("Your hire is paid. Paystack collected a little more than the hire cost, so we kept only what was due and put the extra in your Pitchype wallet."),
+            p(
+              "Your hire is paid. Paystack collected a little more than the hire cost, so we kept only what was due and put the extra in your Pitchype wallet.",
+            ),
             p("It’s used first the next time you pay for a hire."),
           ],
           button: "See your wallet",
@@ -390,9 +469,15 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: "Your payment arrived, but the hire couldn’t start",
         blocks: [
-          p(`Your payment${amount === null ? "" : ` of ${formatNaira(amount)}`} came through, but by then the hire could no longer be paid for. It may have lapsed, been cancelled, or been paid another way.`),
-          p("The money is safe in your Pitchype wallet, and it’s used first the next time you pay for a hire."),
-          p(`Would you rather have it back? Write to us at ${CONTACT_EMAIL} and we’ll sort it out.`),
+          p(
+            `Your payment${amount === null ? "" : ` of ${formatNaira(amount)}`} came through, but by then the hire could no longer be paid for. It may have lapsed, been cancelled, or been paid another way.`,
+          ),
+          p(
+            "The money is safe in your Pitchype wallet, and it’s used first the next time you pay for a hire.",
+          ),
+          p(
+            `Would you rather have it back? Write to us at ${CONTACT_EMAIL} and we’ll sort it out.`,
+          ),
         ],
         button: "See your wallet",
       };
@@ -403,7 +488,9 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `${name} kicked off ${quoted}`,
         blocks: [
-          p(`${name} has confirmed the kickoff for ${quoted}: they’ve read the brief and they’re on it.`),
+          p(
+            `${name} has confirmed the kickoff for ${quoted}: they’ve read the brief and they’re on it.`,
+          ),
           p("You’ll hear from us when they send progress along the way."),
         ],
         button: "See the hire",
@@ -413,8 +500,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `Progress update from ${name} on ${quoted}`,
         blocks: [
-          p(`${name} has sent in a progress checkpoint for ${quoted}${due ? `, due on ${formatDay(due)}` : ""}.`),
-          p("Take a look at what they’ve shared. Checkpoints are a record, not a sign-off, so there’s nothing to approve. If something worries you, message them."),
+          p(
+            `${name} has sent in a progress checkpoint for ${quoted}${due ? `, due on ${formatDay(due)}` : ""}.`,
+          ),
+          p(
+            "Take a look at what they’ve shared. Checkpoints are a record, not a sign-off, so there’s nothing to approve. If something worries you, message them.",
+          ),
         ],
         button: "See the update",
       };
@@ -426,8 +517,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
           ? `${name} confirmed the kickoff for ${quoted}, a little late`
           : `${name} sent a late progress checkpoint for ${quoted}`,
         blocks: [
-          p(`${name} has ${kickoff ? "confirmed the kickoff" : "sent a progress checkpoint"} for ${quoted}, after it was due${due ? ` on ${formatDay(due)}` : ""}.`),
-          p("It’s recorded as late on the hire. No money is held back because of a missed checkpoint, and the work carries on as agreed."),
+          p(
+            `${name} has ${kickoff ? "confirmed the kickoff" : "sent a progress checkpoint"} for ${quoted}, after it was due${due ? ` on ${formatDay(due)}` : ""}.`,
+          ),
+          p(
+            "It’s recorded as late on the hire. No money is held back because of a missed checkpoint, and the work carries on as agreed.",
+          ),
         ],
         button: "See the update",
       };
@@ -438,11 +533,17 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `${cap(thing)} for ${theirs} is due soon`,
         blocks: [
-          p(`A friendly heads-up: ${thing} for ${theirs} is due ${due ? `by ${formatDateTime(due)} (Lagos time)` : "today"}.`),
-          p(kickoff
-            ? "The kickoff tells the business you’ve read the brief and started. It takes a minute."
-            : "Share where things stand, with the evidence the campaign asks for."),
-          p("Running behind? Send it anyway. Late is still accepted and recorded as late."),
+          p(
+            `A friendly heads-up: ${thing} for ${theirs} is due ${due ? `by ${formatDateTime(due)} (Lagos time)` : "today"}.`,
+          ),
+          p(
+            kickoff
+              ? "The kickoff tells the business you’ve read the brief and started. It takes a minute."
+              : "Share where things stand, with the evidence the campaign asks for.",
+          ),
+          p(
+            "Running behind? Send it anyway. Late is still accepted and recorded as late.",
+          ),
         ],
         button: kickoff ? "Confirm the kickoff" : "Send your checkpoint",
       };
@@ -452,8 +553,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
         ? {
             subject: `${name}’s ${what} for ${quoted} is overdue`,
             blocks: [
-              p(`${name}’s ${what} for ${quoted} hasn’t come in yet, and it’s now overdue.`),
-              p("We’ve reminded them, and a quick message from you can help too. If it stays missing, you’ll be able to open a dispute."),
+              p(
+                `${name}’s ${what} for ${quoted} hasn’t come in yet, and it’s now overdue.`,
+              ),
+              p(
+                "We’ve reminded them, and a quick message from you can help too. If it stays missing, you’ll be able to open a dispute.",
+              ),
             ],
             button: "See the hire",
           }
@@ -461,8 +566,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
             subject: `Your ${what} for ${theirs} is overdue`,
             blocks: [
               p(`Your ${what} for ${theirs} was due and hasn’t come in yet.`),
-              p("Send it as soon as you can: it’s still accepted and recorded as late. No money is held back because of a missed checkpoint."),
-              p("If something’s holding you up, tell the business in chat. A short update keeps everyone calm."),
+              p(
+                "Send it as soon as you can: it’s still accepted and recorded as late. No money is held back because of a missed checkpoint.",
+              ),
+              p(
+                "If something’s holding you up, tell the business in chat. A short update keeps everyone calm.",
+              ),
             ],
             button: "Send it now",
           };
@@ -472,7 +581,9 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
         subject: `Still missing: your ${what} for ${theirs}`,
         blocks: [
           p(`Your ${what} for ${theirs} is still missing.`),
-          p(`${from ? `From ${formatDateTime(from)}` : "Soon"}, the business can open a dispute about missing work. Sending it now, even late, closes that door.`),
+          p(
+            `${from ? `From ${formatDateTime(from)}` : "Soon"}, the business can open a dispute about missing work. Sending it now, even late, closes that door.`,
+          ),
           p("No money is held back because of a missed checkpoint."),
         ],
         button: "Send it now",
@@ -482,8 +593,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `You can now open a dispute on ${quoted}`,
         blocks: [
-          p(`${name}’s ${what} for ${quoted} is more than 3 days overdue, and we’ve warned them.`),
-          p("If you’d like an admin to step in, you can now open a dispute about missing work. You don’t have to: you can wait or message them first. If they send it in, the option closes again."),
+          p(
+            `${name}’s ${what} for ${quoted} is more than 3 days overdue, and we’ve warned them.`,
+          ),
+          p(
+            "If you’d like an admin to step in, you can now open a dispute about missing work. You don’t have to: you can wait or message them first. If they send it in, the option closes again.",
+          ),
           list("If you open one", [
             "You both give your side.",
             "An admin reviews and decides, usually within 5 working days.",
@@ -500,9 +615,15 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `Your link for ${theirs} hit its limit`,
         blocks: [
-          p(`Your tracked link for ${theirs} has reached ${capCount === null ? "its limit" : plural(capCount, "click", "clicks")}. That’s the most this job pays${earned === null ? "" : `: ${formatNaira(earned)} before our fee`}.`),
-          p("Your link still works, so nobody hits a dead end, but more clicks won’t count."),
-          p("You’re paid after the click window closes and a 3-day hold, less our fee. Nice work."),
+          p(
+            `Your tracked link for ${theirs} has reached ${capCount === null ? "its limit" : plural(capCount, "click", "clicks")}. That’s the most this job pays${earned === null ? "" : `: ${formatNaira(earned)} before our fee`}.`,
+          ),
+          p(
+            "Your link still works, so nobody hits a dead end, but more clicks won’t count.",
+          ),
+          p(
+            "You’re paid after the click window closes and a 3-day hold, less our fee. Nice work.",
+          ),
         ],
         button: "See the job",
       };
@@ -512,8 +633,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `${name} withdrew from ${quoted}`,
         blocks: [
-          p(`${name} has withdrawn from ${quoted}, so their link has stopped counting clicks.`),
-          p(`They’re paid for the clicks counted so far when this settles${settles ? ` on ${formatDateTime(settles)}` : ""}. The rest comes back to your wallet.`),
+          p(
+            `${name} has withdrawn from ${quoted}, so their link has stopped counting clicks.`,
+          ),
+          p(
+            `They’re paid for the clicks counted so far when this settles${settles ? ` on ${formatDateTime(settles)}` : ""}. The rest comes back to your wallet.`,
+          ),
         ],
         button: "See the hire",
       };
@@ -526,14 +651,20 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       const counted =
         billable === null
           ? []
-          : [p(`${plural(billable, "click", "clicks")} counted${earned === null ? "" : `, worth ${formatNaira(earned)}`}.`)];
+          : [
+              p(
+                `${plural(billable, "click", "clicks")} counted${earned === null ? "" : `, worth ${formatNaira(earned)}`}.`,
+              ),
+            ];
       return business
         ? {
             subject: `The clicks are in for ${quoted}`,
             blocks: [
               p(`The click window for ${quoted} has closed.`),
               ...counted,
-              p(`It settles on ${when}: the creator is paid for the counted clicks, and any unspent budget comes back to your wallet.`),
+              p(
+                `It settles on ${when}: the creator is paid for the counted clicks, and any unspent budget comes back to your wallet.`,
+              ),
               p("If something looks wrong, open a dispute before then."),
             ],
             button: "See the results",
@@ -555,9 +686,11 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
         subject: "You’re verified",
         blocks: [
           p("Your identity is confirmed. Thanks for taking the time."),
-          p(business
-            ? "You can publish campaigns and hire creators, and creators know they’re working with a real business."
-            : "You can apply to campaigns and request payouts, and businesses know they’re working with a real person."),
+          p(
+            business
+              ? "You can publish campaigns and hire creators, and creators know they’re working with a real business."
+              : "You can apply to campaigns and request payouts, and businesses know they’re working with a real person.",
+          ),
         ],
         button: "See your account",
       };
@@ -565,8 +698,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: "We’re taking a closer look",
         blocks: [
-          p("Thanks for completing your identity check. Someone on our team needs to take a closer look before we can confirm it."),
-          p("This usually takes 1–2 working days. There’s nothing you need to do right now; we’ll email you as soon as it’s done."),
+          p(
+            "Thanks for completing your identity check. Someone on our team needs to take a closer look before we can confirm it.",
+          ),
+          p(
+            "This usually takes 1–2 working days. There’s nothing you need to do right now; we’ll email you as soon as it’s done.",
+          ),
         ],
         button: "See your account",
       };
@@ -586,11 +723,15 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: "You asked, we built it",
         blocks: [
-          p(request
-            ? `Remember your request ${number}“${request}”? It’s live now.`
-            : "Something you asked for is live now."),
+          p(
+            request
+              ? `Remember your request ${number}“${request}”? It’s live now.`
+              : "Something you asked for is live now.",
+          ),
           ...quote("From the team", note),
-          p("Thanks for taking the time to tell us. Ideas like yours shape what we build next."),
+          p(
+            "Thanks for taking the time to tell us. Ideas like yours shape what we build next.",
+          ),
         ],
         button: "See your requests",
       };
@@ -600,11 +741,18 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
     case "new_message": {
       const count = typeof d.count === "number" && d.count > 1 ? d.count : 1;
       return {
-        subject: count > 1 ? `${count} new messages from ${name}` : `${name} sent you a message`,
+        subject:
+          count > 1
+            ? `${count} new messages from ${name}`
+            : `${name} sent you a message`,
         blocks: [
-          p(`You have ${count > 1 ? `${count} unread messages` : "an unread message"} from ${name}.`),
+          p(
+            `You have ${count > 1 ? `${count} unread messages` : "an unread message"} from ${name}.`,
+          ),
           ...quote(count > 1 ? "Latest message" : "Message", text(d.preview)),
-          p("Reply on Pitchype so your conversation, and any deal you agree, stays protected by escrow."),
+          p(
+            "Reply on Pitchype so your conversation, and any deal you agree, stays protected by escrow.",
+          ),
         ],
         button: "Reply",
       };
@@ -615,8 +763,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `${cap(quoted)} is live`,
         blocks: [
-          p(`${cap(quoted)} is approved and open. Creators can find it and apply from now on.`),
-          p("We’ll let you know as applications come in. Want a head start? Browse creators and message the ones you like."),
+          p(
+            `${cap(quoted)} is approved and open. Creators can find it and apply from now on.`,
+          ),
+          p(
+            "We’ll let you know as applications come in. Want a head start? Browse creators and message the ones you like.",
+          ),
         ],
         button: "See your campaign",
       };
@@ -624,7 +776,9 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `${cap(quoted)} needs a few changes`,
         blocks: [
-          p(`Thanks for submitting ${quoted}. Before it goes live, our reviewer needs a few changes.`),
+          p(
+            `Thanks for submitting ${quoted}. Before it goes live, our reviewer needs a few changes.`,
+          ),
           ...quote("What to change", note),
           p("Make the edits and submit it again, and we’ll take another look."),
         ],
@@ -634,7 +788,9 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `We took down ${quoted}`,
         blocks: [
-          p(`We’ve taken down ${quoted}, so creators can no longer see it or apply.`),
+          p(
+            `We’ve taken down ${quoted}, so creators can no longer see it or apply.`,
+          ),
           ...quote("Why", note),
           p(`If you think we got this wrong, write to us at ${CONTACT_EMAIL}.`),
         ],
@@ -647,8 +803,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `Your ${platform} account is verified`,
         blocks: [
-          p(`Your ${platform} account now shows as Verified on your profile, with the follower count we confirmed.`),
-          p("Some campaigns are open only to verified creators, so this opens more doors."),
+          p(
+            `Your ${platform} account now shows as Verified on your profile, with the follower count we confirmed.`,
+          ),
+          p(
+            "Some campaigns are open only to verified creators, so this opens more doors.",
+          ),
         ],
         button: "See your profile",
       };
@@ -658,8 +818,12 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: `We couldn’t verify your ${platform} account`,
         blocks: [
-          p(`We checked your ${platform} account but couldn’t confirm it this time.`),
-          p("The usual reason is the code: it needs to be in your bio, exactly as shown, when we look. Add it, then ask for verification again from your profile."),
+          p(
+            `We checked your ${platform} account but couldn’t confirm it this time.`,
+          ),
+          p(
+            "The usual reason is the code: it needs to be in your bio, exactly as shown, when we look. Add it, then ask for verification again from your profile.",
+          ),
         ],
         button: "Try again",
       };
@@ -668,9 +832,13 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: "Your profile is hidden from the directory",
         blocks: [
-          p("We’ve hidden your profile from the creator directory, so businesses can’t find it there for now."),
+          p(
+            "We’ve hidden your profile from the creator directory, so businesses can’t find it there for now.",
+          ),
           ...quote("Why", note),
-          p("Anything already agreed carries on: running jobs, money in escrow and payouts aren’t affected."),
+          p(
+            "Anything already agreed carries on: running jobs, money in escrow and payouts aren’t affected.",
+          ),
           p(`If you think this is a mistake, write to us at ${CONTACT_EMAIL}.`),
         ],
         button: "See your profile",
@@ -680,11 +848,15 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: "We took down one of your work samples",
         blocks: [
-          p(caption
-            ? `We’ve taken down your work sample “${caption}”, so it no longer shows on your profile.`
-            : "We’ve taken down one of your work samples, so it no longer shows on your profile."),
+          p(
+            caption
+              ? `We’ve taken down your work sample “${caption}”, so it no longer shows on your profile.`
+              : "We’ve taken down one of your work samples, so it no longer shows on your profile.",
+          ),
           ...quote("Why", note),
-          p("The rest of your profile is unchanged, and you can add another sample in its place."),
+          p(
+            "The rest of your profile is unchanged, and you can add another sample in its place.",
+          ),
         ],
         button: "See your samples",
       };
@@ -703,7 +875,9 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: "You’re back in the directory",
         blocks: [
-          p("Good news: your profile is visible in the creator directory again, so businesses can find you."),
+          p(
+            "Good news: your profile is visible in the creator directory again, so businesses can find you.",
+          ),
           p("Now’s a good time to freshen up your samples and rates."),
         ],
         button: "See your profile",
@@ -712,7 +886,9 @@ function emailCopy(n: NotificationRow, role: Role): Draft | null {
       return {
         subject: "We’ve answered your appeal",
         blocks: [
-          p("We’ve reviewed your appeal and left our answer on your account’s standing page."),
+          p(
+            "We’ve reviewed your appeal and left our answer on your account’s standing page.",
+          ),
           p("Have a read when you get a moment."),
         ],
         button: "Read our answer",
@@ -737,27 +913,39 @@ function settledCopy(
 
   if (role === "business") {
     // The creator withdrew after starting: told as a withdrawal (see the bell).
-    if (d.status === "refunded" && d.outcome === "refund_creator_fault" && by === "influencer") {
+    if (
+      d.status === "refunded" &&
+      d.outcome === "refund_creator_fault" &&
+      by === "influencer"
+    ) {
       return {
         subject: `${name} withdrew from ${which}`,
         blocks: [
           p(`${name} has withdrawn from ${which} after starting the work.`),
           ...moneyBlock,
-          p("Your applicants are still there if you’d like to hire someone else."),
+          p(
+            "Your applicants are still there if you’d like to hire someone else.",
+          ),
         ],
         button: "See the hire",
       };
     }
     return {
-      subject: autoReleased ? `${cap(which)} was released automatically` : `${cap(which)} is settled`,
+      subject: autoReleased
+        ? `${cap(which)} was released automatically`
+        : `${cap(which)} is settled`,
       blocks: [
-        p(autoReleased
-          ? `The 7-day review window for ${name}’s work on ${which} closed without an answer, so the payment was released to them automatically.`
-          : by === "admin"
-            ? `An admin has settled ${which}.`
-            : `${cap(which)} is settled.`),
+        p(
+          autoReleased
+            ? `The 7-day review window for ${name}’s work on ${which} closed without an answer, so the payment was released to them automatically.`
+            : by === "admin"
+              ? `An admin has settled ${which}.`
+              : `${cap(which)} is settled.`,
+        ),
         ...moneyBlock,
-        p("Thanks for hiring on Pitchype. When you’re ready for the next one, your creators are a click away."),
+        p(
+          "Thanks for hiring on Pitchype. When you’re ready for the next one, your creators are a click away.",
+        ),
       ],
       button: "See the hire",
     };
@@ -767,22 +955,30 @@ function settledCopy(
     return {
       subject: `${cap(which)} is settled`,
       blocks: [
-        p(by === "admin" ? `An admin has settled ${which}.` : `${cap(which)} is settled.`),
+        p(
+          by === "admin"
+            ? `An admin has settled ${which}.`
+            : `${cap(which)} is settled.`,
+        ),
         ...moneyBlock,
       ],
       button: "See the job",
     };
   }
   return {
-    subject: autoReleased ? `Paid! ${cap(which)} was released to you` : `You’ve been paid for ${which}`,
+    subject: autoReleased
+      ? `Paid! ${cap(which)} was released to you`
+      : `You’ve been paid for ${which}`,
     blocks: [
-      p(autoReleased
-        ? `The review window for ${which} closed without an answer, so the payment was released to you automatically.`
-        : by === "business"
-          ? `${name} accepted your work for ${which}. Nicely done.`
-          : by === "admin"
-            ? `An admin has settled ${which}.`
-            : `${cap(which)} is settled.`),
+      p(
+        autoReleased
+          ? `The review window for ${which} closed without an answer, so the payment was released to you automatically.`
+          : by === "business"
+            ? `${name} accepted your work for ${which}. Nicely done.`
+            : by === "admin"
+              ? `An admin has settled ${which}.`
+              : `${cap(which)} is settled.`,
+      ),
       ...moneyBlock,
       p("You can send it to your bank from your wallet whenever you’re ready."),
     ],

@@ -1,13 +1,20 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { describeEmail, emailText, type EmailCopy } from "./notification-email-copy.ts";
+import {
+  describeEmail,
+  emailText,
+  type EmailCopy,
+} from "./notification-email-copy.ts";
 import { EMAIL_POLICY } from "./notification-email.ts";
 import { describeNotification, type NotificationRow } from "./notifications.ts";
 
 const ROLES = ["business", "influencer"] as const;
 
-const row = (kind: string, data: Record<string, unknown> = {}): NotificationRow => ({
+const row = (
+  kind: string,
+  data: Record<string, unknown> = {},
+): NotificationRow => ({
   id: "n1",
   kind,
   data,
@@ -63,10 +70,20 @@ test("every emailed kind has its own copy for both sides, with or without facts"
         assert.ok(copy, `${kind}/${role} has copy`);
         assert.ok(copy.subject.trim() !== "", `${kind} subject`);
         assert.ok(copy.blocks.length > 0, `${kind} has a body`);
-        assert.notEqual(copy.button, "Open in Pitchype", `${kind} names its action`);
-        assert.ok(!/undefined|null|NaN|\[object/.test(all(copy)), `${kind}/${role}: ${all(copy)}`);
+        assert.notEqual(
+          copy.button,
+          "Open in Pitchype",
+          `${kind} names its action`,
+        );
+        assert.ok(
+          !/undefined|null|NaN|\[object/.test(all(copy)),
+          `${kind}/${role}: ${all(copy)}`,
+        );
         // The link is the bell's link: one place decides where a kind leads.
-        assert.equal(copy.href, describeNotification(row(kind, data), role)?.href);
+        assert.equal(
+          copy.href,
+          describeNotification(row(kind, data), role)?.href,
+        );
       }
     }
   }
@@ -83,7 +100,9 @@ test("the preview is the first paragraph on one line", () => {
 });
 
 test("hired: 48 hours to pay, and don't start before then", () => {
-  const text = all(describeEmail(row("application_hired", TYPICAL), "influencer")!);
+  const text = all(
+    describeEmail(row("application_hired", TYPICAL), "influencer")!,
+  );
   assert.match(text, /48 hours/);
   assert.match(text, /don’t start/i);
 });
@@ -102,21 +121,36 @@ test("a denial lists each reason and the resubmissions left", () => {
   const list = copy.blocks.find((b) => b.type === "list");
   assert.deepEqual(list?.type === "list" ? list.items : null, TYPICAL.reasons);
   assert.match(all(copy), /2 more times/);
-  const last = all(describeEmail(row("submission_denied", { ...TYPICAL, rounds_left: 0 }), "influencer")!);
+  const last = all(
+    describeEmail(
+      row("submission_denied", { ...TYPICAL, rounds_left: 0 }),
+      "influencer",
+    )!,
+  );
   assert.match(last, /used all your resubmissions/);
 });
 
 test("checkpoint emails never tie a missed checkpoint to money", () => {
-  for (const kind of ["checkpoint_late", "checkpoint_overdue", "checkpoint_warning", "checkpoint_reminder"]) {
+  for (const kind of [
+    "checkpoint_late",
+    "checkpoint_overdue",
+    "checkpoint_warning",
+    "checkpoint_reminder",
+  ]) {
     for (const role of ROLES) {
       const text = all(describeEmail(row(kind, TYPICAL), role)!);
-      assert.ok(!/forfeit|deduct|lose (your|the) (money|payment)|withheld/i.test(text), `${kind}/${role}`);
+      assert.ok(
+        !/forfeit|deduct|lose (your|the) (money|payment)|withheld/i.test(text),
+        `${kind}/${role}`,
+      );
     }
   }
 });
 
 test("identity review stays neutral", () => {
-  const text = all(describeEmail(row("identity_needs_review", TYPICAL), "influencer")!);
+  const text = all(
+    describeEmail(row("identity_needs_review", TYPICAL), "influencer")!,
+  );
   assert.ok(!/match/i.test(text));
   assert.match(text, /1–2 working days/);
 });
@@ -129,7 +163,14 @@ test("a creator's payment email shows the net and our fee, never the gross as th
 });
 
 test("a full refund to the business is not worded as the creator being paid", () => {
-  const data = { ...TYPICAL, released_kobo: 0, refunded_kobo: 5_000_000, status: "refunded", outcome: "refund", settled_by: "admin" };
+  const data = {
+    ...TYPICAL,
+    released_kobo: 0,
+    refunded_kobo: 5_000_000,
+    status: "refunded",
+    outcome: "refund",
+    settled_by: "admin",
+  };
   const creator = describeEmail(row("engagement_settled", data), "influencer")!;
   assert.ok(!/paid/i.test(creator.subject));
   const business = describeEmail(row("engagement_settled", data), "business")!;
@@ -137,25 +178,38 @@ test("a full refund to the business is not worded as the creator being paid", ()
 });
 
 test("admin notes and message previews are quoted with a label", () => {
-  const sentBack = describeEmail(row("campaign_sent_back", TYPICAL), "business")!;
+  const sentBack = describeEmail(
+    row("campaign_sent_back", TYPICAL),
+    "business",
+  )!;
   const quote = sentBack.blocks.find((b) => b.type === "quote");
   assert.equal(quote?.type === "quote" ? quote.text : null, TYPICAL.note);
   const message = describeEmail(row("new_message", TYPICAL), "business")!;
-  assert.ok(message.blocks.some((b) => b.type === "quote" && b.text === TYPICAL.preview));
+  assert.ok(
+    message.blocks.some(
+      (b) => b.type === "quote" && b.text === TYPICAL.preview,
+    ),
+  );
   // Without a note there is no empty quote.
   const bare = describeEmail(row("campaign_sent_back", {}), "business")!;
   assert.ok(!bare.blocks.some((b) => b.type === "quote"));
 });
 
 test("chat emails steer the deal back onto Pitchype", () => {
-  assert.match(all(describeEmail(row("new_message", TYPICAL), "influencer")!), /escrow/);
+  assert.match(
+    all(describeEmail(row("new_message", TYPICAL), "influencer")!),
+    /escrow/,
+  );
 });
 
 test("no emoji anywhere in the copy", () => {
   for (const kind of Object.keys(EMAIL_POLICY)) {
     for (const role of ROLES) {
       const text = all(describeEmail(row(kind, TYPICAL), role)!);
-      assert.ok(!/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u.test(text), kind);
+      assert.ok(
+        !/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u.test(text),
+        kind,
+      );
     }
   }
 });
